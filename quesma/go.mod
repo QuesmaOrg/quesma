@@ -19,11 +19,13 @@ require (
 	github.com/gorilla/sessions v1.4.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jackc/pgx/v5 v5.7.2
+	github.com/jeroenrinzema/psql-wire v0.12.1
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/knadh/koanf/parsers/json v0.1.0
 	github.com/knadh/koanf/parsers/yaml v0.1.0
 	github.com/knadh/koanf/providers/file v1.1.2
 	github.com/knadh/koanf/v2 v2.1.2
+	github.com/lib/pq v1.10.9
 	github.com/markbates/goth v1.80.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.33.0

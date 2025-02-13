@@ -7,8 +7,10 @@ package processors
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/QuesmaOrg/quesma/quesma/qpl_experiment"
 	"io"
 	"net"
+	"strings"
 
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
@@ -229,8 +231,22 @@ func maybeProcessComQuery(msg []byte) []byte {
 		query := string(msg[5:])
 		logger.Info().Msgf("Received query: %s", query)
 
-		// Potentially rewrite the query here:
-		// query = strings.Replace(query, "foo", "bar", -1)
+		// PipeSQL rewrite
+		{
+			parsedSql, err := qpl_experiment.ParseQPL(query)
+			if err != nil {
+				logger.Error().Msgf("error parsing query: %v", err)
+			} else {
+				if len(parsedSql) >= 1 {
+					if sqltvf, isSqltvf := parsedSql[0].(*qpl_experiment.SQLTVF); isSqltvf {
+						if !strings.Contains(sqltvf.Query, "select * from input") {
+							logger.Info().Msgf("Rewriting %s to %s", query, sqltvf.Query)
+							query = sqltvf.Query
+						}
+					}
+				}
+			}
+		}
 
 		// Serialize back:
 		msg = make([]byte, 4)
