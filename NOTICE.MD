@@ -2396,11 +2396,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/oauth2
-Version : v0.25.0
-Time    : 2025-01-04T02:44:49Z
+Version : v0.26.0
+Time    : 2025-01-29T22:42:25Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/oauth2@v0.25.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/oauth2@v0.26.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
