@@ -113,7 +113,7 @@ This section provides a list of issues and their solutions.
 
 #### Quesma eats all resources (CPU, memory)
 
-There is a profiling endpoint available at `http://localhost:9999/debug/pprof/`. It can be used to profile the Quesma.
+There is a profiling endpoint available at `http://localhost:9999/debug/pprof/`. It can be used to profile Quesma.
 
 1. Fetch a CPU and heap profile (it may take a few seconds)
 ```bash
