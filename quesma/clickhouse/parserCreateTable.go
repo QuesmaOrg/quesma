@@ -390,7 +390,7 @@ func ParseCreateTable(q string) (*Table, int) {
 	i3 := parseExact(q, i2, "ON CLUSTER ")
 	if i3 != -1 {
 		i3 = omitWhitespace(q, i3)
-		i4 := parseExact(q, i3, `"`)
+		i4, _ := parseMaybeAndForget(q, i3, `"`)
 		if i4 != -1 {
 			i3 = i4
 		}
@@ -400,7 +400,7 @@ func ParseCreateTable(q string) (*Table, int) {
 		}
 		t.ClusterName = ident
 		if i4 != -1 {
-			i4 = parseExact(q, i4, `"`)
+			i4, _ = parseMaybeAndForget(q, i4, `"`)
 			if i4 == -1 {
 				return &t, i3
 			}
