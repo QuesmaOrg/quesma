@@ -393,7 +393,7 @@ func ParseCreateTable(q string) (*Table, int) {
 		if i4 == -1 {
 			return &t, i3
 		}
-		t.Cluster = ident
+		t.ClusterName = ident
 		i2 = i4
 	}
 

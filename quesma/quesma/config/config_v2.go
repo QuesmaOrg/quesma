@@ -116,6 +116,7 @@ const DefaultWildcardIndexName = "*"
 type QuesmaProcessorConfig struct {
 	UseCommonTable bool           `koanf:"useCommonTable"`
 	IndexConfig    IndicesConfigs `koanf:"indexes"`
+	ClusterName    string         `koanf:"clusterName"` // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
 	// DefaultTargetConnectorType is used in V2 code only
 	DefaultTargetConnectorType string //it is not serialized to maintain configuration BWC, so it's basically just populated from '*' config in `config_v2.go`
 }
@@ -803,6 +804,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.DefaultIngestTarget = defaultConfig.IngestTarget
 		conf.DefaultQueryTarget = defaultConfig.QueryTarget
 		conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
+
+		// we're calling this here because we don't allow having one ingest-only pipeline.
+		conf.ClusterName = ingestProcessor.Config.ClusterName
 
 		// safe to call per validation earlier
 		if targts, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {

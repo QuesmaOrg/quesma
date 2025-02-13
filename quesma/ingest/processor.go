@@ -26,6 +26,7 @@ import (
 	"github.com/goccy/go-json"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -224,14 +225,18 @@ func Indexes(m SchemaMap) string {
 }
 
 func createTableQuery(name string, columns string, config *chLib.ChTableConfig) string {
-	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
+	var onClusterClause string
+	if config.ClusterName != "" {
+		onClusterClause = " ON CLUSTER " + strconv.Quote(config.ClusterName)
+	}
+	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" %s
 (
 
 %s
 )
 %s
 COMMENT 'created by Quesma'`,
-		name, columns,
+		name, onClusterClause, columns,
 		config.CreateTablePostFieldsString())
 	return createTableCmd
 }
@@ -337,11 +342,16 @@ func (ip *IngestProcessor) generateNewColumns(
 		metadata.Values[comment_metadata.ElasticFieldName] = propertyName
 		comment := metadata.Marshall()
 
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, attrKeys[i], columnType)
+		var maybeOnClusterClause string
+		if table.ClusterName != "" {
+			maybeOnClusterClause = " ON CLUSTER " + strconv.Quote(table.ClusterName)
+		}
+
+		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" %s ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, maybeOnClusterClause, attrKeys[i], columnType)
 		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
 		alterCmd = append(alterCmd, alterTable)
 
-		alterColumn := fmt.Sprintf("ALTER TABLE \"%s\" COMMENT COLUMN \"%s\" '%s'", table.Name, attrKeys[i], comment)
+		alterColumn := fmt.Sprintf("ALTER TABLE \"%s\" %s COMMENT COLUMN \"%s\" '%s'", table.Name, maybeOnClusterClause, attrKeys[i], comment)
 		alterCmd = append(alterCmd, alterColumn)
 
 		deleteIndexes = append(deleteIndexes, i)
@@ -632,7 +642,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	var tableConfig *chLib.ChTableConfig
 	var createTableCmd string
 	if table == nil {
-		tableConfig = NewOnlySchemaFieldsCHConfig()
+		tableConfig = NewOnlySchemaFieldsCHConfig(ip.cfg.ClusterName)
 		columnsFromJson := JsonToColumns(transformedJsons[0], tableConfig)
 
 		fieldOrigins := make(map[schema.FieldName]schema.FieldSource)
@@ -903,6 +913,7 @@ func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {
 	ip.tableDiscovery.TableDefinitions().
 		Range(func(name string, table *chLib.Table) bool {
 			if tableNamePattern.MatchString(name) {
+				table.ClusterName = ip.cfg.ClusterName // ugh - this is a hack
 				result = table
 				return false
 			}
@@ -996,13 +1007,14 @@ func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.Backend
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
 }
 
-func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {
+func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
 		HasTimestamp:                          true,
 		TimestampDefaultsNow:                  true,
 		Engine:                                "MergeTree",
 		OrderBy:                               "(" + `"@timestamp"` + ")",
 		PartitionBy:                           "",
+		ClusterName:                           clusterName,
 		PrimaryKey:                            "",
 		Ttl:                                   "",
 		Attributes:                            []chLib.Attribute{chLib.NewDefaultStringAttribute()},
@@ -1011,6 +1023,7 @@ func NewOnlySchemaFieldsCHConfig() *chLib.ChTableConfig {
 	}
 }
 
+// NewDefaultCHConfig is used only in tests
 func NewDefaultCHConfig() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
 		HasTimestamp:         true,
@@ -1031,6 +1044,7 @@ func NewDefaultCHConfig() *chLib.ChTableConfig {
 	}
 }
 
+// NewChTableConfigNoAttrs is used only in tests
 func NewChTableConfigNoAttrs() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
 		HasTimestamp:                          false,
@@ -1043,6 +1057,7 @@ func NewChTableConfigNoAttrs() *chLib.ChTableConfig {
 	}
 }
 
+// NewChTableConfigFourAttrs is used only in tests
 func NewChTableConfigFourAttrs() *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
 		HasTimestamp:         false,

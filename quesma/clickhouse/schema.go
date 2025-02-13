@@ -302,6 +302,7 @@ func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {
 	}
 }
 
+// NewEmptyTable is used only in tests
 func NewEmptyTable(tableName string) *Table {
 	return &Table{Name: tableName, Config: NewChTableConfigNoAttrs()}
 }
