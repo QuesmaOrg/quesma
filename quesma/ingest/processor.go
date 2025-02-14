@@ -913,7 +913,6 @@ func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {
 	ip.tableDiscovery.TableDefinitions().
 		Range(func(name string, table *chLib.Table) bool {
 			if tableNamePattern.MatchString(name) {
-				table.ClusterName = ip.cfg.ClusterName // ugh - this is a hack
 				result = table
 				return false
 			}
