@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-	"sync"
 )
 
 type (
@@ -72,7 +71,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	defer recovery.LogPanic()
 
 	maxBulkSize := len(bulk)
-	maybeLogBatchSize(maxBulkSize)
+	logger.DeduplicatedInfo().Msgf("Ingesting via _bulk API, batch size=%d lines", maxBulkSize)
 
 	// The returned results should be in the same order as the input request, however splitting the bulk might change the order.
 	// Therefore, each BulkRequestEntry has a corresponding pointer to the result entry, allowing us to freely split and reshuffle the bulk.
@@ -331,19 +330,5 @@ func sendToClickhouse(ctx context.Context, clickhouseBulkEntries map[string][]Bu
 				logger.Error().Msgf("unsupported bulk operation type: %s. Document: %v", document.operation, document.document)
 			}
 		}
-	}
-}
-
-// Global set to keep track of logged batch sizes
-var loggedBatchSizes = make(map[int]struct{})
-var mutex sync.Mutex
-
-// maybeLogBatchSize logs only unique batch sizes
-func maybeLogBatchSize(batchSize int) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	if _, alreadyLogged := loggedBatchSizes[batchSize]; !alreadyLogged {
-		logger.Info().Msgf("Ingesting via _bulk API, batch size=%d lines", batchSize)
-		loggedBatchSizes[batchSize] = struct{}{}
 	}
 }
