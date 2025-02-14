@@ -107,3 +107,37 @@ Telemetry data consists of:
   </details>
 * Quesma logs
 
+### Troubleshooting
+
+This section provides a list of issues and their solutions. 
+
+#### Quesma eats all resources (CPU, memory)
+
+There is a profiling endpoint available at `http://localhost:9999/debug/pprof/`. It can be used to profile Quesma.
+
+1. Fetch a CPU and heap profile (it may take a few seconds)
+```bash
+curl http://localhost:9999/debug/pprof/profile > profile.out
+```
+2. Fetch a heap profile
+```bash
+curl http://localhost:9999/debug/pprof/heap > heap.out
+```
+3. Send files to Quesma support for further analysis.
+
+
+If you want to analyze the profile locally, follow these steps:
+1. Make sure you have `GoLang` SDK installed
+2. Analyze the CPU profile
+```bash
+go tool pprof -http=:8082 profile.out
+```
+3. Analyze the heap 
+```bash
+go tool pprof -http=:8082 heap.out
+```
+
+
+
+
+

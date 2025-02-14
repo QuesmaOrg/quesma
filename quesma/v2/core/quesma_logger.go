@@ -14,14 +14,17 @@ import (
 )
 
 const (
-	RID                              = "request_id" // request id key for the logger
-	Reason                           = "reason"     // Known error reason key for the logger
-	Path                             = "path"
-	AsyncId                          = "async_id"
-	OpaqueId                         = "opaque_id"
-	ReasonPrefixUnsupportedQueryType = "unsupported_search_query: " // Reason for Error messages for unsupported queries will start with this prefix
+	RID      = "request_id" // request id key for the logger
+	Reason   = "reason"     // Known error reason key for the logger
+	Path     = "path"
+	AsyncId  = "async_id"
+	OpaqueId = "opaque_id"
 
-	DeduplicatedLogsCacheSize  = 1000
+	DefaultBurstSamplerPeriodSeconds    = 20  // burst up to 600 lines of logs per 20 seconds period
+	DefaultBurstSamplerMaxLogsPerSecond = 30  // ~100k lines of logs per hour
+	DefaultSheddingFrequency            = 100 // when the limit is exhausted, log every ~ 100 log lines
+
+  DeduplicatedLogsCacheSize  = 1000
 	DeduplicatedLogsExpiryTime = 1 * time.Minute
 )
 
@@ -179,6 +182,11 @@ func EmptyQuesmaLogger() QuesmaLogger {
 			TimeFormat: time.StampMilli,
 		}).
 		Level(zerolog.DebugLevel).
+		Sample(&zerolog.BurstSampler{
+			Burst:       DefaultBurstSamplerMaxLogsPerSecond * DefaultBurstSamplerPeriodSeconds,
+			Period:      DefaultBurstSamplerPeriodSeconds * time.Second,
+			NextSampler: zerolog.RandomSampler(DefaultSheddingFrequency),
+		}).
 		With().
 		Timestamp().
 		Logger())
