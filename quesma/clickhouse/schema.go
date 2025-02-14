@@ -191,6 +191,16 @@ func (t MultiValueType) CanConvert(v interface{}) bool {
 	return false // TODO for now. For sure can implement tuples easily, maybe some other too
 }
 
+func (t MultiValueType) GetColumn(name string) *Column {
+	// TODO: linear scan, but this will suffice for now (Tuples aren't typically large)
+	for _, col := range t.Cols {
+		if col.Name == name {
+			return col
+		}
+	}
+	return nil
+}
+
 func NewBaseType(clickHouseTypeName string) BaseType {
 	var GoType = ResolveType(clickHouseTypeName)
 	if GoType == nil {
@@ -255,6 +265,8 @@ func NewType(value any, valueOrigin string) (Type, error) {
 		} else {
 			return BaseType{Name: "Float64", GoType: reflect.TypeOf(float64(0))}, nil
 		}
+	case int:
+		return BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))}, nil
 	case bool:
 		return BaseType{Name: "Bool", GoType: reflect.TypeOf(true)}, nil
 	case map[string]interface{}:
