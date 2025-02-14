@@ -24,7 +24,7 @@ const (
 	DefaultBurstSamplerMaxLogsPerSecond = 30  // ~100k lines of logs per hour
 	DefaultSheddingFrequency            = 100 // when the limit is exhausted, log every ~ 100 log lines
 
-  DeduplicatedLogsCacheSize  = 1000
+	DeduplicatedLogsCacheSize  = 1000
 	DeduplicatedLogsExpiryTime = 1 * time.Minute
 )
 
