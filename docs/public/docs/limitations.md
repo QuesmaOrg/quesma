@@ -24,6 +24,7 @@ Quesma supports only ElasticSearch/Kibana 8.0 or above.
 
 ### ClickHouse limitations
 * When using a cluster deployment of ClickHouse, the tables automatically created by Quesma (during [Ingest](/ingest.md)) will use the `MergeTree` engine. If you wish to use the `ReplicatedMergeTree` engine instead, you will have to create the tables manually with  `ReplicatedMergeTree` engine before ingesting data to Quesma.
+  * Remember to configure `clusterName` in backend connector configuration to make sure that the tables are created on all nodes of the cluster. 
   * *Note: On ClickHouse Cloud, the tables automatically created by Quesma will use the `ReplicatedMergeTree` engine (ClickHouse Cloud default engine).* 
 
 ## Functional limitations

@@ -90,6 +90,7 @@ type RelationalDbConfiguration struct {
 	User          string `koanf:"user"`
 	Password      string `koanf:"password"`
 	Database      string `koanf:"database"`
+	ClusterName   string `koanf:"clusterName"` // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
 	AdminUrl      *Url   `koanf:"adminUrl"`
 	DisableTLS    bool   `koanf:"disableTLS"`
 }
@@ -116,7 +117,6 @@ const DefaultWildcardIndexName = "*"
 type QuesmaProcessorConfig struct {
 	UseCommonTable bool           `koanf:"useCommonTable"`
 	IndexConfig    IndicesConfigs `koanf:"indexes"`
-	ClusterName    string         `koanf:"clusterName"` // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
 	// DefaultTargetConnectorType is used in V2 code only
 	DefaultTargetConnectorType string //it is not serialized to maintain configuration BWC, so it's basically just populated from '*' config in `config_v2.go`
 }
@@ -806,7 +806,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
 
 		// we're calling this here because we don't allow having one ingest-only pipeline.
-		conf.ClusterName = ingestProcessor.Config.ClusterName
+		if relationalDBErr == nil && relDBConn != nil {
+			conf.ClusterName = relDBConn.ClusterName
+		}
 
 		// safe to call per validation earlier
 		if targts, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {

@@ -106,6 +106,7 @@ The supported configuration options for backend connectors (under `config`):
 * `user` - username for authentication
 * `password` - password for authentication 
 * `database` - name of the database to connect to. It is optional for ClickHouse, but strictly required for Hydrolix, where it is also referred as "project".
+* `clusterName` - name of the ClickHouse cluster (optional). This will be used in the `ON CLUSTER clusterName` clause when Quesma creates tables. Setting this option ensures that the created tables are present on all nodes of the distributed cluster.
 * `adminUrl` - URL for administrative operations to render a handy link in Quesma management UI (optional)
 * `disableTLS` - when set to true, disables TLS for the connection (optional)
 
