@@ -7,6 +7,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/model/metrics_aggregations"
 	"regexp"
 	"slices"
 	"strconv"
@@ -27,6 +28,8 @@ type metricsAggregation struct {
 	Order               string                  // Only for top_metrics
 	IsFieldNameCompound bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
 	sigma               float64                 // only for standard deviation
+	unit                string                  // only for rate
+	mode                string                  // only for rate
 }
 
 type aggregationParser = func(queryMap QueryMap) (model.QueryType, error)
@@ -155,6 +158,25 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			AggrType: "extended_stats",
 			Fields:   []model.Expr{cw.parseFieldField(extendedStats, "extended_stats")},
 			sigma:    sigma,
+		}, true
+	}
+
+	if rate, exists := queryMap["rate"]; exists {
+		if err := metrics_aggregations.CheckParamsRate(cw.Ctx, rate); err != nil {
+			logger.WarnWithCtx(cw.Ctx).Msgf("rate aggregation has invalid parameters: %v. Skipping.", rate)
+			return metricsAggregation{}, false
+		}
+		field := cw.parseFieldField(rate, "rate")
+		var fields []model.Expr
+		if field != nil {
+			fields = append(fields, field)
+		}
+		const defaultMode = "sum"
+		return metricsAggregation{
+			AggrType: "rate",
+			Fields:   fields,
+			unit:     cw.parseStringField(rate.(JsonMap), "unit", ""), // default doesn't matter, it's checked in CheckParamsRate, it will never be empty here
+			mode:     cw.parseStringField(rate.(JsonMap), "mode", defaultMode),
 		}, true
 	}
 
