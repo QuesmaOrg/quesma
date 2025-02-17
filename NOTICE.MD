@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.31.0
-Time    : 2025-02-10T21:54:19Z
+Version : v2.32.0
+Time    : 2025-02-14T21:39:42Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.31.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.32.0/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
@@ -5158,11 +5158,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/ch-go
-Version : v0.64.1
-Time    : 2025-02-01T12:10:01Z
+Version : v0.65.0
+Time    : 2025-02-14T18:52:58Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/ch-go@v0.64.1/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/ch-go@v0.65.0/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
                                  Apache License
@@ -12338,11 +12338,11 @@ either expressed or implied, of the FreeBSD Project.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/docker/docker
-Version : v27.4.1+incompatible
-Time    : 2024-12-17T12:50:31Z
+Version : v27.5.1+incompatible
+Time    : 2025-01-21T23:46:50Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.4.1+incompatible/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/docker/docker@v27.5.1+incompatible/LICENSE:
 
 
                                  Apache License
@@ -32163,11 +32163,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/sync
-Version : v0.10.0
-Time    : 2024-11-13T01:18:28Z
+Version : v0.11.0
+Time    : 2025-01-17T15:49:37Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/sync@v0.10.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/sync@v0.11.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
