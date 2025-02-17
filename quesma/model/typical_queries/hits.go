@@ -118,6 +118,7 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 }
 
 func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.QueryResultRow) {
+	fmt.Println("KK 1 add high", hit, resultRow)
 	toInterfaceArray := func(val interface{}) []interface{} {
 		v := reflect.ValueOf(val)
 		if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
@@ -148,14 +149,15 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 		// then we do postprocessing changing columns to public fields
 		// and then highlighter build json using public one
 		// which is incorrect
-		if query.highlighter.ShouldHighlight(util.FieldToColumnEncoder(columnName)) {
+		fmt.Println("KK col name", columnName, util.FieldToColumnEncoder(columnName), query.highlighter.ShouldHighlight(util.FieldToColumnEncoder(columnName)))
+		if query.highlighter.ShouldHighlight(columnName) {
 			// check if we have a string here and if so, highlight it
 			switch valueAsString := col.Value.(type) {
 			case string:
-				hit.Highlight[columnName] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), valueAsString)
+				hit.Highlight[columnName] = query.highlighter.HighlightValue(columnName, valueAsString)
 			case *string:
 				if valueAsString != nil {
-					hit.Highlight[columnName] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), *valueAsString)
+					hit.Highlight[columnName] = query.highlighter.HighlightValue(columnName, *valueAsString)
 				}
 			default:
 				logger.WarnWithCtx(query.ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)
