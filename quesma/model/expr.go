@@ -149,6 +149,15 @@ func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value, EscapeType: NormalNotEscaped}
 }
 
+type MillisecondsLiteral struct {
+	TimestampField ColumnRef
+	Value          int64
+}
+
+func NewMillisecondsLiteral(timestampField ColumnRef, value int64) LiteralExpr {
+	return NewLiteral(MillisecondsLiteral{Value: value, TimestampField: timestampField})
+}
+
 // NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
 func NewLiteralSingleQuoteString(value any) LiteralExpr {
 	switch v := value.(type) {

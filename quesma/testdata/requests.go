@@ -1053,7 +1053,7 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		[]string{
-			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705487298815) AND "@timestamp"<=fromUnixTimestamp64Milli(1705488198815)))`,
+			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=__quesma_from_unix_timestamp_ms(1705487298815) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1705488198815)))`,
 		},
 		model.ListAllFields,
 		[]string{
@@ -1490,15 +1490,6 @@ var TestsSearch = []SearchTestCase{
 							"query": "user",
 							"lenient": true
 						  }
-						},
-						{
-						  "range": {
-							"@timestamp": {
-							  "format": "strict_date_optional_time",
-							  "gte": "2024-01-22T09:26:10.299Z",
-							  "lte": "2024-01-22T09:41:10.299Z"
-							}
-						  }
 						}
 					  ],
 					  "should": [],
@@ -1530,9 +1521,8 @@ var TestsSearch = []SearchTestCase{
 		  }
 		`,
 		[]string{
-			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))`,
-			`((` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299))) ` +
-				`AND "stream.namespace" IS NOT NULL)`,
+			fullTextFieldName + ` iLIKE '%user%'`,
+			fullTextFieldName + ` iLIKE '%user%' AND "stream.namespace" IS NOT NULL`,
 		},
 		model.Normal,
 		[]string{},
@@ -1544,7 +1534,7 @@ var TestsSearch = []SearchTestCase{
 			  "stream_namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
+			WHERE "message" iLIKE '%user%'
 			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -1578,15 +1568,6 @@ var TestsSearch = []SearchTestCase{
 							],
 							"minimum_should_match": 1
 						  }
-						},
-						{
-						  "range": {
-							"@timestamp": {
-							  "format": "strict_date_optional_time",
-							  "gte": "2024-01-22T14:34:35.873Z",
-							  "lte": "2024-01-22T14:49:35.873Z"
-							}
-						  }
 						}
 					  ],
 					  "should": [],
@@ -1617,9 +1598,8 @@ var TestsSearch = []SearchTestCase{
 		  }
 		`,
 		[]string{
-			`(("service.name"='admin' AND ("@timestamp">=fromUnixTimestamp64Milli(1705934075873) AND "@timestamp"<=fromUnixTimestamp64Milli(1705934975873))) ` +
-				`AND "namespace" IS NOT NULL)`,
-			`("service.name"='admin' AND ("@timestamp">=fromUnixTimestamp64Milli(1705934075873) AND "@timestamp"<=fromUnixTimestamp64Milli(1705934975873)))`,
+			`"service.name"='admin' AND "namespace" IS NOT NULL`,
+			`"service.name"='admin'`,
 		},
 		model.Normal,
 		[]string{},
@@ -1629,7 +1609,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE ("service_name"='admin' AND ("@timestamp">=fromUnixTimestamp64Milli(1705934075873) AND "@timestamp"<=fromUnixTimestamp64Milli(1705934975873)))
+			WHERE "service_name"='admin'
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -1670,15 +1650,6 @@ var TestsSearch = []SearchTestCase{
 									"match_phrase": {
 										"host.name": "poseidon"
 									}
-								},
-								{
-									"range": {
-										"@timestamp": {
-											"format": "strict_date_optional_time",
-											"gte": "2024-01-29T15:36:36.491Z",
-											"lte": "2024-01-29T18:11:36.491Z"
-										}
-									}
 								}
 							],
 							"must": [],
@@ -1696,11 +1667,9 @@ var TestsSearch = []SearchTestCase{
 		"track_total_hits": true
 	}`,
 		[]string{
-			`((("message" __quesma_match 'User logged out') AND ("host.name" __quesma_match 'poseidon')) ` +
-				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))`,
-			`(((("message" __quesma_match 'User logged out') AND ("host.name" __quesma_match 'poseidon')) ` +
-				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))) ` +
-				`AND "stream.namespace" IS NOT NULL)`,
+			`(("message" __quesma_match 'User logged out') AND ("host.name" __quesma_match 'poseidon'))`,
+			`"message" __quesma_match 'User logged out' AND "host.name" __quesma_match 'poseidon' ` +
+				`AND "stream.namespace" IS NOT NULL`,
 		},
 		model.Normal,
 		[]string{},
@@ -1712,8 +1681,7 @@ var TestsSearch = []SearchTestCase{
 			  "stream_namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
-			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
+			WHERE ("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
 			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -1751,15 +1719,6 @@ var TestsSearch = []SearchTestCase{
 											"query": "user",
 											"type": "best_fields"
 										}
-									},
-									{
-										"range": {
-											"@timestamp": {
-												"format": "strict_date_optional_time",
-												"gte": "2024-01-22T09:26:10.299Z",
-												"lte": "2024-01-22T09:41:10.299Z"
-											}
-										}
 									}
 								],
 								"must": [],
@@ -1776,11 +1735,7 @@ var TestsSearch = []SearchTestCase{
 			"terminate_after": 100000,
 			"timeout": "1000ms"
 		}`,
-		[]string{
-			`((` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299))) ` +
-				`AND "namespace" IS NOT NULL)`,
-			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))`,
-		},
+		[]string{fullTextFieldName + ` iLIKE '%user%'`},
 		model.Normal,
 		[]string{},
 		[]string{
@@ -1789,7 +1744,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
+			WHERE "message" iLIKE '%user%'
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -1830,15 +1785,6 @@ var TestsSearch = []SearchTestCase{
 									"match_phrase": {
 										"host.name": "poseidon"
 									}
-								},
-								{
-									"range": {
-										"@timestamp": {
-											"format": "strict_date_optional_time",
-											"gte": "2024-01-29T15:36:36.491Z",
-											"lte": "2024-01-29T18:11:36.491Z"
-										}
-									}
 								}
 							],
 							"must": [],
@@ -1855,13 +1801,7 @@ var TestsSearch = []SearchTestCase{
 		"terminate_after": 100000,
 		"timeout": "1000ms"
 	}`,
-		[]string{
-			`(((("message" __quesma_match 'User logged out') AND ("host.name" __quesma_match 'poseidon')) ` +
-				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))) ` +
-				`AND "namespace" IS NOT NULL)`,
-			`((("message" __quesma_match 'User logged out') AND ("host.name" __quesma_match 'poseidon')) ` +
-				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))`,
-		},
+		[]string{`(("message" __quesma_match 'User logged out') AND ("host.name" __quesma_match 'poseidon'))`},
 		model.Normal,
 		[]string{},
 		[]string{
@@ -1870,8 +1810,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
-			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
+			WHERE ("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -1909,15 +1848,6 @@ var TestsSearch = []SearchTestCase{
 											"query": "user",
 											"type": "best_fields"
 										}
-									},
-									{
-										"range": {
-											"@timestamp": {
-												"format": "strict_date_optional_time",
-												"gte": "2024-01-22T09:26:10.299Z",
-												"lte": "2024-01-22T09:41:10.299Z"
-											}
-										}
 									}
 								],
 								"must": [],
@@ -1934,10 +1864,7 @@ var TestsSearch = []SearchTestCase{
 			"terminate_after": 100000,
 			"timeout": "1000ms"
 		}`,
-		[]string{
-			`((` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299))) AND "namespace" IS NOT NULL)`,
-			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))`,
-		},
+		[]string{fullTextFieldName + ` iLIKE '%user%'`},
 		model.Normal,
 		[]string{},
 		[]string{
@@ -1946,7 +1873,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
+			WHERE "message" iLIKE '%user%'
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -2157,7 +2084,7 @@ var TestsSearch = []SearchTestCase{
 			  "track_total_hits": false
 			}`,
 		[]string{
-			`("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3))`,
+			`("@timestamp">=__quesma_from_unix_timestamp_ms(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3))`,
 		},
 		model.ListAllFields,
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
@@ -2211,7 +2138,7 @@ var TestsSearch = []SearchTestCase{
 		  },
 		  "track_total_hits": false
 		}`,
-		[]string{`("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000)))`},
+		[]string{`("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') AND ("@timestamp">=__quesma_from_unix_timestamp_ms(1715817600000) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1715990399000)))`},
 		model.ListAllFields,
 		//[]model.Query{withLimit(justSimplestWhere(`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59')))`), 1)},
 		[]string{
@@ -2547,14 +2474,6 @@ var TestsSearchNoAttrs = []SearchTestCase{
 				"bool": {
 				  "filter": [
 					{
-					  "range": {
-						"@timestamp": {
-						  "gte": "2024-01-25T13:22:45.968Z",
-						  "lte": "2024-01-25T13:37:45.968Z"
-						}
-					  }
-					},
-					{
 					  "exists": {
 						"field": "summary"
 					  }
@@ -2573,10 +2492,10 @@ var TestsSearchNoAttrs = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND "summary" IS NOT NULL) AND NOT ("run_once" IS NOT NULL))`},
+		[]string{`("summary" IS NOT NULL AND NOT ("run_once" IS NOT NULL))`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "@timestamp", "message" FROM __quesma_table_name WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND NULL IS NOT NULL) AND NOT (NULL IS NOT NULL)) LIMIT 10`,
+			`SELECT "@timestamp", "message" FROM __quesma_table_name WHERE (NULL IS NOT NULL AND NOT (NULL IS NOT NULL)) LIMIT 10`,
 		},
 		[]string{},
 	},
