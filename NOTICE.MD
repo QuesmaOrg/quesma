@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.32.0
-Time    : 2025-02-14T21:39:42Z
+Version : v2.32.1
+Time    : 2025-02-17T22:55:13Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.32.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.32.1/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
@@ -259,11 +259,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/DataDog/go-sqllexer
-Version : v0.0.20
-Time    : 2025-01-10T14:58:45Z
+Version : v0.0.21
+Time    : 2025-02-14T18:23:52Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/!data!dog/go-sqllexer@v0.0.20/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!data!dog/go-sqllexer@v0.0.21/LICENSE:
 
 MIT License
 
@@ -600,11 +600,11 @@ Contents of probable licence file $GOMODCACHE/github.com/coreos/go-semver@v0.3.1
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/go-sql-driver/mysql
-Version : v1.8.1
-Time    : 2024-03-26T14:34:07Z
+Version : v1.9.0
+Time    : 2025-02-18T03:37:58Z
 Licence : MPL-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/go-sql-driver/mysql@v1.8.1/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/go-sql-driver/mysql@v1.9.0/LICENSE:
 
 Mozilla Public License Version 2.0
 ==================================
@@ -32052,11 +32052,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/crypto
-Version : v0.32.0
-Time    : 2025-01-06T14:44:30Z
+Version : v0.33.0
+Time    : 2025-02-04T19:03:03Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/crypto@v0.32.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/crypto@v0.33.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
@@ -32126,11 +32126,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/net
-Version : v0.34.0
-Time    : 2025-01-06T16:00:15Z
+Version : v0.35.0
+Time    : 2025-02-10T16:11:33Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/net@v0.34.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/net@v0.35.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
@@ -32200,11 +32200,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/sys
-Version : v0.29.0
-Time    : 2024-12-26T16:00:01Z
+Version : v0.30.0
+Time    : 2025-01-31T15:57:49Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/sys@v0.29.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/sys@v0.30.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
@@ -32237,11 +32237,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/term
-Version : v0.28.0
-Time    : 2025-01-05T01:14:59Z
+Version : v0.29.0
+Time    : 2025-02-04T15:50:00Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/term@v0.28.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/term@v0.29.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
@@ -32274,11 +32274,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/text
-Version : v0.21.0
-Time    : 2024-12-04T16:04:30Z
+Version : v0.22.0
+Time    : 2025-02-04T15:50:10Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/text@v0.21.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/text@v0.22.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
