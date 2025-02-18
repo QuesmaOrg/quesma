@@ -10,7 +10,7 @@ require (
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/barkimedes/go-deepcopy v0.0.0-20220514131651-17c30cfc62df
 	github.com/coreos/go-semver v0.3.1
-	github.com/go-sql-driver/mysql v1.8.1
+	github.com/go-sql-driver/mysql v1.9.0
 	github.com/goccy/go-json v0.10.5
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
