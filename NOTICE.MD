@@ -600,11 +600,11 @@ Contents of probable licence file $GOMODCACHE/github.com/coreos/go-semver@v0.3.1
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/go-sql-driver/mysql
-Version : v1.8.1
-Time    : 2024-03-26T14:34:07Z
+Version : v1.9.0
+Time    : 2025-02-18T03:37:58Z
 Licence : MPL-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/go-sql-driver/mysql@v1.8.1/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/go-sql-driver/mysql@v1.9.0/LICENSE:
 
 Mozilla Public License Version 2.0
 ==================================
