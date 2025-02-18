@@ -29,7 +29,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
-	"io"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -300,7 +299,7 @@ func (q *QueryRunner) forwardToElasticsearch(ctx context.Context, indexName stri
 	if resp, err := esClient.Request(ctx, "POST", "/_search", queryBody); err != nil {
 		return []byte{}, err
 	} else {
-		respBody, errRead := io.ReadAll(resp.Body)
+		respBody, errRead := util.ReadResponseBody(resp)
 		return respBody, errRead
 	}
 }
