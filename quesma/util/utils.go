@@ -4,6 +4,7 @@ package util
 
 import (
 	"bytes"
+	"compress/gzip"
 	"database/sql"
 	"encoding/base64"
 	"fmt"
@@ -995,4 +996,24 @@ func TableNamePatternRegexp(indexPattern string) *regexp.Regexp {
 	result := regexp.MustCompile(fmt.Sprintf("^%s$", builder.String()))
 	patternCache[indexPattern] = result
 	return result
+}
+
+func ReadResponseBody(resp *http.Response) ([]byte, error) {
+	var reader io.Reader
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		gzipReader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer gzipReader.Close()
+		reader = gzipReader
+	} else {
+		reader = resp.Body
+	}
+	respBody, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
+	return respBody, nil
 }
