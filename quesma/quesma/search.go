@@ -29,6 +29,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
+	"io"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -235,10 +236,12 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 	}
 	logger.DebugWithCtx(ctx).Msgf("handling multisearch: queries=%d, indices=[%s], defaultIndex=[%s]", len(queries), queriedIndices, defaultIndexName)
 	for _, query := range queries {
-
-		// TODO ask table resolver here and go to the right connector or connectors
-
-		responseBody, err := q.HandleSearch(ctx, query.indexName, query.query)
+		var responseBody []byte
+		if q.shouldRouteQueryToElasticsearch(query) {
+			responseBody, err = q.forwardToElasticsearch(ctx, query.indexName, query.query)
+		} else {
+			responseBody, err = q.HandleSearch(ctx, query.indexName, query.query)
+		}
 
 		if err != nil {
 
@@ -288,6 +291,27 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 	}
 
 	return responseBody, nil
+}
+
+func (q *QueryRunner) forwardToElasticsearch(ctx context.Context, indexName string, query types.JSON) ([]byte, error) {
+	logger.DebugWithCtx(ctx).Msgf("_msearch query to index=%s forwarded to Elasticsearch", indexName)
+	esClient := elasticsearch.NewSimpleClient(&q.cfg.Elasticsearch)
+	queryBody, _ := query.Bytes()
+	if resp, err := esClient.Request(ctx, "POST", "/_search", queryBody); err != nil {
+		return []byte{}, err
+	} else {
+		respBody, errRead := io.ReadAll(resp.Body)
+		return respBody, errRead
+	}
+}
+
+func (q *QueryRunner) shouldRouteQueryToElasticsearch(query msearchQuery) bool {
+	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, query.indexName)
+	if len(decision.UseConnectors) == 1 {
+		_, useElastic := decision.UseConnectors[0].(*quesma_api.ConnectorDecisionElastic)
+		return useElastic
+	}
+	return false
 }
 
 func (q *QueryRunner) HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
