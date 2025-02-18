@@ -481,7 +481,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			clickhouseConnector = c
 
 		case *quesma_api.ConnectorDecisionElastic:
-			// NOP
+			// After https://github.com/QuesmaOrg/quesma/pull/1278 we should never land in this situation,
+			// previously this was an escape hatch for `_msearch` payload containing Elasticsearch-targetted query
+			// This code lives only to postpone bigger refactor of `handleSearchCommon` which also supports async and A/B testing
 
 		default:
 			return nil, fmt.Errorf("unknown connector type: %T", c)
@@ -489,7 +491,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	if clickhouseConnector == nil {
-		// TODO: at this moment it's possible to land in this situation if `_msearch` payload contains Elasticsearch-targetted query
 		logger.Warn().Msgf("multi-search payload contains Elasticsearch-targetted query")
 		return nil, fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
 	}
