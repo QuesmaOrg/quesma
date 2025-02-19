@@ -789,9 +789,7 @@ func (a *IngestTestcase) testIncompleteTypes(ctx context.Context, t *testing.T) 
 	assert.Contains(t, results[0].cols[2].(string), "QUESMA_DOC2_2")
 	assert.Contains(t, results[0].cols[2].(string), "QUESMA_DOC2_3")
 	assert.Contains(t, *results[0].cols[5].(*string), "QUESMA_DOC2_4")
-
-	// FIXME: this is not inserted correctly yet!
-	// assert.Contains(t, results[0].cols[8].(string), "QUESMA_DOC2_5")
+	assert.Contains(t, results[0].cols[8].(string), "QUESMA_DOC2_5")
 
 	assert.Contains(t, *results[1].cols[0].(*string), "QUESMA_DOC3_1")
 	assert.Contains(t, *results[1].cols[1].(*string), "QUESMA_DOC3_2")
@@ -802,9 +800,6 @@ func (a *IngestTestcase) testIncompleteTypes(ctx context.Context, t *testing.T) 
 	assert.Contains(t, *results[1].cols[5].(*string), "QUESMA_DOC3_7")
 	assert.Contains(t, *results[1].cols[6].(*string), "QUESMA_DOC3_8")
 	assert.Contains(t, *results[1].cols[7].(*string), "QUESMA_DOC3_9")
-
-	// FIXME: this is not inserted correctly yet!
-	// assert.Contains(t, results[1].cols[8].(string), "QUESMA_DOC3_10")
-
+	assert.Contains(t, results[1].cols[8].(string), "QUESMA_DOC3_10")
 	assert.Contains(t, results[1].cols[9].(string), "QUESMA_DOC3_11")
 }
