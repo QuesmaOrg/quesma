@@ -5,15 +5,14 @@ on:
     branches:
       - main
     paths:
-      - 'quesma/go.mod'
-      - 'quesma/go.sum'
+      - '**/go.mod'
+      - '**/go.sum'
+      - '**/NOTICE.MD'
+      - '.github/notice-generator/**'
   workflow_dispatch:
 
 jobs:
   generate-notice-file:
-    strategy:
-      matrix:
-        module: [ "quesma" ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -25,20 +24,17 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          cache-dependency-path: ${{ matrix.module }}/go.sum
+          cache-dependency-path: '**/go.sum'
           go-version: '1.24'
 
       - name: Install go-licence-detector
-        working-directory: ${{ matrix.module }}
-        run: go get go.elastic.co/go-licence-detector && go install go.elastic.co/go-licence-detector
+        run: go install go.elastic.co/go-licence-detector@v0.7.0
 
       - name: Generate NOTICE.MD
-        working-directory: ${{ matrix.module }}
         run: |
-          go mod tidy
-          go mod download all
-          go list -m -json all | jq 'select(.Path != "quesma_v2")' | go-licence-detector -includeIndirect -noticeTemplate=../.github/go-licence-detector/templates/NOTICE.MD.tmpl -noticeOut=../NOTICE.MD -depsTemplate=../.github/go-licence-detector/templates/dependencies.asciidoc.tmpl -depsOut=dependencies.asciidoc -overrides=../.github/go-licence-detector/overrides.ndjson -rules=../.github/go-licence-detector/rules.json
-          rm dependencies.asciidoc
+          rm NOTICE.MD
+          .github/notice-generator/collect-go-dependencies.sh | sort | uniq | go-licence-detector -includeIndirect -noticeTemplate=.github/notice-generator/go-licence-detector/NOTICE.MD.tmpl -noticeOut=NOTICE.MD -overrides=.github/notice-generator/go-licence-detector/overrides.ndjson -rules=.github/notice-generator/go-licence-detector/rules.json
+          .github/notice-generator/collect-manual-notices.sh >> NOTICE.MD
 
       - name: Print NOTICE.MD
         run: cat NOTICE.MD
