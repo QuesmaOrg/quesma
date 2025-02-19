@@ -98,7 +98,7 @@ func JsonToColumns(m SchemaMap, chConfig *clickhouse.ChTableConfig) []CreateTabl
 		}
 
 		fTypeString := fType.String()
-		if !strings.Contains(fTypeString, "Array") && !strings.Contains(fTypeString, "DateTime") {
+		if (!strings.Contains(fTypeString, "Array") && !strings.Contains(fTypeString, "Tuple")) && !strings.Contains(fTypeString, "DateTime") {
 			fTypeString = "Nullable(" + fTypeString + ")"
 		}
 
