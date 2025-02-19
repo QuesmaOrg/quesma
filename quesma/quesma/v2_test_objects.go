@@ -10,10 +10,10 @@ import (
 	// TODO elastic query parser needs a clickhouse package
 	// due to the table dependency
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
@@ -396,7 +396,7 @@ func (p *QueryTransformationPipeline) ParseQuery(message any) (*model.ExecutionP
 	if err != nil {
 		return nil, err
 	}
-	cw := queryparser.ClickhouseQueryTranslator{
+	cw := elastic_query_dsl.ClickhouseQueryTranslator{
 		Ctx:   req.OriginalRequest.Context(),
 		Table: table,
 	}

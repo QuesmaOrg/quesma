@@ -7,10 +7,10 @@ import (
 	"errors"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/painful"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
@@ -81,9 +81,9 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
 			return &quesma_api.Result{
-				Body:          string(queryparser.BadRequestParseError(err)),
+				Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 				StatusCode:    http.StatusBadRequest,
-				GenericResult: queryparser.BadRequestParseError(err),
+				GenericResult: elastic_query_dsl.BadRequestParseError(err),
 			}, nil
 		}
 

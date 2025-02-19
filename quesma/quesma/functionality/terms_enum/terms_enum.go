@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
@@ -33,11 +33,11 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm clic
 			return []byte{}, end_user_errors.ErrNoSuchSchema.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
-		return handleTermsEnumRequest(ctx, body, lm, &queryparser.ClickhouseQueryTranslator{Table: lm.FindTable(indices[0]), Ctx: context.Background(), Schema: resolvedSchema}, qmc)
+		return handleTermsEnumRequest(ctx, body, lm, &elastic_query_dsl.ClickhouseQueryTranslator{Table: lm.FindTable(indices[0]), Ctx: context.Background(), Schema: resolvedSchema}, qmc)
 	}
 }
 
-func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.LogManagerIFace, qt *queryparser.ClickhouseQueryTranslator,
+func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.LogManagerIFace, qt *elastic_query_dsl.ClickhouseQueryTranslator,
 	qmc diag.DebugInfoCollector) (result []byte, err error) {
 	startTime := time.Now()
 
@@ -58,7 +58,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 		logger.ErrorWithCtx(ctx).Msgf("error reading terms enum API request body: field is not present")
 		return json.Marshal(emptyTermsEnumResponse())
 	}
-	field = queryparser.ResolveField(ctx, field, qt.Schema)
+	field = elastic_query_dsl.ResolveField(ctx, field, qt.Schema)
 
 	size := defaultSize
 	if sizeRaw, ok := body["size"]; ok {

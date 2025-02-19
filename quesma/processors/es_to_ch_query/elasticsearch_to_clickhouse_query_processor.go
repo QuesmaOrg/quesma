@@ -7,11 +7,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	quesm "github.com/QuesmaOrg/quesma/quesma/quesma"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
@@ -78,7 +78,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 		p.legacyDependencies.TableResolver,
 		p.legacyDependencies.TableDiscovery,
 	)
-	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
+	queryRunner.DateMathRenderer = elastic_query_dsl.DateMathExpressionFormatLiteral
 
 	return queryRunner
 }

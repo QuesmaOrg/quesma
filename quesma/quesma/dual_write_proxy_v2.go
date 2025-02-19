@@ -7,10 +7,10 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
@@ -70,7 +70,7 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 	// not sure how we should configure our query translator ???
 	// is this a config option??
 
-	queryProcessor.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
+	queryProcessor.DateMathRenderer = elastic_query_dsl.DateMathExpressionFormatLiteral
 
 	// tests should not be run with optimization enabled by default
 	queryProcessor.EnableQueryOptimization(config)
