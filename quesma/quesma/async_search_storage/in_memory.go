@@ -3,96 +3,92 @@
 package async_search_storage
 
 import (
-	"context"
+	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"github.com/QuesmaOrg/quesma/quesma/util"
+	"math"
 	"strings"
 	"time"
 )
 
-const EvictionInterval = 15 * time.Minute
-const GCInterval = 1 * time.Minute
-
-type AsyncSearchStorageInMemory struct {
+type AsyncRequestResultStorageInMemory struct {
 	idToResult *util.SyncMap[string, *AsyncRequestResult]
 }
 
-func NewAsyncSearchStorageInMemory() AsyncSearchStorageInMemory {
-	return AsyncSearchStorageInMemory{
+func NewAsyncRequestResultStorageInMemory() AsyncRequestResultStorage { // change result type to AsyncRequestResultStorage interface
+	return AsyncRequestResultStorageInMemory{
 		idToResult: util.NewSyncMap[string, *AsyncRequestResult](),
 	}
 }
 
-func (s AsyncSearchStorageInMemory) Store(id string, result *AsyncRequestResult) {
+func (s AsyncRequestResultStorageInMemory) Store(id string, result *AsyncRequestResult) {
 	s.idToResult.Store(id, result)
 }
 
-func (s AsyncSearchStorageInMemory) Range(f func(key string, value *AsyncRequestResult) bool) {
+func (s AsyncRequestResultStorageInMemory) Range(f func(key string, value *AsyncRequestResult) bool) {
 	s.idToResult.Range(f)
 }
 
-func (s AsyncSearchStorageInMemory) Load(id string) (*AsyncRequestResult, bool) {
-	return s.idToResult.Load(id)
+func (s AsyncRequestResultStorageInMemory) Load(id string) (*AsyncRequestResult, error) {
+	if val, ok := s.idToResult.Load(id); ok {
+		return val, nil
+	}
+	return nil, fmt.Errorf("key %s not found", id)
 }
 
-func (s AsyncSearchStorageInMemory) Delete(id string) {
+func (s AsyncRequestResultStorageInMemory) Delete(id string) {
 	s.idToResult.Delete(id)
 }
 
-func (s AsyncSearchStorageInMemory) Size() int {
+func (s AsyncRequestResultStorageInMemory) DocCount() int {
 	return s.idToResult.Size()
+}
+
+// in bytes
+func (s AsyncRequestResultStorageInMemory) SpaceInUse() int64 {
+	size := int64(0)
+	s.Range(func(key string, value *AsyncRequestResult) bool {
+		size += int64(len(value.ResponseBody))
+		return true
+	})
+	return size
+}
+
+func (s AsyncRequestResultStorageInMemory) SpaceMaxAvailable() int64 {
+	return math.MaxInt64 / 16 // some huge number for now, can be changed if we want to limit in-memory storage
+}
+
+func (s AsyncRequestResultStorageInMemory) evict(evictOlderThan time.Duration) {
+	var ids []string
+	s.Range(func(key string, value *AsyncRequestResult) bool {
+		if time.Since(value.Added) > evictOlderThan {
+			ids = append(ids, key)
+		}
+		return true
+	})
+	for _, id := range ids {
+		s.Delete(id)
+	}
 }
 
 type AsyncQueryContextStorageInMemory struct {
 	idToContext *util.SyncMap[string, *AsyncQueryContext]
 }
 
-func NewAsyncQueryContextStorageInMemory() AsyncQueryContextStorageInMemory {
+func NewAsyncQueryContextStorageInMemory() AsyncQueryContextStorage {
 	return AsyncQueryContextStorageInMemory{
 		idToContext: util.NewSyncMap[string, *AsyncQueryContext](),
 	}
 }
 
-func (s AsyncQueryContextStorageInMemory) Store(id string, context *AsyncQueryContext) {
-	s.idToContext.Store(id, context)
+func (s AsyncQueryContextStorageInMemory) Store(context *AsyncQueryContext) {
+	s.idToContext.Store(context.id, context)
 }
 
-type AsyncQueriesEvictor struct {
-	ctx                  context.Context
-	cancel               context.CancelFunc
-	AsyncRequestStorage  AsyncSearchStorageInMemory
-	AsyncQueriesContexts AsyncQueryContextStorageInMemory
-}
-
-func NewAsyncQueriesEvictor(AsyncRequestStorage AsyncSearchStorageInMemory, AsyncQueriesContexts AsyncQueryContextStorageInMemory) *AsyncQueriesEvictor {
-	ctx, cancel := context.WithCancel(context.Background())
-	return &AsyncQueriesEvictor{ctx: ctx, cancel: cancel, AsyncRequestStorage: AsyncRequestStorage, AsyncQueriesContexts: AsyncQueriesContexts}
-}
-
-func elapsedTime(t time.Time) time.Duration {
-	return time.Since(t)
-}
-
-type asyncQueryIdWithTime struct {
-	id   string
-	time time.Time
-}
-
-func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(timeFun func(time.Time) time.Duration) {
-	var ids []asyncQueryIdWithTime
-	e.AsyncRequestStorage.Range(func(key string, value *AsyncRequestResult) bool {
-		if timeFun(value.added) > EvictionInterval {
-			ids = append(ids, asyncQueryIdWithTime{id: key, time: value.added})
-		}
-		return true
-	})
-	for _, id := range ids {
-		e.AsyncRequestStorage.idToResult.Delete(id.id)
-	}
+func (s AsyncQueryContextStorageInMemory) evict(evictOlderThan time.Duration) {
 	var asyncQueriesContexts []*AsyncQueryContext
-	e.AsyncQueriesContexts.idToContext.Range(func(key string, value *AsyncQueryContext) bool {
-		if timeFun(value.added) > EvictionInterval {
+	s.idToContext.Range(func(key string, value *AsyncQueryContext) bool {
+		if time.Since(value.added) > evictOlderThan {
 			if value != nil {
 				asyncQueriesContexts = append(asyncQueriesContexts, value)
 			}
@@ -101,7 +97,7 @@ func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(timeFun func(time.Time) time
 	})
 	evictedIds := make([]string, 0)
 	for _, asyncQueryContext := range asyncQueriesContexts {
-		e.AsyncQueriesContexts.idToContext.Delete(asyncQueryContext.id)
+		s.idToContext.Delete(asyncQueryContext.id)
 		if asyncQueryContext.cancel != nil {
 			evictedIds = append(evictedIds, asyncQueryContext.id)
 			asyncQueryContext.cancel()
@@ -110,22 +106,4 @@ func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(timeFun func(time.Time) time
 	if len(evictedIds) > 0 {
 		logger.Info().Msgf("Evicted %d async queries : %s", len(evictedIds), strings.Join(evictedIds, ","))
 	}
-}
-
-func (e *AsyncQueriesEvictor) AsyncQueriesGC() {
-	defer recovery.LogPanic()
-	for {
-		select {
-		case <-e.ctx.Done():
-			logger.Debug().Msg("evictor stopped")
-			return
-		case <-time.After(GCInterval):
-			e.tryEvictAsyncRequests(elapsedTime)
-		}
-	}
-}
-
-func (e *AsyncQueriesEvictor) Close() {
-	e.cancel()
-	logger.Info().Msg("AsyncQueriesEvictor Stopped")
 }

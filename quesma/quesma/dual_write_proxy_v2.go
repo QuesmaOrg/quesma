@@ -115,8 +115,8 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 		logManager:     logManager,
 		publicPort:     config.PublicTcpPort,
 		asyncQueriesEvictor: async_search_storage.NewAsyncQueriesEvictor(
-			queryProcessor.AsyncRequestStorage.(async_search_storage.AsyncSearchStorageInMemory),
-			queryProcessor.AsyncQueriesContexts.(async_search_storage.AsyncQueryContextStorageInMemory),
+			queryProcessor.AsyncRequestStorage,
+			queryProcessor.AsyncQueriesContexts,
 		),
 		queryRunner: queryProcessor,
 	}
