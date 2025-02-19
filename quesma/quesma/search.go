@@ -236,7 +236,8 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 	logger.DebugWithCtx(ctx).Msgf("handling multisearch: queries=%d, indices=[%s], defaultIndex=[%s]", len(queries), queriedIndices, defaultIndexName)
 	for _, query := range queries {
 		var responseBody []byte
-		if q.shouldRouteQueryToElasticsearch(query) {
+		if q.shouldRouteQueryToElasticsearch(query) { // this branch is here to get response from multi-search query targeted an index not stored in Clickhouse
+			// this is also a shortcut that we took to delay a bigger refactor, eventually HandleMultiSearch should dispatch all individual queries to proper connector, similarly to `_bulk` endpoint
 			responseBody, err = q.forwardToElasticsearch(ctx, query.indexName, query.query)
 		} else {
 			responseBody, err = q.HandleSearch(ctx, query.indexName, query.query)
