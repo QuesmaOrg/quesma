@@ -6,7 +6,7 @@ import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/model"
-	elastic_query_dsl2 "github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -106,12 +106,12 @@ func TestParseHighLight(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	cw := elastic_query_dsl2.ClickhouseQueryTranslator{
+	cw := elastic_query_dsl.ClickhouseQueryTranslator{
 		Table: &table,
 		Ctx:   context.Background(),
 	}
 
-	queryAsMap := make(elastic_query_dsl2.QueryMap)
+	queryAsMap := make(elastic_query_dsl.QueryMap)
 	err := json.Unmarshal([]byte(query), &queryAsMap)
 
 	assert.Nil(t, err, "Error parsing query %v", err)

@@ -13,7 +13,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch/feature"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	elastic_query_dsl2 "github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
@@ -149,8 +149,8 @@ func (*Dispatcher) closedIndexResponse(ctx context.Context, w http.ResponseWrite
 
 	response := make(types.JSON)
 
-	response["error"] = elastic_query_dsl2.Error{
-		RootCause: []elastic_query_dsl2.RootCause{
+	response["error"] = elastic_query_dsl.Error{
+		RootCause: []elastic_query_dsl.RootCause{
 			{
 				Type:   "index_closed_exception",
 				Reason: fmt.Sprintf("pattern %s is not routed to any connector", pattern),
@@ -196,7 +196,7 @@ func (r *Dispatcher) ElasticFallback(decision *quesma_api.Decision,
 			w.Header().Set(QuesmaSourceHeader, QuesmaSourceClickhouse)
 			AddProductAndContentHeaders(req.Header, w.Header())
 			w.WriteHeader(http.StatusNoContent)
-			w.Write(elastic_query_dsl2.EmptySearchResponse(ctx))
+			w.Write(elastic_query_dsl.EmptySearchResponse(ctx))
 			return
 		}
 
@@ -241,7 +241,7 @@ func (r *Dispatcher) ElasticFallback(decision *quesma_api.Decision,
 func (r *Dispatcher) Reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router quesma_api.Router) {
 	defer recovery.LogAndHandlePanic(ctx, func(err error) {
 		w.WriteHeader(500)
-		w.Write(elastic_query_dsl2.InternalQuesmaError("Unknown Quesma error"))
+		w.Write(elastic_query_dsl.InternalQuesmaError("Unknown Quesma error"))
 	})
 
 	quesmaRequest, ctx, err := preprocessRequest(ctx, &quesma_api.Request{
