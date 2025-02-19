@@ -235,10 +235,13 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 	}
 	logger.DebugWithCtx(ctx).Msgf("handling multisearch: queries=%d, indices=[%s], defaultIndex=[%s]", len(queries), queriedIndices, defaultIndexName)
 	for _, query := range queries {
-
-		// TODO ask table resolver here and go to the right connector or connectors
-
-		responseBody, err := q.HandleSearch(ctx, query.indexName, query.query)
+		var responseBody []byte
+		if q.shouldRouteQueryToElasticsearch(query) { // this branch is here to get response from multi-search query targeted an index not stored in Clickhouse
+			// this is also a shortcut that we took to delay a bigger refactor, eventually HandleMultiSearch should dispatch all individual queries to proper connector, similarly to `_bulk` endpoint
+			responseBody, err = q.forwardToElasticsearch(ctx, query.indexName, query.query)
+		} else {
+			responseBody, err = q.HandleSearch(ctx, query.indexName, query.query)
+		}
 
 		if err != nil {
 
@@ -288,6 +291,27 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 	}
 
 	return responseBody, nil
+}
+
+func (q *QueryRunner) forwardToElasticsearch(ctx context.Context, indexName string, query types.JSON) ([]byte, error) {
+	logger.DebugWithCtx(ctx).Msgf("_msearch query to index=%s forwarded to Elasticsearch", indexName)
+	esClient := elasticsearch.NewSimpleClient(&q.cfg.Elasticsearch)
+	queryBody, _ := query.Bytes()
+	if resp, err := esClient.Request(ctx, "POST", "/_search", queryBody); err != nil {
+		return []byte{}, err
+	} else {
+		respBody, errRead := util.ReadResponseBody(resp)
+		return respBody, errRead
+	}
+}
+
+func (q *QueryRunner) shouldRouteQueryToElasticsearch(query msearchQuery) bool {
+	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, query.indexName)
+	if len(decision.UseConnectors) == 1 {
+		_, useElastic := decision.UseConnectors[0].(*quesma_api.ConnectorDecisionElastic)
+		return useElastic
+	}
+	return false
 }
 
 func (q *QueryRunner) HandleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
@@ -457,7 +481,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			clickhouseConnector = c
 
 		case *quesma_api.ConnectorDecisionElastic:
-			// NOP
+			// After https://github.com/QuesmaOrg/quesma/pull/1278 we should never land in this situation,
+			// previously this was an escape hatch for `_msearch` payload containing Elasticsearch-targetted query
+			// This code lives only to postpone bigger refactor of `handleSearchCommon` which also supports async and A/B testing
 
 		default:
 			return nil, fmt.Errorf("unknown connector type: %T", c)
@@ -465,7 +491,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	if clickhouseConnector == nil {
-		// TODO: at this moment it's possible to land in this situation if `_msearch` payload contains Elasticsearch-targetted query
 		logger.Warn().Msgf("multi-search payload contains Elasticsearch-targetted query")
 		return nil, fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
 	}
