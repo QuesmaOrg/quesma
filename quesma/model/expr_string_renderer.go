@@ -79,7 +79,7 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 		case FullyEscaped:
 			return util.SingleQuote(val)
 		default:
-			logger.WarnWithThrottling("VisitLiteral %s", val)
+			logger.WarnWithThrottling("unknown_literal", "VisitLiteral %s", val)
 			return escapeStringNormal(val) // like normal
 		}
 	default:
