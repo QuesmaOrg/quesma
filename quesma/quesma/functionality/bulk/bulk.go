@@ -10,7 +10,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/stats"
@@ -161,8 +161,8 @@ func SplitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, max
 				},
 				Status: 403,
 				Type:   "_doc",
-				Error: queryparser.Error{
-					RootCause: []queryparser.RootCause{
+				Error: elastic_query_dsl.Error{
+					RootCause: []elastic_query_dsl.RootCause{
 						{
 							Type:   "index_closed_exception",
 							Reason: fmt.Sprintf("index %s is not routed to any connector", index),
@@ -306,8 +306,8 @@ func sendToClickhouse(ctx context.Context, clickhouseBulkEntries map[string][]Bu
 					Successful: 0,
 					Total:      1,
 				}
-				bulkSingleResponse.Error = queryparser.Error{
-					RootCause: []queryparser.RootCause{
+				bulkSingleResponse.Error = elastic_query_dsl.Error{
+					RootCause: []elastic_query_dsl.RootCause{
 						{
 							Type:   "quesma_error",
 							Reason: err.Error(),

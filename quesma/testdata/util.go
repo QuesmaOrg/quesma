@@ -39,7 +39,7 @@ func selectFieldsInAnyOrderAsRegex(fields []string) string {
 
 const TableName = model.SingleTableNamePlaceHolder
 
-const queryparserFacetsSampleSize = "20000" // should be same value as queryparser.facetsSampleSize
+const queryparserFacetsSampleSize = "20000" // should be same value as elastic_query_dsl.facetsSampleSize
 
 // EscapeBrackets is a simple helper function used in sqlmock's tests.
 // Example usage: sqlmock.ExpectQuery(EscapeBrackets(`SELECT count() FROM "logs-generic-default" WHERE `))
