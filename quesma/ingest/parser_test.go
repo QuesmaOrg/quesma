@@ -12,30 +12,32 @@ import (
 
 func TestJsonToColumns(t *testing.T) {
 	tests := []struct {
-		name     string
-		payload  string
-		expected []CreateTableEntry
+		name               string
+		payload            string
+		expectedColumnName string
+		expectedTypeString []string // Tuple elements order is non-deterministic
 	}{
 		{
 			name:    "NestedTuples",
 			payload: `{"nested_tuples":[[{"test":{"id":"asdf","ns":"rrrr"}}]]}`,
-			expected: []CreateTableEntry{
-				{ClickHouseColumnName: "nested_tuples", ClickHouseType: "Array(Array(Tuple(test Tuple(id Nullable(String), ns Nullable(String)))))"},
-			},
+
+			expectedColumnName: "nested_tuples",
+			expectedTypeString: []string{"Array(Array(Tuple(test Tuple(id Nullable(String), ns Nullable(String)))))",
+				"Array(Array(Tuple(test Tuple(ns Nullable(String), id Nullable(String)))))"},
 		},
 		{
 			name:    "NotSoDeeplyNested",
 			payload: `{"not_so_deeply_nested":[{"test":{"id":0.1337,"ns":1233}}]}`,
-			expected: []CreateTableEntry{
-				{ClickHouseColumnName: "not_so_deeply_nested", ClickHouseType: "Array(Tuple(test Tuple(id Nullable(Float64), ns Nullable(Int64))))"},
-			},
+
+			expectedColumnName: "not_so_deeply_nested",
+			expectedTypeString: []string{"Array(Tuple(test Tuple(id Nullable(Float64), ns Nullable(Int64))))",
+				"Array(Tuple(test Tuple(ns Nullable(Int64), id Nullable(Float64))))"},
 		},
 		{
-			name:    "Timestamp",
-			payload: `{"@timestamp":"2024-01-27T16:11:19.94Z"}`,
-			expected: []CreateTableEntry{
-				{ClickHouseColumnName: "@timestamp", ClickHouseType: "DateTime64 DEFAULT now64()"},
-			},
+			name:               "Timestamp",
+			payload:            `{"@timestamp":"2024-01-27T16:11:19.94Z"}`,
+			expectedColumnName: "@timestamp",
+			expectedTypeString: []string{"DateTime64 DEFAULT now64()"},
 		},
 	}
 
@@ -47,7 +49,8 @@ func TestJsonToColumns(t *testing.T) {
 				TimestampDefaultsNow: true,
 			})
 
-			assert.Equal(t, tt.expected, result)
+			assert.Equal(t, tt.expectedColumnName, result[0].ClickHouseColumnName)
+			assert.Contains(t, tt.expectedTypeString, result[0].ClickHouseType)
 		})
 	}
 }
