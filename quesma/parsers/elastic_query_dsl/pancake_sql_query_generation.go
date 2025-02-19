@@ -6,10 +6,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/elastic_query_dsl/query_util"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/model/bucket_aggregations"
 	"github.com/QuesmaOrg/quesma/quesma/model/metrics_aggregations"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl/query_util"
 	"strings"
 )
 

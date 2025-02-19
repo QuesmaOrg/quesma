@@ -9,13 +9,13 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
-	"github.com/QuesmaOrg/quesma/quesma/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/optimize"
 	"github.com/QuesmaOrg/quesma/quesma/painful"
+	elastic_query_dsl2 "github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/async_search_storage"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/errors"
@@ -253,16 +253,16 @@ func (q *QueryRunner) HandleMultiSearch(ctx context.Context, defaultIndexName st
 				wrappedErr = &quesma_api.Result{StatusCode: http.StatusNotFound}
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				wrappedErr = &quesma_api.Result{
-					Body:          string(elastic_query_dsl.BadRequestParseError(err)),
+					Body:          string(elastic_query_dsl2.BadRequestParseError(err)),
 					StatusCode:    http.StatusBadRequest,
-					GenericResult: elastic_query_dsl.BadRequestParseError(err),
+					GenericResult: elastic_query_dsl2.BadRequestParseError(err),
 				}
 			} else {
 				logger.ErrorWithCtx(ctx).Msgf("error handling multisearch: %v", err)
 				wrappedErr = &quesma_api.Result{
 					Body:          "Internal error",
 					StatusCode:    http.StatusInternalServerError,
-					GenericResult: elastic_query_dsl.BadRequestParseError(err),
+					GenericResult: elastic_query_dsl2.BadRequestParseError(err),
 				}
 			}
 
@@ -449,18 +449,18 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		var resp []byte
 		if optAsync != nil {
-			resp, _ = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
+			resp, _ = elastic_query_dsl2.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 		} else {
-			resp = elastic_query_dsl.EmptySearchResponse(ctx)
+			resp = elastic_query_dsl2.EmptySearchResponse(ctx)
 		}
 		return resp, decision.Err
 	}
 
 	if decision.IsEmpty {
 		if optAsync != nil {
-			return elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
+			return elastic_query_dsl2.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 		} else {
-			return elastic_query_dsl.EmptySearchResponse(ctx), nil
+			return elastic_query_dsl2.EmptySearchResponse(ctx), nil
 		}
 	}
 
@@ -554,9 +554,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		if len(resolvedIndexes) == 0 {
 			if optAsync != nil {
-				return elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
+				return elastic_query_dsl2.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 			} else {
-				return elastic_query_dsl.EmptySearchResponse(ctx), nil
+				return elastic_query_dsl2.EmptySearchResponse(ctx), nil
 			}
 		}
 
@@ -630,10 +630,10 @@ func (q *QueryRunner) storeAsyncSearch(qmc diag.DebugInfoCollector, id, asyncId 
 
 	if result.err == nil {
 		okStatus := 200
-		asyncResponse := elastic_query_dsl.SearchToAsyncSearchResponse(result.response, asyncId, false, &okStatus)
+		asyncResponse := elastic_query_dsl2.SearchToAsyncSearchResponse(result.response, asyncId, false, &okStatus)
 		responseBody, err = asyncResponse.Marshal()
 	} else {
-		responseBody, _ = elastic_query_dsl.EmptyAsyncSearchResponse(asyncId, false, 503)
+		responseBody, _ = elastic_query_dsl2.EmptyAsyncSearchResponse(asyncId, false, 503)
 		err = result.err
 	}
 
@@ -679,9 +679,9 @@ func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
 func (q *QueryRunner) HandleAsyncSearchStatus(ctx context.Context, id string) ([]byte, error) {
 	logger.DebugWithCtx(ctx).Msgf("handling async search status for id: %s", id)
 	if _, ok := q.AsyncRequestStorage.Load(id); ok { // there IS a result in storage, so query is completed/no longer running,
-		return elastic_query_dsl.EmptyAsyncSearchStatusResponse(id, false, false, 200)
+		return elastic_query_dsl2.EmptyAsyncSearchStatusResponse(id, false, false, 200)
 	} else { // there is no result so query is might be(*) running
-		return elastic_query_dsl.EmptyAsyncSearchStatusResponse(id, true, true, 0) // 0 is a placeholder for missing completion status
+		return elastic_query_dsl2.EmptyAsyncSearchStatusResponse(id, true, true, 0) // 0 is a placeholder for missing completion status
 	}
 	// (*) - it is an oversimplification as we're responding with "still running" status even for queries that might not exist.
 	// However since you're referring to async ID given from Quesma, we naively assume it *does* exist.
@@ -690,13 +690,13 @@ func (q *QueryRunner) HandleAsyncSearchStatus(ctx context.Context, id string) ([
 func (q *QueryRunner) HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
 	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
-		return elastic_query_dsl.EmptyAsyncSearchResponse(id, false, 503)
+		return elastic_query_dsl2.EmptyAsyncSearchResponse(id, false, 503)
 	}
 	if result, ok := q.AsyncRequestStorage.Load(id); ok {
 		if err := result.GetErr(); err != nil {
 			q.AsyncRequestStorage.Delete(id)
 			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", err)
-			return elastic_query_dsl.EmptyAsyncSearchResponse(id, false, 503)
+			return elastic_query_dsl2.EmptyAsyncSearchResponse(id, false, 503)
 		}
 		q.AsyncRequestStorage.Delete(id)
 		// We use zstd to conserve memory, as we have a lot of async queries
@@ -718,7 +718,7 @@ func (q *QueryRunner) HandlePartialAsyncSearch(ctx context.Context, id string) (
 	} else {
 		const isPartial = true
 		logger.InfoWithCtx(ctx).Msgf("async query id : %s partial result", id)
-		return elastic_query_dsl.EmptyAsyncSearchResponse(id, isPartial, 200)
+		return elastic_query_dsl2.EmptyAsyncSearchResponse(id, isPartial, 200)
 	}
 }
 

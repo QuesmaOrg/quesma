@@ -5,10 +5,10 @@ package elastic_query_dsl
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/elastic_query_dsl/query_util"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl/query_util"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 )

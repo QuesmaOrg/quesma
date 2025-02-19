@@ -6,11 +6,11 @@ package quesma
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 
 	// TODO elastic query parser needs a clickhouse package
 	// due to the table dependency
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors"

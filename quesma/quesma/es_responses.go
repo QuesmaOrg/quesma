@@ -5,11 +5,11 @@ package quesma
 import (
 	"context"
 	"errors"
-	"github.com/QuesmaOrg/quesma/quesma/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/goccy/go-json"
