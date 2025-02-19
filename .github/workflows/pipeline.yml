@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: ${{ matrix.module }}/go.sum
-          go-version: '1.23'
+          go-version: '1.24'
 
       - name: gofmt
         working-directory: ${{ matrix.module }}
@@ -87,7 +87,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: ${{ matrix.module }}/go.sum
-          go-version: '1.23'
+          go-version: '1.24'
 
       - name: Build and export
         uses: docker/build-push-action@v6
@@ -117,7 +117,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: smoke-test/go.sum
-          go-version: '1.23'
+          go-version: '1.24'
 
       - name: Download images
         uses: actions/download-artifact@v4

@@ -137,7 +137,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		aggregation.selectedColumns = columns
 		aggregation.queryType = generateMetricsType(cw.Ctx, metricsAggrResult)
 		if aggregation.queryType == nil { // Should never happen, we should hit earlier error
-			return nil, fmt.Errorf("unknown metrics aggregation: %v" + metricsAggrResult.AggrType)
+			return nil, fmt.Errorf("unknown metrics aggregation: %v", metricsAggrResult.AggrType)
 		}
 		return aggregation, nil
 	}
