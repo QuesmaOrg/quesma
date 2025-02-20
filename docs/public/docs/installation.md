@@ -1,3 +1,6 @@
+---
+description: Installation guide
+---
 # Installation guide
 
 The installation guide provides detailed instructions on how to set up Quesma in various scenarios. Depending on your current setup and requirements, you can follow one of the scenarios:

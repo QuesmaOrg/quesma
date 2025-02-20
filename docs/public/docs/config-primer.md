@@ -1,3 +1,6 @@
+---
+description: Configuration primer
+---
 # Configuration primer
 
 ## Configuration overview
