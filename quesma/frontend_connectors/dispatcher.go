@@ -448,6 +448,8 @@ func PeekBodyV2(r *http.Request) ([]byte, error) {
 	if err != nil {
 		logger.ErrorWithCtxAndReason(r.Context(), "incomplete request").
 			Msgf("Error reading request body: %v, url=%v", err, r.URL)
+		// To further examine erroneous body sent from the client
+		logger.DebugWithCtx(r.Context()).Msgf("Failed peek body\nHeaders=[%v]\nBody read=[%s]", r.Header, reqBody)
 		return nil, err
 	}
 
