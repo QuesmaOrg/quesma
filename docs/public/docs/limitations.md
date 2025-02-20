@@ -1,3 +1,6 @@
+---
+description: Known limitations or unsupported functionalities
+---
 # Known limitations or unsupported functionalities
 
 Quesma is designed for analytical text queries such as in observability or security.

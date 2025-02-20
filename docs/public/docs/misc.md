@@ -1,3 +1,6 @@
+---
+description: Misc
+---
 ### Feedback and support
 In case of any issues, questions or feedback, please reach out to us at [support@quesma.com](mailto:support@quesma.com).
 
