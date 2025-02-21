@@ -445,6 +445,8 @@ func recordRequestToElastic(path string, qmc diag.DebugInfoCollector, requestFun
 
 func PeekBodyV2(r *http.Request) ([]byte, error) {
 
+	time.Sleep(10 * time.Second)
+	startAt := time.Now()
 	done := make(chan struct{})
 	var reqBody []byte
 	var err error
@@ -459,7 +461,7 @@ func PeekBodyV2(r *http.Request) ([]byte, error) {
 	select {
 	case <-ctx.Done():
 		logger.ErrorWithCtxAndReason(r.Context(), "request cancelled").
-			Msgf("Request was cancelled: %v, url=%v", ctx.Err(), r.URL)
+			Msgf("Request was cancelled: %v, url=%v, readTime=%v", ctx.Err(), r.URL, time.Since(startAt))
 		return nil, ctx.Err()
 	case <-done:
 		if err != nil {

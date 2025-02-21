@@ -137,7 +137,9 @@ func (h *BasicHTTPFrontendConnector) Listen() error {
 		// TODO handle this gracefully and return correct error
 		return nil
 	}
-	h.listener = &http.Server{}
+	h.listener = &http.Server{
+
+	}
 	h.listener.Addr = h.endpoint
 	h.listener.Handler = h
 	go func() {
