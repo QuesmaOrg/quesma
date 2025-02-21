@@ -445,7 +445,6 @@ func recordRequestToElastic(path string, qmc diag.DebugInfoCollector, requestFun
 
 func PeekBodyV2(r *http.Request) ([]byte, error) {
 
-	time.Sleep(10 * time.Second)
 	startAt := time.Now()
 	done := make(chan struct{})
 	var reqBody []byte
