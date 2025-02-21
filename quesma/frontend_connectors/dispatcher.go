@@ -444,11 +444,29 @@ func recordRequestToElastic(path string, qmc diag.DebugInfoCollector, requestFun
 }
 
 func PeekBodyV2(r *http.Request) ([]byte, error) {
-	reqBody, err := io.ReadAll(r.Body)
-	if err != nil {
-		logger.ErrorWithCtxAndReason(r.Context(), "incomplete request").
-			Msgf("Error reading request body: %v, url=%v", err, r.URL)
-		return nil, err
+
+	done := make(chan struct{})
+	var reqBody []byte
+	var err error
+
+	go func() {
+		reqBody, err = io.ReadAll(r.Body)
+		close(done)
+	}()
+
+	ctx := r.Context()
+
+	select {
+	case <-ctx.Done():
+		logger.ErrorWithCtxAndReason(r.Context(), "request cancelled").
+			Msgf("Request was cancelled: %v, url=%v", ctx.Err(), r.URL)
+		return nil, ctx.Err()
+	case <-done:
+		if err != nil {
+			logger.ErrorWithCtxAndReason(r.Context(), "incomplete request").
+				Msgf("Error reading request body: %v, url=%v", err, r.URL)
+			return nil, err
+		}
 	}
 
 	contentEncoding := r.Header.Get("Content-Encoding")
