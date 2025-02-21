@@ -130,7 +130,7 @@ func (t MultiValueType) String() string {
 			// 		WORKAROUND: if col.Name == "discount_amount" || col.Name == "unit_discount_amount" -> tupleParams = append(tupleParams, fmt.Sprintf("%s %s", col.Name, "Float64"))
 			//	But it's not a good solution, need to find a better one
 			colType := col.Type.String()
-			if !strings.Contains(colType, "Array") && !strings.Contains(colType, "DateTime") {
+			if (!strings.Contains(colType, "Array") && !strings.Contains(colType, "Tuple")) && !strings.Contains(colType, "DateTime") {
 				colType = "Nullable(" + colType + ")"
 			}
 			tupleParams = append(tupleParams, fmt.Sprintf("%s %s", col.Name, colType))
