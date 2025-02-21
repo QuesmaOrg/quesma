@@ -3,7 +3,7 @@ module github.com/QuesmaOrg/quesma/quesma
 go 1.24.0
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.32.1
+	github.com/ClickHouse/clickhouse-go/v2 v2.32.2
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/DataDog/go-sqllexer v0.0.21
 	github.com/H0llyW00dzZ/cidr v1.2.1
@@ -73,7 +73,7 @@ require (
 )
 
 require (
-	github.com/ClickHouse/ch-go v0.65.0 // indirect
+	github.com/ClickHouse/ch-go v0.65.1 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
