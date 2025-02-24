@@ -5,7 +5,6 @@ package lucene
 import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
-	"github.com/k0kubun/pp"
 )
 
 var invalidStatement = model.NewLiteral("false")
@@ -77,7 +76,6 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 		)
 	case termToken:
 		currentStatement = newLeafStatement(p.defaultFieldNames, newTermValue(currentToken.term))
-		pp.Println("currentStatement", currentStatement)
 	case andToken:
 		return model.NewInfixExpr(p.WhereStatement, "AND", p.buildWhereStatement(false))
 	case orToken:
