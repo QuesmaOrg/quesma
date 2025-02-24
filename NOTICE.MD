@@ -8,11 +8,11 @@ Foundation (http://www.apache.org/).
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/clickhouse-go/v2
-Version : v2.32.1
-Time    : 2025-02-17T22:55:13Z
+Version : v2.32.2
+Time    : 2025-02-20T22:39:55Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.32.1/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/clickhouse-go/v2@v2.32.2/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
 
@@ -1014,11 +1014,11 @@ SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/google/go-cmp
-Version : v0.6.0
-Time    : 2023-08-31T17:32:40Z
+Version : v0.7.0
+Time    : 2025-01-14T18:15:44Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/github.com/google/go-cmp@v0.6.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/google/go-cmp@v0.7.0/LICENSE:
 
 Copyright (c) 2017 The Go Authors. All rights reserved.
 
@@ -5429,11 +5429,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/ClickHouse/ch-go
-Version : v0.65.0
-Time    : 2025-02-14T18:52:58Z
+Version : v0.65.1
+Time    : 2025-02-18T02:25:41Z
 Licence : Apache-2.0
 
-Contents of probable licence file $GOMODCACHE/github.com/!click!house/ch-go@v0.65.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/!click!house/ch-go@v0.65.1/LICENSE:
 
 Copyright 2016-2023 ClickHouse, Inc.
                                  Apache License
@@ -33351,11 +33351,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/mod
-Version : v0.22.0
-Time    : 2024-11-01T18:50:30Z
+Version : v0.23.0
+Time    : 2025-02-03T20:02:40Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/mod@v0.22.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/mod@v0.23.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
@@ -33610,11 +33610,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 #### Module  : golang.org/x/tools
-Version : v0.29.0
-Time    : 2025-01-06T17:23:12Z
+Version : v0.30.0
+Time    : 2025-02-10T16:59:59Z
 Licence : BSD-3-Clause
 
-Contents of probable licence file $GOMODCACHE/golang.org/x/tools@v0.29.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/golang.org/x/tools@v0.30.0/LICENSE:
 
 Copyright 2009 The Go Authors.
 
