@@ -1,3 +1,6 @@
+---
+description: Adding ClickHouse/Hydrolix tables to existing Kibana/Elasticsearch ecosystem
+---
 # Adding ClickHouse/Hydrolix tables to existing Kibana/Elasticsearch ecosystem
 
 ::: warning

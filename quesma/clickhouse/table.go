@@ -16,7 +16,7 @@ import (
 type Table struct {
 	Name         string
 	DatabaseName string `default:""`
-	Cluster      string `default:""`
+	ClusterName  string `default:""`
 	Cols         map[string]*Column
 	Config       *ChTableConfig
 	Created      bool // do we need to create it during first insert
@@ -60,7 +60,11 @@ func (t *Table) createTableOurFieldsString() []string {
 }
 
 func (t *Table) CreateTableString() string {
-	s := "CREATE TABLE IF NOT EXISTS " + t.FullTableName() + " (\n"
+	var onClusterClause string
+	if t.ClusterName != "" {
+		onClusterClause = " ON CLUSTER " + strconv.Quote(t.ClusterName)
+	}
+	s := "CREATE TABLE IF NOT EXISTS " + t.FullTableName() + onClusterClause + " (\n"
 	rows := make([]string, 0)
 	for _, col := range t.Cols {
 		rows = append(rows, col.createTableString(1))

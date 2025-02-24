@@ -1,3 +1,6 @@
+---
+description: Adding ClickHouse/Hydrolix tables to existing Kibana/Elasticsearch ecosystem
+---
 # Adding Hydrolix tables to existing Kibana/Elasticsearch ecosystem
 
 In this scenario, user already has data in Elasticsearch/OpenSearch indices - let's assume `index1`, `index2` and `index3`.
