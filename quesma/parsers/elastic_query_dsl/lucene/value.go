@@ -15,11 +15,13 @@ import (
 // e.g. for expression "abc", value is "abc", for expression "title:abc", value is also "abc",
 // and for expression "title:(abc OR (def AND ghi))", value is "(abc OR (def AND ghi))".
 
+// TODO change name
 var wildcards = map[rune]string{
-	'*': "%",
-	'?': "_",
-	'%': `\%`,
-	'_': `\_`,
+	'*':  `%`,
+	'?':  `_`,
+	'%':  `\%`,
+	'_':  `\_`,
+	'\'': `\'`,
 }
 
 var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\'} // they can be escaped in query string
@@ -42,11 +44,13 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 	fmt.Println("1toExpression:", termAsStringToClickhouse)
 	_, err := strconv.ParseFloat(termAsStringToClickhouse, 64)
 	isNumber := err == nil
+	fmt.Println("isNumber:", termAsStringToClickhouse)
 	if !isNumber {
 		if alreadyQuoted(v.term) {
 			termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
 		}
-		if len(termAsStringToClickhouse) > 0 && (termAsStringToClickhouse[0] != '%' && termAsStringToClickhouse[len(termAsStringToClickhouse)-1] != '%') {
+		fmt.Println("isNumber:", termAsStringToClickhouse, len(termAsStringToClickhouse))
+		if len(termAsStringToClickhouse) > 0 && (termAsStringToClickhouse[0] != '%' || termAsStringToClickhouse[len(termAsStringToClickhouse)-1] != '%') {
 			termAsStringToClickhouse = fmt.Sprintf("%%%s%%", termAsStringToClickhouse)
 		}
 	}
@@ -84,6 +88,9 @@ func (v termValue) transformSpecialCharacters() (termFinal string) {
 		if curRune == escapeCharacter && slices.Contains(specialCharacters, nextRune) {
 			returnTerm.WriteRune(nextRune)
 			i++
+		} else if curRune == escapeCharacter {
+			returnTerm.WriteRune(curRune)
+			returnTerm.WriteRune(curRune)
 		} else {
 			returnTerm.WriteRune(curRune)
 		}

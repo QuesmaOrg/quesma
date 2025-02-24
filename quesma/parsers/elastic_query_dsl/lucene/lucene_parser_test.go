@@ -56,33 +56,32 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`title:(return [Aida TO Carmen])`, `("title" ILIKE '%return%' OR ("title" >= 'Aida' AND "title" <= 'Carmen'))`},
 		{`host.name:(NOT active OR NOT (pending OR in-progress)) (full text search)^2`, `((((NOT ("host.name" ILIKE '%active%') OR NOT (("host.name" ILIKE '%pending%' OR "host.name" ILIKE '%in-progress%'))) OR (("title" ILIKE '%full%' OR "text" ILIKE '%full%'))) OR ("title" ILIKE '%text%' OR "text" ILIKE '%text%')) OR ("title" ILIKE '%search%' OR "text" ILIKE '%search%'))`},
 		{`host.name:(active AND NOT (pending OR in-progress)) hermes nemesis^2`, `((("host.name" ILIKE '%active%' AND NOT (("host.name" ILIKE '%pending%' OR "host.name" ILIKE '%in-progress%'))) OR ("title" ILIKE '%hermes%' OR "text" ILIKE '%hermes%')) OR ("title" ILIKE '%nemesis%' OR "text" ILIKE '%nemesis%'))`},
-		{`dajhd \(%&RY#WFDG`, `(("title" ILIKE '%dajhd%' OR "text" ILIKE '%dajhd%') OR ("title" ILIKE '%(\%&RY#WFDG%' OR "text" ILIKE '%(\%&RY#WFDG%'))`},
 
 		// special characters
-		{`dajhd \(%&RY#WFDG`, `(("title" = 'dajhd' OR "text" = 'dajhd') OR ("title" ILIKE '(\%&RY#WFDG' OR "text" ILIKE '(\%&RY#WFDG'))`},
+		{`dajhd \(%&RY#WFDG`, `(("title" ILIKE '%dajhd%' OR "text" ILIKE '%dajhd%') OR ("title" ILIKE '%(\%&RY#WFDG%' OR "text" ILIKE '%(\%&RY#WFDG%'))`},
 		{`x:aaa'bbb`, `"x" ILIKE '%aaa\'bbb%'`},
 		{`x:aaa\bbb`, `"x" ILIKE '%aaa\\bbb%'`},
-		{`x:aaa*bbb`, `"x" ILIKE 'aaa%bbb'`},
-		{`x:aaa_bbb`, `"x" ILIKE 'aaa\_bbb'`},
-		{`x:aaa%bbb`, `"x" ILIKE 'aaa\%bbb'`},
-		{`x:aaa%\*_bbb`, `"x" ILIKE 'aaa\%*\_bbb'`},
+		{`x:aaa*bbb`, `"x" ILIKE '%aaa%bbb%'`},
+		{`x:aaa_bbb`, `"x" ILIKE '%aaa\_bbb%'`},
+		{`x:aaa%bbb`, `"x" ILIKE '%aaa\%bbb%'`},
+		{`x:aaa%\*_bbb`, `"x" ILIKE '%aaa\%*\_bbb%'`},
 
 		// tests for wildcards
-		{"%", `("title" ILIKE '%%' OR "text" ILIKE '%%')`},
+		{"%", `("title" ILIKE '%\%%' OR "text" ILIKE '%\%%')`},
 		{`*`, `("title" ILIKE '%' OR "text" ILIKE '%')`},
 		{`*neme*`, `("title" ILIKE '%neme%' OR "text" ILIKE '%neme%')`},
-		{`*nem?* abc:ne*`, `(("title" ILIKE '%nem_%' OR "text" ILIKE '%nem_%') OR "abc" ILIKE 'ne%')`},
-		{`title:(NOT a* AND NOT (b* OR *))`, `(NOT ("title" ILIKE 'a%') AND NOT (("title" ILIKE 'b%' OR "title" ILIKE '%')))`},
-		{`title:abc\*`, `"title" = 'abc*'`},
-		{`title:abc*\*`, `"title" ILIKE 'abc%*'`},
-		{`ab\+c`, `("title" = 'ab+c' OR "text" = 'ab+c')`},
-		{`!db.str:FAIL`, `NOT ("db.str" = 'FAIL')`},
+		{`*nem?* abc:ne*`, `(("title" ILIKE '%nem_%' OR "text" ILIKE '%nem_%') OR "abc" ILIKE '%ne%%')`},
+		{`title:(NOT a* AND NOT (b* OR *))`, `(NOT ("title" ILIKE '%a%%') AND NOT (("title" ILIKE '%b%%' OR "title" ILIKE '%')))`},
+		{`title:abc\*`, `"title" ILIKE '%abc*%'`},
+		{`title:abc*\*`, `"title" ILIKE '%abc%*%'`},
+		{`ab\+c`, `("title" ILIKE '%ab+c%' OR "text" ILIKE '%ab+c%')`},
+		{`!db.str:FAIL`, `NOT ("db.str" ILIKE '%FAIL%')`},
 		{`_exists_:title`, `"title" IS NOT NULL`},
 		{`!_exists_:title`, `NOT ("title" IS NOT NULL)`},
 		{"db.str:*weaver%12*", `"db.str" ILIKE '%weaver\%12%'`},
 		{"(db.str:*weaver*)", `("db.str" ILIKE '%weaver%')`},
 		{"(a.type:*ab* OR a.type:*Ab*)", `(("a.type" ILIKE '%ab%') OR "a.type" ILIKE '%Ab%')`},
-		{"log:  \"lalala lala la\" AND log: \"troll\"", `("log" iLIKE '%lalala lala la%' AND "log" iLIKE '%troll%')`},
+		{"log:  \"lalala lala la\" AND log: \"troll\"", `("log" ILIKE '%lalala lala la%' AND "log" ILIKE '%troll%')`},
 		{"int: 20", `"int" = 20`},
 		{`int: "20"`, `"int" ILIKE '%20%'`},
 	}
@@ -92,18 +91,18 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 	}{
 		{``, `true`},
 		{`          `, `true`},
-		{`  2 `, `("title" = '2' OR "text" = '2')`},
-		{`  2df$ ! `, `(("title" = '2df$' OR "text" = '2df$') AND NOT (false))`}, // TODO: this should probably just be "false"
+		{`  2 `, `("title" = 2 OR "text" = 2)`},
+		{`  2df$ ! `, `(("title" ILIKE '%2df$%' OR "text" ILIKE '%2df$%') AND NOT (false))`}, // TODO: this should probably just be "false"
 		{`title:`, `false`},
-		{`title: abc`, `"title" = 'abc'`},
-		{`title[`, `("title" = 'title[' OR "text" = 'title[')`},
-		{`title[]`, `("title" = 'title[]' OR "text" = 'title[]')`},
-		{`title[ TO ]`, `((("title" = 'title[' OR "text" = 'title[') OR ("title" = 'TO' OR "text" = 'TO')) OR ("title" = ']' OR "text" = ']'))`},
+		{`title: abc`, `"title" ILIKE '%abc%'`},
+		{`title[`, `("title" ILIKE '%title[%' OR "text" ILIKE '%title[%')`},
+		{`title[]`, `("title" ILIKE '%title[]%' OR "text" ILIKE '%title[]%')`},
+		{`title[ TO ]`, `((("title" ILIKE '%title[%' OR "text" ILIKE '%title[%') OR ("title" ILIKE '%TO%' OR "text" ILIKE '%TO%')) OR ("title" ILIKE '%]%' OR "text" ILIKE '%]%'))`},
 		{`title:[ TO 2]`, `("title" >= '' AND "title" <= '2')`},
-		{`  title       `, `("title" = 'title' OR "text" = 'title')`},
-		{`  title : (+a -b c)`, `(("title" = '+a' OR "title" = '-b') OR "title" = 'c')`}, // we don't support '+', '-' operators, but in that case the answer seems good enough + nothing crashes
+		{`  title       `, `("title" ILIKE '%title%' OR "text" ILIKE '%title%')`},
+		{`  title : (+a -b c)`, `(("title" ILIKE '%+a%' OR "title" ILIKE '%-b%') OR "title" ILIKE '%c%')`}, // we don't support '+', '-' operators, but in that case the answer seems good enough + nothing crashes
 		{`title:()`, `false`},
-		{`() a`, `((false) OR ("title" = 'a' OR "text" = 'a'))`}, // a bit weird, but '(false)' is OK as I think nothing should match '()'
+		{`() a`, `((false) OR ("title" ILIKE '%a%' OR "text" ILIKE '%a%'))`}, // a bit weird, but '(false)' is OK as I think nothing should match '()'
 	}
 
 	currentSchema := schema.Schema{
@@ -112,12 +111,6 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 
 	for i, tt := range append(properQueries, randomQueriesWithPossiblyIncorrectInput...) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			if i == 38 { //i > 40 {
-				t.Skip("Fixed in https://github.com/QuesmaOrg/quesma/pull/1246")
-			}
-			if i > 40 {
-				t.Skip()
-			}
 			parser := newLuceneParser(context.Background(), defaultFieldNames, currentSchema)
 			got := model.AsString(parser.translateToSQL(tt.query))
 			if got != tt.want {
