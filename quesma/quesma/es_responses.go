@@ -9,12 +9,11 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/goccy/go-json"
 	"net/http"
-	"regexp"
 	"sync"
 )
 
@@ -82,7 +81,7 @@ func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*que
 
 		var endUserError *end_user_errors.EndUserError
 		if errors.As(err, &endUserError) {
-			msg = string(queryparser.InternalQuesmaError(endUserError.EndUserErrorMessage()))
+			msg = string(elastic_query_dsl.InternalQuesmaError(endUserError.EndUserErrorMessage()))
 			reason = endUserError.Reason()
 			httpCode = http.StatusInternalServerError
 
@@ -93,7 +92,7 @@ func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*que
 			}
 
 		} else {
-			msg = string(queryparser.BadRequestParseError(err))
+			msg = string(elastic_query_dsl.BadRequestParseError(err))
 			reason = err.Error()
 			httpCode = http.StatusBadRequest
 		}
@@ -114,9 +113,9 @@ func bulkInsertResult(ctx context.Context, ops []bulk.BulkItem, err error) (*que
 
 	if err != nil {
 		return &quesma_api.Result{
-			Body:          string(queryparser.BadRequestParseError(err)),
+			Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 			StatusCode:    http.StatusBadRequest,
-			GenericResult: queryparser.BadRequestParseError(err),
+			GenericResult: elastic_query_dsl.BadRequestParseError(err),
 		}, nil
 	}
 
@@ -212,15 +211,3 @@ type (
 		Index              string `json:"index"`
 	}
 )
-
-var indexNamePattern = regexp.MustCompile(`"_index"\s*:\s*"([^"]+)"`)
-
-func extractIndexName(input string) string {
-	results := indexNamePattern.FindStringSubmatch(input)
-
-	if len(results) < 2 {
-		return ""
-	}
-
-	return results[1]
-}

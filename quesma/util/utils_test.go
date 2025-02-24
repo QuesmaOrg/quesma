@@ -696,7 +696,7 @@ func TestIsSqlEqual(t *testing.T) {
 		},
 	}
 	for i, tt := range cases {
-		t.Run("TestIsSqlEqual_"+strconv.Itoa(i)+": "+tt.sql1+", "+tt.sql2, func(t *testing.T) {
+		t.Run("TestIsSqlEqual_"+strconv.Itoa(i), func(t *testing.T) {
 			assert.Equal(t, tt.isEqual, IsSqlEqual(tt.sql1, tt.sql2))
 		})
 	}

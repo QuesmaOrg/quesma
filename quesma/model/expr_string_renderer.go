@@ -69,7 +69,19 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	switch val := l.Value.(type) {
 	case string:
-		return escapeString(val)
+		switch l.EscapeType {
+		case NormalNotEscaped:
+			return escapeStringNormal(val)
+		case NotEscapedLikePrefix:
+			return util.SingleQuote(escapeStringLike(escapeStringNormal(val)) + "%")
+		case NotEscapedLikeFull:
+			return util.SingleQuote("%" + escapeStringLike(escapeStringNormal(val)) + "%")
+		case FullyEscaped:
+			return util.SingleQuote(val)
+		default:
+			logger.WarnWithThrottling("unknown_literal", "VisitLiteral %s", val)
+			return escapeStringNormal(val) // like normal
+		}
 	default:
 		return fmt.Sprintf("%v", val)
 	}
@@ -103,6 +115,7 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	} else {
 		rhs = "< RHS NIL >"
 	}
+
 	// This might look like a strange heuristics to but is aligned with the way we are currently generating the statement
 	// I think in the future every infix op should be in braces.
 	if strings.HasPrefix(e.Op, "_") || e.Op == "AND" || e.Op == "OR" {
@@ -356,13 +369,20 @@ func (v *renderer) VisitCTE(c CTE) interface{} {
 	return fmt.Sprintf("%s AS (%s) ", c.Name, AsString(c.SelectCommand))
 }
 
-// escapeString escapes the given string so that it can be used in a SQL Clickhouse query.
+// escapeStringNormal escapes the given string so that it can be used in a SQL Clickhouse query.
 // It escapes ' and \ characters: ' -> \', \ -> \\.
-func escapeString(s string) string {
+func escapeStringNormal(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`) // \ should be escaped with no exceptions
 	if len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\'' {
 		// don't escape the first and last '
 		return util.SingleQuote(strings.ReplaceAll(s[1:len(s)-1], `'`, `\'`))
 	}
 	return strings.ReplaceAll(s, `'`, `\'`)
+}
+
+// escapeStringLike escapes the given string so that it can be used in a SQL 'LIKE' query.
+// (% and _ are special characters there and need to be escaped)
+func escapeStringLike(s string) string {
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	return strings.ReplaceAll(s, `_`, `\_`)
 }

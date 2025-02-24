@@ -155,7 +155,7 @@ func (td *tableDiscovery) notifyObservers() {
 
 	msg := types.ReloadMessage{Timestamp: time.Now()}
 	for _, observer := range td.reloadObservers {
-		fmt.Println("Sending message to observer", observer)
+		logger.Info().Msgf("Sending message to observer %v", observer)
 		go func() {
 			observer <- msg
 		}()
@@ -287,18 +287,35 @@ func (td *tableDiscovery) readVirtualTables(configuredTables map[string]discover
 func (td *tableDiscovery) configureTables(tables map[string]map[string]columnMetadata, databaseName string) (configuredTables map[string]discoveredTable) {
 	configuredTables = make(map[string]discoveredTable)
 	var explicitlyDisabledTables, notConfiguredTables []string
+	overrideToOriginal := make(map[string]string)
+
+	// populate map of override to original table names
+	// this will be further used to take specific index config
+	// from the original table
+	for indexName, indexConfig := range td.cfg.IndexConfig {
+		if len(indexConfig.Override) > 0 {
+			overrideToOriginal[indexConfig.Override] = indexName
+		}
+	}
+
 	for table, columns := range tables {
 
 		// single logs table is our internal table, user shouldn't configure it at all
 		// and we should always include it in the list of tables managed by Quesma
 		isCommonTable := table == common_table.TableName
-
-		if indexConfig, found := td.cfg.IndexConfig[table]; found || isCommonTable {
+		override := false
+		if _, found := overrideToOriginal[table]; found {
+			override = true
+		}
+		if indexConfig, found := td.cfg.IndexConfig[table]; found || isCommonTable || override {
 
 			if isCommonTable {
 				indexConfig = config.IndexConfiguration{}
 			}
-
+			// if table is overridden, we take the index config from the original index
+			if override {
+				indexConfig = td.cfg.IndexConfig[overrideToOriginal[table]]
+			}
 			if !isCommonTable && !indexConfig.IsClickhouseQueryEnabled() && !indexConfig.IsClickhouseIngestEnabled() {
 				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			} else {
@@ -381,6 +398,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				Name:         tableName,
 				Comment:      resTable.comment,
 				DatabaseName: databaseName,
+				ClusterName:  cfg.ClusterName, // FIXME: is this really necessary? The cluster name is only used when creating table, but this is an already created table - so is this information not needed?
 				Cols:         columnsMap,
 				Config: &ChTableConfig{
 					Attributes:                            []Attribute{},

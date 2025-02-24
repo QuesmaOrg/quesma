@@ -88,6 +88,7 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 
 	rows, performanceResult, err = executeQuery(ctx, lm, query, columns, rowToScan)
 
+	// Another postprocessing of the result
 	if err == nil {
 		for _, row := range rows {
 			row.Index = table.Name

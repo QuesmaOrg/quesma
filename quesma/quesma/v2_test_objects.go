@@ -5,9 +5,16 @@ package quesma
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
+
+	// TODO elastic query parser needs a clickhouse package
+	// due to the table dependency
+	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
+	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"net/http"
 	"sync/atomic"
@@ -114,6 +121,14 @@ func searchHandler(_ context.Context, request *quesma_api.Request, _ http.Respon
 	atomic.AddInt64(&correlationId, 1)
 	quesma_api.SetCorrelationId(metadata, correlationId)
 	return &quesma_api.Result{Meta: metadata, GenericResult: request.OriginalRequest, StatusCode: 200}, nil
+}
+
+func searchHandler2(_ context.Context, request *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	metadata := quesma_api.MakeNewMetadata()
+	metadata["level"] = 0
+	atomic.AddInt64(&correlationId, 1)
+	quesma_api.SetCorrelationId(metadata, correlationId)
+	return &quesma_api.Result{Meta: metadata, GenericResult: request, StatusCode: 200}, nil
 }
 
 type IngestProcessor struct {
@@ -335,7 +350,7 @@ func NewQueryComplexProcessor() *QueryComplexProcessor {
 	queryTransformationPipe := NewQueryTransformationPipeline()
 	queryTransformationPipe.AddTransformer(NewQueryTransformer1())
 	baseProcessor := processors.NewBaseProcessor()
-	baseProcessor.QueryTransformationPipeline = queryTransformationPipe
+	baseProcessor.RegisterTransformationPipeline(queryTransformationPipe)
 	return &QueryComplexProcessor{
 		BaseProcessor: baseProcessor,
 	}
@@ -351,33 +366,53 @@ func (p *QueryComplexProcessor) GetId() string {
 }
 
 type QueryTransformationPipeline struct {
-	*processors.BasicQueryTransformationPipeline
+	*model.TransformationPipeline
 }
 
 func NewQueryTransformationPipeline() *QueryTransformationPipeline {
 	return &QueryTransformationPipeline{
-		BasicQueryTransformationPipeline: processors.NewBasicQueryTransformationPipeline(),
+		TransformationPipeline: model.NewTransformationPipeline(),
 	}
 }
 
-func (p *QueryTransformationPipeline) ParseQuery(message any) (*processors.ExecutionPlan, error) {
-	_, err := quesma_api.CheckedCast[*http.Request](message)
+func (p *QueryTransformationPipeline) ParseQuery(message any) (*model.ExecutionPlan, error) {
+	req, err := quesma_api.CheckedCast[*quesma_api.Request](message)
 	if err != nil {
 		panic("QueryProcessor: invalid message type")
 	}
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: ParseQuery")
-	plan := &processors.ExecutionPlan{}
-	query := "SELECT * FROM users"
-	plan.Queries = append(plan.Queries, &processors.Query{Query: query})
+	query, err := types.ExpectJSON(req.ParsedBody)
+	if err != nil {
+		return nil, err
+	}
+	// TODO this is a hack to create a table for the query
+	// Why parser needs a table?
+	tableName := "test_table"
+	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String))
+		ENGINE = Memory`,
+		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	cw := elastic_query_dsl.ClickhouseQueryTranslator{
+		Ctx:   req.OriginalRequest.Context(),
+		Table: table,
+	}
+	plan, err := cw.ParseQuery(query)
+	if err != nil {
+		return nil, err
+	}
 	return plan, nil
 }
 
-func (p *QueryTransformationPipeline) TransformResults(results [][]processors.QueryResultRow) [][]processors.QueryResultRow {
+func (p *QueryTransformationPipeline) TransformResults(results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: TransformResults")
-	return results
+	return results, nil
 }
 
-func (p *QueryTransformationPipeline) ComposeResult(results [][]processors.QueryResultRow) any {
+func (p *QueryTransformationPipeline) ComposeResult(results [][]model.QueryResultRow) any {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: ComposeResults")
 	var resp []byte
 	resp = append(resp, []byte("qqq->")...)
@@ -387,12 +422,10 @@ func (p *QueryTransformationPipeline) ComposeResult(results [][]processors.Query
 type QueryTransformer1 struct {
 }
 
-func (p *QueryTransformer1) Transform(queries []*processors.Query) ([]*processors.Query, error) {
+func (p *QueryTransformer1) Transform(queries []*model.Query) ([]*model.Query, error) {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: Transform")
 	// Do basic transformation
-	for _, query := range queries {
-		query.Query += " WHERE id = 1"
-	}
+
 	return queries, nil
 }
 

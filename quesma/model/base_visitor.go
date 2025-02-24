@@ -42,7 +42,7 @@ func (v *BaseExprVisitor) VisitLiteral(e LiteralExpr) interface{} {
 		return v.OverrideVisitLiteral(v, e)
 	}
 
-	return NewLiteral(e.Value)
+	return e.Clone()
 }
 
 func (v *BaseExprVisitor) VisitTuple(t TupleExpr) interface{} {
@@ -79,7 +79,7 @@ func (v *BaseExprVisitor) VisitColumnRef(e ColumnRef) interface{} {
 	if v.OverrideVisitColumnRef != nil {
 		return v.OverrideVisitColumnRef(v, e)
 	}
-	return NewColumnRef(e.ColumnName)
+	return e.Clone()
 }
 
 func (v *BaseExprVisitor) VisitNestedProperty(e NestedProperty) interface{} {

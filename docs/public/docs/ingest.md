@@ -1,3 +1,6 @@
+---
+description: Ingest
+---
 # Ingest
 
 Quesma supports the standard Elastic/OpenSearch API endpoints for ingest. Similar to Elastic/OpenSearch, the ingest process is very flexible, allowing you to ingest data without manually specifying the schema or without having to create Elastic index or ClickHouse tables prior to inserting data. Quesma can also act as a transparent proxy, allowing you to ingest data into your existing Elastic/OpenSearch cluster.

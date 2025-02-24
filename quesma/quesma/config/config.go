@@ -24,6 +24,10 @@ var (
 	telemetryUrl = &Url{Scheme: "https", Host: "api.quesma.com", Path: "/phone-home"}
 )
 
+func DefaultTelemetryUrl() *Url {
+	return telemetryUrl
+}
+
 type QuesmaConfiguration struct {
 	// both clickhouse and hydrolix connections are going to be deprecated and everything is going to live under connector
 	Connectors       map[string]RelationalDbConfiguration
@@ -45,10 +49,12 @@ type QuesmaConfiguration struct {
 
 	EnableIngest              bool // this is computed from the configuration 2.0
 	CreateCommonTable         bool
-	UseCommonTableForWildcard bool //the meaning of this is to use a common table for wildcard (default) indexes
+	ClusterName               string // When creating tables Quesma will append `ON CLUSTER ClusterName` clause
+	UseCommonTableForWildcard bool   //the meaning of this is to use a common table for wildcard (default) indexes
 	DefaultIngestTarget       []string
 	DefaultQueryTarget        []string
 	DefaultIngestOptimizers   map[string]OptimizerConfiguration
+	DefaultQueryOptimizers    map[string]OptimizerConfiguration
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {

@@ -4,13 +4,13 @@
 package es_to_ch_ingest
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 
 	"github.com/QuesmaOrg/quesma/quesma/processors"
@@ -20,7 +20,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/rs/zerolog/log"
-	"io"
 	"net/http"
 )
 
@@ -165,15 +164,6 @@ func (p *ElasticsearchToClickHouseIngestProcessor) GetSupportedBackendConnectors
 	return []quesma_api.BackendConnectorType{quesma_api.ClickHouseSQLBackend, quesma_api.ElasticsearchBackend}
 }
 
-func ReadResponseBody(resp *http.Response) ([]byte, error) {
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
-	return respBody, nil
-}
-
 func (p *ElasticsearchToClickHouseIngestProcessor) routeToElasticsearch(metadata map[string]interface{}, req *http.Request) (map[string]interface{}, *quesma_api.Result, error) {
 	metadata[es_to_ch_common.RealSourceHeader] = es_to_ch_common.RealSourceElasticsearch
 	esConn, err := p.getElasticsearchBackendConnector()
@@ -184,7 +174,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) routeToElasticsearch(metadata
 	if err != nil {
 		return metadata, nil, err
 	}
-	respBody, err := ReadResponseBody(resp)
+	respBody, err := util.ReadResponseBody(resp)
 	if err != nil {
 		return metadata, nil, fmt.Errorf("failed to read response body from Elastic")
 	}

@@ -21,6 +21,8 @@ const (
 	attributesColumnType     = "Map(String, String)" // ClickHouse type of AttributesValuesColumn, AttributesMetadataColumn
 	AttributesValuesColumn   = "attributes_values"
 	AttributesMetadataColumn = "attributes_metadata"
+
+	UndefinedType = "Undefined" // used for unknown types or incomplete types for which NewType can't infer a proper type
 )
 
 type (
@@ -128,7 +130,7 @@ func (t MultiValueType) String() string {
 			// 		WORKAROUND: if col.Name == "discount_amount" || col.Name == "unit_discount_amount" -> tupleParams = append(tupleParams, fmt.Sprintf("%s %s", col.Name, "Float64"))
 			//	But it's not a good solution, need to find a better one
 			colType := col.Type.String()
-			if !strings.Contains(colType, "Array") && !strings.Contains(colType, "DateTime") {
+			if (!strings.Contains(colType, "Array") && !strings.Contains(colType, "Tuple")) && !strings.Contains(colType, "DateTime") {
 				colType = "Nullable(" + colType + ")"
 			}
 			tupleParams = append(tupleParams, fmt.Sprintf("%s %s", col.Name, colType))
@@ -189,6 +191,16 @@ func (t MultiValueType) CanConvert(v interface{}) bool {
 	return false // TODO for now. For sure can implement tuples easily, maybe some other too
 }
 
+func (t MultiValueType) GetColumn(name string) *Column {
+	// TODO: linear scan, but this will suffice for now (Tuples aren't typically large)
+	for _, col := range t.Cols {
+		if col.Name == name {
+			return col
+		}
+	}
+	return nil
+}
+
 func NewBaseType(clickHouseTypeName string) BaseType {
 	var GoType = ResolveType(clickHouseTypeName)
 	if GoType == nil {
@@ -231,7 +243,8 @@ func ResolveType(clickHouseTypeName string) reflect.Type {
 }
 
 // 'value': value of a field, from unmarshalled JSON
-func NewType(value any) Type {
+// 'valueOrigin': name of the field (for error messages)
+func NewType(value any, valueOrigin string) (Type, error) {
 	isFloatInt := func(f float64) bool {
 		return math.Mod(f, 1.0) == 0.0
 	}
@@ -239,42 +252,56 @@ func NewType(value any) Type {
 	case string:
 		t, err := time.Parse(time.RFC3339Nano, valueCasted)
 		if err == nil {
-			return BaseType{Name: "DateTime64", GoType: reflect.TypeOf(t)}
+			return BaseType{Name: "DateTime64", GoType: reflect.TypeOf(t)}, nil
 		}
 		t, err = time.Parse("2006-01-02T15:04:05", valueCasted)
 		if err == nil {
-			return BaseType{Name: "DateTime64", GoType: reflect.TypeOf(t)}
+			return BaseType{Name: "DateTime64", GoType: reflect.TypeOf(t)}, nil
 		}
-		return BaseType{Name: "String", GoType: reflect.TypeOf("")}
+		return BaseType{Name: "String", GoType: reflect.TypeOf("")}, nil
 	case float64:
 		if isFloatInt(valueCasted) {
-			return BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))}
+			return BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))}, nil
 		} else {
-			return BaseType{Name: "Float64", GoType: reflect.TypeOf(float64(0))}
+			return BaseType{Name: "Float64", GoType: reflect.TypeOf(float64(0))}, nil
 		}
+	case int:
+		return BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))}, nil
 	case bool:
-		return BaseType{Name: "Bool", GoType: reflect.TypeOf(true)}
+		return BaseType{Name: "Bool", GoType: reflect.TypeOf(true)}, nil
 	case map[string]interface{}:
 		cols := make([]*Column, len(valueCasted))
 		for k, v := range valueCasted {
-			if v != nil {
-				cols = append(cols, &Column{Name: k, Type: NewType(v), Codec: Codec{Name: ""}})
+			innerName := fmt.Sprintf("%s.%s", valueOrigin, k)
+			innerType, err := NewType(v, innerName)
+			if err != nil {
+				return nil, err
 			}
+			cols = append(cols, &Column{Name: k, Type: innerType, Codec: Codec{Name: ""}})
 		}
-		return MultiValueType{Name: "Tuple", Cols: cols}
+		if len(cols) == 0 {
+			logger.DeduplicatedWarn().Msgf("Empty map type (origin: %s).", valueOrigin)
+			return nil, fmt.Errorf("empty map type (origin: %s)", valueOrigin)
+		}
+		return MultiValueType{Name: "Tuple", Cols: cols}, nil
 	case []interface{}:
 		if len(valueCasted) == 0 {
-			// empty array defaults to string for now, maybe change needed or error returned
-			return CompoundType{Name: "Array", BaseType: NewBaseType("String")}
+			logger.DeduplicatedWarn().Msgf("Empty array type (origin: %s).", valueOrigin)
+			return nil, fmt.Errorf("empty array type (origin: %s)", valueOrigin)
 		}
-		return CompoundType{Name: "Array", BaseType: NewType(valueCasted[0])}
+		innerName := fmt.Sprintf("%s[0]", valueOrigin)
+		innerType, err := NewType(valueCasted[0], innerName)
+		if err != nil {
+			return nil, err
+		}
+		return CompoundType{Name: "Array", BaseType: innerType}, nil
+	case nil:
+		logger.DeduplicatedWarn().Msgf("Nil type (origin: %s).", valueOrigin)
+		return nil, fmt.Errorf("nil type (origin: %s)", valueOrigin)
 	}
 
-	logger.Warn().Msgf("Unsupported type '%T' of value: %v.", value, value)
-
-	// value can be nil, so should return something reasonable here
-	return BaseType{Name: "String", GoType: reflect.TypeOf("")}
-
+	logger.DeduplicatedWarn().Msgf("Unsupported type '%T' of value: %v (origin: %s).", value, value, valueOrigin)
+	return nil, fmt.Errorf("unsupported type '%T' of value: %v (origin: %s)", value, value, valueOrigin)
 }
 
 func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {
@@ -287,6 +314,7 @@ func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {
 	}
 }
 
+// NewEmptyTable is used only in tests
 func NewEmptyTable(tableName string) *Table {
 	return &Table{Name: tableName, Config: NewChTableConfigNoAttrs()}
 }

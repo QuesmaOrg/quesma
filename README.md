@@ -5,7 +5,7 @@
 <p align="center">
 <a href="https://github.com/QuesmaOrg/quesma/actions/workflows/pipeline.yml"><img src="https://github.com/QuesmaOrg/quesma/actions/workflows/pipeline.yml/badge.svg"></a>
 <a href="https://img.shields.io/github/v/release/QuesmaOrg/quesma"><img src="https://img.shields.io/github/v/release/QuesmaOrg/quesma"></a>
-<a href=""><img src="https://img.shields.io/badge/golang-1.23.2-blue" /></a>
+<a href=""><img src="https://img.shields.io/badge/golang-1.24.0-blue" /></a>
 <a href=""><img src="https://img.shields.io/badge/License-Elastic_License_2.0-lightgrey" /></a>
 <a href="https://goreportcard.com/report/github.com/QuesmaOrg/quesma"><img src="https://goreportcard.com/badge/github.com/QuesmaOrg/quesma" /></a>
 </p>

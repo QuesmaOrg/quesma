@@ -23,3 +23,7 @@ func (p *Port) UnmarshalText(text []byte) error {
 	*p = Port(portValue)
 	return nil
 }
+
+func (p *Port) String() string {
+	return strconv.FormatUint(uint64(*p), 10)
+}

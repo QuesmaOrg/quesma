@@ -12,7 +12,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/painful"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	quesma_errors "github.com/QuesmaOrg/quesma/quesma/quesma/errors"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
@@ -98,7 +98,7 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, http.StatusOK), nil
 	})
 
-	router.Register(routes.BulkPath, and(method("POST", "PUT"), matchedAgainstBulkBody(cfg, tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(routes.BulkPath, method("POST", "PUT"), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 
 		body, err := types.ExpectNDJSON(req.ParsedBody)
 		if err != nil {
@@ -119,18 +119,18 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
 			return &quesma_api.Result{
-				Body:          string(queryparser.BadRequestParseError(err)),
+				Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 				StatusCode:    http.StatusBadRequest,
-				GenericResult: queryparser.BadRequestParseError(err),
+				GenericResult: elastic_query_dsl.BadRequestParseError(err),
 			}, nil
 		}
 
 		result, err := doc.Write(ctx, &index, body, ip, cfg.IngestStatistics, phoneHomeAgent, tableResolver, elasticsearchConnector)
 		if err != nil {
 			return &quesma_api.Result{
-				Body:          string(queryparser.BadRequestParseError(err)),
+				Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 				StatusCode:    http.StatusBadRequest,
-				GenericResult: queryparser.BadRequestParseError(err),
+				GenericResult: elastic_query_dsl.BadRequestParseError(err),
 			}, nil
 		}
 
@@ -210,9 +210,9 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &quesma_api.Result{
-					Body:          string(queryparser.BadRequestParseError(err)),
+					Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 					StatusCode:    http.StatusBadRequest,
-					GenericResult: queryparser.BadRequestParseError(err),
+					GenericResult: elastic_query_dsl.BadRequestParseError(err),
 				}, nil
 			} else {
 				return nil, err
@@ -247,9 +247,9 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &quesma_api.Result{
-					Body:          string(queryparser.BadRequestParseError(err)),
+					Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 					StatusCode:    http.StatusBadRequest,
-					GenericResult: queryparser.BadRequestParseError(err),
+					GenericResult: elastic_query_dsl.BadRequestParseError(err),
 				}, nil
 			} else {
 				return nil, err
@@ -272,9 +272,9 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &quesma_api.Result{
-					Body:          string(queryparser.BadRequestParseError(err)),
+					Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 					StatusCode:    http.StatusBadRequest,
-					GenericResult: queryparser.BadRequestParseError(err),
+					GenericResult: elastic_query_dsl.BadRequestParseError(err),
 				}, nil
 			} else {
 				return nil, err
@@ -680,60 +680,6 @@ func indexConfig(name string, elastic bool) config.QuesmaConfiguration {
 func withAutodiscovery(cfg config.QuesmaConfiguration) config.QuesmaConfiguration {
 	cfg.AutodiscoveryEnabled = true
 	return cfg
-}
-
-func Test_matchedAgainstBulkBody(t *testing.T) {
-
-	t.Skip(skipMessage)
-
-	tests := []struct {
-		name   string
-		body   string
-		config config.QuesmaConfiguration
-		want   bool
-	}{
-		{
-			name:   "single index, config present",
-			body:   `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("logs-generic-default", false),
-			want:   true,
-		},
-		{
-			name:   "single index, table not present",
-			body:   `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("foo", false),
-			want:   false,
-		},
-		{
-			name:   "multiple indexes, table present",
-			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("logs-generic-default", false),
-			want:   true,
-		},
-		{
-			name:   "multiple indexes, some tables not present",
-			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"non-existent"}}`,
-			config: indexConfig("logs-generic-default", false),
-			want:   true,
-		},
-		{
-			name:   "multiple indexes, all tables not present",
-			body:   `{"create":{"_index":"not-there"}}` + "\n{}\n" + `{"create":{"_index":"non-existent"}}`,
-			config: indexConfig("logs-generic-default", false),
-			want:   false,
-		},
-	}
-
-	resolver := table_resolver.NewEmptyTableResolver()
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			req := &quesma_api.Request{Body: tt.body}
-
-			assert.Equalf(t, tt.want, matchedAgainstBulkBody(&tt.config, resolver).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
-		})
-	}
 }
 
 const testIndexName = "indexName"

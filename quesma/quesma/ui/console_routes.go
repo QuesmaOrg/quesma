@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"net/http/pprof"
 	"runtime"
@@ -23,6 +24,7 @@ const (
 	uiTcpPort              = "9999"
 	managementInternalPath = "/_quesma"
 	healthPath             = managementInternalPath + "/health"
+	metricsPath            = "/metrics"
 	loginWithElasticSearch = "/login-with-elasticsearch"
 )
 
@@ -63,6 +65,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.Use(panicRecovery)
 
 	router.HandleFunc(healthPath, qmc.checkHealth)
+	router.Handle(metricsPath, promhttp.Handler())
 
 	qmc.initPprof(router)
 
@@ -74,7 +77,9 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.HandleFunc(loginWithElasticSearch, qmc.HandleElasticsearchLogin)
 
 	authenticatedRoutes := router.PathPrefix("/").Subrouter()
-	if qmc.cfg.Elasticsearch.User == "" && qmc.cfg.Elasticsearch.Password == "" {
+	if (qmc.cfg.Elasticsearch.User == "" && qmc.cfg.Elasticsearch.Password == "") || qmc.cfg.DisableAuth {
+		// TODO: this `|| qmc.cfg.DisableAuth` part is a temporary solution to provide a compatibility for the v2 architecture
+		//       However this whole auth is a very unfortunate coupling between the frontend and backend connector and should be reconsidered.
 		logger.Warn().Msg("admin console authentication is disabled")
 	} else {
 		qmc.isAuthEnabled = true

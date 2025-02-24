@@ -11,7 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
@@ -104,16 +104,18 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 		Tables: map[schema.IndexName]schema.Schema{
 			testTableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"client_name":       {PropertyName: "client_name", InternalPropertyName: "client_name", Type: schema.QuesmaTypeObject},
-					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
-					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
-					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
-					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
-					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
-					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
-					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
-					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
-					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
+					"client_name":           {PropertyName: "client_name", InternalPropertyName: "client_name", Type: schema.QuesmaTypeObject},
+					"type":                  {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeText},
+					"name":                  {PropertyName: "name", InternalPropertyName: "name", Type: schema.QuesmaTypeText},
+					"content":               {PropertyName: "content", InternalPropertyName: "content", Type: schema.QuesmaTypeText},
+					"message":               {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
+					"host_name.keyword":     {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.QuesmaTypeKeyword},
+					"FlightDelay":           {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.QuesmaTypeText},
+					"Cancelled":             {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
+					"FlightDelayMin":        {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
+					"_id":                   {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
+					"epoch_time":            {PropertyName: "epoch_time", InternalPropertyName: "epoch_time", Type: schema.QuesmaTypeDate},
+					"epoch_time_datetime64": {PropertyName: "epoch_time_datetime64", InternalPropertyName: "epoch_time_datetime64", Type: schema.QuesmaTypeDate},
 				},
 				Aliases: map[schema.FieldName]schema.FieldName{
 					"client.name": "client_name",
@@ -121,7 +123,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 			},
 		},
 	}
-	qt := &queryparser.ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(testTableName)]}
+	qt := &elastic_query_dsl.ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(testTableName)]}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
 	expectedQuery1 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`
 	expectedQuery2 := `SELECT DISTINCT "client_name" FROM ` + testTableName + ` WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`

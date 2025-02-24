@@ -4,19 +4,18 @@
 package es_to_ch_query
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
-	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	quesm "github.com/QuesmaOrg/quesma/quesma/quesma"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"io"
@@ -70,18 +69,16 @@ func (p *ElasticsearchToClickHouseQueryProcessor) GetId() string {
 // which uses `quesma_api.BackendConnector` instead of `*sql.DB` for the database connection.
 func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor() *quesm.QueryRunner {
 
-	logManager := clickhouse.NewEmptyLogManager(p.legacyDependencies.OldQuesmaConfig, p.legacyDependencies.ConnectionPool, p.legacyDependencies.PhoneHomeAgent(), p.legacyDependencies.TableDiscovery)
-	logManager.Start()
-
-	queryRunner := quesm.NewQueryRunner(logManager,
+	queryRunner := quesm.NewQueryRunner(
+		p.legacyDependencies.LogManager,
 		p.legacyDependencies.OldQuesmaConfig,
-		nil,
+		p.legacyDependencies.UIConsole,
 		p.legacyDependencies.SchemaRegistry,
 		p.legacyDependencies.AbTestingController.GetSender(),
 		p.legacyDependencies.TableResolver,
 		p.legacyDependencies.TableDiscovery,
 	)
-	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
+	queryRunner.DateMathRenderer = elastic_query_dsl.DateMathExpressionFormatLiteral
 
 	return queryRunner
 }
@@ -253,7 +250,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) routeToElasticsearch(metadata 
 	if err != nil {
 		return metadata, nil, fmt.Errorf("failed sending request to Elastic")
 	}
-	respBody, err := ReadResponseBody(resp)
+	respBody, err := util.ReadResponseBody(resp)
 	if err != nil {
 		return metadata, nil, fmt.Errorf("failed to read response body from Elastic")
 	}
@@ -270,32 +267,12 @@ func (p *ElasticsearchToClickHouseQueryProcessor) GetSupportedBackendConnectors(
 }
 
 func findQueryTarget(index string, processorConfig config.QuesmaProcessorConfig) string {
-	var defaultTargetFromConfig string
-	wildcardConfig, ok := processorConfig.IndexConfig["*"]
-	if !ok {
-		logger.Warn().Msgf("No wildcard index config found in processor config!!")
-		return config.ClickhouseTarget
-	}
-	if len(wildcardConfig.QueryTarget) == 0 {
-		logger.Warn().Msgf("wildcard index has no target!!")
-		return config.ClickhouseTarget
-	}
-	defaultTargetFromConfig = wildcardConfig.QueryTarget[0]
 	_, found := processorConfig.IndexConfig[index]
 	if !found {
-		return defaultTargetFromConfig
+		return processorConfig.DefaultTargetConnectorType
 	} else { // per legacy syntax, if present means it's a clickhouse target
 		return config.ClickhouseTarget
 	}
-}
-
-func ReadResponseBody(resp *http.Response) ([]byte, error) {
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
-	return respBody, nil
 }
 
 func GetQueryFromRequest(req *http.Request) (types.JSON, error) {
