@@ -345,7 +345,7 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
-func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
+func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan) error {
 	var err error
 	plan.Queries, err = q.transformationPipeline.Transform(ctx, plan.Queries)
 	if err != nil {
@@ -610,7 +610,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 		return responseBody, errors.New(string(responseBody))
 	}
-	err = q.transformQueries(plan)
+	err = q.transformQueries(ctx, plan)
 	if err != nil {
 		return responseBody, err
 	}

@@ -422,8 +422,8 @@ func (p *QueryTransformationPipeline) ComposeResult(results [][]model.QueryResul
 type QueryTransformer1 struct {
 }
 
-func (p *QueryTransformer1) Transform(queries []*model.Query) ([]*model.Query, error) {
-	logger.Debug().Msg("SimpleQueryTransformationPipeline: Transform")
+func (p *QueryTransformer1) Transform(ctx context.Context, queries []*model.Query) ([]*model.Query, error) {
+	logger.DebugWithCtx(ctx).Msg("SimpleQueryTransformationPipeline: Transform")
 	// Do basic transformation
 
 	return queries, nil
