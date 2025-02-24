@@ -114,12 +114,12 @@ func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
 // hasBeginInResponse returns true if we should add 'from' field to the response.
 // We do that <=> begin is not 0.0.0.0 (unbounded)
 func (interval IpInterval) hasBeginInResponse() bool {
-	return interval.begin != UnboundedInterval && netip.MustParseAddr(interval.begin) != netip.MustParseAddr("::")
+	return interval.begin != UnboundedIntervalString && netip.MustParseAddr(interval.begin) != netip.MustParseAddr("::")
 }
 
 // hasEndInResponse returns true if we should add 'to' field to the response.
 func (interval IpInterval) hasEndInResponse() bool {
-	return interval.end != UnboundedInterval
+	return interval.end != UnboundedIntervalString
 }
 
 // String returns key part of the response, e.g. "1.0-2.0", or "*-6.55"

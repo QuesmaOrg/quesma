@@ -77,6 +77,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{"db.str:*weaver%12*", `"db.str" ILIKE '%weaver\%12%'`},
 		{"(db.str:*weaver*)", `("db.str" ILIKE '%weaver%')`},
 		{"(a.type:*ab* OR a.type:*Ab*)", `(("a.type" ILIKE '%ab%') OR "a.type" ILIKE '%Ab%')`},
+		{"(a.b:*c* OR a.b:*d*)", `(("a.b" ILIKE '%c%') OR "a.b" ILIKE '%d%')`},
 	}
 	var randomQueriesWithPossiblyIncorrectInput = []struct {
 		query string

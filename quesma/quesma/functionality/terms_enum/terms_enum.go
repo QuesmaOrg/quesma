@@ -13,6 +13,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	transformations_delete "github.com/QuesmaOrg/quesma/quesma/transformations-delete"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"github.com/goccy/go-json"
@@ -33,7 +34,7 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm clic
 			return []byte{}, end_user_errors.ErrNoSuchSchema.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
-		return handleTermsEnumRequest(ctx, body, lm, &elastic_query_dsl.ClickhouseQueryTranslator{Table: lm.FindTable(indices[0]), Ctx: context.Background(), Schema: resolvedSchema}, qmc)
+		return handleTermsEnumRequest(ctx, body, lm, &elastic_query_dsl.ClickhouseQueryTranslator{Table: lm.FindTable(indices[0]), Ctx: ctx, Schema: resolvedSchema}, qmc)
 	}
 }
 
@@ -92,6 +93,11 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
 	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
+	selectQuery, err = transformations_delete.ApplyNecessaryTransformations(ctx, selectQuery, lm.FindTable(qt.Table.Name), qt.Schema)
+	if err != nil {
+		return json.Marshal(emptyTermsEnumResponse())
+	}
+
 	dbQueryCtx, cancel := context.WithCancel(ctx)
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel

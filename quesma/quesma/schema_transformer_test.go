@@ -3,6 +3,7 @@
 package quesma
 
 import (
+	"context"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
 	"github.com/QuesmaOrg/quesma/quesma/model"
@@ -413,7 +414,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				q.Indexes = []string{q.TableName}
 			}
 
-			resultQueries, err := transform.Transform(queries[k])
+			resultQueries, err := transform.Transform(context.Background(), queries[k])
 			assert.NoError(t, err)
 			assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultQueries[0].SelectCommand.String())
 		})
@@ -613,7 +614,7 @@ func Test_arrayType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			actual, err := transform.Transform([]*model.Query{tt.query})
+			actual, err := transform.Transform(context.Background(), []*model.Query{tt.query})
 			assert.NoError(t, err)
 
 			if err != nil {
@@ -688,7 +689,7 @@ func TestApplyWildCard(t *testing.T) {
 				},
 			}
 
-			actual, err := transform.applyWildcardExpansion(indexSchema, query)
+			actual, err := transform.applyWildcardExpansion(context.Background(), indexSchema, query)
 
 			if err != nil {
 				t.Fatal(err)
@@ -937,7 +938,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 
 			expectedAsString := model.AsString(tt.expected)
 
-			actual, err := transform.applyPhysicalFromExpression(indexSchema, query)
+			actual, err := transform.applyPhysicalFromExpression(context.Background(), indexSchema, query)
 
 			if err != nil {
 				t.Fatal(err)
@@ -1086,7 +1087,7 @@ func TestFullTextFields(t *testing.T) {
 
 			expectedAsString := model.AsString(tt.expected)
 
-			actual, err := transform.applyFullTextField(indexSchema, query)
+			actual, err := transform.applyFullTextField(context.Background(), indexSchema, query)
 
 			if err != nil {
 				t.Fatal(err)
@@ -1194,7 +1195,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				t.Fatal("schema not found")
 			}
 
-			actual, err := transform.applyMatchOperator(indexSchema, tt.query)
+			actual, err := transform.applyMatchOperator(context.Background(), indexSchema, tt.query)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1296,7 +1297,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 				t.Fatal("schema not found")
 			}
 
-			actual, err := transform.checkAggOverUnsupportedType(indexSchema, tt.query)
+			actual, err := transform.checkAggOverUnsupportedType(context.Background(), indexSchema, tt.query)
 			if err != nil {
 				t.Fatal(err)
 			}
