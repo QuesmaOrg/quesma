@@ -12,7 +12,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/painful"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	quesma_errors "github.com/QuesmaOrg/quesma/quesma/quesma/errors"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
@@ -119,18 +119,18 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
 			return &quesma_api.Result{
-				Body:          string(queryparser.BadRequestParseError(err)),
+				Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 				StatusCode:    http.StatusBadRequest,
-				GenericResult: queryparser.BadRequestParseError(err),
+				GenericResult: elastic_query_dsl.BadRequestParseError(err),
 			}, nil
 		}
 
 		result, err := doc.Write(ctx, &index, body, ip, cfg.IngestStatistics, phoneHomeAgent, tableResolver, elasticsearchConnector)
 		if err != nil {
 			return &quesma_api.Result{
-				Body:          string(queryparser.BadRequestParseError(err)),
+				Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 				StatusCode:    http.StatusBadRequest,
-				GenericResult: queryparser.BadRequestParseError(err),
+				GenericResult: elastic_query_dsl.BadRequestParseError(err),
 			}, nil
 		}
 
@@ -210,9 +210,9 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &quesma_api.Result{
-					Body:          string(queryparser.BadRequestParseError(err)),
+					Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 					StatusCode:    http.StatusBadRequest,
-					GenericResult: queryparser.BadRequestParseError(err),
+					GenericResult: elastic_query_dsl.BadRequestParseError(err),
 				}, nil
 			} else {
 				return nil, err
@@ -247,9 +247,9 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &quesma_api.Result{
-					Body:          string(queryparser.BadRequestParseError(err)),
+					Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 					StatusCode:    http.StatusBadRequest,
-					GenericResult: queryparser.BadRequestParseError(err),
+					GenericResult: elastic_query_dsl.BadRequestParseError(err),
 				}, nil
 			} else {
 				return nil, err
@@ -272,9 +272,9 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &quesma_api.Result{
-					Body:          string(queryparser.BadRequestParseError(err)),
+					Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 					StatusCode:    http.StatusBadRequest,
-					GenericResult: queryparser.BadRequestParseError(err),
+					GenericResult: elastic_query_dsl.BadRequestParseError(err),
 				}, nil
 			} else {
 				return nil, err

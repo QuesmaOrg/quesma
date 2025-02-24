@@ -89,6 +89,11 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}) <-c
 	multi := zerolog.MultiLevelWriter(logWriters...)
 	l := zerolog.New(multi).
 		Level(cfg.Level).
+		Sample(&zerolog.BurstSampler{
+			Burst:       quesma_v2.DefaultBurstSamplerMaxLogsPerSecond * quesma_v2.DefaultBurstSamplerPeriodSeconds,
+			Period:      quesma_v2.DefaultBurstSamplerPeriodSeconds * time.Second,
+			NextSampler: zerolog.RandomSampler(quesma_v2.DefaultSheddingFrequency),
+		}).
 		With().
 		Timestamp().
 		Caller().
@@ -262,4 +267,12 @@ func Panic() *zerolog.Event {
 
 func ReasonUnsupportedQuery(queryType string) string {
 	return ReasonPrefixUnsupportedQueryType + queryType
+}
+
+func DeduplicatedInfo() quesma_v2.DeduplicatedEvent {
+	return logger.DeduplicatedInfo()
+}
+
+func DeduplicatedWarn() quesma_v2.DeduplicatedEvent {
+	return logger.DeduplicatedWarn()
 }

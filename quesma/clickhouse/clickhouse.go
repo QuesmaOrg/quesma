@@ -52,6 +52,7 @@ type (
 		// TODO make sure it's unique in schema (there's no other 'timestamp' field)
 		// I (Krzysiek) can write it quickly, but don't want to waste time for it right now.
 		TimestampDefaultsNow bool
+		ClusterName          string // Name of the cluster if created with `CREATE TABLE ... ON CLUSTER ClusterName`
 		Engine               string // "Log", "MergeTree", etc.
 		OrderBy              string // "" if none
 		PartitionBy          string // "" if none
@@ -379,6 +380,7 @@ func NewDefaultCHConfig() *ChTableConfig {
 	}
 }
 
+// NewNoTimestampOnlyStringAttrCHConfig is used only in tests
 func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 	return &ChTableConfig{
 		HasTimestamp:         false,
@@ -396,6 +398,7 @@ func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 	}
 }
 
+// NewChTableConfigNoAttrs is used only in tests
 func NewChTableConfigNoAttrs() *ChTableConfig {
 	return &ChTableConfig{
 		HasTimestamp:                          false,
@@ -408,6 +411,7 @@ func NewChTableConfigNoAttrs() *ChTableConfig {
 	}
 }
 
+// NewChTableConfigTimestampStringAttr is used only in tests
 func NewChTableConfigTimestampStringAttr() *ChTableConfig {
 	return &ChTableConfig{
 		HasTimestamp:                          true,

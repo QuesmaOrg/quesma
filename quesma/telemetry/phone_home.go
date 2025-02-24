@@ -125,14 +125,14 @@ func NewPhoneHomeAgent(configuration *config.QuesmaConfiguration, clickHouseDb q
 		clickHouseDb:              clickHouseDb,
 		config:                    configuration,
 		clientId:                  clientId,
-		clickHouseQueryTimes:      newDurationMeasurement(ctx),
-		clickHouseInsertsTimes:    newDurationMeasurement(ctx),
+		clickHouseQueryTimes:      newQueryDurationWrapper(clickHouseRequestQueryDuration, newDurationMeasurement(ctx)),
+		clickHouseInsertsTimes:    newQueryDurationWrapper(clickHouseRequestIngestDuration, newDurationMeasurement(ctx)),
 		elasticReadTimes:          newDurationMeasurement(ctx),
 		elasticWriteTimes:         newDurationMeasurement(ctx),
 		elasticBypassedReadTimes:  newDurationMeasurement(ctx),
 		elasticBypassedWriteTimes: newDurationMeasurement(ctx),
 
-		ingestCounters:    NewMultiCounter(ctx, nil),
+		ingestCounters:    newPrometheusIngestionWrapper(NewMultiCounter(ctx, nil)),
 		userAgentCounters: NewMultiCounter(ctx, processUserAgent),
 		telemetryEndpoint: configuration.QuesmaInternalTelemetryUrl,
 		httpClient: &http.Client{

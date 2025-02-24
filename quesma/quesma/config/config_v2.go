@@ -90,6 +90,7 @@ type RelationalDbConfiguration struct {
 	User          string `koanf:"user"`
 	Password      string `koanf:"password"`
 	Database      string `koanf:"database"`
+	ClusterName   string `koanf:"clusterName"` // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
 	AdminUrl      *Url   `koanf:"adminUrl"`
 	DisableTLS    bool   `koanf:"disableTLS"`
 }
@@ -803,6 +804,11 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		conf.DefaultIngestTarget = defaultConfig.IngestTarget
 		conf.DefaultQueryTarget = defaultConfig.QueryTarget
 		conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
+
+		// we're calling this here because we don't allow having one ingest-only pipeline.
+		if relationalDBErr == nil && relDBConn != nil {
+			conf.ClusterName = relDBConn.ClusterName
+		}
 
 		// safe to call per validation earlier
 		if targts, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {

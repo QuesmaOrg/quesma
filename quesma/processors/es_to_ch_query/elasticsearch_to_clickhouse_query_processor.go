@@ -4,19 +4,18 @@
 package es_to_ch_query
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
 	quesm "github.com/QuesmaOrg/quesma/quesma/quesma"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/util"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"
 	"io"
@@ -79,7 +78,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 		p.legacyDependencies.TableResolver,
 		p.legacyDependencies.TableDiscovery,
 	)
-	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
+	queryRunner.DateMathRenderer = elastic_query_dsl.DateMathExpressionFormatLiteral
 
 	return queryRunner
 }
@@ -251,7 +250,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) routeToElasticsearch(metadata 
 	if err != nil {
 		return metadata, nil, fmt.Errorf("failed sending request to Elastic")
 	}
-	respBody, err := ReadResponseBody(resp)
+	respBody, err := util.ReadResponseBody(resp)
 	if err != nil {
 		return metadata, nil, fmt.Errorf("failed to read response body from Elastic")
 	}
@@ -274,26 +273,6 @@ func findQueryTarget(index string, processorConfig config.QuesmaProcessorConfig)
 	} else { // per legacy syntax, if present means it's a clickhouse target
 		return config.ClickhouseTarget
 	}
-}
-
-func ReadResponseBody(resp *http.Response) ([]byte, error) {
-	var reader io.Reader
-	if resp.Header.Get("Content-Encoding") == "gzip" {
-		gzipReader, err := gzip.NewReader(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		defer gzipReader.Close()
-		reader = gzipReader
-	} else {
-		reader = resp.Body
-	}
-	respBody, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
-	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
-	return respBody, nil
 }
 
 func GetQueryFromRequest(req *http.Request) (types.JSON, error) {

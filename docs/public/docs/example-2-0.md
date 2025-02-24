@@ -1,3 +1,6 @@
+---
+description: Query Hydrolix tables as Elasticsearch indices
+---
 # Query Hydrolix tables as Elasticsearch indices
 
 In this scenario, user's only data source is Hydrolix, which contains two tables named `logs` and `siem`.
