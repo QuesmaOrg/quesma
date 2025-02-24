@@ -34,7 +34,6 @@ const (
 	month
 	quarter
 	year
-	invalidRateUnit
 )
 
 const (
@@ -45,8 +44,13 @@ const (
 
 // NewRate creates a new Rate aggregation, during parsing.
 // 'multiplier' and 'parentIntervalInMs' are set later, during pancake transformation.
-func NewRate(ctx context.Context, unit string, fieldPresent bool) *Rate {
-	return &Rate{ctx: ctx, unit: newRateUnit(ctx, unit), fieldPresent: fieldPresent}
+func NewRate(ctx context.Context, unit string, fieldPresent bool) (*Rate, error) {
+	rateUnit, err := newRateUnit(ctx, unit)
+	rate := &Rate{ctx: ctx, unit: rateUnit, fieldPresent: fieldPresent}
+	if err != nil {
+		rate.unit = second
+	}
+	return rate, err
 }
 
 func (query *Rate) AggregationType() model.AggregationType {
@@ -131,27 +135,27 @@ func (query *Rate) FieldPresent() bool {
 	return query.fieldPresent
 }
 
-func newRateUnit(ctx context.Context, unit string) RateUnit {
+func newRateUnit(ctx context.Context, unit string) (RateUnit, error) {
 	switch strings.ToLower(unit) {
 	case "second":
-		return second
+		return second, nil
 	case "minute":
-		return minute
+		return minute, nil
 	case "hour":
-		return hour
+		return hour, nil
 	case "day":
-		return day
+		return day, nil
 	case "week":
-		return week
+		return week, nil
 	case "month":
-		return month
+		return month, nil
 	case "quarter":
-		return quarter
+		return quarter, nil
 	case "year":
-		return year
+		return year, nil
 	default:
 		logger.WarnWithCtxAndThrottling(ctx, "rate", "unit", "invalid rate unit: %s", unit)
-		return invalidRateUnit
+		return second, fmt.Errorf("invalid rate unit: %s", unit)
 	}
 }
 
@@ -173,8 +177,6 @@ func (u RateUnit) String() string {
 		return "quarter"
 	case year:
 		return "year"
-	case invalidRateUnit:
-		return "invalid"
 	default:
 		// theoretically unreachable
 		return "invalid, but not invalidRateUnit"
@@ -257,7 +259,7 @@ func CheckParamsRate(ctx context.Context, paramsRaw any) error {
 			return fmt.Errorf("required parameter %s is not of type %s, but %T", paramName, paramType, paramVal)
 		}
 	}
-	if newRateUnit(ctx, params["unit"].(string)) == invalidRateUnit {
+	if _, err := newRateUnit(ctx, params["unit"].(string)); err != nil {
 		return fmt.Errorf("invalid rate unit: %v", params["unit"])
 	}
 

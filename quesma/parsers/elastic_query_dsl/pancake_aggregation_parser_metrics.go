@@ -167,7 +167,11 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 		return metrics_aggregations.NewGeoCentroid(ctx)
 	case "rate":
 		isFieldPresent := len(metricsAggr.Fields) > 0
-		return metrics_aggregations.NewRate(ctx, metricsAggr.unit, isFieldPresent)
+		rate, err := metrics_aggregations.NewRate(ctx, metricsAggr.unit, isFieldPresent)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error creating rate aggregation: %s", err)
+		}
+		return rate
 	}
 	return nil
 }
