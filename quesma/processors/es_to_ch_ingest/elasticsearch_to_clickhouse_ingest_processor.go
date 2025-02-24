@@ -15,7 +15,6 @@ import (
 
 	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
-	quesm "github.com/QuesmaOrg/quesma/quesma/quesma"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
@@ -109,7 +108,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				return metadata, nil, err
 			}
-			res, err := quesm.HandleIndexDoc(ctx, indexPatterFromRequestUri, payloadJson, p.legacyIngestProcessor, ingestStats, esConn, p.legacyDependencies, p.legacyIngestProcessor.GetTableResolver())
+			res, err := frontend_connectors.HandleIndexDoc(ctx, indexPatterFromRequestUri, payloadJson, p.legacyIngestProcessor, ingestStats, esConn, p.legacyDependencies, p.legacyIngestProcessor.GetTableResolver())
 			if err != nil {
 				return metadata, nil, err
 			}
@@ -126,7 +125,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				return metadata, nil, err
 			}
-			res, err := quesm.HandleBulkIndex(ctx, indexPatterFromRequestUri, payloadNDJson, p.legacyIngestProcessor, ingestStats, esConn, p.legacyDependencies, p.legacyIngestProcessor.GetTableResolver())
+			res, err := frontend_connectors.HandleBulkIndex(ctx, indexPatterFromRequestUri, payloadNDJson, p.legacyIngestProcessor, ingestStats, esConn, p.legacyDependencies, p.legacyIngestProcessor.GetTableResolver())
 			if err != nil {
 				return metadata, nil, err
 			}
@@ -137,7 +136,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				return metadata, nil, err
 			}
-			res, err := quesm.HandleBulk(ctx, payloadNDJson, p.legacyIngestProcessor, ingestStats, esConn, p.legacyDependencies, p.legacyIngestProcessor.GetTableResolver())
+			res, err := frontend_connectors.HandleBulk(ctx, payloadNDJson, p.legacyIngestProcessor, ingestStats, esConn, p.legacyDependencies, p.legacyIngestProcessor.GetTableResolver())
 			if err != nil {
 				return metadata, nil, err
 			}
@@ -147,7 +146,7 @@ func (p *ElasticsearchToClickHouseIngestProcessor) Handle(metadata map[string]in
 			if err != nil {
 				return metadata, nil, err
 			}
-			res, err := quesm.HandlePutIndex(indexPatterFromRequestUri, payloadJson, p.GetSchemaRegistry())
+			res, err := frontend_connectors.HandlePutIndex(indexPatterFromRequestUri, payloadJson, p.GetSchemaRegistry())
 			if err != nil {
 				return metadata, nil, err
 			}

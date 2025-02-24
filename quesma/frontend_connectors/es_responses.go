@@ -1,13 +1,12 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package quesma
+package frontend_connectors
 
 import (
 	"context"
 	"errors"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
-	"github.com/QuesmaOrg/quesma/quesma/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
@@ -139,8 +138,8 @@ func ElasticsearchInsertResult(body string, statusCode int) *quesma_api.Result {
 func elasticsearchInsertResult(body string, statusCode int) *quesma_api.Result {
 	return &quesma_api.Result{Body: body, Meta: map[string]any{
 		// TODO copy paste from the original request
-		frontend_connectors.ContentTypeHeaderKey: "application/json",
-		"X-Quesma-Headers-Source":                "Quesma",
+		ContentTypeHeaderKey:      "application/json",
+		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode,
 		GenericResult: []byte(body)}
 }
