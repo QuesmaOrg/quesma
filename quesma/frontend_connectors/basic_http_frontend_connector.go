@@ -6,6 +6,7 @@ package frontend_connectors
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
@@ -118,7 +119,7 @@ func (h *BasicHTTPFrontendConnector) ServeHTTP(w http.ResponseWriter, req *http.
 func (h *BasicHTTPFrontendConnector) finalHandler(w http.ResponseWriter, req *http.Request) {
 	reqBody, err := PeekBodyV2(req)
 	if err != nil {
-		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusBadRequest)
 		return
 	}
 
