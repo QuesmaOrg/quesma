@@ -834,7 +834,7 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 		pp.Println("literal", l)
 		msLiteral, ok := l.Value.(model.MillisecondsLiteral)
 		if !ok {
-			return model.NewLiteral(l.Value)
+			return l.Clone()
 		}
 
 		fmt.Println("LOL", msLiteral)
@@ -843,13 +843,13 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 		fmt.Println("1 LOL", msLiteral, field, ok)
 		if !ok {
 			logger.WarnWithCtx(ctx).Msgf("field %v not found in schema for table %s", msLiteral.TimestampField, query.TableName)
-			return model.NewLiteral(l.Value)
+			return l.Clone()
 		}
 		col, ok := table.Cols[field.InternalPropertyName.AsString()]
 		fmt.Println("1LOL", msLiteral, col)
 		if !ok {
 			logger.WarnWithCtx(ctx).Msgf("field %s not found in table %s", field.InternalPropertyName.AsString(), query.TableName)
-			return model.NewLiteral(l.Value)
+			return l.Clone()
 		}
 
 		fmt.Println("2LOL", msLiteral, col.IsDatetime())
