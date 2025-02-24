@@ -67,6 +67,18 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			innerFieldsAsSelect = append(innerFieldsAsSelect, model.NewColumnRef(metricsAggr.SortBy))
 		}
 		return innerFieldsAsSelect, nil
+	case "rate":
+		if len(metricsAggr.Fields) > 0 {
+			switch metrics_aggregations.NewRateMode(ctx, metricsAggr.mode) {
+			case metrics_aggregations.RateModeSum:
+				result = []model.Expr{model.NewFunction("sumOrNull", getFirstExpression())}
+			case metrics_aggregations.RateModeValueCount:
+				result = []model.Expr{model.NewCountFunc(getFirstExpression())}
+			default:
+				// should never happen because of parsing checks
+				logger.ErrorWithCtx(ctx).Msgf("unknown rate mode: %s", metricsAggr.mode)
+			}
+		}
 	case "percentile_ranks":
 		result = make([]model.Expr, 0, len(metricsAggr.CutValues))
 		for _, cutValueAsString := range metricsAggr.CutValues {
@@ -153,6 +165,13 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.CutValues, metricsAggr.Keyed)
 	case "geo_centroid":
 		return metrics_aggregations.NewGeoCentroid(ctx)
+	case "rate":
+		isFieldPresent := len(metricsAggr.Fields) > 0
+		rate, err := metrics_aggregations.NewRate(ctx, metricsAggr.unit, isFieldPresent)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error creating rate aggregation: %s", err)
+		}
+		return rate
 	}
 	return nil
 }
