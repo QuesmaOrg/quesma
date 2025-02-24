@@ -1,3 +1,6 @@
+---
+description: Transparent Elasticsearch proxy
+---
 # Transparent Elasticsearch proxy
 
 In this scenario, Quesma is used as a transparent proxy between Kibana/OpenSearchDashboards(OSD) and Elasticsearch/OpenSearch. 

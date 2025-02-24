@@ -90,23 +90,18 @@ func JsonToColumns(m SchemaMap, chConfig *clickhouse.ChTableConfig) []CreateTabl
 	var resultColumns []CreateTableEntry
 
 	for name, value := range m {
-		var fTypeString string
-		if value == nil { // HACK ALERT -> We're treating null values as strings for now, so that we don't completely discard documents with empty values
-			fTypeString = "Nullable(String)"
-		} else {
-			fType := clickhouse.NewType(value, name)
-
-			// handle "field":{} case (Elastic Agent sends such JSON fields) by ignoring them
-			if multiValueType, ok := fType.(clickhouse.MultiValueType); ok && len(multiValueType.Cols) == 0 {
-				logger.Warn().Msgf("Ignoring empty JSON object: \"%s\":%v", name, value)
-				continue
-			}
-
-			fTypeString = fType.String()
-			if !strings.Contains(fTypeString, "Array") && !strings.Contains(fTypeString, "DateTime") {
-				fTypeString = "Nullable(" + fTypeString + ")"
-			}
+		fType, err := clickhouse.NewType(value, name)
+		if err != nil {
+			// Skip column with invalid/incomplete type
+			logger.Warn().Msgf("Skipping field '%s' with invalid/incomplete type: %v", name, err)
+			continue
 		}
+
+		fTypeString := fType.String()
+		if (!strings.Contains(fTypeString, "Array") && !strings.Contains(fTypeString, "Tuple")) && !strings.Contains(fTypeString, "DateTime") {
+			fTypeString = "Nullable(" + fTypeString + ")"
+		}
+
 		// hack for now
 		if name == timestampFieldName && chConfig.TimestampDefaultsNow {
 			fTypeString += " DEFAULT now64()"
@@ -315,7 +310,13 @@ func BuildAttrsMap(m SchemaMap, config *clickhouse.ChTableConfig) (map[string][]
 			if a.Type.CanConvert(value) {
 				result[a.KeysArrayName] = append(result[a.KeysArrayName], name)
 				result[a.ValuesArrayName] = append(result[a.ValuesArrayName], fmt.Sprintf("%v", value))
-				result[a.TypesArrayName] = append(result[a.TypesArrayName], clickhouse.NewType(value, name).String())
+
+				valueType, err := clickhouse.NewType(value, name)
+				if err != nil {
+					result[a.TypesArrayName] = append(result[a.TypesArrayName], clickhouse.UndefinedType)
+				} else {
+					result[a.TypesArrayName] = append(result[a.TypesArrayName], valueType.String())
+				}
 
 				matched = true
 				break

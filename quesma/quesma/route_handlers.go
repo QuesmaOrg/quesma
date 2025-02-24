@@ -11,7 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/queryparser"
+	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	quesma_errors "github.com/QuesmaOrg/quesma/quesma/quesma/errors"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/functionality/bulk"
@@ -59,9 +59,9 @@ func HandleIndexSearch(ctx context.Context, indexPattern string, query types.JSO
 			return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 		} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 			return &quesma_api.Result{
-				Body:          string(queryparser.BadRequestParseError(err)),
+				Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 				StatusCode:    http.StatusBadRequest,
-				GenericResult: queryparser.BadRequestParseError(err),
+				GenericResult: elastic_query_dsl.BadRequestParseError(err),
 			}, nil
 		} else {
 			return nil, err
@@ -77,9 +77,9 @@ func HandleIndexAsyncSearch(ctx context.Context, indexPattern string, query type
 			return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 		} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 			return &quesma_api.Result{
-				Body:          string(queryparser.BadRequestParseError(err)),
+				Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 				StatusCode:    http.StatusBadRequest,
-				GenericResult: queryparser.BadRequestParseError(err),
+				GenericResult: elastic_query_dsl.BadRequestParseError(err),
 			}, nil
 		} else {
 			return nil, err
@@ -196,9 +196,9 @@ func HandleIndexDoc(ctx context.Context, index string, body types.JSON, ip *inge
 	result, err := doc.Write(ctx, &index, body, ip, ingestStatsEnabled, dependencies.PhoneHomeAgent(), tableResolver, esConn)
 	if err != nil {
 		return &quesma_api.Result{
-			Body:          string(queryparser.BadRequestParseError(err)),
+			Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 			StatusCode:    http.StatusBadRequest,
-			GenericResult: queryparser.BadRequestParseError(err),
+			GenericResult: elastic_query_dsl.BadRequestParseError(err),
 		}, nil
 	}
 
@@ -224,9 +224,9 @@ func HandleMultiSearch(ctx context.Context, req *quesma_api.Request, defaultInde
 			return &quesma_api.Result{StatusCode: http.StatusNotFound}, nil
 		} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 			return &quesma_api.Result{
-				Body:          string(queryparser.BadRequestParseError(err)),
+				Body:          string(elastic_query_dsl.BadRequestParseError(err)),
 				StatusCode:    http.StatusBadRequest,
-				GenericResult: queryparser.BadRequestParseError(err),
+				GenericResult: elastic_query_dsl.BadRequestParseError(err),
 			}, nil
 		} else {
 			return nil, err

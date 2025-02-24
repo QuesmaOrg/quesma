@@ -398,6 +398,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				Name:         tableName,
 				Comment:      resTable.comment,
 				DatabaseName: databaseName,
+				ClusterName:  cfg.ClusterName, // FIXME: is this really necessary? The cluster name is only used when creating table, but this is an already created table - so is this information not needed?
 				Cols:         columnsMap,
 				Config: &ChTableConfig{
 					Attributes:                            []Attribute{},

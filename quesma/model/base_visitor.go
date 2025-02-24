@@ -42,7 +42,7 @@ func (v *BaseExprVisitor) VisitLiteral(e LiteralExpr) interface{} {
 		return v.OverrideVisitLiteral(v, e)
 	}
 
-	return NewLiteral(e.Value)
+	return e.Clone()
 }
 
 func (v *BaseExprVisitor) VisitTuple(t TupleExpr) interface{} {

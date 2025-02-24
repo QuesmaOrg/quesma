@@ -9,79 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"math"
-	"reflect"
 )
-
-func isInt(f float64) bool {
-	return f == float64(int64(f))
-}
-
-func isUnsignedInt(f float64) bool {
-	if f < 0 {
-		return false
-	}
-	return f == float64(uint64(f))
-}
-
-func getTypeName(v interface{}) string {
-	const unknownLiteral = "unknown"
-	const arrayLiteral = "Array"
-	primitiveTypes := map[string]string{
-		"string":  "String",
-		"bool":    "Bool",
-		"int":     "Int64",
-		"float64": "Float64",
-		"uint":    "UInt64",
-	}
-	if v == nil {
-		return unknownLiteral
-	}
-	GoType := reflect.TypeOf(v).String()
-	switch GoType {
-	case "string", "bool":
-		return primitiveTypes[GoType]
-	case "int":
-		if v.(int) < 0 {
-			return primitiveTypes["int"]
-		} else {
-			return primitiveTypes["uint"]
-		}
-	case "float64":
-		if isInt(v.(float64)) {
-			return primitiveTypes["int"]
-		} else if isUnsignedInt(v.(float64)) {
-			return primitiveTypes["uint"]
-		}
-		return primitiveTypes[GoType]
-	}
-	switch elem := v.(type) {
-	case []interface{}:
-		if len(elem) == 0 {
-			return arrayLiteral + "(unknown)"
-		} else {
-			innerTypeName := getTypeName(elem[0])
-			// Make sure that all elements of the array have the same type
-			for _, e := range elem {
-				if getTypeName(e) != innerTypeName {
-					return arrayLiteral + "(unknown)"
-				}
-			}
-			return arrayLiteral + "(" + innerTypeName + ")"
-		}
-	case interface{}:
-		if e := reflect.ValueOf(elem); e.Kind() == reflect.Slice {
-			innerTypeName := getTypeName(e.Index(0).Interface())
-			// Make sure that all elements of the slice have the same type
-			for i := 1; i < e.Len(); i++ {
-				if getTypeName(e.Index(i).Interface()) != innerTypeName {
-					return arrayLiteral + "(unknown)"
-				}
-			}
-			return arrayLiteral + "(" + innerTypeName + ")"
-		}
-	}
-	return GoType
-}
 
 func removeLowCardinality(columnType string) string {
 	if columnType == "LowCardinality(String)" {
@@ -169,63 +97,66 @@ func validateNumericType(columnType string, incomingValueType string, value inte
 	return false
 }
 
-func validateValueAgainstType(fieldName string, value interface{}, targetColumnType clickhouse.Type) types.JSON {
-	// Validate Array() types by recursing on the inner type:
-	if compoundType, isCompound := targetColumnType.(clickhouse.CompoundType); isCompound && compoundType.Name == "Array" {
-		if valueAsArray, isArray := value.([]interface{}); isArray && len(valueAsArray) > 0 {
-			innerTypesAreCompatible := true
-			innerTypeName := getTypeName(valueAsArray[0])
+func validateValueAgainstType(fieldName string, value interface{}, columnType clickhouse.Type) (isValid bool) {
+	switch columnType := columnType.(type) {
+	case clickhouse.BaseType:
+		incomingValueType, err := clickhouse.NewType(value, fieldName)
+		if err != nil {
+			return false
+		}
 
-			// Make sure that all elements of the array have the same type
-			for _, e := range valueAsArray {
-				eTypeName := getTypeName(e)
-				// Check if the type names are exactly the same. However, if it's a numeric type, perform more advanced
-				// validation (to handle an array like [3.5, 4, 4.5]).
-				if isNumericType(eTypeName) && isNumericType(innerTypeName) {
-					if !validateNumericType(innerTypeName, eTypeName, e) {
-						innerTypesAreCompatible = false
-						break
+		columnTypeName := removeLowCardinality(columnType.Name)
+
+		if isNumericType(columnTypeName) {
+			if incomingValueType, isBaseType := incomingValueType.(clickhouse.BaseType); isBaseType && validateNumericType(columnTypeName, incomingValueType.Name, value) {
+				// Numeric types match!
+				return true
+			}
+		}
+
+		if incomingValueType, isBaseType := incomingValueType.(clickhouse.BaseType); isBaseType && incomingValueType.Name == columnTypeName {
+			// Types match exactly!
+			return true
+		}
+
+		return false
+	case clickhouse.MultiValueType:
+		if columnType.Name == "Tuple" {
+			if value, isMap := value.(map[string]interface{}); isMap {
+				for key, elem := range value {
+					subtype := columnType.GetColumn(key)
+					if subtype == nil {
+						return false
 					}
-				} else {
-					if getTypeName(e) != innerTypeName {
-						innerTypesAreCompatible = false
-						break
+					if !validateValueAgainstType(fmt.Sprintf("%s.%s", fieldName, key), elem, subtype.Type) {
+						return false
 					}
 				}
+				return true
 			}
+		} else {
+			logger.Error().Msgf("MultiValueType validation is not yet supported for type: %v", columnType)
+		}
 
-			if innerTypesAreCompatible {
-				return validateValueAgainstType(fieldName, valueAsArray[0], compoundType.BaseType)
+		return false
+	case clickhouse.CompoundType:
+		if columnType.Name == "Array" {
+			if value, isArray := value.([]interface{}); isArray {
+				for i, elem := range value {
+					if !validateValueAgainstType(fmt.Sprintf("%s[%d]", fieldName, i), elem, columnType.BaseType) {
+						return false
+					}
+				}
+				return true
 			}
+		} else {
+			logger.Error().Msgf("CompoundType validation is not yet supported for type: %v", columnType)
 		}
+
+		return false
 	}
 
-	const DateTimeType = "DateTime64"
-	const StringType = "String"
-	deletedFields := make(types.JSON, 0)
-	columnType := targetColumnType.String()
-	columnType = removeLowCardinality(columnType)
-	incomingValueType := getTypeName(value)
-
-	// Hot path
-	if columnType == incomingValueType {
-		return deletedFields
-	}
-
-	if columnType == DateTimeType {
-		// TODO validate date format
-		// For now we store dates as strings
-		if incomingValueType != StringType {
-			deletedFields[fieldName] = value
-		}
-	} else if isNumericType(columnType) {
-		if !validateNumericType(columnType, incomingValueType, value) {
-			deletedFields[fieldName] = value
-		}
-	} else if columnType != incomingValueType {
-		deletedFields[fieldName] = value
-	}
-	return deletedFields
+	return false
 }
 
 // validateIngest validates the document against the table schema
@@ -247,8 +178,8 @@ func (ip *IngestProcessor) validateIngest(tableName string, document types.JSON)
 			if value == nil {
 				continue
 			}
-			for k, v := range validateValueAgainstType(columnName, value, column.Type) {
-				deletedFields[k] = v
+			if !validateValueAgainstType(columnName, value, column.Type) {
+				deletedFields[columnName] = value
 			}
 		}
 	}

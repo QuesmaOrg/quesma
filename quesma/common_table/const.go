@@ -4,15 +4,17 @@ package common_table
 
 import (
 	"context"
+	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
+	"strconv"
 )
 
 const TableName = "quesma_common_table"
 const IndexNameColumn = "__quesma_index_name"
 
 const singleTableDDL = `
-CREATE TABLE IF NOT EXISTS "quesma_common_table"
+CREATE TABLE IF NOT EXISTS "quesma_common_table" %s
 (
     "attributes_values" Map(String, String),
     "attributes_metadata" Map(String, String),
@@ -26,10 +28,19 @@ CREATE TABLE IF NOT EXISTS "quesma_common_table"
 
 `
 
-func EnsureCommonTableExists(db quesma_api.BackendConnector) {
+func commonTableDDL(clusterName string) string {
+	var maybeOnClusterClause string
+	if clusterName != "" {
+		maybeOnClusterClause = "ON CLUSTER " + strconv.Quote(clusterName)
+	}
+	return fmt.Sprintf(singleTableDDL, maybeOnClusterClause)
+
+}
+
+func EnsureCommonTableExists(db quesma_api.BackendConnector, clusterName string) {
 
 	logger.Info().Msgf("Ensuring common table '%v' exists", TableName)
-	err := db.Exec(context.Background(), singleTableDDL)
+	err := db.Exec(context.Background(), commonTableDDL(clusterName))
 	if err != nil {
 		// TODO check if we've got RO access to the database
 		logger.Warn().Msgf("Failed to create common table '%v': %v", TableName, err)
