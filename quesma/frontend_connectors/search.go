@@ -158,7 +158,7 @@ func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int
 	}
 
 	tables := make([]*clickhouse.Table, 0, len(indexes))
-	if tableMap, err := q.logManager.GetTableDefinitions(); err != nil {
+	if tableMap, err := q.logManager.GetTableDefinitions(); err == nil {
 		for _, index := range indexes {
 			if table, ok := tableMap.Load(index); ok {
 				tables = append(tables, table)
