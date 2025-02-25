@@ -54,7 +54,7 @@ type dualWriteHttpProxyV2 struct {
 	logManager          *clickhouse.LogManager
 	publicPort          util.Port
 	asyncQueriesEvictor *async_search_storage.AsyncQueriesEvictor
-	queryRunner         *QueryRunner
+	queryRunner         *frontend_connectors.QueryRunner
 	schemaRegistry      schema.Registry
 	schemaLoader        clickhouse.TableDiscovery
 }
@@ -65,7 +65,7 @@ func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 
 func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
 
-	queryProcessor := NewQueryRunner(logManager, config, dependencies.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
+	queryProcessor := frontend_connectors.NewQueryRunner(logManager, config, dependencies.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
 
 	// not sure how we should configure our query translator ???
 	// is this a config option??
@@ -76,8 +76,8 @@ func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clic
 	queryProcessor.EnableQueryOptimization(config)
 	esConn := backend_connectors.NewElasticsearchBackendConnector(config.Elasticsearch)
 
-	ingestRouter := ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver, esConn)
-	searchRouter := ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
+	ingestRouter := frontend_connectors.ConfigureIngestRouterV2(config, dependencies, ingestProcessor, resolver, esConn)
+	searchRouter := frontend_connectors.ConfigureSearchRouterV2(config, dependencies, registry, logManager, queryProcessor, resolver)
 
 	elasticHttpIngestFrontendConnector := frontend_connectors.NewElasticHttpIngestFrontendConnector(":"+strconv.Itoa(int(config.PublicTcpPort)),
 		logManager, registry, config, ingestRouter)
