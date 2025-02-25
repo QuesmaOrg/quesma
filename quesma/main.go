@@ -20,7 +20,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/persistence"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
-	"github.com/QuesmaOrg/quesma/quesma/quesma"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/ui"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
@@ -215,10 +214,10 @@ func launchMySqlPassthrough() {
 	qb.Stop(context.Background())
 }
 
-func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *quesma.Quesma {
+func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *Quesma {
 	if cfg.TransparentProxy {
-		return quesma.NewQuesmaTcpProxy(cfg, quesmaManagementConsole, logChan, false)
+		return NewQuesmaTcpProxy(cfg, quesmaManagementConsole, logChan, false)
 	} else {
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, ip, sl, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry)
+		return NewHttpProxy(phoneHomeAgent, lm, ip, sl, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry)
 	}
 }

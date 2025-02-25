@@ -1,9 +1,8 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package quesma
+package elasticsearch
 
 import (
-	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	"github.com/goccy/go-json"
@@ -192,7 +191,7 @@ func TestParseMappings_KibanaSampleFlights(t *testing.T) {
 		}
 	}}`
 	parsedJson, _ := types.ParseJSON(json)
-	mappings := elasticsearch.ParseMappings("", parsedJson)
+	mappings := ParseMappings("", parsedJson)
 
 	if !reflect.DeepEqual(mappings, kibanaSampleFlightsFields) {
 		t.Errorf("ParseMappings() got = %v, want %v", mappings, kibanaSampleFlightsFields)
@@ -284,7 +283,7 @@ func TestGenerateMappings_KibanaSampleFlights(t *testing.T) {
 		}
 	}}`
 	s := newSchemaFromColumns(kibanaSampleFlightsFields)
-	mappings := elasticsearch.GenerateMappings(schema.SchemaToHierarchicalSchema(&s))
+	mappings := GenerateMappings(schema.SchemaToHierarchicalSchema(&s))
 
 	marshaled, err := json.Marshal(mappings)
 	assert.Nil(t, err)
@@ -495,7 +494,7 @@ func TestParseMappings_KibanaSampleEcommerce(t *testing.T) {
 		}
 	}}`
 	parsedJson, _ := types.ParseJSON(json)
-	mappings := elasticsearch.ParseMappings("", parsedJson)
+	mappings := ParseMappings("", parsedJson)
 
 	if !reflect.DeepEqual(mappings, kibanaSampleEcommerceFields) {
 		t.Errorf("ParseMappings() got = %v, want %v", mappings, kibanaSampleEcommerceFields)
@@ -701,7 +700,7 @@ func TestGenerateMappings_KibanaSampleEcommerce(t *testing.T) {
 		}
 	}}`
 	s := newSchemaFromColumns(kibanaSampleEcommerceFields)
-	mappings := elasticsearch.GenerateMappings(schema.SchemaToHierarchicalSchema(&s))
+	mappings := GenerateMappings(schema.SchemaToHierarchicalSchema(&s))
 
 	marshaled, err := json.Marshal(mappings)
 	assert.Nil(t, err)

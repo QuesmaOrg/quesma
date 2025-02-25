@@ -1,12 +1,11 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package quesma
+package elastic_query_dsl
 
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
 	"github.com/QuesmaOrg/quesma/quesma/model"
-	"github.com/QuesmaOrg/quesma/quesma/parsers/elastic_query_dsl"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -106,12 +105,12 @@ func TestParseHighLight(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	cw := elastic_query_dsl.ClickhouseQueryTranslator{
+	cw := ClickhouseQueryTranslator{
 		Table: &table,
 		Ctx:   context.Background(),
 	}
 
-	queryAsMap := make(elastic_query_dsl.QueryMap)
+	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(query), &queryAsMap)
 
 	assert.Nil(t, err, "Error parsing query %v", err)
