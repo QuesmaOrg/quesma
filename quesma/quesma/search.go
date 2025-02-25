@@ -158,16 +158,16 @@ func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int
 	}
 
 	tables := make([]*clickhouse.Table, 0, len(indexes))
-	tableMap, err := q.logManager.GetTableDefinitions()
-	if err != nil {
-		return 0, err
-	}
-	for _, index := range indexes {
-		table, ok := tableMap.Load(index)
-		if !ok {
-			return 0, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", index)).Details("Table: %s", index)
+	if tableMap, err := q.logManager.GetTableDefinitions(); err != nil {
+		for _, index := range indexes {
+			if table, ok := tableMap.Load(index); ok {
+				tables = append(tables, table)
+			} else {
+				return 0, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", index)).Details("Table: %s", index)
+			}
 		}
-		tables = append(tables, table)
+	} else {
+		return 0, err
 	}
 
 	// Query execution block

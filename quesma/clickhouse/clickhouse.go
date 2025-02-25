@@ -199,7 +199,7 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, schema schema.Reg
 
 func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (count int64, err error) {
 	if len(tables) == 0 {
-		return 0, nil
+		return
 	}
 	var subCountStatements []string
 	for _, t := range tables {
@@ -209,7 +209,7 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (coun
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
-	return count, nil
+	return
 }
 
 func (lm *LogManager) Count(ctx context.Context, table *Table) (int64, error) {
