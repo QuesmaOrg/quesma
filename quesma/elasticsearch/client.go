@@ -7,8 +7,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"net/http"
 	"time"
 )

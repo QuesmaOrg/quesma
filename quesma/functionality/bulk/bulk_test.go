@@ -4,9 +4,9 @@ package bulk
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/table_resolver"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -3,9 +3,9 @@
 package main
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"net/http"
 	"sync"

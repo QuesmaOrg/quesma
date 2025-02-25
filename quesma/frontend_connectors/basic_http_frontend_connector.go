@@ -8,7 +8,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"

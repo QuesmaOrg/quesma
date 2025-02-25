@@ -4,7 +4,7 @@ package feature
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

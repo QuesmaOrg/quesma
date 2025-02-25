@@ -5,7 +5,7 @@ package async_search_storage
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/recovery"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"strings"
 	"time"

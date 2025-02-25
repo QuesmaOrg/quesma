@@ -4,10 +4,10 @@ package schema
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/comment_metadata"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"sync"
 	"time"

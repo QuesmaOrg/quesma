@@ -3,7 +3,7 @@
 package frontend_connectors
 
 import (
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/stretchr/testify/assert"
 	"testing"

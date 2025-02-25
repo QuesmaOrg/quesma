@@ -5,7 +5,7 @@ package ui
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/ui/internal/builder"
 	"slices"
 )
 

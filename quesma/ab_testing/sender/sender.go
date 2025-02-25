@@ -7,7 +7,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing/collector"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/recovery"
 )
 
 type senderControlMessage struct {

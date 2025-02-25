@@ -4,8 +4,8 @@ package ui
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
 	"github.com/QuesmaOrg/quesma/quesma/stats/errorstats"
+	"github.com/QuesmaOrg/quesma/quesma/ui/internal/builder"
 	"net/url"
 	"strconv"
 )

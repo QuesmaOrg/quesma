@@ -22,9 +22,9 @@ import (
 	"os"
 	"sort"
 
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/recovery"
 	"github.com/QuesmaOrg/quesma/quesma/stats/errorstats"
 
 	"runtime"

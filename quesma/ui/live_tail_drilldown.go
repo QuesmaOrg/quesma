@@ -5,7 +5,7 @@ package ui
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/ui/internal/builder"
+	"github.com/QuesmaOrg/quesma/quesma/ui/internal/builder"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	tracing "github.com/QuesmaOrg/quesma/quesma/v2/core/tracing"

@@ -5,7 +5,7 @@ package ingest
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

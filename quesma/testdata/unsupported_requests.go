@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package testdata
 
-import "github.com/QuesmaOrg/quesma/quesma/quesma/ui"
+import "github.com/QuesmaOrg/quesma/quesma/ui"
 
 var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 	// bucket:

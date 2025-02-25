@@ -7,10 +7,10 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing/collector"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/recovery"
 	"strings"
 	"time"
 )
