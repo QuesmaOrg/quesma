@@ -3,7 +3,6 @@
 package quesma
 
 import (
-	"database/sql/driver"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
@@ -16,7 +15,6 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core/diag"
 	"github.com/stretchr/testify/assert"
-	"strconv"
 	"testing"
 )
 
@@ -25,7 +23,7 @@ func TestCountEndpoint(t *testing.T) {
 		Tables: map[schema.IndexName]schema.Schema{
 			"no_db_name":      {Fields: map[schema.FieldName]schema.Field{}},
 			"with_db_name":    {Fields: map[schema.FieldName]schema.Field{}, DatabaseName: "db_name"},
-			"common_prefix_1": {Fields: map[schema.FieldName]schema.Field{}},
+			"common_prefix_1": {Fields: map[schema.FieldName]schema.Field{}, DatabaseName: "db_name"},
 			"common_prefix_2": {Fields: map[schema.FieldName]schema.Field{}},
 		},
 	}
@@ -38,7 +36,7 @@ func TestCountEndpoint(t *testing.T) {
 		Name: "with_db_name", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Created: true, Cols: map[string]*clickhouse.Column{}, DatabaseName: "db_name",
 	})
 	tables.Store("common_prefix_1", &clickhouse.Table{
-		Name: "common_prefix_1", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Created: true, Cols: map[string]*clickhouse.Column{},
+		Name: "common_prefix_1", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Created: true, Cols: map[string]*clickhouse.Column{}, DatabaseName: "db_name",
 	})
 	tables.Store("common_prefix_2", &clickhouse.Table{
 		Name: "common_prefix_2", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Created: true, Cols: map[string]*clickhouse.Column{},
@@ -63,24 +61,21 @@ func TestCountEndpoint(t *testing.T) {
 	testcases := []struct {
 		index       string
 		expectedSQL string
-		sqlArg      []driver.Value
 	}{
-		{"no_db_name", `SELECT count(*) FROM ?`, []driver.Value{strconv.Quote("no_db_name")}},
-		{"with_db_name", "SELECT count(*) FROM ?", []driver.Value{fmt.Sprintf("%s.%s", strconv.Quote("db_name"), strconv.Quote("with_db_name"))}},
-		{"common_prefix*", "SELECT sum(*) as count FROM ((SELECT count(*) FROM ?) UNION ALL (SELECT count(*) FROM ?))", []driver.Value{strconv.Quote("common_prefix_1"), strconv.Quote("common_prefix_2")}},
-		{"common_prefix_1,common_prefix_2", "SELECT sum(*) as count FROM ((SELECT count(*) FROM ?) UNION ALL (SELECT count(*) FROM ?))", []driver.Value{strconv.Quote("common_prefix_1"), strconv.Quote("common_prefix_2")}},
+		{"no_db_name", `SELECT count(*) FROM "no_db_name"`},
+		{"with_db_name", `SELECT count(*) FROM "db_name"."with_db_name"`},
+		{"common_prefix*", `SELECT sum(*) as count FROM ((SELECT count(*) FROM "db_name"."common_prefix_1") UNION ALL (SELECT count(*) FROM "common_prefix_2"))`},
+		{"common_prefix_1,common_prefix_2", `SELECT sum(*) as count FROM ((SELECT count(*) FROM "db_name"."common_prefix_1") UNION ALL (SELECT count(*) FROM "common_prefix_2"))`},
 	}
 
 	for _, tc := range testcases {
 		returnedRows := sqlmock.NewRows([]string{"count"})
 		returnedRows.AddRow(10)
-		mock.ExpectQuery(tc.expectedSQL).WithArgs(tc.sqlArg...).WillReturnRows(returnedRows)
+		mock.ExpectQuery(tc.expectedSQL).WillReturnRows(returnedRows)
 
 		cnt, err := queryRunner.HandleCount(ctx, tc.index)
 		assert.NoError(t, err)
 		assert.Equal(t, int64(10), cnt)
-
-		fmt.Println(cnt)
 
 		if err = mock.ExpectationsWereMet(); err != nil {
 			t.Fatal("there were unfulfilled expections:", err)

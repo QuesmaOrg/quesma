@@ -197,21 +197,15 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, schema schema.Reg
 	return util.Distinct(results), nil
 }
 
-func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (int64, error) {
+func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (count int64, err error) {
 	if len(tables) == 0 {
 		return 0, nil
 	}
-	const subcountStatement = "(SELECT count(*) FROM ?)"
 	var subCountStatements []string
-	for range len(tables) {
-		subCountStatements = append(subCountStatements, subcountStatement)
-	}
-	var count int64
-	tableNames := make([]any, 0, len(tables))
 	for _, t := range tables {
-		tableNames = append(tableNames, t.FullTableName())
+		subCountStatements = append(subCountStatements, fmt.Sprintf("(SELECT count(*) FROM %s)", t.FullTableName()))
 	}
-	err := lm.chDb.QueryRow(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), tableNames...).Scan(&count)
+	err = lm.chDb.QueryRow(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL "))).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
