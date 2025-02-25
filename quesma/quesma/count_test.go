@@ -3,7 +3,6 @@
 package quesma
 
 import (
-	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/quesma/ab_testing"
 	"github.com/QuesmaOrg/quesma/quesma/backend_connectors"
