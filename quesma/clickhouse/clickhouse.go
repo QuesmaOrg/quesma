@@ -220,7 +220,7 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (int6
 
 func (lm *LogManager) Count(ctx context.Context, table *Table) (int64, error) {
 	var count int64
-	err := lm.chDb.QueryRow(ctx, "SELECT count(*) FROM ?", table.FullTableName()).Scan(&count)
+	err := lm.chDb.QueryRow(ctx, fmt.Sprintf("SELECT count(*) FROM %s", table.FullTableName())).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
