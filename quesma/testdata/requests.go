@@ -2516,9 +2516,9 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`true`},
+		[]string{"true"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE true`},
+		[]string{`SELECT "message" FROM ` + TableName + " WHERE true"},
 		[]string{},
 	},
 }
