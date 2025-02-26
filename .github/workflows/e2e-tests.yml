@@ -56,6 +56,6 @@ jobs:
         run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8080)" = "200" ]; do sleep 3; done
 
       - name: Run e2e tests
-        working-directory: quesma
+        working-directory: platform
         run: go test -race --tags=integration  -v ./...
 
