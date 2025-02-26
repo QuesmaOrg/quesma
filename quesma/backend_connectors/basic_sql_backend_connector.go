@@ -6,7 +6,7 @@ package backend_connectors
 import (
 	"context"
 	"database/sql"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 

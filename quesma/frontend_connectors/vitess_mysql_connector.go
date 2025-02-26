@@ -16,7 +16,7 @@ import (
 	"vitess.io/vitess/go/vt/vtenv"
 
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/recovery"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 

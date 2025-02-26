@@ -5,9 +5,9 @@ package connectors
 import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/licensing"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/telemetry"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )

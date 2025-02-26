@@ -5,7 +5,7 @@ package collector
 import (
 	"crypto/sha1"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/goccy/go-json"
 )

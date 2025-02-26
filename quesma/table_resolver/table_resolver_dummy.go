@@ -5,8 +5,8 @@ package table_resolver
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	mux "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )
 

@@ -13,11 +13,11 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/processors"
 	"github.com/QuesmaOrg/quesma/quesma/processors/es_to_ch_common"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 	"github.com/rs/zerolog/log"
 	"net/http"
 )

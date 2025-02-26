@@ -9,7 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
 	"github.com/QuesmaOrg/quesma/quesma/ingest"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/recovery"
+	"github.com/QuesmaOrg/quesma/quesma/recovery"
 	"time"
 )
 

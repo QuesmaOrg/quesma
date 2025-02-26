@@ -4,9 +4,9 @@ package schema_test
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"reflect"
