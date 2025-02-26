@@ -146,7 +146,7 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 			if config.TimestampDefaultsNow {
 				defaultStr = " DEFAULT now64()"
 			}
-			timestampStr = fmt.Sprintf("%s\"%s\" DateTime64(3)%s,\n", util.Indent(1), timestampFieldName, defaultStr)
+			timestampStr = fmt.Sprintf("%s\"%s\" DateTime64(9)%s,\n", util.Indent(1), timestampFieldName, defaultStr)
 			table.Cols[timestampFieldName] = &chLib.Column{Name: timestampFieldName, Type: chLib.NewBaseType("DateTime64")}
 		}
 	}
