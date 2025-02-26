@@ -2504,6 +2504,23 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
+	{ // [48]
+		"_index term",
+		`{
+			"query": { /*one comment */
+				"bool": {
+					"must": {
+						"term": { "_index": "Quesma" }
+					}
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`true`},
+		model.ListAllFields,
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE true`},
+		[]string{},
+	},
 }
 
 var TestSearchRuntimeMappings = []SearchTestCase{

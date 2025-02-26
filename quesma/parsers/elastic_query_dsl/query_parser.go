@@ -490,9 +490,8 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQu
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
 			if k == "_index" { // index is a table name, already taken from URI and moved to FROM clause
-				logger.Warn().Msgf("term %s=%v in query body, ignoring in result SQL", k, v)
-				whereClause = model.NewInfixExpr(model.NewLiteral("0"), "=", model.NewLiteral("0 /* "+k+"="+sprint(v)+" */"))
-				return model.NewSimpleQuery(whereClause, true)
+				logger.WarnWithCtx(cw.Ctx).Msgf("term %s=%v in query body, ignoring in result SQL", k, v)
+				return model.NewSimpleQuery(model.TrueExpr, true)
 			}
 			fieldName := ResolveField(cw.Ctx, k, cw.Schema)
 			whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), "=", model.NewLiteral(sprint(v)))
