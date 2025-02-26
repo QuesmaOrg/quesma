@@ -4,9 +4,9 @@ package ingest
 
 import (
 	"github.com/QuesmaOrg/quesma/quesma/clickhouse"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/stretchr/testify/assert"
 	"strconv"

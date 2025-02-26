@@ -4,8 +4,8 @@ package persistence
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 	"net/url"
 	"testing"
 	"time"

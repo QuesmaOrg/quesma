@@ -4,7 +4,7 @@ package util
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 )
 
 func FlattenMap(data map[string]interface{}, nestedSeparator string) map[string]interface{} {

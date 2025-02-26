@@ -8,7 +8,7 @@ import (
 	"database/sql"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/QuesmaOrg/quesma/quesma/buildinfo"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 )

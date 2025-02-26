@@ -5,9 +5,9 @@ package table_resolver
 import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/common_table"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/elasticsearch"
 	"github.com/QuesmaOrg/quesma/quesma/end_user_errors"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/util"
 	"github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"reflect"

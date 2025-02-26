@@ -3,8 +3,8 @@
 package optimize
 
 import (
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/model"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	"strings"
 	"time"
 )

@@ -5,8 +5,8 @@ package elasticsearch
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/quesma/config"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
 	quesma_api "github.com/QuesmaOrg/quesma/quesma/v2/core"
 	"github.com/goccy/go-json"
 	"io"

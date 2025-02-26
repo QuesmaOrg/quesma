@@ -3,7 +3,7 @@
 package clickhouse
 
 import (
-	"github.com/QuesmaOrg/quesma/quesma/quesma/types"
+	"github.com/QuesmaOrg/quesma/quesma/types"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
