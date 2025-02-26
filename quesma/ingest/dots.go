@@ -6,10 +6,21 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/types"
 )
 
-func transformFieldName(jsonInsert types.JSON, transformer func(field string) string) bool {
+type FieldTransformer func(field string) string
+
+func transformFieldName(jsonInsert types.JSON, transformer FieldTransformer, nestedTransformer FieldTransformer) bool {
+	return transformFieldNameInternal(0, jsonInsert, transformer, nestedTransformer)
+}
+
+func transformFieldNameInternal(level int, jsonInsert types.JSON, transformer FieldTransformer, nestedTransformer FieldTransformer) bool {
 	gotDots := false
 	for fieldName, v := range jsonInsert {
-		withoutDotsFieldName := transformer(fieldName)
+		var withoutDotsFieldName string
+		if level == 0 {
+			withoutDotsFieldName = transformer(fieldName)
+		} else {
+			withoutDotsFieldName = nestedTransformer(fieldName)
+		}
 		if fieldName != withoutDotsFieldName {
 			gotDots = true
 			jsonInsert[withoutDotsFieldName] = v
@@ -17,7 +28,7 @@ func transformFieldName(jsonInsert types.JSON, transformer func(field string) st
 			fieldName = withoutDotsFieldName
 		}
 		if nestedJson, isNested := v.(map[string]interface{}); isNested {
-			nestedGotDots := transformFieldName(nestedJson, transformer)
+			nestedGotDots := transformFieldNameInternal(level+1, nestedJson, transformer, nestedTransformer)
 			gotDots = gotDots || nestedGotDots
 		}
 	}

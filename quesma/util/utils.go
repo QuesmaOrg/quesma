@@ -899,14 +899,8 @@ func replaceNonAlphabetic(str string) string {
 	return string(chars)
 }
 
-// FieldToColumnEncoder takes input field name
-// and converts it using algorithm defined in
-// https://github.com/QuesmaOrg/quesma/blob/main/adr/5_nested_fields_representation.md
-// all lower case
-// all non-alphanumeric are translated to ‘_’ (e.g. “host-name”, “host.name”, “host name” will be “host_name”)
-// if starts with digit, then add ‘_’ at beginning
-// Save mapping to persitent logic, on-collision do override.
-func FieldToColumnEncoder(field string) string {
+func FieldPartToColumnEncoder(field string) string {
+
 	if len(field) == 0 {
 		return field
 	}
@@ -916,6 +910,19 @@ func FieldToColumnEncoder(field string) string {
 	}
 	newField := strings.ToLower(field)
 	newField = replaceNonAlphabetic(newField)
+	return newField
+}
+
+// FieldToColumnEncoder takes input field name
+// and converts it using algorithm defined in
+// https://github.com/QuesmaOrg/quesma/blob/main/adr/5_nested_fields_representation.md
+// all lower case
+// all non-alphanumeric are translated to ‘_’ (e.g. “host-name”, “host.name”, “host name” will be “host_name”)
+// if starts with digit, then add ‘_’ at beginning
+// Save mapping to persitent logic, on-collision do override.
+func FieldToColumnEncoder(field string) string {
+	newField := FieldPartToColumnEncoder(field)
+
 	if isDigit(newField[0]) {
 		newField = "_" + newField
 	}

@@ -621,12 +621,11 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if ip.schemaRegistry != nil {
 		ip.schemaRegistry.UpdateFieldEncodings(encodings)
 	}
+
 	// Do field encoding here, once for all jsons
 	// This is in-place operation
 	for _, jsonValue := range jsonData {
-		transformFieldName(jsonValue, func(field string) string {
-			return util.FieldToColumnEncoder(field)
-		})
+		transformFieldName(jsonValue, util.FieldToColumnEncoder, util.FieldPartToColumnEncoder)
 	}
 
 	var transformedJsons []types.JSON
