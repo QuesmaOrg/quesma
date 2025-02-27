@@ -3,7 +3,7 @@
 package model
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/painful"
+	"github.com/QuesmaOrg/quesma/platform/parsers/painful"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"time"
 )
