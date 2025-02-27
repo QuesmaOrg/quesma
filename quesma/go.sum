@@ -8,8 +8,8 @@ github.com/ClickHouse/clickhouse-go/v2 v2.32.2 h1:Y8fAXt0CpLhqNXMLlSddg+cMfAr7zH
 github.com/ClickHouse/clickhouse-go/v2 v2.32.2/go.mod h1:/vE8N/+9pozLkIiTMWbNUGviccDv/czEGS1KACvpXIk=
 github.com/DATA-DOG/go-sqlmock v1.5.2 h1:OcvFkGmslmlZibjAjaHm3L//6LiuBgolP7OputlJIzU=
 github.com/DATA-DOG/go-sqlmock v1.5.2/go.mod h1:88MAG/4G7SMwSE3CeA0ZKzrT5CiOU3OJ+JlNzwDqpNU=
-github.com/DataDog/go-sqllexer v0.0.21 h1:FfD3FXBPXL2wRSrwJKm/o3i++Qktn9jskCItRsmbRo0=
-github.com/DataDog/go-sqllexer v0.0.21/go.mod h1:KwkYhpFEVIq+BfobkTC1vfqm4gTi65skV/DpDBXtexc=
+github.com/DataDog/go-sqllexer v0.1.1 h1:45wV74bIqAeEGUd3VyM78I7tfarjAY/XZzklJ+FQjmk=
+github.com/DataDog/go-sqllexer v0.1.1/go.mod h1:KwkYhpFEVIq+BfobkTC1vfqm4gTi65skV/DpDBXtexc=
 github.com/H0llyW00dzZ/cidr v1.2.1 h1:DfRHX+RqVVKZijQGO1aJSaWvN9Saan8sycK/4wrfY5g=
 github.com/H0llyW00dzZ/cidr v1.2.1/go.mod h1:S+EgYkMandSAN27mGNG/CB3jeoXDAyalsvvVFpWdnXc=
 github.com/andybalholm/brotli v1.1.1 h1:PR2pgnyFznKEugtsUo0xLdDop5SKXd5Qf5ysW+7XdTA=
