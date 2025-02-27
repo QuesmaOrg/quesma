@@ -7,6 +7,7 @@ import (
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -14,11 +15,12 @@ import (
 // e.g. for expression "abc", value is "abc", for expression "title:abc", value is also "abc",
 // and for expression "title:(abc OR (def AND ghi))", value is "(abc OR (def AND ghi))".
 
-var wildcards = map[rune]string{
-	'*': `%`,
-	'?': `_`,
-	'%': `\%`,
-	'_': `\_`,
+var charTransformations = map[rune]string{
+	'*':  `%`,
+	'?':  `_`,
+	'%':  `\%`,
+	'_':  `\_`,
+	'\'': `\'`,
 }
 
 var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\'} // they can be escaped in query string
@@ -36,31 +38,34 @@ func newTermValue(term string) termValue {
 }
 
 func (v termValue) toExpression(fieldName string) model.Expr {
-	termAsStringToClickhouse, wildcardsExist := v.transformSpecialCharacters()
+	termAsStringToClickhouse := v.transformSpecialCharacters()
 
-	if alreadyQuoted(v.term) {
-		termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
-	}
-
-	if wildcardsExist {
-		return model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteralWithEscapeType(termAsStringToClickhouse, model.FullyEscaped))
+	_, err := strconv.ParseFloat(termAsStringToClickhouse, 64)
+	isNumber := err == nil
+	if isNumber {
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteral(termAsStringToClickhouse))
 	} else {
-		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteralSingleQuoteString(termAsStringToClickhouse))
+		if alreadyQuoted(v.term) {
+			termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
+		}
+		if len(termAsStringToClickhouse) > 0 && (termAsStringToClickhouse[0] != '%' || termAsStringToClickhouse[len(termAsStringToClickhouse)-1] != '%') {
+			termAsStringToClickhouse = fmt.Sprintf("%%%s%%", termAsStringToClickhouse)
+		}
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteralWithEscapeType(termAsStringToClickhouse, model.FullyEscaped))
 	}
 }
 
 // transformSpecialCharacters transforms special characters in term to their SQL equivalents.
 // - Removes escaping, so \[special character] -> [special character]
 // - * and ? are transformed to % and _
-func (v termValue) transformSpecialCharacters() (termFinal string, wildcardsExist bool) {
+func (v termValue) transformSpecialCharacters() (termFinal string) {
 	strAsRunes := []rune(v.term)
 	var returnTerm strings.Builder
 	for i := 0; i < len(strAsRunes); i++ {
 		curRune := strAsRunes[i]
-		replacement, isWildcard := wildcards[curRune]
-		if isWildcard {
-			wildcardsExist = true
-			returnTerm.WriteString(replacement)
+		transformed, isTransformed := charTransformations[curRune]
+		if isTransformed {
+			returnTerm.WriteString(transformed)
 			continue
 		}
 
@@ -73,11 +78,14 @@ func (v termValue) transformSpecialCharacters() (termFinal string, wildcardsExis
 		if curRune == escapeCharacter && slices.Contains(specialCharacters, nextRune) {
 			returnTerm.WriteRune(nextRune)
 			i++
+		} else if curRune == escapeCharacter { // / is always escaped twice in Clickhouse
+			returnTerm.WriteRune(curRune)
+			returnTerm.WriteRune(curRune)
 		} else {
 			returnTerm.WriteRune(curRune)
 		}
 	}
-	return returnTerm.String(), wildcardsExist
+	return returnTerm.String()
 }
 
 type rangeValue struct {
