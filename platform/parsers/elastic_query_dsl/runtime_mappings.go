@@ -4,7 +4,7 @@ package elastic_query_dsl
 
 import (
 	"github.com/QuesmaOrg/quesma/platform/model"
-	"github.com/QuesmaOrg/quesma/platform/painful"
+	"github.com/QuesmaOrg/quesma/platform/parsers/painful"
 	"github.com/QuesmaOrg/quesma/platform/types"
 )
 
