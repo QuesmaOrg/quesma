@@ -55,7 +55,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if i == 178 {
 				t.Skip("non-pancake")
 			}
-			if i != 182 {
+			if i != 184 {
 				t.Skip()
 			}
 

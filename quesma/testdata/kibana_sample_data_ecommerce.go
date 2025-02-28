@@ -1205,4 +1205,260 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
 			  fromUnixTimestamp64Milli(1740584933594))`,
 	},
+	{ // [1]
+		TestName: "extended_bounds pre keys (timezone calculations most tricky to get right)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"gridSplit": {
+					"aggs": {
+						"gridCentroid": {
+							"geo_centroid": {
+								"field": "geoip.location"
+							}
+						},
+						"sum_of_taxful_total_price": {
+							"sum": {
+								"field": "taxful_total_price"
+							}
+						}
+					},
+					"geotile_grid": {
+						"bounds": {
+							"bottom_right": [
+								90,
+								0
+							],
+							"top_left": [
+								-90,
+								66.51326
+							]
+						},
+						"field": "geoip.location",
+						"precision": 5,
+						"shard_size": 65535,
+						"size": 65535
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"bool": {
+								"must": [
+									{
+										"exists": {
+											"field": "geoip.location"
+										}
+									},
+									{
+										"geo_bounding_box": {
+											"geoip.location": {
+												"bottom_right": [
+													101.25,
+													-11.1784
+												],
+												"top_left": [
+													-90,
+													66.51326
+												]
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-02-21T13:07:02.223Z",
+									"lte": "2025-02-28T13:07:02.223Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1740748023284,
+			"expiration_time_in_millis": 1740748083277,
+			"id": "FlNrbTZUVmxSUzkyQ3RFdElNNy1MQ1EcakV2QVZUZEJSUkM3RkhHdVFaU3dtdzoyMjExMQ==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"gridSplit": {
+						"buckets": [
+							{
+								"doc_count": 212,
+								"gridCentroid": {
+									"count": 212,
+									"location": {
+										"lat": 25.013679222331188,
+										"lon": 52.11132072843611
+									}
+								},
+								"key": "5/20/13",
+								"sum_of_taxful_total_price": {
+									"value": 17127.015625
+								}
+							},
+							{
+								"doc_count": 200,
+								"gridCentroid": {
+									"count": 200,
+									"location": {
+										"lat": 40.78349998171907,
+										"lon": -74.00000003166497
+									}
+								},
+								"key": "5/9/12",
+								"sum_of_taxful_total_price": {
+									"value": 14978.84375
+								}
+							},
+							{
+								"doc_count": 136,
+								"gridCentroid": {
+									"count": 136,
+									"location": {
+										"lat": 52.022058804046964,
+										"lon": -1.0397059056798326
+									}
+								},
+								"key": "5/15/10",
+								"sum_of_taxful_total_price": {
+									"value": 9948.125
+								}
+							},
+							{
+								"doc_count": 122,
+								"gridCentroid": {
+									"count": 122,
+									"location": {
+										"lat": 43.63524586859266,
+										"lon": 7.140983528014822
+									}
+								},
+								"key": "5/16/11",
+								"sum_of_taxful_total_price": {
+									"value": 9626.140625
+								}
+							},
+							{
+								"doc_count": 109,
+								"gridCentroid": {
+									"count": 109,
+									"location": {
+										"lat": 30.09999997448176,
+										"lon": 31.29999996162951
+									}
+								},
+								"key": "5/18/13",
+								"sum_of_taxful_total_price": {
+									"value": 8335.9765625
+								}
+							},
+							{
+								"doc_count": 94,
+								"gridCentroid": {
+									"count": 94,
+									"location": {
+										"lat": 31.599999968893826,
+										"lon": -8.000000026077032
+									}
+								},
+								"key": "5/15/13",
+								"sum_of_taxful_total_price": {
+									"value": 5956.546875
+								}
+							},
+							{
+								"doc_count": 46,
+								"gridCentroid": {
+									"count": 46,
+									"location": {
+										"lat": 40.999999986961484,
+										"lon": 28.999999947845936
+									}
+								},
+								"key": "5/18/11",
+								"sum_of_taxful_total_price": {
+									"value": 3535.2578125
+								}
+							},
+							{
+								"doc_count": 43,
+								"gridCentroid": {
+									"count": 43,
+									"location": {
+										"lat": 4.599999985657632,
+										"lon": -74.10000007599592
+									}
+								},
+								"key": "5/9/15",
+								"sum_of_taxful_total_price": {
+									"value": 2616.25
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null
+				},
+				"timed_out": false,
+				"took": 7
+			},
+			"start_time_in_millis": 1740748023277
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("metric__0_col_0", 2.164569215876089),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT avgOrNull("total_quantity") AS "metric__0_col_0"
+			FROM __quesma_table_name
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740584933594))`,
+	},
 }
