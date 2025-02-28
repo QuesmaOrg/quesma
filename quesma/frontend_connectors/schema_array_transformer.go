@@ -3,9 +3,11 @@
 package frontend_connectors
 
 import (
+	"fmt"
 	"github.com/QuesmaOrg/quesma/quesma/logger"
 	"github.com/QuesmaOrg/quesma/quesma/model"
 	"github.com/QuesmaOrg/quesma/quesma/schema"
+	"github.com/k0kubun/pp"
 	"strings"
 )
 
@@ -121,17 +123,23 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 
 	var childGotArrayFunc bool
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
-
+		fmt.Printf("Function: %+v\n", e)
+		if strings.HasSuffix(strings.ToLower(e.Name), "if") {
+			pp.Println(e)
+		}
 		if len(e.Args) > 0 {
 			arg := e.Args[0]
 			column, ok := arg.(model.ColumnRef)
 			if ok {
 				dbType := resolver.dbColumnType(column.ColumnName)
+				fmt.Println("OK", dbType)
 				if strings.HasPrefix(dbType, "Array") {
 					funcParsed := parseFunctionWithCombinator(e.Name)
 					funcParsed.isArray = true
 					childGotArrayFunc = true
 					e.Name = funcParsed.String()
+				} else {
+					e.Args = b.VisitChildren(e.Args)
 				}
 			} else {
 				e.Args = b.VisitChildren(e.Args)
