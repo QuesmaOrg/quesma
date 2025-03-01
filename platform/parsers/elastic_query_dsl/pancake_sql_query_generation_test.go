@@ -55,10 +55,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip()
 			}
 
-			if i == 7 { // fix now
-				t.Skip()
-			}
-
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
