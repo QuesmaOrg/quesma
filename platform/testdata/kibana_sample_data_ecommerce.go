@@ -416,8 +416,8 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 					},
 					"date_histogram": {
 						"extended_bounds": {
-							"max": 1740584576601,
-							"min": 1739979776601
+							"max": 1740794576601,
+							"min": 1740819776601
 						},
 						"field": "order_date",
 						"fixed_interval": "12h",
@@ -471,8 +471,9 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 		}`,
 		ExpectedResponse: `
 		{
-			"completion_time_in_millis": 1707486436398,
-			"expiration_time_in_millis": 1707486496397,
+			"completion_time_in_millis": 1740838899672,
+			"expiration_time_in_millis": 1740838959621,
+			"id": "FjVNcnlyNHZWVHlxZk5CX2lPdWxySGcdUEQ3d19oVkxSMEthNU02NjIwRGpkZzo3MTY3Nzg=",
 			"is_partial": false,
 			"is_running": false,
 			"response": {
@@ -483,37 +484,31 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 					"total": 1
 				},
 				"aggregations": {
-					"sampler": {
-						"doc_count": 4675,
-						"eventRate": {
-							"buckets": [
-								{
-									"doc_count": 442,
-									"key": 1726358400000,
-									"key_as_string": "2024-09-15T00:00:00.000"
+					"0": {
+						"buckets": [
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": 241.96875
+									},
+									"doc_count": 2
 								},
-								{
-									"doc_count": 0,
-									"key": 1726963200000,
-									"key_as_string": "2024-09-22T00:00:00.000"
+								"doc_count": 84,
+								"key": 1740783600000,
+								"key_as_string": "2025-02-28T23:00:00.000"
+							},
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": 0.0
+									},
+									"doc_count": 0
 								},
-								{
-									"doc_count": 0,
-									"key": 1727568000000,
-									"key_as_string": "2024-09-29T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1728172800000,
-									"key_as_string": "2024-10-06T00:00:00.000"
-								},
-								{
-									"doc_count": 1,
-									"key": 1728777600000,
-									"key_as_string": "2024-10-13T00:00:00.000"
-								}
-							]
-						}
+								"doc_count": 18,
+								"key": 1740826800000,
+								"key_as_string": "2025-03-01T11:00:00.000"
+							}
+						]
 					}
 				},
 				"hits": {
@@ -521,38 +516,42 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 					"max_score": null,
 					"total": {
 						"relation": "eq",
-						"value": 2200
+						"value": 1035
 					}
 				},
 				"timed_out": false,
-				"took": 1
+				"took": 51
 			},
-			"start_time_in_millis": 1707486436397
+			"start_time_in_millis": 1740838899621
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1726358400000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(442)),
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740793600000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(84)),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", int64(2)),
+				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 241.96875),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1728777600000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(1)),
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740836800000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(18)),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", int64(0)),
+				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 0.0),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__sampler__count",
-			  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC'))))*1000
-			  AS "aggr__sampler__eventRate__key_0",
-			  count(*) AS "aggr__sampler__eventRate__count"
-			FROM (
-			  SELECT "order_date"
-			  FROM __quesma_table_name
-			  LIMIT 20000)
-			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC')))
-			  )*1000 AS "aggr__sampler__eventRate__key_0"
-			ORDER BY "aggr__sampler__eventRate__key_0" ASC`,
+			SELECT toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0",
+			  count(*) AS "aggr__0__count",
+			  countIf("products.product_name" ILIKE '%trouser%') AS
+			  "aggr__0__1-bucket__count",
+			  sumOrNullIf("taxful_total_price", "products.product_name" ILIKE '%trouser%')
+			  AS "metric__0__1-bucket__1-metric_col_0"
+			FROM __quesma_table_name
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1739979776601) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740584576601))
+			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
+			  ("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0"
+			ORDER BY "aggr__0__key_0" ASC`,
 	},
 	{ // [3]
 		TestName: "Promotions tracking (request 3/3)",

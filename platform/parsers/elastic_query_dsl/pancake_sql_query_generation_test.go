@@ -48,12 +48,17 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if test.TestName == "Promotion Tracking 1(file:kibana-sample-data-ecommerce,nr:0)" {
-				t.Skip("ecommerce sample data")
-			}
-
-			if i != 4 {
+			if test.TestName == "Promotions tracking (request 1/3)(file:kibana-sample-data-ecommerce,nr:1)" {
 				t.Skip()
+			}
+			if test.TestName == "TODO Transactions per day(file:kibana-sample-data-ecommerce,nr:7)" {
+				t.Skip()
+			}
+			if test.TestName == "TODO Daily comparison(file:kibana-sample-data-ecommerce,nr:8)" {
+				t.Skip()
+			}
+			if test.TestName == "TODO Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
+				t.Skip() // dodac arraye do schemy
 			}
 
 			if filters(test.TestName) {
