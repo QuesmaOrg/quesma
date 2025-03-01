@@ -55,9 +55,13 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 		return []*model.Query{}, nil
 	}
 
+	fmt.Println("AAA", len(topLevel.children))
+
 	// Phase 2: Translate aggregation tree into pancake model
 	transformer := newPancakeTransformer(cw.Ctx)
 	pancakeQueries, err := transformer.aggregationTreeToPancakes(topLevel)
+
+	fmt.Println("BBB ile pancakow", len(pancakeQueries))
 
 	if err != nil {
 		return nil, err

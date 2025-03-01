@@ -157,17 +157,20 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 		return childAggregations[i].name < childAggregations[j].name
 	})
 
-	for _, childAgg := range childAggregations {
+	metrics := make([]*pancakeModelMetricAggregation, 0)
+
+	for i, childAgg := range childAggregations {
+		fmt.Printf("%d create layer %+v\n", i, childAgg)
 		if childAgg.queryType == nil {
 			return nil, fmt.Errorf("query type is nil in createLayer")
 		}
 		switch childAgg.queryType.AggregationType() {
 		case model.MetricsAggregation:
-			metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
+			metric, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
 			if err != nil {
 				return nil, err
 			}
-			result[0].layer.currentMetricAggregations = append(result[0].layer.currentMetricAggregations, metrics)
+			metrics = append(metrics, metric)
 
 		case model.BucketAggregation:
 			bucket, err := a.bucketAggregationToLayer(previousAggrNames, childAgg)
@@ -202,10 +205,13 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 				childAgg.name, childAgg.queryType.AggregationType().String())
 		}
 	}
+	for _, resultLayer := range result {
+		resultLayer.layer.currentMetricAggregations = metrics
+	}
 	return result, nil
 }
 
-func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, children []*pancakeAggregationTreeNode) (resultLayers [][]*pancakeModelLayer, err error) {
+func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, children []*pancakeAggregationTreeNode, lvl int) (resultLayers [][]*pancakeModelLayer, err error) {
 	results, err := a.createLayer(aggrNames, children)
 	if err != nil {
 		return nil, err
@@ -216,25 +222,26 @@ func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, chi
 	resultLayers = make([][]*pancakeModelLayer, 0, len(results))
 	for _, res := range results {
 		if res.nextBucketAggregation != nil {
-			childLayers, err := a.aggregationChildrenToLayers(append(aggrNames, res.nextBucketAggregation.name), res.nextBucketAggregation.children)
+			childLayers, err := a.aggregationChildrenToLayers(append(aggrNames, res.nextBucketAggregation.name), res.nextBucketAggregation.children, lvl+1)
+			fmt.Println(lvl, "len child layers", len(childLayers))
 			if err != nil {
 				return nil, err
 			}
 			if len(childLayers) == 0 {
 				resultLayers = append(resultLayers, []*pancakeModelLayer{res.layer})
 			} else {
-				for i, childLayer := range childLayers {
+				for _, childLayer := range childLayers {
 					newLayer := res.layer
-					if i > 0 { // remove metrics
-						newLayer = newPancakeModelLayer(res.layer.nextBucketAggregation)
-					}
-
 					resultLayers = append(resultLayers, append([]*pancakeModelLayer{newLayer}, childLayer...))
 				}
 			}
 		} else {
 			resultLayers = append(resultLayers, []*pancakeModelLayer{res.layer})
 		}
+	}
+	fmt.Println(lvl, "LAYERS", resultLayers)
+	if lvl == 0 {
+		//pp.Println(resultLayers[1])
 	}
 	return resultLayers, nil
 }
@@ -377,7 +384,7 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		return nil, fmt.Errorf("no top level aggregations found")
 	}
 
-	resultLayers, err := a.aggregationChildrenToLayers([]string{}, topLevel.children)
+	resultLayers, err := a.aggregationChildrenToLayers([]string{}, topLevel.children, 0)
 
 	if err != nil {
 		return nil, err
@@ -403,6 +410,8 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 			whereClause: topLevel.whereClause,
 			sampleLimit: sampleLimit,
 		}
+
+		fmt.Println("New pancake: ", newPancake)
 		pancakeResults = append(pancakeResults, &newPancake)
 
 		// TODO: if both top_hits/top_metrics, and filters, it probably won't work...
@@ -410,6 +419,8 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		// Should be fixed after this TODO
 		newCombinatorPancakes := a.createCombinatorPancakes(&newPancake)
 		additionalTopHitPancakes, err := a.createTopHitAndTopMetricsPancakes(&newPancake)
+
+		fmt.Println("dodatkowych?", len(additionalTopHitPancakes), len(newCombinatorPancakes))
 		if err != nil {
 			return nil, err
 		}

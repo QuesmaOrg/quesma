@@ -275,7 +275,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	if aggregation == nil {
 		return nil, "", errors.New("aggregation is nil in generateQuery")
 	}
-
+	
 	bucketAggregationCount := p.countRealBucketAggregations(aggregation)
 	bucketAggregationSoFar := 0
 
