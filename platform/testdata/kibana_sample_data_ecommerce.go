@@ -1048,6 +1048,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 							"date_histogram": {
 								"calendar_interval": "1d",
 								"field": "order_date",
+								"min_doc_count": 1,
 								"time_zone": "Europe/Warsaw"
 							}
 						}
@@ -1173,73 +1174,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 											},
 											"doc_count": 50,
 											"key": 1740178800000,
-											"key_as_string": "2025-02-22T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 314.0
-											},
-											"2": {
-												"value": 314.0
-											},
-											"doc_count": 149,
-											"key": 1740265200000,
-											"key_as_string": "2025-02-23T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 308.0
-											},
-											"2": {
-												"value": 308.0
-											},
-											"doc_count": 143,
-											"key": 1740351600000,
-											"key_as_string": "2025-02-24T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 314.0
-											},
-											"2": {
-												"value": 314.0
-											},
-											"doc_count": 144,
-											"key": 1740438000000,
-											"key_as_string": "2025-02-25T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 310.0
-											},
-											"2": {
-												"value": 310.0
-											},
-											"doc_count": 142,
-											"key": 1740524400000,
-											"key_as_string": "2025-02-26T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 345.0
-											},
-											"2": {
-												"value": 345.0
-											},
-											"doc_count": 162,
-											"key": 1740610800000,
-											"key_as_string": "2025-02-27T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 291.0
-											},
-											"2": {
-												"value": 291.0
-											},
-											"doc_count": 143,
-											"key": 1740697200000,
-											"key_as_string": "2025-02-28T00:00:00.000+01:00"
+											"key_as_string": "2025-02-21T23:00:00.000"
 										},
 										{
 											"1": {
@@ -1250,7 +1185,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 											},
 											"doc_count": 102,
 											"key": 1740783600000,
-											"key_as_string": "2025-03-01T00:00:00.000+01:00"
+											"key_as_string": "2025-02-28T23:00:00.000"
 										}
 									]
 								},
@@ -1268,88 +1203,11 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 											},
 											"doc_count": 49,
 											"key": 1739574000000,
-											"key_as_string": "2025-02-15T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 300.0
-											},
-											"2": {
-												"value": 300.0
-											},
-											"doc_count": 140,
-											"key": 1739660400000,
-											"key_as_string": "2025-02-16T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 306.0
-											},
-											"2": {
-												"value": 306.0
-											},
-											"doc_count": 141,
-											"key": 1739746800000,
-											"key_as_string": "2025-02-17T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 331.0
-											},
-											"2": {
-												"value": 331.0
-											},
-											"doc_count": 158,
-											"key": 1739833200000,
-											"key_as_string": "2025-02-18T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 316.0
-											},
-											"2": {
-												"value": 316.0
-											},
-											"doc_count": 146,
-											"key": 1739919600000,
-											"key_as_string": "2025-02-19T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 328.0
-											},
-											"2": {
-												"value": 328.0
-											},
-											"doc_count": 151,
-											"key": 1740006000000,
-											"key_as_string": "2025-02-20T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 374.0
-											},
-											"2": {
-												"value": 374.0
-											},
-											"doc_count": 166,
-											"key": 1740092400000,
-											"key_as_string": "2025-02-21T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 188.0
-											},
-											"2": {
-												"value": 188.0
-											},
-											"doc_count": 89,
-											"key": 1740178800000,
-											"key_as_string": "2025-02-22T00:00:00.000+01:00"
+											"key_as_string": "2025-02-14T23:00:00.000"
 										}
 									]
 								},
-								"doc_count": 1040
+								"doc_count": 49
 							}
 						}
 					}
@@ -1368,10 +1226,70 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			"start_time_in_millis": 1740838899628
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
-			{Cols: []model.QueryResultCol{}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__time_offset_split__count", int64(1035)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__key_0", int64(1740188800000/86400000)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__count", int64(50)),
+				model.NewQueryResultCol("metric__time_offset_split__0__1_col_0", 104.0),
+				model.NewQueryResultCol("metric__time_offset_split__0__2_col_0", 104.0),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__time_offset_split__count", int64(1035)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__key_0", int64(1740793600000/86400000)),
+				model.NewQueryResultCol("aggr__time_offset_split__0__count", int64(102)),
+				model.NewQueryResultCol("metric__time_offset_split__0__1_col_0", 218.0),
+				model.NewQueryResultCol("metric__time_offset_split__0__2_col_0", 218.0),
+			}},
 		},
 		ExpectedPancakeSQL: `
-		`,
+			SELECT sum(count(*)) OVER () AS "aggr__time_offset_split__count",
+			  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+			  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
+			  "aggr__time_offset_split__0__key_0",
+			  count(*) AS "aggr__time_offset_split__0__count",
+			  sumOrNull("products.quantity") AS "metric__time_offset_split__0__1_col_0",
+			  sumOrNull("products.quantity") AS "metric__time_offset_split__0__2_col_0"
+			FROM __quesma_table_name
+			WHERE ((("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"
+			  <=fromUnixTimestamp64Milli(1740838898238)) OR ("order_date">=
+			  fromUnixTimestamp64Milli(1739629298238) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740234098238))) AND ("order_date">=
+			  fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740838898238)))
+			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
+			  ("order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
+			  "aggr__time_offset_split__0__key_0"
+			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__time_offset_split__count", int64(49)),
+					model.NewQueryResultCol("aggr__time_offset_split__0__key_0", int64(1739584000000/86400000)),
+					model.NewQueryResultCol("aggr__time_offset_split__0__count", int64(49)),
+					model.NewQueryResultCol("metric__time_offset_split__0__1_col_0", 104.0),
+					model.NewQueryResultCol("metric__time_offset_split__0__2_col_0", 104.0),
+				}},
+			},
+		},
+		ExpectedAdditionalPancakeSQLs: []string{`
+				SELECT sum(count(*)) OVER () AS "aggr__time_offset_split__count",
+				  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+				  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
+				  "aggr__time_offset_split__0__key_0",
+				  count(*) AS "aggr__time_offset_split__0__count",
+				  sumOrNull("products.quantity") AS "metric__time_offset_split__0__1_col_0",
+				  sumOrNull("products.quantity") AS "metric__time_offset_split__0__2_col_0"
+				FROM __quesma_table_name
+				WHERE ((("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"
+				  <=fromUnixTimestamp64Milli(1740838898238)) OR ("order_date">=
+				  fromUnixTimestamp64Milli(1739629298238) AND "order_date"<=
+				  fromUnixTimestamp64Milli(1740234098238))) AND ("order_date">=
+				  fromUnixTimestamp64Milli(1739629298238) AND "order_date"<=
+				  fromUnixTimestamp64Milli(1740234098238)))
+				GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
+				  ("order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
+				  "aggr__time_offset_split__0__key_0"
+				ORDER BY "aggr__time_offset_split__0__key_0" ASC`},
 	},
 	{ // [8]
 		TestName: "TODO Daily comparison",
