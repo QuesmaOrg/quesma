@@ -52,10 +52,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("ecommerce sample data")
 			}
 
-			if i == 178 {
-				t.Skip("non-pancake")
-			}
-			if i != 184 {
+			if i != 4 {
 				t.Skip()
 			}
 

@@ -1,186 +1,10 @@
 package testdata
 
-import "github.com/QuesmaOrg/quesma/quesma/model"
+import "github.com/QuesmaOrg/quesma/platform/model"
 
 var KibanaSampleDataEcommerce = []AggregationTestCase{
 	{ // [0]
-		TestName: "Promotion Tracking 1",
-		QueryRequestJson: `
-		{
-			"_source": {
-				"excludes": []
-			},
-			"aggs": {
-				"0": {
-					"aggs": {
-						"1-bucket": {
-							"aggs": {
-								"1-metric": {
-									"sum": {
-										"field": "taxful_total_price"
-									}
-								}
-							},
-							"filter": {
-								"bool": {
-									"filter": [],
-									"must": [
-										{
-											"query_string": {
-												"analyze_wildcard": true,
-												"query": "products.product_name:*trouser*",
-												"time_zone": "Europe/Warsaw"
-											}
-										}
-									],
-									"must_not": [],
-									"should": []
-								}
-							}
-						}
-					},
-					"date_histogram": {
-						"extended_bounds": {
-							"max": 1740584576601,
-							"min": 1739979776601
-						},
-						"field": "order_date",
-						"fixed_interval": "12h",
-						"time_zone": "Europe/Warsaw"
-					}
-				}
-			},
-			"fields": [
-				{
-					"field": "@timestamp",
-					"format": "date_time"
-				},
-				{
-					"field": "customer_birth_date",
-					"format": "date_time"
-				},
-				{
-					"field": "order_date",
-					"format": "date_time"
-				},
-				{
-					"field": "products.created_on",
-					"format": "date_time"
-				}
-			],
-			"query": {
-				"bool": {
-					"filter": [
-						{
-							"range": {
-								"order_date": {
-									"format": "strict_date_optional_time",
-									"gte": "2025-02-19T15:42:56.601Z",
-									"lte": "2025-02-26T15:42:56.601Z"
-								}
-							}
-						}
-					],
-					"must": [],
-					"must_not": [],
-					"should": []
-				}
-			},
-			"runtime_mappings": {},
-			"script_fields": {},
-			"size": 0,
-			"stored_fields": [
-				"*"
-			],
-			"track_total_hits": true
-		}`,
-		ExpectedResponse: `
-		{
-			"completion_time_in_millis": 1707486436398,
-			"expiration_time_in_millis": 1707486496397,
-			"is_partial": false,
-			"is_running": false,
-			"response": {
-				"_shards": {
-					"failed": 0,
-					"skipped": 0,
-					"successful": 1,
-					"total": 1
-				},
-				"aggregations": {
-					"sampler": {
-						"doc_count": 4675,
-						"eventRate": {
-							"buckets": [
-								{
-									"doc_count": 442,
-									"key": 1726358400000,
-									"key_as_string": "2024-09-15T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1726963200000,
-									"key_as_string": "2024-09-22T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1727568000000,
-									"key_as_string": "2024-09-29T00:00:00.000"
-								},
-								{
-									"doc_count": 0,
-									"key": 1728172800000,
-									"key_as_string": "2024-10-06T00:00:00.000"
-								},
-								{
-									"doc_count": 1,
-									"key": 1728777600000,
-									"key_as_string": "2024-10-13T00:00:00.000"
-								}
-							]
-						}
-					}
-				},
-				"hits": {
-					"hits": [],
-					"max_score": null,
-					"total": {
-						"relation": "eq",
-						"value": 2200
-					}
-				},
-				"timed_out": false,
-				"took": 1
-			},
-			"start_time_in_millis": 1707486436397
-		}`,
-		ExpectedPancakeResults: []model.QueryResultRow{
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1726358400000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(442)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1728777600000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(1)),
-			}},
-		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__sampler__count",
-			  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC'))))*1000
-			  AS "aggr__sampler__eventRate__key_0",
-			  count(*) AS "aggr__sampler__eventRate__count"
-			FROM (
-			  SELECT "order_date"
-			  FROM __quesma_table_name
-			  LIMIT 20000)
-			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC')))
-			  )*1000 AS "aggr__sampler__eventRate__key_0"
-			ORDER BY "aggr__sampler__eventRate__key_0" ASC`,
-	},
-	{ // [1]
-		TestName: "extended_bounds pre keys (timezone calculations most tricky to get right)",
+		TestName: "Quantity Slider (top)",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -285,125 +109,8 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
 			  fromUnixTimestamp64Milli(1740584933594))`,
 	},
-	{ // [2] TODO
-		TestName: "extended_bounds pre keys (timezone calculations most tricky to get right)",
-		QueryRequestJson: `
-		{
-			"_source": false,
-			"fields": [
-				{
-					"field": "*",
-					"include_unmapped": "true"
-				},
-				{
-					"field": "customer_birth_date",
-					"format": "strict_date_optional_time"
-				},
-				{
-					"field": "order_date",
-					"format": "strict_date_optional_time"
-				},
-				{
-					"field": "products.created_on",
-					"format": "strict_date_optional_time"
-				}
-			],
-			"highlight": {
-				"fields": {
-					"*": {}
-				},
-				"fragment_size": 2147483647,
-				"post_tags": [
-					"@/kibana-highlighted-field@"
-				],
-				"pre_tags": [
-					"@kibana-highlighted-field@"
-				]
-			},
-			"query": {
-				"bool": {
-					"filter": [
-						{
-							"range": {
-								"order_date": {
-									"format": "strict_date_optional_time",
-									"gte": "2025-02-19T15:48:53.594Z",
-									"lte": "2025-02-26T15:48:53.594Z"
-								}
-							}
-						}
-					],
-					"must": [],
-					"must_not": [],
-					"should": []
-				}
-			},
-			"runtime_mappings": {},
-			"script_fields": {},
-			"size": 500,
-			"sort": [
-				{
-					"order_date": {
-						"format": "strict_date_optional_time",
-						"order": "desc",
-						"unmapped_type": "boolean"
-					}
-				},
-				{
-					"_doc": {
-						"order": "desc",
-						"unmapped_type": "boolean"
-					}
-				}
-			],
-			"stored_fields": [
-				"*"
-			],
-			"track_total_hits": true,
-			"version": true
-		}`,
-		ExpectedResponse: `
-		{
-			"expiration_time_in_millis": 1740584994182,
-			"id": "Fks1NFVMVzRuUkRPVjJDNnUtVjNhMGcccTZPblY1MWNUa2lzS1RZd1lEMk9CdzoxMDUzMg==",
-			"is_partial": true,
-			"is_running": true,
-			"response": {
-				"_shards": {
-					"failed": 0,
-					"skipped": 0,
-					"successful": 0,
-					"total": 1
-				},
-				"hits": {
-					"hits": [],
-					"max_score": null,
-					"total": {
-						"relation": "gte",
-						"value": 0
-					}
-				},
-				"num_reduce_phases": 0,
-				"terminated_early": false,
-				"timed_out": false,
-				"took": 201
-			},
-			"start_time_in_millis": 1740584934182
-		}`,
-		ExpectedPancakeResults: []model.QueryResultRow{
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__timeseries__key_0", int64(1730374060000/10000)),
-				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__timeseries__key_0", int64(1730374110000/10000)),
-				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
-			}},
-		},
-		ExpectedPancakeSQL: ``,
-	},
-	{ // [3]
-		TestName: "extended_bounds pre keys (timezone calculations most tricky to get right)",
+	{ // [1]
+		TestName: "Promotions tracking (request 1/3)",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -671,8 +378,357 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
 			ORDER BY "aggr__timeseries__key_0" ASC`,
 	},
-	{ // [1]
-		TestName: "extended_bounds pre keys (timezone calculations most tricky to get right)",
+	{ // [2]
+		TestName: "Promotion Tracking (request 2/3)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1-bucket": {
+							"aggs": {
+								"1-metric": {
+									"sum": {
+										"field": "taxful_total_price"
+									}
+								}
+							},
+							"filter": {
+								"bool": {
+									"filter": [],
+									"must": [
+										{
+											"query_string": {
+												"analyze_wildcard": true,
+												"query": "products.product_name:*trouser*",
+												"time_zone": "Europe/Warsaw"
+											}
+										}
+									],
+									"must_not": [],
+									"should": []
+								}
+							}
+						}
+					},
+					"date_histogram": {
+						"extended_bounds": {
+							"max": 1740584576601,
+							"min": 1739979776601
+						},
+						"field": "order_date",
+						"fixed_interval": "12h",
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-02-19T15:42:56.601Z",
+									"lte": "2025-02-26T15:42:56.601Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1707486436398,
+			"expiration_time_in_millis": 1707486496397,
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"sampler": {
+						"doc_count": 4675,
+						"eventRate": {
+							"buckets": [
+								{
+									"doc_count": 442,
+									"key": 1726358400000,
+									"key_as_string": "2024-09-15T00:00:00.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1726963200000,
+									"key_as_string": "2024-09-22T00:00:00.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1727568000000,
+									"key_as_string": "2024-09-29T00:00:00.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1728172800000,
+									"key_as_string": "2024-10-06T00:00:00.000"
+								},
+								{
+									"doc_count": 1,
+									"key": 1728777600000,
+									"key_as_string": "2024-10-13T00:00:00.000"
+								}
+							]
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 2200
+					}
+				},
+				"timed_out": false,
+				"took": 1
+			},
+			"start_time_in_millis": 1707486436397
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
+				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1726358400000)),
+				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(442)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
+				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1728777600000)),
+				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(1)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__sampler__count",
+			  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC'))))*1000
+			  AS "aggr__sampler__eventRate__key_0",
+			  count(*) AS "aggr__sampler__eventRate__count"
+			FROM (
+			  SELECT "order_date"
+			  FROM __quesma_table_name
+			  LIMIT 20000)
+			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC')))
+			  )*1000 AS "aggr__sampler__eventRate__key_0"
+			ORDER BY "aggr__sampler__eventRate__key_0" ASC`,
+	},
+	{ // [3]
+		TestName: "Promotions tracking (request 3/3)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1-bucket": {
+							"aggs": {
+								"1-metric": {
+									"sum": {
+										"field": "taxful_total_price"
+									}
+								}
+							},
+							"filter": {
+								"bool": {
+									"filter": [],
+									"must": [
+										{
+											"query_string": {
+												"analyze_wildcard": true,
+												"query": "products.product_name:*cocktail dress*",
+												"time_zone": "Europe/Warsaw"
+											}
+										}
+									],
+									"must_not": [],
+									"should": []
+								}
+							}
+						}
+					},
+					"date_histogram": {
+						"extended_bounds": {
+							"max": 1740278898238,
+							"min": 1740214098238
+						},
+						"field": "order_date",
+						"fixed_interval": "12h",
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-02-22T14:21:38.238Z",
+									"lte": "2025-03-01T14:21:38.238Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1740838899788,
+			"expiration_time_in_millis": 1740838959620,
+			"id": "FlBvbnlxd2VMUUxTSFo5cUlKT2tFRWcdUEQ3d19oVkxSMEthNU02NjIwRGpkZzo3MTY3NzQ=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": 191.9375
+									},
+									"doc_count": 3
+								},
+								"doc_count": 50,
+								"key": 1740222000000,
+								"key_as_string": "2025-02-22T11:00:00.000"
+							},
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": 0.0
+									},
+									"doc_count": 0
+								},
+								"doc_count": 18,
+								"key": 1740265200000,
+								"key_as_string": "2025-02-22T23:00:00.000"
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1035
+					}
+				},
+				"timed_out": false,
+				"took": 168
+			},
+			"start_time_in_millis": 1740838899620
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740232000000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(50)),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", int64(3)),
+				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 191.9375),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740275200000/43200000)),
+				model.NewQueryResultCol("aggr__0__count", int64(18)),
+				model.NewQueryResultCol("aggr__0__1-bucket__count", int64(0)),
+				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 0.0),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0",
+			  count(*) AS "aggr__0__count",
+			  countIf(("products.product_name" ILIKE '%%cocktail%' OR
+			  "__quesma_fulltext_field_name" ILIKE '%dress%%')) AS
+			  "aggr__0__1-bucket__count",
+			  sumOrNullIf("taxful_total_price", ("products.product_name" ILIKE '%%cocktail%'
+			  OR "__quesma_fulltext_field_name" ILIKE '%dress%%')) AS
+			  "metric__0__1-bucket__1-metric_col_0"
+			FROM __quesma_table_name
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740838898238))
+			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
+			  ("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0"
+			ORDER BY "aggr__0__key_0" ASC`,
+	},
+	{ // [4]
+		TestName: "Sum of revenue",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -759,27 +815,17 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__timeseries__key_0", int64(1730374060000/10000)),
-				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__timeseries__key_0", int64(1730374110000/10000)),
-				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
+				model.NewQueryResultCol("metric__0_col_0", 77112.984375),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-			  "@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0",
-			  count(*) AS "aggr__timeseries__count"
+			SELECT sumOrNull("taxful_total_price") AS "metric__0_col_0"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1730370296174) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1730370596174))
-			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
-			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
-			ORDER BY "aggr__timeseries__key_0" ASC`,
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740584933594))`,
 	},
-	{ // [1]
-		TestName: "extended_bounds pre keys (timezone calculations most tricky to get right)",
+	{ // [5]
+		TestName: "Median spending",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -871,27 +917,1175 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__timeseries__key_0", int64(1730374060000/10000)),
-				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
-			}},
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__timeseries__key_0", int64(1730374110000/10000)),
-				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
+				model.NewQueryResultCol("metric__0_col_0", []float64{67.0}),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-			  "@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0",
-			  count(*) AS "aggr__timeseries__count"
+			SELECT quantiles(0.500000)("taxful_total_price") AS "metric__0_col_0"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1730370296174) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1730370596174))
-			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
-			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
-			ORDER BY "aggr__timeseries__key_0" ASC`,
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740584933594))`,
 	},
-	{ // [1]
-		TestName: "extended_bounds pre keys (timezone calculations most tricky to get right)",
+	{ // [6]
+		TestName: "Avg. items sold",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"avg": {
+						"field": "total_quantity"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-02-19T15:48:53.594Z",
+									"lte": "2025-02-26T15:48:53.594Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1740584940846,
+			"expiration_time_in_millis": 1740585000844,
+			"id": "Fmdha0ZGeGNlUkVHNl9UblpMcEFnU0EccTZPblY1MWNUa2lzS1RZd1lEMk9CdzoxMDc5Mg==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"value": 2.164569215876089
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1033
+					}
+				},
+				"timed_out": false,
+				"took": 2
+			},
+			"start_time_in_millis": 1740584940844
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("metric__0_col_0", 2.164569215876089),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT avgOrNull("total_quantity") AS "metric__0_col_0"
+			FROM __quesma_table_name
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740584933594))`,
+	},
+	{ // [7]
+		TestName: "TODO Transactions per day",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"time_offset_split": {
+					"aggs": {
+						"0": {
+							"aggs": {
+								"1": {
+									"sum": {
+										"field": "products.quantity"
+									}
+								},
+								"2": {
+									"sum": {
+										"field": "products.quantity"
+									}
+								}
+							},
+							"date_histogram": {
+								"calendar_interval": "1d",
+								"field": "order_date",
+								"time_zone": "Europe/Warsaw"
+							}
+						}
+					},
+					"filters": {
+						"filters": {
+							"0": {
+								"range": {
+									"order_date": {
+										"format": "strict_date_optional_time",
+										"gte": "2025-02-22T14:21:38.238Z",
+										"lte": "2025-03-01T14:21:38.238Z"
+									}
+								}
+							},
+							"604800000": {
+								"range": {
+									"order_date": {
+										"format": "strict_date_optional_time",
+										"gte": "2025-02-15T14:21:38.238Z",
+										"lte": "2025-02-22T14:21:38.238Z"
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"bool": {
+								"minimum_should_match": 1,
+								"should": [
+									{
+										"bool": {
+											"filter": [
+												{
+													"range": {
+														"order_date": {
+															"format": "strict_date_optional_time",
+															"gte": "2025-02-22T14:21:38.238Z",
+															"lte": "2025-03-01T14:21:38.238Z"
+														}
+													}
+												}
+											]
+										}
+									},
+									{
+										"bool": {
+											"filter": [
+												{
+													"range": {
+														"order_date": {
+															"format": "strict_date_optional_time",
+															"gte": "2025-02-15T14:21:38.238Z",
+															"lte": "2025-02-22T14:21:38.238Z"
+														}
+													}
+												}
+											]
+										}
+									}
+								]
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1740838899669,
+			"expiration_time_in_millis": 1740838959628,
+			"id": "FlJ2dkFqYzdmUmRHc0thUEtFR1RrVVEdUEQ3d19oVkxSMEthNU02NjIwRGpkZzo3MTY3OTA=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"time_offset_split": {
+						"buckets": {
+							"0": {
+								"0": {
+									"buckets": [
+										{
+											"1": {
+												"value": 104.0
+											},
+											"2": {
+												"value": 104.0
+											},
+											"doc_count": 50,
+											"key": 1740178800000,
+											"key_as_string": "2025-02-22T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 314.0
+											},
+											"2": {
+												"value": 314.0
+											},
+											"doc_count": 149,
+											"key": 1740265200000,
+											"key_as_string": "2025-02-23T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 308.0
+											},
+											"2": {
+												"value": 308.0
+											},
+											"doc_count": 143,
+											"key": 1740351600000,
+											"key_as_string": "2025-02-24T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 314.0
+											},
+											"2": {
+												"value": 314.0
+											},
+											"doc_count": 144,
+											"key": 1740438000000,
+											"key_as_string": "2025-02-25T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 310.0
+											},
+											"2": {
+												"value": 310.0
+											},
+											"doc_count": 142,
+											"key": 1740524400000,
+											"key_as_string": "2025-02-26T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 345.0
+											},
+											"2": {
+												"value": 345.0
+											},
+											"doc_count": 162,
+											"key": 1740610800000,
+											"key_as_string": "2025-02-27T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 291.0
+											},
+											"2": {
+												"value": 291.0
+											},
+											"doc_count": 143,
+											"key": 1740697200000,
+											"key_as_string": "2025-02-28T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 218.0
+											},
+											"2": {
+												"value": 218.0
+											},
+											"doc_count": 102,
+											"key": 1740783600000,
+											"key_as_string": "2025-03-01T00:00:00.000+01:00"
+										}
+									]
+								},
+								"doc_count": 1035
+							},
+							"604800000": {
+								"0": {
+									"buckets": [
+										{
+											"1": {
+												"value": 104.0
+											},
+											"2": {
+												"value": 104.0
+											},
+											"doc_count": 49,
+											"key": 1739574000000,
+											"key_as_string": "2025-02-15T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 300.0
+											},
+											"2": {
+												"value": 300.0
+											},
+											"doc_count": 140,
+											"key": 1739660400000,
+											"key_as_string": "2025-02-16T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 306.0
+											},
+											"2": {
+												"value": 306.0
+											},
+											"doc_count": 141,
+											"key": 1739746800000,
+											"key_as_string": "2025-02-17T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 331.0
+											},
+											"2": {
+												"value": 331.0
+											},
+											"doc_count": 158,
+											"key": 1739833200000,
+											"key_as_string": "2025-02-18T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 316.0
+											},
+											"2": {
+												"value": 316.0
+											},
+											"doc_count": 146,
+											"key": 1739919600000,
+											"key_as_string": "2025-02-19T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 328.0
+											},
+											"2": {
+												"value": 328.0
+											},
+											"doc_count": 151,
+											"key": 1740006000000,
+											"key_as_string": "2025-02-20T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 374.0
+											},
+											"2": {
+												"value": 374.0
+											},
+											"doc_count": 166,
+											"key": 1740092400000,
+											"key_as_string": "2025-02-21T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 188.0
+											},
+											"2": {
+												"value": 188.0
+											},
+											"doc_count": 89,
+											"key": 1740178800000,
+											"key_as_string": "2025-02-22T00:00:00.000+01:00"
+										}
+									]
+								},
+								"doc_count": 1040
+							}
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 2075
+					}
+				},
+				"timed_out": false,
+				"took": 41
+			},
+			"start_time_in_millis": 1740838899628
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{}},
+		},
+		ExpectedPancakeSQL: `
+		`,
+	},
+	{ // [8]
+		TestName: "TODO Daily comparison",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"time_offset_split": {
+					"aggs": {
+						"0": {
+							"aggs": {
+								"1": {
+									"sum": {
+										"field": "taxful_total_price"
+									}
+								},
+								"2": {
+									"sum": {
+										"field": "taxful_total_price"
+									}
+								}
+							},
+							"date_histogram": {
+								"calendar_interval": "1d",
+								"field": "order_date",
+								"time_zone": "Europe/Warsaw"
+							}
+						}
+					},
+					"filters": {
+						"filters": {
+							"0": {
+								"range": {
+									"order_date": {
+										"format": "strict_date_optional_time",
+										"gte": "2025-02-22T14:21:38.238Z",
+										"lte": "2025-03-01T14:21:38.238Z"
+									}
+								}
+							},
+							"604800000": {
+								"range": {
+									"order_date": {
+										"format": "strict_date_optional_time",
+										"gte": "2025-02-15T14:21:38.238Z",
+										"lte": "2025-02-22T14:21:38.238Z"
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"bool": {
+								"minimum_should_match": 1,
+								"should": [
+									{
+										"bool": {
+											"filter": [
+												{
+													"range": {
+														"order_date": {
+															"format": "strict_date_optional_time",
+															"gte": "2025-02-22T14:21:38.238Z",
+															"lte": "2025-03-01T14:21:38.238Z"
+														}
+													}
+												}
+											]
+										}
+									},
+									{
+										"bool": {
+											"filter": [
+												{
+													"range": {
+														"order_date": {
+															"format": "strict_date_optional_time",
+															"gte": "2025-02-15T14:21:38.238Z",
+															"lte": "2025-02-22T14:21:38.238Z"
+														}
+													}
+												}
+											]
+										}
+									}
+								]
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1740838899754,
+			"expiration_time_in_millis": 1740838959658,
+			"id": "FmdYSVFxMlFSUmRHUzBCcGNRSFpuZFEdUEQ3d19oVkxSMEthNU02NjIwRGpkZzo3MTY4MTU=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"time_offset_split": {
+						"buckets": {
+							"0": {
+								"0": {
+									"buckets": [
+										{
+											"1": {
+												"value": 4033.34375
+											},
+											"2": {
+												"value": 4033.34375
+											},
+											"doc_count": 50,
+											"key": 1740178800000,
+											"key_as_string": "2025-02-22T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10807.5625
+											},
+											"2": {
+												"value": 10807.5625
+											},
+											"doc_count": 149,
+											"key": 1740265200000,
+											"key_as_string": "2025-02-23T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10270.8828125
+											},
+											"2": {
+												"value": 10270.8828125
+											},
+											"doc_count": 143,
+											"key": 1740351600000,
+											"key_as_string": "2025-02-24T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10514.515625
+											},
+											"2": {
+												"value": 10514.515625
+											},
+											"doc_count": 144,
+											"key": 1740438000000,
+											"key_as_string": "2025-02-25T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 11515.84375
+											},
+											"2": {
+												"value": 11515.84375
+											},
+											"doc_count": 142,
+											"key": 1740524400000,
+											"key_as_string": "2025-02-26T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 12837.6796875
+											},
+											"2": {
+												"value": 12837.6796875
+											},
+											"doc_count": 162,
+											"key": 1740610800000,
+											"key_as_string": "2025-02-27T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10278.95703125
+											},
+											"2": {
+												"value": 10278.95703125
+											},
+											"doc_count": 143,
+											"key": 1740697200000,
+											"key_as_string": "2025-02-28T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 7242.265625
+											},
+											"2": {
+												"value": 7242.265625
+											},
+											"doc_count": 102,
+											"key": 1740783600000,
+											"key_as_string": "2025-03-01T00:00:00.000+01:00"
+										}
+									]
+								},
+								"doc_count": 1035
+							},
+							"604800000": {
+								"0": {
+									"buckets": [
+										{
+											"1": {
+												"value": 3579.15625
+											},
+											"2": {
+												"value": 3579.15625
+											},
+											"doc_count": 49,
+											"key": 1739574000000,
+											"key_as_string": "2025-02-15T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10248.6015625
+											},
+											"2": {
+												"value": 10248.6015625
+											},
+											"doc_count": 140,
+											"key": 1739660400000,
+											"key_as_string": "2025-02-16T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 12272.59375
+											},
+											"2": {
+												"value": 12272.59375
+											},
+											"doc_count": 141,
+											"key": 1739746800000,
+											"key_as_string": "2025-02-17T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 11116.45703125
+											},
+											"2": {
+												"value": 11116.45703125
+											},
+											"doc_count": 158,
+											"key": 1739833200000,
+											"key_as_string": "2025-02-18T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10555.515625
+											},
+											"2": {
+												"value": 10555.515625
+											},
+											"doc_count": 146,
+											"key": 1739919600000,
+											"key_as_string": "2025-02-19T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 11132.3671875
+											},
+											"2": {
+												"value": 11132.3671875
+											},
+											"doc_count": 151,
+											"key": 1740006000000,
+											"key_as_string": "2025-02-20T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 13902.15625
+											},
+											"2": {
+												"value": 13902.15625
+											},
+											"doc_count": 166,
+											"key": 1740092400000,
+											"key_as_string": "2025-02-21T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 5811.53125
+											},
+											"2": {
+												"value": 5811.53125
+											},
+											"doc_count": 89,
+											"key": 1740178800000,
+											"key_as_string": "2025-02-22T00:00:00.000+01:00"
+										}
+									]
+								},
+								"doc_count": 1040
+							}
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 2075
+					}
+				},
+				"timed_out": false,
+				"took": 96
+			},
+			"start_time_in_millis": 1740838899658
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{}},
+		},
+		ExpectedPancakeSQL: `
+		`,
+	},
+	{ // [9]
+		TestName: "TODO Top products this/last week",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"terms": {
+						"field": "products.product_name.keyword",
+						"order": {
+							"_count": "desc"
+						},
+						"shard_size": 25,
+						"size": 5
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-02-22T14:21:38.238Z",
+									"lte": "2025-03-01T14:21:38.238Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1740838899666,
+			"expiration_time_in_millis": 1740838959642,
+			"id": "Fk5sSVYzOUExUlJDU3o2Xzg4WTAybHcdUEQ3d19oVkxSMEthNU02NjIwRGpkZzo3MTY3OTY=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"doc_count": 28,
+								"key": "Lace-up boots - black"
+							},
+							{
+								"doc_count": 26,
+								"key": "Boots - black"
+							},
+							{
+								"doc_count": 25,
+								"key": "Print T-shirt - black"
+							},
+							{
+								"doc_count": 23,
+								"key": "Ankle boots - black"
+							},
+							{
+								"doc_count": 20,
+								"key": "Jumper - black"
+							}
+						],
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 2077
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1035
+					}
+				},
+				"timed_out": false,
+				"took": 24
+			},
+			"start_time_in_millis": 1740838899642
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{}},
+		},
+		ExpectedPancakeSQL: `
+		`,
+	},
+	{ // [10]
+		TestName: "Breakdown by category",
+		QueryRequestJson: `
+		{		
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"date_histogram": {
+								"calendar_interval": "1d",
+								"extended_bounds": {
+									"max": 1740838898238,
+									"min": 1740234098238
+								},
+								"field": "order_date",
+								"time_zone": "Europe/Warsaw"
+							}
+						}
+					},
+					"terms": {
+						"field": "category.keyword",
+						"order": {
+							"_count": "desc"
+						},
+						"shard_size": 25,
+						"size": 10
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-02-22T14:21:38.238Z",
+									"lte": "2025-03-01T14:21:38.238Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1740838899678,
+			"expiration_time_in_millis": 1740838959648,
+			"id": "FlNDSk1wWk53VFIySUdRMUtLTFF6Y1EdUEQ3d19oVkxSMEthNU02NjIwRGpkZzo3MTY4MDc=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"1": {
+									"buckets": [
+										{
+											"doc_count": 21,
+											"key": 1740178800000,
+											"key_as_string": "2025-02-21T23:00:00.000"
+										},
+										{
+											"doc_count": 58,
+											"key": 1740265200000,
+											"key_as_string": "2025-02-22T23:00:00.000"
+										},
+										{
+											"doc_count": 62,
+											"key": 1740351600000,
+											"key_as_string": "2025-02-23T23:00:00.000"
+										},
+										{
+											"doc_count": 63,
+											"key": 1740438000000,
+											"key_as_string": "2025-02-24T23:00:00.000"
+										},
+										{
+											"doc_count": 69,
+											"key": 1740524400000,
+											"key_as_string": "2025-02-25T23:00:00.000"
+										},
+										{
+											"doc_count": 72,
+											"key": 1740610800000,
+											"key_as_string": "2025-02-26T23:00:00.000"
+										},
+										{
+											"doc_count": 56,
+											"key": 1740697200000,
+											"key_as_string": "2025-02-27T23:00:00.000"
+										},
+										{
+											"doc_count": 52,
+											"key": 1740783600000,
+											"key_as_string": "2025-02-28T23:00:00.000"
+										}
+									]
+								},
+								"doc_count": 453,
+								"key": "Men's Clothing"
+							}
+						],
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 582
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1035
+					}
+				},
+				"timed_out": false,
+				"took": 30
+			},
+			"start_time_in_millis": 1740838899648
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1035)),
+				model.NewQueryResultCol("aggr__0__key_0", "Men's Clothing"),
+				model.NewQueryResultCol("aggr__0__count", int64(453)),
+				model.NewQueryResultCol("aggr__0__1__key_0", int64(1740228800000/86400000)),
+				model.NewQueryResultCol("aggr__0__1__count", int64(21)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1035)),
+				model.NewQueryResultCol("aggr__0__key_0", "Men's Clothing"),
+				model.NewQueryResultCol("aggr__0__count", int64(453)),
+				model.NewQueryResultCol("aggr__0__1__key_0", int64(1740305200000/86400000)),
+				model.NewQueryResultCol("aggr__0__1__count", int64(58)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1035)),
+				model.NewQueryResultCol("aggr__0__key_0", "Men's Clothing"),
+				model.NewQueryResultCol("aggr__0__count", int64(453)),
+				model.NewQueryResultCol("aggr__0__1__key_0", int64(1740401600000/86400000)),
+				model.NewQueryResultCol("aggr__0__1__count", int64(62)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1035)),
+				model.NewQueryResultCol("aggr__0__key_0", "Men's Clothing"),
+				model.NewQueryResultCol("aggr__0__count", int64(453)),
+				model.NewQueryResultCol("aggr__0__1__key_0", int64(1740478000000/86400000)),
+				model.NewQueryResultCol("aggr__0__1__count", int64(63)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1035)),
+				model.NewQueryResultCol("aggr__0__key_0", "Men's Clothing"),
+				model.NewQueryResultCol("aggr__0__count", int64(453)),
+				model.NewQueryResultCol("aggr__0__1__key_0", int64(1740554400000/86400000)),
+				model.NewQueryResultCol("aggr__0__1__count", int64(69)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1035)),
+				model.NewQueryResultCol("aggr__0__key_0", "Men's Clothing"),
+				model.NewQueryResultCol("aggr__0__count", int64(453)),
+				model.NewQueryResultCol("aggr__0__1__key_0", int64(1740640800000/86400000)),
+				model.NewQueryResultCol("aggr__0__1__count", int64(72)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1035)),
+				model.NewQueryResultCol("aggr__0__key_0", "Men's Clothing"),
+				model.NewQueryResultCol("aggr__0__count", int64(453)),
+				model.NewQueryResultCol("aggr__0__1__key_0", int64(1740727200000/86400000)),
+				model.NewQueryResultCol("aggr__0__1__count", int64(56)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1035)),
+				model.NewQueryResultCol("aggr__0__key_0", "Men's Clothing"),
+				model.NewQueryResultCol("aggr__0__count", int64(453)),
+				model.NewQueryResultCol("aggr__0__1__key_0", int64(1740803600000/86400000)),
+				model.NewQueryResultCol("aggr__0__1__count", int64(52)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+			  "aggr__0__1__key_0", "aggr__0__1__count"
+			FROM (
+			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
+				"aggr__0__1__key_0", "aggr__0__1__count",
+				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC) AS
+				"aggr__0__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
+				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
+			  FROM (
+				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+				  "category" AS "aggr__0__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+				  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__1__key_0",
+				  count(*) AS "aggr__0__1__count"
+				FROM __quesma_table_name
+				WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND
+				  "order_date"<=fromUnixTimestamp64Milli(1740838898238))
+				GROUP BY "category" AS "aggr__0__key_0",
+				  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+				  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__1__key_0"))
+			WHERE "aggr__0__order_1_rank"<=11
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+	},
+	{ // [11]
+		TestName: "% of target revenue ($10k)",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -1061,37 +2255,37 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1_col_0", 3099.125),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1740016000000/86400000)),
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740086000000/86400000)),
 				model.NewQueryResultCol("aggr__0__count", int64(151)),
 				model.NewQueryResultCol("metric__0__1_col_0", 11132.3671875),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1740192400000/86400000)),
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740102400000/86400000)),
 				model.NewQueryResultCol("aggr__0__count", int64(166)),
 				model.NewQueryResultCol("metric__0__1_col_0", 13902.15625),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1740278800000/86400000)),
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740208800000/86400000)),
 				model.NewQueryResultCol("aggr__0__count", int64(139)),
 				model.NewQueryResultCol("metric__0__1_col_0", 9844.875),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1740451600000/86400000)),
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740301600000/86400000)),
 				model.NewQueryResultCol("aggr__0__count", int64(149)),
 				model.NewQueryResultCol("metric__0__1_col_0", 10807.5625),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1740538000000/86400000)),
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740408000000/86400000)),
 				model.NewQueryResultCol("aggr__0__count", int64(143)),
 				model.NewQueryResultCol("metric__0__1_col_0", 10270.8828125),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1739929600000/86400000)),
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740504400000/86400000)),
 				model.NewQueryResultCol("aggr__0__count", int64(144)),
 				model.NewQueryResultCol("metric__0__1_col_0", 10514.515625),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0__key_0", int64(1740534400000/86400000)),
+				model.NewQueryResultCol("aggr__0__key_0", int64(1740594400000/86400000)),
 				model.NewQueryResultCol("aggr__0__count", int64(97)),
 				model.NewQueryResultCol("metric__0__1_col_0", 7541.5),
 			}},
@@ -1108,105 +2302,8 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			  ("order_date", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},
-	{ // [1]
-		TestName: "extended_bounds pre keys (timezone calculations most tricky to get right)",
-		QueryRequestJson: `
-		{
-			"_source": {
-				"excludes": []
-			},
-			"aggs": {
-				"0": {
-					"avg": {
-						"field": "total_quantity"
-					}
-				}
-			},
-			"fields": [
-				{
-					"field": "customer_birth_date",
-					"format": "date_time"
-				},
-				{
-					"field": "order_date",
-					"format": "date_time"
-				},
-				{
-					"field": "products.created_on",
-					"format": "date_time"
-				}
-			],
-			"query": {
-				"bool": {
-					"filter": [
-						{
-							"range": {
-								"order_date": {
-									"format": "strict_date_optional_time",
-									"gte": "2025-02-19T15:48:53.594Z",
-									"lte": "2025-02-26T15:48:53.594Z"
-								}
-							}
-						}
-					],
-					"must": [],
-					"must_not": [],
-					"should": []
-				}
-			},
-			"runtime_mappings": {},
-			"script_fields": {},
-			"size": 0,
-			"stored_fields": [
-				"*"
-			],
-			"track_total_hits": true
-		}`,
-		ExpectedResponse: `
-		{
-			"completion_time_in_millis": 1740584940846,
-			"expiration_time_in_millis": 1740585000844,
-			"id": "Fmdha0ZGeGNlUkVHNl9UblpMcEFnU0EccTZPblY1MWNUa2lzS1RZd1lEMk9CdzoxMDc5Mg==",
-			"is_partial": false,
-			"is_running": false,
-			"response": {
-				"_shards": {
-					"failed": 0,
-					"skipped": 0,
-					"successful": 1,
-					"total": 1
-				},
-				"aggregations": {
-					"0": {
-						"value": 2.164569215876089
-					}
-				},
-				"hits": {
-					"hits": [],
-					"max_score": null,
-					"total": {
-						"relation": "eq",
-						"value": 1033
-					}
-				},
-				"timed_out": false,
-				"took": 2
-			},
-			"start_time_in_millis": 1740584940844
-		}`,
-		ExpectedPancakeResults: []model.QueryResultRow{
-			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("metric__0_col_0", 2.164569215876089),
-			}},
-		},
-		ExpectedPancakeSQL: `
-			SELECT avgOrNull("total_quantity") AS "metric__0_col_0"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740584933594))`,
-	},
-	{ // [1]
-		TestName: "extended_bounds pre keys (timezone calculations most tricky to get right)",
+	{ // [12]
+		TestName: "Orders by Country (request 1/3)",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -1353,90 +2450,6 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 								"sum_of_taxful_total_price": {
 									"value": 14978.84375
 								}
-							},
-							{
-								"doc_count": 136,
-								"gridCentroid": {
-									"count": 136,
-									"location": {
-										"lat": 52.022058804046964,
-										"lon": -1.0397059056798326
-									}
-								},
-								"key": "5/15/10",
-								"sum_of_taxful_total_price": {
-									"value": 9948.125
-								}
-							},
-							{
-								"doc_count": 122,
-								"gridCentroid": {
-									"count": 122,
-									"location": {
-										"lat": 43.63524586859266,
-										"lon": 7.140983528014822
-									}
-								},
-								"key": "5/16/11",
-								"sum_of_taxful_total_price": {
-									"value": 9626.140625
-								}
-							},
-							{
-								"doc_count": 109,
-								"gridCentroid": {
-									"count": 109,
-									"location": {
-										"lat": 30.09999997448176,
-										"lon": 31.29999996162951
-									}
-								},
-								"key": "5/18/13",
-								"sum_of_taxful_total_price": {
-									"value": 8335.9765625
-								}
-							},
-							{
-								"doc_count": 94,
-								"gridCentroid": {
-									"count": 94,
-									"location": {
-										"lat": 31.599999968893826,
-										"lon": -8.000000026077032
-									}
-								},
-								"key": "5/15/13",
-								"sum_of_taxful_total_price": {
-									"value": 5956.546875
-								}
-							},
-							{
-								"doc_count": 46,
-								"gridCentroid": {
-									"count": 46,
-									"location": {
-										"lat": 40.999999986961484,
-										"lon": 28.999999947845936
-									}
-								},
-								"key": "5/18/11",
-								"sum_of_taxful_total_price": {
-									"value": 3535.2578125
-								}
-							},
-							{
-								"doc_count": 43,
-								"gridCentroid": {
-									"count": 43,
-									"location": {
-										"lat": 4.599999985657632,
-										"lon": -74.10000007599592
-									}
-								},
-								"key": "5/9/15",
-								"sum_of_taxful_total_price": {
-									"value": 2616.25
-								}
 							}
 						]
 					}
@@ -1452,13 +2465,378 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("metric__0_col_0", 2.164569215876089),
+				model.NewQueryResultCol("aggr__gridSplit__key_0", 5.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_1", 20.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_2", 13.0),
+				model.NewQueryResultCol("aggr__gridSplit__count", int64(212)),
+				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_0", 25.013679222331188),
+				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_1", 52.11132072843611),
+				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_2", int64(212)),
+				model.NewQueryResultCol("metric__gridSplit__sum_of_taxful_total_price_col_0", 17127.015625),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__gridSplit__key_0", 5.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_1", 9.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_2", 12.0),
+				model.NewQueryResultCol("aggr__gridSplit__count", int64(200)),
+				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_0", 40.78349998171907),
+				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_1", -74.00000003166497),
+				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_2", int64(200)),
+				model.NewQueryResultCol("metric__gridSplit__sum_of_taxful_total_price_col_0", 14978.84375),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT avgOrNull("total_quantity") AS "metric__0_col_0"
+			SELECT CAST(5.000000 AS Float32) AS "aggr__gridSplit__key_0",
+			  FLOOR(((toFloat64(__quesma_geo_lon("geoip.location"))+180)/360)*POWER(2, 5))
+			  AS "aggr__gridSplit__key_1",
+			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("geoip.location"))))+(1/
+			  COS(RADIANS(toFloat64(__quesma_geo_lat("geoip.location"))))))/PI())/2*POWER(2,
+			  5)) AS "aggr__gridSplit__key_2", count(*) AS "aggr__gridSplit__count",
+			  avgOrNull(CAST(__quesma_geo_lat("geoip_location"), 'Float')) AS
+			  "metric__gridSplit__gridCentroid_col_0",
+			  avgOrNull(CAST(__quesma_geo_lon("geoip_location"), 'Float')) AS
+			  "metric__gridSplit__gridCentroid_col_1",
+			  count(*) AS "metric__gridSplit__gridCentroid_col_2",
+			  sumOrNull("taxful_total_price") AS
+			  "metric__gridSplit__sum_of_taxful_total_price_col_0"
 			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740584933594))`,
+			WHERE ("geoip.location" IS NOT NULL AND ("order_date">=fromUnixTimestamp64Milli(
+			  1740143222223) AND "order_date"<=fromUnixTimestamp64Milli(1740748022223)))
+			GROUP BY CAST(5.000000 AS Float32) AS "aggr__gridSplit__key_0",
+			  FLOOR(((toFloat64(__quesma_geo_lon("geoip.location"))+180)/360)*POWER(2, 5))
+			  AS "aggr__gridSplit__key_1",
+			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("geoip.location"))))+(1/
+			  COS(RADIANS(toFloat64(__quesma_geo_lat("geoip.location"))))))/PI())/2*POWER(2,
+			  5)) AS "aggr__gridSplit__key_2"`,
+	},
+	{ // [13]
+		TestName: "Orders by Country (request 2/3)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"join": {
+					"aggs": {},
+					"terms": {
+						"field": "geoip.region_name",
+						"size": 4
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-02-22T14:21:38.238Z",
+									"lte": "2025-03-01T14:21:38.238Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1740838900680,
+			"expiration_time_in_millis": 1740838960675,
+			"id": "FkdfYkhhWDdHVGt1UWFhSUhrWERIVkEdUEQ3d19oVkxSMEthNU02NjIwRGpkZzo3MTY5NTY=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"join": {
+						"buckets": [
+							{
+								"doc_count": 197,
+								"key": "New York"
+							},
+							{
+								"doc_count": 111,
+								"key": "Cairo Governorate"
+							},
+							{
+								"doc_count": 100,
+								"key": "Dubai"
+							},
+							{
+								"doc_count": 95,
+								"key": "Marrakech-Tensift-Al Haouz"
+							}
+						],
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 243
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null
+				},
+				"timed_out": false,
+				"took": 5
+			},
+			"start_time_in_millis": 1740838900675
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(746)),
+				model.NewQueryResultCol("aggr__join__key_0", "New York"),
+				model.NewQueryResultCol("aggr__join__count", int64(197)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(746)),
+				model.NewQueryResultCol("aggr__join__key_0", "Cairo Governorate"),
+				model.NewQueryResultCol("aggr__join__count", int64(111)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(746)),
+				model.NewQueryResultCol("aggr__join__key_0", "Dubai"),
+				model.NewQueryResultCol("aggr__join__count", int64(100)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(746)),
+				model.NewQueryResultCol("aggr__join__key_0", "Marrakech-Tensift-Al Haouz"),
+				model.NewQueryResultCol("aggr__join__count", int64(95)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(746)),
+				model.NewQueryResultCol("aggr__join__key_0", "Other"),
+				model.NewQueryResultCol("aggr__join__count", int64(5)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__join__parent_count",
+			  "geoip.region_name" AS "aggr__join__key_0", count(*) AS "aggr__join__count"
+			FROM __quesma_table_name
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740838898238))
+			GROUP BY "geoip.region_name" AS "aggr__join__key_0"
+			ORDER BY "aggr__join__count" DESC, "aggr__join__key_0" ASC
+			LIMIT 5`,
+	},
+	{ // [14]
+		TestName: "Orders by Country (request 3/3)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"join": {
+					"aggs": {},
+					"terms": {
+						"field": "geoip.country_iso_code",
+						"size": 65535
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-02-22T14:21:38.238Z",
+									"lte": "2025-03-01T14:21:38.238Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1740838900680,
+			"expiration_time_in_millis": 1740838960672,
+			"id": "FnBCYVZTQWtUVEgtVGNiUzFabnFqbVEdUEQ3d19oVkxSMEthNU02NjIwRGpkZzo3MTY5NTM=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"join": {
+						"buckets": [
+							{
+								"doc_count": 276,
+								"key": "US"
+							},
+							{
+								"doc_count": 149,
+								"key": "AE"
+							},
+							{
+								"doc_count": 132,
+								"key": "GB"
+							},
+							{
+								"doc_count": 111,
+								"key": "EG"
+							},
+							{
+								"doc_count": 95,
+								"key": "MA"
+							},
+							{
+								"doc_count": 81,
+								"key": "FR"
+							},
+							{
+								"doc_count": 64,
+								"key": "SA"
+							},
+							{
+								"doc_count": 43,
+								"key": "CO"
+							},
+							{
+								"doc_count": 43,
+								"key": "TR"
+							},
+							{
+								"doc_count": 41,
+								"key": "MC"
+							}
+						],
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 711
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null
+				},
+				"timed_out": false,
+				"took": 8
+			},
+			"start_time_in_millis": 1740838900672
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(1746)),
+				model.NewQueryResultCol("aggr__join__key_0", "US"),
+				model.NewQueryResultCol("aggr__join__count", int64(276)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(1746)),
+				model.NewQueryResultCol("aggr__join__key_0", "AE"),
+				model.NewQueryResultCol("aggr__join__count", int64(149)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(1746)),
+				model.NewQueryResultCol("aggr__join__key_0", "GB"),
+				model.NewQueryResultCol("aggr__join__count", int64(132)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(1746)),
+				model.NewQueryResultCol("aggr__join__key_0", "EG"),
+				model.NewQueryResultCol("aggr__join__count", int64(111)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(1746)),
+				model.NewQueryResultCol("aggr__join__key_0", "MA"),
+				model.NewQueryResultCol("aggr__join__count", int64(95)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(1746)),
+				model.NewQueryResultCol("aggr__join__key_0", "FR"),
+				model.NewQueryResultCol("aggr__join__count", int64(81)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(1746)),
+				model.NewQueryResultCol("aggr__join__key_0", "SA"),
+				model.NewQueryResultCol("aggr__join__count", int64(64)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(1746)),
+				model.NewQueryResultCol("aggr__join__key_0", "CO"),
+				model.NewQueryResultCol("aggr__join__count", int64(43)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(1746)),
+				model.NewQueryResultCol("aggr__join__key_0", "TR"),
+				model.NewQueryResultCol("aggr__join__count", int64(43)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__join__parent_count", int64(1746)),
+				model.NewQueryResultCol("aggr__join__key_0", "MC"),
+				model.NewQueryResultCol("aggr__join__count", int64(41)),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT sum(count(*)) OVER () AS "aggr__join__parent_count",
+			  "geoip.country_iso_code" AS "aggr__join__key_0",
+			  count(*) AS "aggr__join__count"
+			FROM __quesma_table_name
+			WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740838898238))
+			GROUP BY "geoip.country_iso_code" AS "aggr__join__key_0"
+			ORDER BY "aggr__join__count" DESC, "aggr__join__key_0" ASC
+			LIMIT 65536`,
 	},
 }
