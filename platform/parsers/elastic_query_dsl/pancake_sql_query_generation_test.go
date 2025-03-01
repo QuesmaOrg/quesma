@@ -48,12 +48,19 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if filters(test.TestName) {
-				t.Skip("Fix filters")
+			if test.TestName == "Delays & Cancellations (request 1/2)(file:kibana-sample-data-flights,nr:2)" {
+				t.Skip()
+			}
+			if test.TestName == "TODO Airport Connections (Hover Over Airport)(file:kibana-sample-data-flights,nr:14)" {
+				t.Skip()
 			}
 
-			if i != 9 {
+			if i == 7 { // fix now
 				t.Skip()
+			}
+
+			if filters(test.TestName) {
+				t.Skip("Fix filters")
 			}
 
 			if test.TestName == "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram(file:kibana-visualize/agg_req,nr:9)" {

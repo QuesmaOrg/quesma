@@ -666,7 +666,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 		add(clients.CloverTests, "clients/clover")
 		add(clients.TuringTests, "clients/turing")
 	*/
-	add(testdata.KibanaSampleDataFlights, "kiabana-sample-data-flights")
+	add(testdata.KibanaSampleDataFlights, "kibana-sample-data-flights")
 	return allTests
 }
 
