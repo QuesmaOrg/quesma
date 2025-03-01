@@ -48,16 +48,19 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
+			// sample_logs
+			if test.TestName == "Table gz, css, zip, etc.(file:kibana-sample-data-logs,nr:6)" {
+				t.Skip()
+			}
+			if test.TestName == "TODO Response Codes Over Time + Annotations (1/2 request, Annotations part)(file:kibana-sample-data-logs,nr:1)" {
+				t.Skip()
+			}
+			if test.TestName == "Errors by host(file:kibana-sample-data-logs,nr:7)" {
+				t.Skip()
+			}
+
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
-			}
-
-			if i != 3 {
-				t.Skip()
-			}
-
-			if strings.HasPrefix(test.TestName, "TODO") {
-				t.Skip()
 			}
 
 			if test.TestName == "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram(file:kibana-visualize/agg_req,nr:9)" {

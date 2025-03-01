@@ -1970,7 +1970,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 							}
 						],
 						"doc_count_error_upper_bound": 0,
-						"sum_other_doc_count": 467
+						"sum_other_doc_count": 9263
 					}
 				},
 				"hits": {
@@ -1978,7 +1978,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 					"max_score": null,
 					"total": {
 						"relation": "eq",
-						"value": 1745
+						"value": 11745
 					}
 				},
 				"timed_out": false,
@@ -1988,7 +1988,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__countries__parent_count", int64(1745)),
+				model.NewQueryResultCol("aggr__countries__parent_count", int64(11745)),
 				model.NewQueryResultCol("aggr__countries__key_0", "CN"),
 				model.NewQueryResultCol("aggr__countries__count", int64(2222)),
 				model.NewQueryResultCol("aggr__countries__hours__key_0", float64(1.0)),
@@ -1996,7 +1996,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__countries__hours__unique_col_0", int64(2222)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__countries__parent_count", int64(1745)),
+				model.NewQueryResultCol("aggr__countries__parent_count", int64(11745)),
 				model.NewQueryResultCol("aggr__countries__key_0", "IN"),
 				model.NewQueryResultCol("aggr__countries__count", int64(260)),
 				model.NewQueryResultCol("aggr__countries__hours__key_0", float64(0.0)),
@@ -2004,7 +2004,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__countries__hours__unique_col_0", int64(3)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__countries__parent_count", int64(1745)),
+				model.NewQueryResultCol("aggr__countries__parent_count", int64(11745)),
 				model.NewQueryResultCol("aggr__countries__key_0", "IN"),
 				model.NewQueryResultCol("aggr__countries__count", int64(260)),
 				model.NewQueryResultCol("aggr__countries__hours__key_0", float64(2.0)),
@@ -2049,7 +2049,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			"aggs": {
 				"table": {
 					"composite": {
-						"size": 10000,
+						"size": 2,
 						"sources": [
 							{
 								"stk1": {
@@ -2151,11 +2151,32 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("metric__maxAgg_col_0", int64(4675)),
+				model.NewQueryResultCol("aggr__table__key_0", "ios"),
+				model.NewQueryResultCol("aggr__table__key_1", "AF"),
+				model.NewQueryResultCol("aggr__table__count", int64(2)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__table__key_0", "ios"),
+				model.NewQueryResultCol("aggr__table__key_1", "AR"),
+				model.NewQueryResultCol("aggr__table__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__table__key_0", "Quesma"),
+				model.NewQueryResultCol("aggr__table__key_1", "Quesma"),
+				model.NewQueryResultCol("aggr__table__count", int64(11)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			`,
+			SELECT "machine.os" AS "aggr__table__key_0", "geo.dest" AS "aggr__table__key_1",
+			  count(*) AS "aggr__table__count"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1740831278103))
+			GROUP BY "machine.os" AS "aggr__table__key_0",
+			  "geo.dest" AS "aggr__table__key_1"
+			ORDER BY "aggr__table__count" DESC, "aggr__table__key_0" ASC,
+			  "aggr__table__key_1" ASC
+			LIMIT 3`,
 	},
 	{ // [12]
 		TestName: "Bytes distribution",
