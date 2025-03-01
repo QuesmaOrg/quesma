@@ -16,7 +16,7 @@ jobs:
   build-quesma-docker-image: # based on nightly-docker-build-and-push.yml, but heavily modified
     strategy:
       matrix:
-        module: [ "quesma" ]
+        module: [ "platform" ]
     runs-on: ubuntu-latest
     steps:
       - name: Validate input - needs to match semver
