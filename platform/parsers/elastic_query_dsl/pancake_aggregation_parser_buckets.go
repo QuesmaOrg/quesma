@@ -12,7 +12,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	cidr2 "github.com/apparentlymart/go-cidr/cidr"
-	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
 	"math"
 	"net"
@@ -361,12 +360,12 @@ func (cw *ClickhouseQueryTranslator) parseGeohashGrid(aggregation *pancakeAggreg
 		defaultSize      = 10000
 		defaultPrecision = 5
 	)
+
 	if err := bucket_aggregations.CheckParamsGeohashGrid(cw.Ctx, params); err != nil {
 		return err
 	}
 
 	fieldName := cw.parseStringField(params, "field", "") // default doesn't matter, we checked it's present in CheckParamsGeohashGrid
-	pp.Println(fieldName)
 	lon := model.NewGeoLon(fieldName)
 	lat := model.NewGeoLat(fieldName)
 	precision := cw.parseIntField(params, "precision", defaultPrecision)
