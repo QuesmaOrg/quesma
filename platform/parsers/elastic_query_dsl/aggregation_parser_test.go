@@ -8,6 +8,10 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/testdata"
+	"github.com/QuesmaOrg/quesma/platform/testdata/clients"
+	dashboard_1 "github.com/QuesmaOrg/quesma/platform/testdata/dashboard-1"
+	kibana_visualize "github.com/QuesmaOrg/quesma/platform/testdata/kibana-visualize"
+	opensearch_visualize "github.com/QuesmaOrg/quesma/platform/testdata/opensearch-visualize"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
