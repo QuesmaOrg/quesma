@@ -132,6 +132,8 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 					funcParsed.isArray = true
 					childGotArrayFunc = true
 					e.Name = funcParsed.String()
+				} else {
+					e.Args = b.VisitChildren(e.Args)
 				}
 			} else {
 				e.Args = b.VisitChildren(e.Args)

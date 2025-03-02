@@ -426,11 +426,12 @@ func Test_arrayType(t *testing.T) {
 		"kibana_sample_data_ecommerce": {},
 	}
 	fields := map[schema.FieldName]schema.Field{
-		"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
-		"products.name":     {PropertyName: "products.name", InternalPropertyName: "products_name", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
-		"products.quantity": {PropertyName: "products.quantity", InternalPropertyName: "products_quantity", InternalPropertyType: "Array(Int64)", Type: schema.QuesmaTypeArray},
-		"products.sku":      {PropertyName: "products.sku", InternalPropertyName: "products_sku", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
-		"order_date":        {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+		"@timestamp":         {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+		"products.name":      {PropertyName: "products.name", InternalPropertyName: "products_name", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
+		"products.quantity":  {PropertyName: "products.quantity", InternalPropertyName: "products_quantity", InternalPropertyType: "Array(Int64)", Type: schema.QuesmaTypeArray},
+		"products.sku":       {PropertyName: "products.sku", InternalPropertyName: "products_sku", InternalPropertyType: "Array(String)", Type: schema.QuesmaTypeArray},
+		"order_date":         {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+		"taxful_total_price": {PropertyName: "taxful_total_price", InternalPropertyName: "taxful_total_price", InternalPropertyType: "Float64", Type: schema.QuesmaTypeFloat},
 	}
 
 	indexSchema := schema.Schema{
@@ -465,7 +466,7 @@ func Test_arrayType(t *testing.T) {
 				TableName: "kibana_sample_data_ecommerce",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
-					Columns:    []model.Expr{model.NewColumnRef("@timestamp"), model.NewColumnRef("order_date"), model.NewColumnRef("products_name"), model.NewColumnRef("products_quantity"), model.NewColumnRef("products_sku")},
+					Columns:    []model.Expr{model.NewColumnRef("@timestamp"), model.NewColumnRef("order_date"), model.NewColumnRef("products_name"), model.NewColumnRef("products_quantity"), model.NewColumnRef("products_sku"), model.NewColumnRef("taxful_total_price")},
 				},
 			},
 		},
@@ -600,6 +601,44 @@ func Test_arrayType(t *testing.T) {
 						model.NewColumnRef("products_sku"),
 						model.NewLiteral("'XYZ'")),
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+		},
+
+		{
+			name: "kibana_sample_data_ecommerce dashboard regression test",
+			query: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewFunction("sumOrNullIf",
+							model.NewColumnRef("taxful_total_price"),
+							model.NewInfixExpr(
+								model.NewColumnRef("products.name"),
+								"ILIKE",
+								model.NewLiteralWithEscapeType("%watch%", model.FullyEscaped),
+							),
+						),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewAliasedExpr(
+							model.NewFunction("sumOrNullIf",
+								model.NewColumnRef("taxful_total_price"),
+								model.NewFunction("arrayExists",
+									model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteral("x"), "ILIKE", model.NewLiteralWithEscapeType("%watch%", model.FullyEscaped))),
+									model.NewColumnRef("products_name"),
+								),
+							),
+							"column_0",
+						),
+					},
 				},
 			},
 		},
