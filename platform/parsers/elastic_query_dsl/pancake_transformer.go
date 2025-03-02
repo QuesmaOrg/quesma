@@ -272,7 +272,7 @@ func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelL
 			}
 
 			parentBucketLayerIdx := i + layerIdx
-			if parentBucketLayerIdx > 0 {
+			if parentBucketLayerIdx > 0 && layers[parentBucketLayerIdx-1].nextBucketAggregation != nil {
 				pipeline.queryType.SetParentBucketAggregation(layers[parentBucketLayerIdx-1].nextBucketAggregation.queryType)
 			}
 			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)
@@ -293,7 +293,16 @@ func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, 
 	layer := layers[0]
 	for i, aggrName := range pipeline.GetPathToParent() {
 		layer = layers[i]
-		if layer.nextBucketAggregation == nil || layer.nextBucketAggregation.name != aggrName {
+		asBucket := layer.nextBucketAggregation != nil && layer.nextBucketAggregation.name == aggrName
+		asMetric := false
+		for _, metric := range layer.currentMetricAggregations {
+			if metric.name == aggrName {
+				asMetric = true
+				break
+			}
+		}
+
+		if !asBucket && !asMetric {
 			return nil, -1, fmt.Errorf("could not find parent bucket layer")
 		}
 	}
