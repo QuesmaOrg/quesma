@@ -10,6 +10,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
 	"github.com/QuesmaOrg/quesma/platform/model/metrics_aggregations"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl/query_util"
+	"github.com/k0kubun/pp"
 	"strings"
 )
 
@@ -74,6 +75,7 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 }
 
 func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMetricAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (addSelectColumns []model.AliasedExpr, err error) {
+	pp.Println("metric", metric)
 	for columnId, column := range metric.selectedColumns {
 		finalColumn := column
 
@@ -275,7 +277,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	if aggregation == nil {
 		return nil, "", errors.New("aggregation is nil in generateQuery")
 	}
-	
+
 	bucketAggregationCount := p.countRealBucketAggregations(aggregation)
 	bucketAggregationSoFar := 0
 
@@ -300,6 +302,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 			default:
 				hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
 				addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
+				pp.Println("addSelectColumns", addSelectColumns)
 				if err != nil {
 					return nil, "", err
 				}

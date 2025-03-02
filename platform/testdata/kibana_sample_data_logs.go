@@ -983,11 +983,11 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0-bucket__count", int64(63)),
+				model.NewQueryResultCol("metric__0-bucket_col_0", int64(63)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf("response">=500) AS "aggr__0-bucket__count"
+			SELECT countIf("response">=500) AS "metric__0-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740831278103))`,
@@ -1127,11 +1127,11 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0-bucket__count", int64(72)),
+				model.NewQueryResultCol("metric__0-bucket_col_0", int64(72)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf(("response">=400 AND "response"<500)) AS "aggr__0-bucket__count"
+			SELECT countIf(("response">=400 AND "response"<500)) AS "metric__0-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740831278103))`,
@@ -1589,7 +1589,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 							}
 						],
 						"doc_count_error_upper_bound": 0,
-						"sum_other_doc_count": 0
+						"sum_other_doc_count": 1575
 					}
 				},
 				"hits": {
@@ -1611,27 +1611,30 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__key_0", "https://www.elastic.co/downloads/elasticsearch"),
 				model.NewQueryResultCol("aggr__0__count", int64(86)),
 				model.NewQueryResultCol("metric__0__2_col_0", int64(81)),
+				model.NewQueryResultCol("metric__0__3-bucket_col_0", int64(3)),
+				model.NewQueryResultCol("metric__0__5-bucket_col_0", int64(2)),
 				model.NewQueryResultCol("metric__0__7_col_0", []float64{13963.0}),
 				model.NewQueryResultCol("metric__0__8_col_0", []float64{6820.5}),
-				model.NewQueryResultCol("aggr__0__3-bucket__count", int64(3)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", int64(1745)),
 				model.NewQueryResultCol("aggr__0__key_0", "https://www.elastic.co/downloads/beats/metricbeat"),
 				model.NewQueryResultCol("aggr__0__count", int64(84)),
 				model.NewQueryResultCol("metric__0__2_col_0", int64(83)),
+				model.NewQueryResultCol("metric__0__3-bucket_col_0", int64(4)),
+				model.NewQueryResultCol("metric__0__5-bucket_col_0", int64(1)),
 				model.NewQueryResultCol("metric__0__7_col_0", []float64{14253.549999999997}),
 				model.NewQueryResultCol("metric__0__8_col_0", []float64{5929.5}),
-				model.NewQueryResultCol("aggr__0__3-bucket__count", int64(4)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "url" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  uniq("clientip") AS "metric__0__2_col_0",
+			  countIf("response">=500) AS "metric__0__3-bucket_col_0",
+			  countIf(("response">=400 AND "response"<500)) AS "metric__0__5-bucket_col_0",
 			  quantiles(0.950000)("bytes") AS "metric__0__7_col_0",
-			  quantiles(0.500000)("bytes") AS "metric__0__8_col_0",
-			  countIf("response">=500) AS "aggr__0__3-bucket__count"
+			  quantiles(0.500000)("bytes") AS "metric__0__8_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740831278103))

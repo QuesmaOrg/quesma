@@ -160,7 +160,7 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 	metrics := make([]*pancakeModelMetricAggregation, 0)
 
 	for i, childAgg := range childAggregations {
-		fmt.Printf("%d create layer %+v\n", i, childAgg)
+		fmt.Printf("%d create layer %+v %s\n", i, childAgg, childAgg.queryType.AggregationType().String())
 		if childAgg.queryType == nil {
 			return nil, fmt.Errorf("query type is nil in createLayer")
 		}
@@ -173,6 +173,17 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 			metrics = append(metrics, metric)
 
 		case model.BucketAggregation:
+			filter, isFilter := childAgg.queryType.(bucket_aggregations.FilterAgg)
+			if isFilter && len(childAgg.children) == 0 {
+				childAgg.selectedColumns = append(childAgg.selectedColumns, model.NewFunction("countIf", filter.WhereClause))
+				metric, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
+				if err != nil {
+					return nil, err
+				}
+				metrics = append(metrics, metric)
+				break
+			}
+
 			bucket, err := a.bucketAggregationToLayer(previousAggrNames, childAgg)
 			if err != nil {
 				return nil, err
@@ -238,10 +249,6 @@ func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, chi
 		} else {
 			resultLayers = append(resultLayers, []*pancakeModelLayer{res.layer})
 		}
-	}
-	fmt.Println(lvl, "LAYERS", resultLayers)
-	if lvl == 0 {
-		//pp.Println(resultLayers[1])
 	}
 	return resultLayers, nil
 }
@@ -411,7 +418,7 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 			sampleLimit: sampleLimit,
 		}
 
-		fmt.Println("New pancake: ", newPancake)
+		//pp.Println("New pancake: ", newPancake)
 		pancakeResults = append(pancakeResults, &newPancake)
 
 		// TODO: if both top_hits/top_metrics, and filters, it probably won't work...
