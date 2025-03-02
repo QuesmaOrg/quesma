@@ -8,41 +8,47 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestDateManager_parseStrictDateOptionalTimeOrEpochMillis(t *testing.T) {
+	empty := time.Time{}
 	tests := []struct {
-		missing              any
-		wantUnixTimestamp    int64
-		wantParsingSucceeded bool
+		input                  any
+		wantedTimestamp        time.Time
+		wantedParsingSucceeded bool
 	}{
-		{nil, -1, false},
-		{"2024", 1704067200000, true},
-		{int64(123), 123, true},
-		{"4234324223", 4234324223, true},
-		{"4234", 71444937600000, true},
-		{"42340", 42340, true},
-		{"42340.234", 42340, true},
-		{"2024/02", -1, false},
-		{"2024-02", 1706745600000, true},
-		{"2024-2", -1, false},
-		{"2024-02-02", 1706832000000, true},
-		{"2024-02-3", -1, false},
-		{"2024-02-30", -1, false},
-		{"2024-02-25T1", 1708822800000, true}, // this fails in Kibana, so we're better
-		{"2024-02-25T13:00:00", 1708866000000, true},
-		{"2024-02-25 13:00:00", -1, false},
-		{"2024-02-25T13:11", 1708866660000, true},
-		{"2024-02-25T25:00:00", -1, false},
-		{"2024-02-25T13:00:00+05", 1708848000000, true},
-		{"2024-02-25T13:00:00+05:00", 1708848000000, true},
+		{nil, empty, false},
+		{"2024", time.UnixMilli(1704067200000), true},
+		{int64(123), time.UnixMilli(123), true},
+		{"4234324223", time.UnixMilli(4234324223), true},
+		{"4234", time.UnixMilli(71444937600000), true},
+		{"42340", time.UnixMilli(42340), true},
+		{"42340.234", time.UnixMilli(42340), true},
+		{"2024/02", empty, false},
+		{"2024-02", time.UnixMilli(1706745600000), true},
+		{"2024-2", empty, false},
+		{"2024-02-02", time.UnixMilli(1706832000000), true},
+		{"2024-02-3", empty, false},
+		{"2024-02-30", empty, false},
+		{"2024-02-25T1", time.UnixMilli(1708822800000), true}, // this fails in Kibana, so we're better
+		{"2024-02-25T13:00:00", time.UnixMilli(1708866000000), true},
+		{"2024-02-25 13:00:00", empty, false},
+		{"2024-02-25T13:11", time.UnixMilli(1708866660000), true},
+		{"2024-02-25T25:00:00", empty, false},
+		{"2024-02-25T13:00:00+05", time.UnixMilli(1708848000000), true},
+		{"2024-02-25T13:00:00+05:00", time.UnixMilli(1708848000000), true},
+		{"2024-02-25T13:00:00.123", time.UnixMilli(1708866000123), true},
+		{"2024-02-25T13:00:00.123Z", time.UnixMilli(1708866000123), true},
+		{"2024-02-25T13:00:00.123456789", time.Unix(1708866000, 123456789), true},
+		{"2024-02-25T13:00:00.123456789Z", time.Unix(1708866000, 123456789), true},
 	}
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v", tt.missing), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", tt.input), func(t *testing.T) {
 			dm := NewDateManager(context.Background())
-			gotUnixTs, gotParsingSucceeded := dm.parseStrictDateOptionalTimeOrEpochMillis(tt.missing)
-			assert.Equalf(t, tt.wantUnixTimestamp, gotUnixTs, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
-			assert.Equalf(t, tt.wantParsingSucceeded, gotParsingSucceeded, "MissingInDateHistogramToUnixTimestamp(%v)", tt.missing)
+			gotUnixTs, gotParsingSucceeded := dm.parseStrictDateOptionalTimeOrEpochMillis(tt.input)
+			assert.Truef(t, tt.wantedTimestamp.Equal(gotUnixTs), "MissingInDateHistogramToUnixTimestamp(%v)", tt.input)
+			assert.Equalf(t, tt.wantedParsingSucceeded, gotParsingSucceeded, "MissingInDateHistogramToUnixTimestamp(%v)", tt.input)
 		})
 	}
 }
