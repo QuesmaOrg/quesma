@@ -1325,7 +1325,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 							}
 						],
 						"doc_count_error_upper_bound": 0,
-						"sum_other_doc_count": 0
+						"sum_other_doc_count": 1035
 					}
 				},
 				"hits": {
@@ -1343,28 +1343,81 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1726358400000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(442)),
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1795)),
+				model.NewQueryResultCol("aggr__0__key_0", ""),
+				model.NewQueryResultCol("aggr__0__count", int64(676)),
+				model.NewQueryResultCol("metric__0__1_col_0", 3557023.0),
+				model.NewQueryResultCol("metric__0__3_col_0", 493),
+				model.NewQueryResultCol("aggr__0__2-bucket__count", int64(10)),
+				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 61415.0),
+				model.NewQueryResultCol("metric__0__4-bucket__4-metric_col_0", 10),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1728777600000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(1)),
+				model.NewQueryResultCol("aggr__0__parent_count", int64(1795)),
+				model.NewQueryResultCol("aggr__0__key_0", "rpm"),
+				model.NewQueryResultCol("aggr__0__count", int64(84)),
+				model.NewQueryResultCol("metric__0__1_col_0", 525707.0),
+				model.NewQueryResultCol("metric__0__3_col_0", 80),
+				model.NewQueryResultCol("aggr__0__2-bucket__count", int64(0)),
+				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 0.0),
+				model.NewQueryResultCol("metric__0__4-bucket__4-metric_col_0", 0),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__sampler__count",
-			  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC'))))*1000
-			  AS "aggr__sampler__eventRate__key_0",
-			  count(*) AS "aggr__sampler__eventRate__count"
-			FROM (
-			  SELECT "order_date"
-			  FROM __quesma_table_name
-			  LIMIT 20000)
-			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC')))
-			  )*1000 AS "aggr__sampler__eventRate__key_0"
-			ORDER BY "aggr__sampler__eventRate__key_0" ASC`,
+			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+			  "extension" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
+			  sumOrNull("bytes") AS "metric__0__1_col_0",
+			  uniq("clientip") AS "metric__0__3_col_0",
+			  countIf(("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND "timestamp"
+			  <=fromUnixTimestamp64Milli(1740753572445))) AS "aggr__0__2-bucket__count",
+			  sumOrNullIf("bytes", ("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND
+			  "timestamp"<=fromUnixTimestamp64Milli(1740753572445))) AS
+			  "metric__0__2-bucket__2-metric_col_0"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740092400000) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1740753572445))
+			GROUP BY "extension" AS "aggr__0__key_0"
+			ORDER BY "metric__0__1_col_0" DESC, "aggr__0__key_0" ASC
+			LIMIT 11`,
+		ExpectedAdditionalPancakeSQLs: []string{`
+			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
+			  "extension" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
+			  sumOrNull("bytes") AS "metric__0__1_col_0",
+			  uniq("clientip") AS "metric__0__3_col_0",
+			  countIf(("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND "timestamp"
+			  <=fromUnixTimestamp64Milli(1740753572445))) AS "aggr__0__4-bucket__count",
+			  uniqIf("clientip", ("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND
+			  "timestamp"<=fromUnixTimestamp64Milli(1740753572445))) AS
+			  "metric__0__4-bucket__4-metric_col_0"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740092400000) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1740753572445))
+			GROUP BY "extension" AS "aggr__0__key_0"
+			ORDER BY "metric__0__1_col_0" DESC, "aggr__0__key_0" ASC
+			LIMIT 11`,
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__0__parent_count", int64(1795)),
+					model.NewQueryResultCol("aggr__0__key_0", ""),
+					model.NewQueryResultCol("aggr__0__count", int64(676)),
+					model.NewQueryResultCol("metric__0__1_col_0", 3557023.0),
+					model.NewQueryResultCol("metric__0__3_col_0", 493),
+					model.NewQueryResultCol("aggr__0__4-bucket__count", int64(10)),
+					model.NewQueryResultCol("metric__0__4-bucket__4-metric_col_0", 10),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__0__parent_count", int64(1795)),
+					model.NewQueryResultCol("aggr__0__key_0", "rpm"),
+					model.NewQueryResultCol("aggr__0__count", int64(84)),
+					model.NewQueryResultCol("metric__0__1_col_0", 525707.0),
+					model.NewQueryResultCol("metric__0__3_col_0", 80),
+					model.NewQueryResultCol("aggr__0__4-bucket__count", int64(0)),
+					model.NewQueryResultCol("metric__0__4-bucket__4-metric_col_0", 0),
+				}},
+			},
+		},
 	},
 	{ // [7]
 		TestName: "Errors by host",

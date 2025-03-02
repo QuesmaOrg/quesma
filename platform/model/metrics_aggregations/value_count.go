@@ -21,11 +21,11 @@ func (query ValueCount) AggregationType() model.AggregationType {
 }
 
 func (query ValueCount) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	var value any = 0
+	var value any = nil
 	if len(rows) > 0 {
 		value = rows[0].Cols[0].Value
 	} else {
-		logger.WarnWithCtx(query.ctx).Msg("No rows returned for value_count aggregation")
+		logger.WarnWithCtx(query.ctx).Msg("Nn rows returned for value_count aggregation")
 	}
 	return model.JsonMap{
 		"value": value,
