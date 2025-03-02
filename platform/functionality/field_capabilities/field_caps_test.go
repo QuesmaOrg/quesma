@@ -25,6 +25,15 @@ func TestFieldCaps(t *testing.T) {
 		"indices": ["logs-generic-default"]
       }
     },
+	"arrayOfArraysOfStrings.keyword": {
+      "keyword": {
+        "aggregatable": true,
+        "searchable": true,
+        "type": "keyword",
+		"metadata_field": false,
+		"indices": ["logs-generic-default"]
+      }
+    },
     "arrayOfArraysOfStrings.text": {
       "text": {
         "type": "text",
@@ -53,6 +62,15 @@ func TestFieldCaps(t *testing.T) {
       }
     },
     "service.name": {
+      "keyword": {
+        "aggregatable": true,
+        "searchable": true,
+        "metadata_field": false,
+		"type": "keyword",
+		"indices": ["logs-generic-default"]
+      }
+    },
+	"service.name.keyword": {
       "keyword": {
         "aggregatable": true,
         "searchable": true,
@@ -215,6 +233,15 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 		"indices": ["logs-1"]
       }
     },
+	"foo.bar1.keyword": {
+      "keyword": {
+        "aggregatable": true,
+        "searchable": true,
+        "metadata_field": false,
+        "type": "keyword",
+		"indices": ["logs-1"]
+      }
+    },
     "foo.bar1.text": {
       "text": {
         "aggregatable": false,
@@ -227,6 +254,15 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
       }
     },
     "foo.bar2": {
+      "keyword": {
+        "aggregatable": true,
+        "searchable": true,
+        "metadata_field": false,
+        "type": "keyword",
+		"indices": ["logs-2"]
+      }
+    },
+	"foo.bar2.keyword": {
       "keyword": {
         "aggregatable": true,
         "searchable": true,
@@ -337,6 +373,15 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
           "metadata_field": false,
           "type": "boolean",
 		  "indices": ["logs-2", "logs-3"]
+      }
+    },
+	"foo.bar.keyword": {
+      "keyword": {
+        "aggregatable": false,
+        "searchable": true,
+        "metadata_field": false,
+        "type": "keyword",
+		"indices": ["logs-1"]
       }
     },
     "foo.bar.text": {
