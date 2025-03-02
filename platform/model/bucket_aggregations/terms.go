@@ -268,7 +268,7 @@ func (qt TermsRowsTransformer) Transform(ctx context.Context, rowsFromDB []model
 				row.LastColValue(), row.LastColValue())
 			return []model.QueryResultRow{}
 		}
-		if docCount > qt.minDocCount {
+		if docCount >= qt.minDocCount {
 			postprocessedRows = append(postprocessedRows, row)
 		}
 	}

@@ -106,11 +106,11 @@ var GrafanaAggregationTests = []AggregationTestCase{
             "aggregations": {
                 "2": {
 					"doc_count_error_upper_bound": 0,
-					"sum_other_doc_count": 195,
+					"sum_other_doc_count": 196,
 					"buckets": [
 						{
 							"key": "zip",
-							"doc_count": 41
+							"doc_count": 40
 						}
 					]
 				}
@@ -131,13 +131,13 @@ var GrafanaAggregationTests = []AggregationTestCase{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", int64(236)),
 				model.NewQueryResultCol("aggr__2__key_0", "zip"),
-				model.NewQueryResultCol("aggr__2__count", int64(41)),
+				model.NewQueryResultCol("aggr__2__count", int64(40)),
 				model.NewQueryResultCol("aggr__2__order_1", int64(1)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__parent_count", int64(236)),
 				model.NewQueryResultCol("aggr__2__key_0", "tar"),
-				model.NewQueryResultCol("aggr__2__count", int64(31)),
+				model.NewQueryResultCol("aggr__2__count", int64(30)),
 				model.NewQueryResultCol("aggr__2__order_1", int64(0)),
 			}},
 		},
