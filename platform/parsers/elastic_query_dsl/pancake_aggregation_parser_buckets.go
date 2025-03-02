@@ -159,8 +159,14 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 		return err
 	}
 
+	const (
+		defaultSize        = 10
+		defaultMinDocCount = 1
+	)
+
+	minDocCount := cw.parseIntField(params, "min_doc_count", defaultMinDocCount)
 	terms := bucket_aggregations.NewTerms(
-		cw.Ctx, aggrName == "significant_terms", params["include"], params["exclude"],
+		cw.Ctx, aggrName == "significant_terms", minDocCount, params["include"], params["exclude"],
 	)
 
 	var didWeAddMissing, didWeUpdateFieldHere bool
@@ -178,24 +184,24 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 		aggregation.filterOutEmptyKeyBucket = true
 	}
 
-	const (
-		defaultSize        = 10
-		defaultMinDocCount = 1
-	)
-	size := cw.parseSize(params, defaultSize)
-	minDocCount := cw.parseIntField(params, "min_doc_count", defaultMinDocCount)
-
 	orderBy, err := cw.parseOrder(params, []model.Expr{field})
 	if err != nil {
 		return err
 	}
 
 	aggregation.queryType = terms
-	aggregation.limit = size
+	aggregation.selectedColumns = append(aggregation.selectedColumns, field)
+	aggregation.limit = cw.parseSize(params, defaultSize)
+	aggregation.orderBy = orderBy
 	if minDocCount > 1 {
-		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExpr(model.NewCountFunc(), model.DescOrder))
+		// need to filter out buckets with doc_count < min_doc_count, so first order by is (count() >= min_doc_count) DESC
+		condition := model.NewInfixExpr(model.NewCountFunc(), ">=", model.NewLiteral(minDocCount))
+		firstOrderBy := model.NewOrderByExpr(condition, model.DescOrder)
+		aggregation.orderBy = append(
+			[]model.OrderByExpr{firstOrderBy},
+			aggregation.orderBy...,
+		)
 	}
-	aggregation.orderBy = append(aggregation.orderBy, orderBy...)
 	return nil
 }
 

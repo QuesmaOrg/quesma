@@ -27,7 +27,6 @@ const (
 	OriginalKeyName      = "__quesma_originalKey"
 	NoExtendedBound      = int64(-1) // -1 and not e.g. 0, as 0 is a valid value
 	maxEmptyBucketsAdded = 1000
-	maxEmptyBucketsAdded = 1000
 )
 
 type DateHistogram struct {
