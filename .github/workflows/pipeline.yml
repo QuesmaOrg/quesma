@@ -16,7 +16,7 @@ jobs:
   quesma-test-and-compile:
     strategy:
       matrix:
-        module: [ "quesma" ]
+        module: [ "platform" ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
