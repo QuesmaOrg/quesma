@@ -22,7 +22,7 @@ func (query FilterAgg) AggregationType() model.AggregationType {
 }
 
 func (query FilterAgg) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	var docCount any = 0
+	var docCount any = nil
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for filter aggregation")
 	} else if len(rows[0].Cols) == 0 {

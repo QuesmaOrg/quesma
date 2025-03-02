@@ -21,7 +21,7 @@ func (query ValueCount) AggregationType() model.AggregationType {
 }
 
 func (query ValueCount) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	var value any = 0
+	var value any = nil
 	if len(rows) > 0 {
 		value = rows[0].Cols[0].Value
 	} else {
