@@ -34,6 +34,7 @@ type DateHistogram struct {
 	field             model.Expr // name of the field, e.g. timestamp
 	interval          string
 	timezone          string
+	defaultFormat     bool           // how we format "key_as_string". If not default, it's milliseconds
 	wantedTimezone    *time.Location // key is in `timezone` time, and we need it to be UTC
 	extendedBoundsMin int64
 	extendedBoundsMax int64
@@ -42,7 +43,7 @@ type DateHistogram struct {
 	fieldDateTimeType clickhouse.DateTimeType
 }
 
-func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone string, minDocCount int,
+func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone, format string, minDocCount int,
 	extendedBoundsMin, extendedBoundsMax int64, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
 
 	wantedTimezone, err := time.LoadLocation(timezone)
@@ -51,9 +52,11 @@ func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone 
 		wantedTimezone = time.UTC
 	}
 
+	defaultFormat := format != "epoch_millis"
+
 	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
 		minDocCount: minDocCount, extendedBoundsMin: extendedBoundsMin, extendedBoundsMax: extendedBoundsMax,
-		intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
+		intervalType: intervalType, fieldDateTimeType: fieldDateTimeType, defaultFormat: defaultFormat}
 }
 
 func (typ DateHistogramIntervalType) String(ctx context.Context) string {
@@ -100,12 +103,17 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		}
 		originalKey := query.getKey(row)
 		responseKey := query.calculateResponseKey(originalKey)
-
+		var keyAsString string
+		if query.defaultFormat {
+			keyAsString = query.calculateKeyAsString(responseKey)
+		} else {
+			keyAsString = strconv.FormatInt(responseKey, 10)
+		}
 		response = append(response, model.JsonMap{
 			OriginalKeyName: originalKey,
 			"key":           responseKey,
 			"doc_count":     docCount,
-			"key_as_string": query.calculateKeyAsString(responseKey),
+			"key_as_string": keyAsString,
 		})
 	}
 
