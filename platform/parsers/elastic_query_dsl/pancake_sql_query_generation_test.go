@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
-	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
 	"github.com/QuesmaOrg/quesma/platform/schema"
@@ -23,7 +22,7 @@ const TableName = model.SingleTableNamePlaceHolder
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	logger.InitSimpleLoggerForTestsWarnLevel()
+	// logger.InitSimpleLoggerForTestsWarnLevel()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":                     {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
