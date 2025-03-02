@@ -159,7 +159,7 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLa
 		for i, row := range bucketRows {
 			for _, col := range row.Cols {
 				if strings.HasPrefix(col.ColName, bucketKeyName) {
-					if col.Value == nil { // TODO: replace with schema
+					if col.Value == nil {
 						nullRowToDelete = i
 						break ROW
 					}
