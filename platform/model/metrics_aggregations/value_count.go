@@ -4,7 +4,6 @@ package metrics_aggregations
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 )
 
@@ -21,15 +20,7 @@ func (query ValueCount) AggregationType() model.AggregationType {
 }
 
 func (query ValueCount) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	var value any = nil
-	if len(rows) > 0 {
-		value = rows[0].Cols[0].Value
-	} else {
-		logger.WarnWithCtx(query.ctx).Msg("Nn rows returned for value_count aggregation")
-	}
-	return model.JsonMap{
-		"value": value,
-	}
+	return metricsTranslateSqlResponseToJsonZeroDefault(query.ctx, rows)
 }
 
 func (query ValueCount) String() string {
