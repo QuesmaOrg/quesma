@@ -50,7 +50,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			// sample_ecommerce
 			if test.TestName == "TODO Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
-				t.Skip("works IRL, need to update test's schema")
+				t.Skip("works IRL, need to update test's schema. It's already WIP https://github.com/QuesmaOrg/quesma/pull/1255. Let's wait for merge.")
 			}
 
 			// sample_logs
