@@ -119,7 +119,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			  fromUnixTimestamp64Milli(1740831278103))`,
 	},
 	{ // [1]
-		TestName: "TODO Response Codes Over Time + Annotations (1/2 request, Annotations part)",
+		TestName: "Response Codes Over Time + Annotations (1/2 request, Annotations part)",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -278,7 +278,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 											},
 											"doc_count": 1,
 											"key": 1740254400000,
-											"key_as_string": "2025-02-22T21:00:00.000+01:00"
+											"key_as_string": "2025-02-22T20:00:00.000"
 										},
 										{
 											"4": {
@@ -307,7 +307,7 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 											},
 											"doc_count": 1,
 											"key": 1740286800000,
-											"key_as_string": "2025-02-23T06:00:00.000+01:00"
+											"key_as_string": "2025-02-23T05:00:00.000"
 										}
 									]
 								},
@@ -331,11 +331,136 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("metric__maxAgg_col_0", int64(4675)),
+				model.NewQueryResultCol("aggr__1__count", int64(28)),
+				model.NewQueryResultCol("aggr__1__2__key_0", int64(1740264400000/10800000)),
+				model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__count", int64(28)),
+				model.NewQueryResultCol("aggr__1__2__key_0", int64(1740296800000/10800000)),
+				model.NewQueryResultCol("aggr__1__2__count", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			`,
+			SELECT sum(count(*)) OVER () AS "aggr__1__count",
+			  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
+			  count(*) AS "aggr__1__2__count"
+			FROM __quesma_table_name
+			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1740831278103)) AND ("tags" ILIKE '%error%' AND
+			  "tags" ILIKE '%security%'))
+			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0"
+			ORDER BY "aggr__1__2__key_0" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			`
+			WITH quesma_top_hits_group_table AS (
+			  SELECT sum(count(*)) OVER () AS "aggr__1__count",
+				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
+				count(*) AS "aggr__1__2__count"
+			  FROM __quesma_table_name
+			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
+				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" ILIKE '%error%' AND
+				"tags" ILIKE '%security%'))
+			  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
+				toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
+				"aggr__1__2__key_0"
+			  ORDER BY "aggr__1__2__key_0" ASC) ,
+			quesma_top_hits_join AS (
+			  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
+				"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
+				"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
+				"hit_table"."timestamp" AS "top_metrics__1__2__4_col_0",
+				"hit_table"."timestamp" AS "top_metrics__1__2__4_col_1",
+				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
+				"timestamp" ASC) AS "top_hits_rank"
+			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
+				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
+			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
+				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" ILIKE '%error%' AND
+				"tags" ILIKE '%security%')))
+			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
+			  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
+			FROM "quesma_top_hits_join"
+			WHERE "top_hits_rank"<=10
+			ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+			`
+			WITH quesma_top_hits_group_table AS (
+			  SELECT sum(count(*)) OVER () AS "aggr__1__count",
+				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
+				count(*) AS "aggr__1__2__count"
+			  FROM __quesma_table_name
+			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
+				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" ILIKE '%error%' AND
+				"tags" ILIKE '%security%'))
+			  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
+				toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
+				"aggr__1__2__key_0"
+			  ORDER BY "aggr__1__2__key_0" ASC) ,
+			quesma_top_hits_join AS (
+			  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
+				"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
+				"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
+				"hit_table"."geo.src" AS "top_metrics__1__2__5_col_0",
+				"hit_table"."timestamp" AS "top_metrics__1__2__5_col_1",
+				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
+				"timestamp" ASC) AS "top_hits_rank"
+			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
+				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+				"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
+			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
+				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" ILIKE '%error%' AND
+				"tags" ILIKE '%security%')))
+			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
+			  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
+			FROM "quesma_top_hits_join"
+			WHERE "top_hits_rank"<=10
+			ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(28)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740264400000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-22T20:20:24.125Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-22T20:20:24.125Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(28)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740296800000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-23T06:59:14.110Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-23T06:59:14.110Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(28)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740264400000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", "US"),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-22T20:20:24.125Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(28)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740296800000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", "US"),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-23T06:59:14.110Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+			},
+		},
 	},
 	{ // [2]
 		TestName: "Unique visitors",

@@ -52,9 +52,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "Table gz, css, zip, etc.(file:kibana-sample-data-logs,nr:6)" {
 				t.Skip()
 			}
-			if test.TestName == "TODO Response Codes Over Time + Annotations (1/2 request, Annotations part)(file:kibana-sample-data-logs,nr:1)" {
-				t.Skip()
-			}
 			if test.TestName == "Errors by host(file:kibana-sample-data-logs,nr:7)" {
 				t.Skip()
 			}
