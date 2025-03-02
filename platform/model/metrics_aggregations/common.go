@@ -20,6 +20,16 @@ func metricsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryRe
 	}
 }
 
+func metricsTranslateSqlResponseToJsonZeroDefault(ctx context.Context, rows []model.QueryResultRow) model.JsonMap {
+	var value any = int64(0)
+	if resultRowsAreNonEmpty(ctx, rows) {
+		value = rows[0].Cols[len(rows[0].Cols)-1].Value
+	}
+	return model.JsonMap{
+		"value": value,
+	}
+}
+
 // metricsTranslateSqlResponseToJsonWithFieldTypeCheck is the same as metricsTranslateSqlResponseToJson for all types except DateTimes.
 // With DateTimes, we need to return 2 values, instead of 1, that's the difference.
 func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(

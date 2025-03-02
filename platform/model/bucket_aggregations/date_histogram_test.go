@@ -22,6 +22,6 @@ func TestTranslateSqlResponseToJson(t *testing.T) {
 		},
 	}
 	response := (&DateHistogram{interval: interval, extendedBoundsMax: NoExtendedBound, extendedBoundsMin: NoExtendedBound,
-		intervalType: DateHistogramFixedInterval, wantedTimezone: time.UTC}).TranslateSqlResponseToJson(resultRows)
+		defaultFormat: true, intervalType: DateHistogramFixedInterval, wantedTimezone: time.UTC}).TranslateSqlResponseToJson(resultRows)
 	assert.Equal(t, expectedResponse, response)
 }

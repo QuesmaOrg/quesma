@@ -69,9 +69,8 @@ func handleFieldCapsIndex(cfg map[string]config.IndexConfiguration, schemaRegist
 			}
 			for fieldName, field := range fieldsWithAliases {
 				addFieldCapabilityFromSchemaRegistry(fields, fieldName.AsString(), field.Type, resolvedIndex)
-				fmt.Println("QQQ", fieldName.AsString(), field.Type.Name)
 				switch field.Type.Name {
-				case "text", "keyword":
+				case "keyword", "text":
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldKeywordSuffix), schema.QuesmaTypeKeyword, resolvedIndex)
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.QuesmaTypeText, resolvedIndex)
 				case "map":
