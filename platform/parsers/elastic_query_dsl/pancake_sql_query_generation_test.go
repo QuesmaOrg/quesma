@@ -57,7 +57,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "TODO Daily comparison(file:kibana-sample-data-ecommerce,nr:8)" {
 				t.Skip()
 			}
-			if test.TestName == "Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
+			if test.TestName == "TODO Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
 				t.Skip("It already works IRL. Need to update this test schema, it's already done in some another PR. Let's wait a bit")
 			}
 
