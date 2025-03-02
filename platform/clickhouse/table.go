@@ -40,7 +40,7 @@ func (t *Table) createTableOurFieldsString() []string {
 			if t.Config.TimestampDefaultsNow {
 				defaultStr = " DEFAULT now64()"
 			}
-			rows = append(rows, fmt.Sprintf("%s\"%s\" DateTime64(9)%s", util.Indent(1), timestampFieldName, defaultStr))
+			rows = append(rows, fmt.Sprintf("%s\"%s\" DateTime64(3)%s", util.Indent(1), timestampFieldName, defaultStr))
 		}
 	}
 	if len(t.Config.Attributes) > 0 {
