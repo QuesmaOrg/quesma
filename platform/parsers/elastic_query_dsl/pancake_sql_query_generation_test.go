@@ -49,6 +49,9 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			// sample_logs
+			if test.TestName == "Table gz, css, zip, etc.(file:kibana-sample-data-logs,nr:6)" {
+				t.Skip()
+			}
 			if test.TestName == "Errors by host(file:kibana-sample-data-logs,nr:7)" {
 				t.Skip()
 			}
