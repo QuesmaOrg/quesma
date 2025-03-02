@@ -277,7 +277,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 											},
 											"doc_count": 2,
 											"key": 1740135600000,
-											"key_as_string": "2025-02-21T12:00:00.000+01:00"
+											"key_as_string": "2025-02-21T11:00:00.000"
 										},
 										{
 											"4": {
@@ -306,7 +306,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 											},
 											"doc_count": 1,
 											"key": 1740394800000,
-											"key_as_string": "2025-02-24T12:00:00.000+01:00"
+											"key_as_string": "2025-02-24T11:00:00.000"
 										},
 										{
 											"4": {
@@ -335,7 +335,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 											},
 											"doc_count": 1,
 											"key": 1740438000000,
-											"key_as_string": "2025-02-25T00:00:00.000+01:00"
+											"key_as_string": "2025-02-24T23:00:00.000"
 										}
 									]
 								},
@@ -359,24 +359,167 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__timeseries__key_0", int64(1730374060000/10000)),
-				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
+				model.NewQueryResultCol("aggr__1__count", int64(4)),
+				model.NewQueryResultCol("aggr__1__2__key_0", int64(1740139600000/43200000)),
+				model.NewQueryResultCol("aggr__1__2__count", int64(2)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__timeseries__key_0", int64(1730374110000/10000)),
-				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
+				model.NewQueryResultCol("aggr__1__count", int64(4)),
+				model.NewQueryResultCol("aggr__1__2__key_0", int64(1740404800000/43200000)),
+				model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__count", int64(4)),
+				model.NewQueryResultCol("aggr__1__2__key_0", int64(1740448000000/43200000)),
+				model.NewQueryResultCol("aggr__1__2__count", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-			  "@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0",
-			  count(*) AS "aggr__timeseries__count"
+			SELECT sum(count(*)) OVER () AS "aggr__1__count",
+			  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
+			  count(*) AS "aggr__1__2__count"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1730370296174) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1730370596174))
-			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
-			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
-			ORDER BY "aggr__timeseries__key_0" ASC`,
+			WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
+			  fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250')
+			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
+			  ("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0"
+			ORDER BY "aggr__1__2__key_0" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{`
+				WITH quesma_top_hits_group_table AS (
+				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
+					toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+					"order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
+					count(*) AS "aggr__1__2__count"
+				  FROM __quesma_table_name
+				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
+					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250')
+				  GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(
+					toTimezone("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS
+					"aggr__1__2__key_0"
+				  ORDER BY "aggr__1__2__key_0" ASC) ,
+				quesma_top_hits_join AS (
+				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
+					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
+					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
+					"hit_table"."order_date" AS "top_metrics__1__2__4_col_0",
+					"hit_table"."order_date" AS "top_metrics__1__2__4_col_1",
+					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
+					"order_date" ASC) AS "top_hits_rank"
+				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
+					toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+					"order_date", 'Europe/Warsaw'))*1000) / 43200000))
+				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
+					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250'))
+				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
+				  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
+				FROM "quesma_top_hits_join"
+				WHERE "top_hits_rank"<=10
+				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+			`
+				WITH quesma_top_hits_group_table AS (
+				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
+					toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+					"order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
+					count(*) AS "aggr__1__2__count"
+				  FROM __quesma_table_name
+				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
+					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250')
+				  GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(
+					toTimezone("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS
+					"aggr__1__2__key_0"
+				  ORDER BY "aggr__1__2__key_0" ASC) ,
+				quesma_top_hits_join AS (
+				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
+					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
+					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
+					"hit_table"."taxful_total_price" AS "top_metrics__1__2__5_col_0",
+					"hit_table"."order_date" AS "top_metrics__1__2__5_col_1",
+					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
+					"order_date" ASC) AS "top_hits_rank"
+				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
+					toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
+					"order_date", 'Europe/Warsaw'))*1000) / 43200000))
+				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
+					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250'))
+				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
+				  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
+				FROM "quesma_top_hits_join"
+				WHERE "top_hits_rank"<=10
+				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(4)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740139600000/43200000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(2)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-21T17:16:48.000Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-21T17:16:48.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(4)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740139600000/43200000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(2)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-21T21:34:34.000Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-21T21:34:34.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(2)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(4)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740404800000/43200000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-24T11:38:24.000Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-24T11:38:24.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(4)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740448000000/43200000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-25T03:50:24.000Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-25T03:50:24.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(4)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740139600000/43200000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", 310.0),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-21T17:16:48.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(4)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740139600000/43200000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", 393.0),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-21T21:34:34.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(4)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740404800000/43200000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", 283.0),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-24T11:38:24.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(4)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740448000000/43200000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(1)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", 301.0),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-25T03:50:24.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+			},
+		},
 	},
 	{ // [2]
 		TestName: "Promotion Tracking (request 2/3)",
