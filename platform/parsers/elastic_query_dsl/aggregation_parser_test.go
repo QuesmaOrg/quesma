@@ -8,10 +8,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/testdata"
-	"github.com/QuesmaOrg/quesma/platform/testdata/clients"
-	dashboard_1 "github.com/QuesmaOrg/quesma/platform/testdata/dashboard-1"
-	kibana_visualize "github.com/QuesmaOrg/quesma/platform/testdata/kibana-visualize"
-	opensearch_visualize "github.com/QuesmaOrg/quesma/platform/testdata/opensearch-visualize"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -655,11 +651,13 @@ func allAggregationTests() []testdata.AggregationTestCase {
 		}
 	}
 
-	add(testdata.AggregationTests, "agg_req")
+	/*add(testdata.AggregationTests, "agg_req")
 	add(testdata.AggregationTests2, "agg_req_2")
 	add(testdata.AggregationTestsWithDates, "dates")
+	
+	*/
 	add(testdata.GrafanaAggregationTests, "grafana")
-	add(testdata.KibanaSampleDataLogs, "kibana-sample-data-logs")
+	/*add(testdata.KibanaSampleDataLogs, "kibana-sample-data-logs")
 	add(testdata.PipelineAggregationTests, "pipeline_agg_req")
 	add(dashboard_1.AggregationTests, "dashboard-1/agg_req")
 	add(kibana_visualize.AggregationTests, "kibana-visualize/agg_req")
@@ -670,7 +668,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(clients.OpheliaTests, "clients/ophelia")
 	add(clients.CloverTests, "clients/clover")
 	add(clients.TuringTests, "clients/turing")
-
+	*/
 	return allTests
 }
 

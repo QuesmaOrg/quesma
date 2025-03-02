@@ -178,8 +178,12 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 		aggregation.filterOutEmptyKeyBucket = true
 	}
 
-	const defaultSize = 10
+	const (
+		defaultSize        = 10
+		defaultMinDocCount = 1
+	)
 	size := cw.parseSize(params, defaultSize)
+	minDocCount := cw.parseIntField(params, "min_doc_count", defaultMinDocCount)
 
 	orderBy, err := cw.parseOrder(params, []model.Expr{field})
 	if err != nil {
@@ -187,9 +191,11 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 	}
 
 	aggregation.queryType = terms
-	aggregation.selectedColumns = append(aggregation.selectedColumns, field)
 	aggregation.limit = size
-	aggregation.orderBy = orderBy
+	if minDocCount > 1 {
+		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExpr(model.NewCountFunc(), model.DescOrder))
+	}
+	aggregation.orderBy = append(aggregation.orderBy, orderBy...)
 	return nil
 }
 
