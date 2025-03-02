@@ -340,14 +340,15 @@ var CloverTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__timeseries__count", int64(202)),
+				model.NewQueryResultCol("metric__timeseries__a2-denominator_col_0", int64(202)),
 				model.NewQueryResultCol("metric__timeseries__a2-numerator_col_0", int64(202)),
-				model.NewQueryResultCol("aggr__timeseries__a2-denominator__count", int64(202)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT count(*) AS "aggr__timeseries__count",
-			  countIf(NOT ("table.flower" ILIKE '%clover%')) AS "metric__timeseries__a2-numerator_col_0",
-			  countIf(true) AS "aggr__timeseries__a2-denominator__count"
+			  countIf(true) AS "metric__timeseries__a2-denominator_col_0",
+			  countIf(NOT ("table.flower" ILIKE '%clover%')) AS
+			  "metric__timeseries__a2-numerator_col_0"
 			FROM __quesma_table_name
 			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1728640683723) AND "@timestamp"<=
 			  fromUnixTimestamp64Milli(1728641583723))`,
@@ -637,15 +638,15 @@ var CloverTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__timeseries__count", int64(1000)),
+				model.NewQueryResultCol("metric__timeseries__f2-denominator_col_0", int64(1000)),
 				model.NewQueryResultCol("metric__timeseries__f2-numerator_col_0", int64(178)),
-				model.NewQueryResultCol("aggr__timeseries__f2-denominator__count", int64(1000)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT count(*) AS "aggr__timeseries__count",
+			  countIf(true) AS "metric__timeseries__f2-denominator_col_0",
 			  countIf(NOT ("a.b_str" IS NOT NULL)) AS
-			  "metric__timeseries__f2-numerator_col_0",
-			  countIf(true) AS "aggr__timeseries__f2-denominator__count"
+			  "metric__timeseries__f2-numerator_col_0"
 			FROM __quesma_table_name
 			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1721399904783) AND "@timestamp"<=
 			  fromUnixTimestamp64Milli(1730475504783))`,
