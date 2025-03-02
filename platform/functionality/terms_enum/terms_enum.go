@@ -100,7 +100,6 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 		logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err2)
 		result, err = json.Marshal(emptyTermsEnumResponse())
 	} else {
-		fmt.Println("ROWS", rows)
 		result, err = json.Marshal(makeTermsEnumResponse(rows))
 	}
 	path := ""

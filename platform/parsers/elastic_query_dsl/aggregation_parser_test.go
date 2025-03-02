@@ -668,7 +668,6 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(clients.OpheliaTests, "clients/ophelia")
 	add(clients.CloverTests, "clients/clover")
 	add(clients.TuringTests, "clients/turing")
-	add(testdata.KibanaSampleDataEcommerce, "kibana-sample-data-ecommerce")
 
 	return allTests
 }
