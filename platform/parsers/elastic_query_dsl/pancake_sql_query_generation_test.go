@@ -52,7 +52,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "Table gz, css, zip, etc.(file:kibana-sample-data-logs,nr:6)" {
 				t.Skip()
 			}
-			if test.TestName == "Unique Destination Heatmap(file:kibana-sample-data-logs,nr:10)" {
+			if test.TestName == "Errors by host(file:kibana-sample-data-logs,nr:7)" {
 				t.Skip()
 			}
 

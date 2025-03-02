@@ -135,6 +135,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 
 	minDocCount := cw.parseMinDocCount(params)
 	timezone := cw.parseStringField(params, "time_zone", "")
+	format := cw.parseStringField(params, "format", "")
 	interval, intervalType := cw.extractInterval(params)
 	// TODO  GetDateTimeTypeFromExpr can be moved and it should take cw.Schema as an argument
 
@@ -143,7 +144,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 	}
 
 	dateHistogram := bucket_aggregations.NewDateHistogram(cw.Ctx,
-		field, interval, timezone, minDocCount, ebMin, ebMax, intervalType, dateTimeType)
+		field, interval, timezone, format, minDocCount, ebMin, ebMax, intervalType, dateTimeType)
 	aggregation.queryType = dateHistogram
 
 	columnSql := dateHistogram.GenerateSQL()
