@@ -22,11 +22,15 @@ func (query FilterAgg) AggregationType() model.AggregationType {
 }
 
 func (query FilterAgg) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
+	var docCount any = 0
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for filter aggregation")
-		return make(model.JsonMap, 0)
+	} else if len(rows[0].Cols) == 0 {
+		logger.WarnWithCtx(query.ctx).Msg("no columns returned for filter aggregation")
+	} else {
+		docCount = rows[0].Cols[0].Value
 	}
-	return model.JsonMap{"doc_count": rows[0].Cols[0].Value}
+	return model.JsonMap{"doc_count": docCount}
 }
 
 func (query FilterAgg) String() string {
