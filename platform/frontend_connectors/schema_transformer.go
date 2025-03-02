@@ -11,7 +11,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -285,8 +284,6 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 
 func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
-	pp.Println("1")
-	pp.Println(query.SelectCommand)
 	arrayTypeResolver := arrayTypeResolver{indexSchema: indexSchema}
 
 	// check if the query has array columns
@@ -318,8 +315,6 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
-	pp.Println("2")
-	pp.Println(query.SelectCommand)
 	return query, nil
 }
 
