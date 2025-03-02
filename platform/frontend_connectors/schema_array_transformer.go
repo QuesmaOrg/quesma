@@ -121,6 +121,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 
 	var childGotArrayFunc bool
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+
 		if len(e.Args) > 0 {
 			arg := e.Args[0]
 			column, ok := arg.(model.ColumnRef)
