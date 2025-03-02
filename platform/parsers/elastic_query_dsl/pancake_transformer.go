@@ -223,8 +223,12 @@ func (a *pancakeTransformer) aggregationChildrenToLayers(aggrNames []string, chi
 			if len(childLayers) == 0 {
 				resultLayers = append(resultLayers, []*pancakeModelLayer{res.layer})
 			} else {
-				for _, childLayer := range childLayers {
+				for i, childLayer := range childLayers {
 					newLayer := res.layer
+					if i > 0 { // remove metrics
+						newLayer = newPancakeModelLayer(res.layer.nextBucketAggregation)
+					}
+
 					resultLayers = append(resultLayers, append([]*pancakeModelLayer{newLayer}, childLayer...))
 				}
 			}
@@ -399,7 +403,6 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 			whereClause: topLevel.whereClause,
 			sampleLimit: sampleLimit,
 		}
-
 		pancakeResults = append(pancakeResults, &newPancake)
 
 		// TODO: if both top_hits/top_metrics, and filters, it probably won't work...
@@ -407,7 +410,6 @@ func (a *pancakeTransformer) aggregationTreeToPancakes(topLevel pancakeAggregati
 		// Should be fixed after this TODO
 		newCombinatorPancakes := a.createCombinatorPancakes(&newPancake)
 		additionalTopHitPancakes, err := a.createTopHitAndTopMetricsPancakes(&newPancake)
-
 		if err != nil {
 			return nil, err
 		}
