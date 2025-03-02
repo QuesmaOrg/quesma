@@ -13,21 +13,21 @@ var GrafanaAggregationTests = []AggregationTestCase{
 				"2": {
 					"date_histogram": {
 						"field": "@timestamp",
-						"fixed_interval":"2000ms",
-						"min_doc_count":0,
+						"fixed_interval": "2000ms",
+						"min_doc_count": 0,
 						"extended_bounds": {
-							"min":1740928804319,
-							"max":1740932404319
+							"min": 1740930494000,
+							"max": 1740930500000
 						},
-						"format":"epoch_millis"
+						"format": "epoch_millis"
 					}
 				}
 			},
-			"size":0
+			"size": 0
 		}`,
 		ExpectedResponse: `
 		{
-			aggregations": {
+			"aggregations": {
                 "2": {
                     "buckets": [
                         {
@@ -49,7 +49,7 @@ var GrafanaAggregationTests = []AggregationTestCase{
                             "doc_count": 1,
                             "key": 1740930500000,
                             "key_as_string": "1740930500000"
-                        },
+                        }
                     ]
                 }
             },
@@ -67,27 +67,20 @@ var GrafanaAggregationTests = []AggregationTestCase{
         }`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1726358400000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(442)),
+				model.NewQueryResultCol("aggr__2__key_0", int64(1740930496000/2000)),
+				model.NewQueryResultCol("aggr__2__count", int64(4)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1728777600000)),
-				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(1)),
+				model.NewQueryResultCol("aggr__2__key_0", int64(1740930500000/2000)),
+				model.NewQueryResultCol("aggr__2__count", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__sampler__count",
-			  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC'))))*1000
-			  AS "aggr__sampler__eventRate__key_0",
-			  count(*) AS "aggr__sampler__eventRate__count"
-			FROM (
-			  SELECT "order_date"
-			  FROM __quesma_table_name
-			  LIMIT 20000)
-			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC')))
-			  )*1000 AS "aggr__sampler__eventRate__key_0"
-			ORDER BY "aggr__sampler__eventRate__key_0" ASC`,
+			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 2000) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 2000) AS
+			  "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
 	},
 }
