@@ -4,10 +4,50 @@
 package ansi
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
+	"github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/testutils"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestSqlfluffAnsiTestcases(t *testing.T) {
+	testfiles := []string{
+		"../../../testdata/testdata/dialects_sqlfluff/parsed-sqlfluff-ansi-testcases.txt",
+		"../../../testdata/testdata/dialects_sqlfluff/parsed-sqlparse-testcases.txt",
+	}
+
+	for _, testfile := range testfiles {
+		t.Run(testfile, func(t *testing.T) {
+			testcases := testutils.LoadParsedTestcases(testfile)
+			for _, testcase := range testcases {
+				t.Run(testcase.Query, func(t *testing.T) {
+					expectedTokens := testcase.ExpectedTokens[:len(testcase.ExpectedTokens)-1] // remove the last token, which is an EOF token
+
+					tokens := core.Lex(testcase.Query, SqlfluffAnsiRules)
+					assert.Equal(t, len(expectedTokens), len(tokens))
+
+					commonLength := min(len(expectedTokens), len(tokens))
+
+					for i := 0; i < commonLength; i++ {
+						assert.Equalf(t, expectedTokens[i].TokenType, tokens[i].Type.Name, "Token type at position %d", i)
+						assert.Equalf(t, expectedTokens[i].TokenValue, tokens[i].RawValue, "Token value at position %d", i)
+					}
+
+					if t.Failed() {
+						for i := 0; i < commonLength; i++ {
+							if expectedTokens[i].TokenType != tokens[i].Type.Name || expectedTokens[i].TokenValue != tokens[i].RawValue {
+								t.Logf("Mismatch token at position %d: %s(%s). Got: %s(%s)", i, expectedTokens[i].TokenType, expectedTokens[i].TokenValue, tokens[i].Type.Name, tokens[i].RawValue)
+							} else {
+								t.Logf("Expected token at position %d: %s(%s). Got: %s(%s)", i, expectedTokens[i].TokenType, expectedTokens[i].TokenValue, tokens[i].Type.Name, tokens[i].RawValue)
+							}
+						}
+					}
+				})
+			}
+		})
+	}
+}
 
 func FuzzLex(f *testing.F) {
 	f.Add("SELECT * FROM tabela")

@@ -4,8 +4,10 @@
 package dialect_sqlparse
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
 	"testing"
+
+	"github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
+	"github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/testutils"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -36,6 +38,42 @@ func TestSimpleSelect(t *testing.T) {
 
 	assert.Equal(t, "Token.Name", tokens[6].Type.Name)
 	assert.Equal(t, "tabela", tokens[6].RawValue)
+}
+
+func TestSqlparsedTestcases(t *testing.T) {
+	testfiles := []string{
+		"../../testdata/testdata/dialect_sqlparse/parsed-sqlparse-testcases.txt",
+		"../../testdata/testdata/dialect_sqlparse/parsed-sqlfluff-all-testcases.txt",
+	}
+
+	for _, testfile := range testfiles {
+		t.Run(testfile, func(t *testing.T) {
+			testcases := testutils.LoadParsedTestcases(testfile)
+			for _, testcase := range testcases {
+				t.Run(testcase.Query, func(t *testing.T) {
+					tokens := core.Lex(testcase.Query, SqlparseRules)
+					assert.Equal(t, len(testcase.ExpectedTokens), len(tokens))
+
+					commonLength := min(len(testcase.ExpectedTokens), len(tokens))
+
+					for i := 0; i < commonLength; i++ {
+						assert.Equalf(t, testcase.ExpectedTokens[i].TokenType, tokens[i].Type.Name, "Token type at position %d", i)
+						assert.Equalf(t, testcase.ExpectedTokens[i].TokenValue, tokens[i].RawValue, "Token value at position %d", i)
+					}
+
+					if t.Failed() {
+						for i := 0; i < commonLength; i++ {
+							if testcase.ExpectedTokens[i].TokenType != tokens[i].Type.Name || testcase.ExpectedTokens[i].TokenValue != tokens[i].RawValue {
+								t.Logf("Mismatch token at position %d: %s(%s). Got: %s(%s)", i, testcase.ExpectedTokens[i].TokenType, testcase.ExpectedTokens[i].TokenValue, tokens[i].Type.Name, tokens[i].RawValue)
+							} else {
+								t.Logf("Expected token at position %d: %s(%s). Got: %s(%s)", i, testcase.ExpectedTokens[i].TokenType, testcase.ExpectedTokens[i].TokenValue, tokens[i].Type.Name, tokens[i].RawValue)
+							}
+						}
+					}
+				})
+			}
+		})
+	}
 }
 
 func FuzzLex(f *testing.F) {
