@@ -26,7 +26,7 @@ const (
 	// with date_histogram's map (it already has a "valid", processed key, after TranslateSqlResponseToJson)
 	OriginalKeyName      = "__quesma_originalKey"
 	NoExtendedBound      = int64(-1) // -1 and not e.g. 0, as 0 is a valid value
-	maxEmptyBucketsAdded = 1000
+	maxEmptyBucketsAdded = 100000
 )
 
 type DateHistogram struct {
