@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS "quesma_common_table" %s
     "attributes_values" Map(String, String),
     "attributes_metadata" Map(String, String),
 
-    "@timestamp"        DateTime64(3) DEFAULT now64(),
+    "@timestamp"        DateTime64 DEFAULT now64(),
     "__quesma_index_name" LowCardinality(String) COMMENT 'Index name of the entry',
 )
     ENGINE = MergeTree

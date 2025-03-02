@@ -26,7 +26,7 @@ var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-
 
 // parseStrictDateOptionalTimeOrEpochMillis parses date, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
-func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (unixTimestamp time.Time, parsingSucceeded bool) {
+func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTimestamp time.Time, parsingSucceeded bool) {
 	if asInt, success := util.ExtractInt64Maybe(date); success {
 		return time.UnixMilli(asInt), true
 	}
@@ -68,17 +68,17 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (unixTi
 // It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
 func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType clickhouse.DateTimeType) (
 	resultExpr model.Expr, parsingSucceeded bool) {
-	if unixTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
+	if utcTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
 		switch datetimeType {
 		case clickhouse.DateTime64:
-			threeDigitsOfPrecisionSuffice := unixTs.UnixNano()%1_000_000 == 0
+			threeDigitsOfPrecisionSuffice := utcTs.UnixNano()%1_000_000 == 0
 			if threeDigitsOfPrecisionSuffice {
-				return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(unixTs.UnixMilli())), true
+				return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(utcTs.UnixMilli())), true
 			} else {
 				return model.NewFunction(
 					"toDateTime64",
 					model.NewInfixExpr(
-						model.NewLiteral(unixTs.UnixNano()),
+						model.NewLiteral(utcTs.UnixNano()),
 						"/",
 						model.NewLiteral(1_000_000_000),
 					),
@@ -86,7 +86,7 @@ func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType cli
 				), true
 			}
 		case clickhouse.DateTime:
-			return model.NewFunction("fromUnixTimestamp", model.NewLiteral(unixTs.Unix())), true
+			return model.NewFunction("fromUnixTimestamp", model.NewLiteral(utcTs.Unix())), true
 		default:
 			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
 		}
