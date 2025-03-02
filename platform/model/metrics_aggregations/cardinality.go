@@ -20,7 +20,7 @@ func (query Cardinality) AggregationType() model.AggregationType {
 }
 
 func (query Cardinality) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	return metricsTranslateSqlResponseToJson(query.ctx, rows)
+	return metricsTranslateSqlResponseToJsonZeroDefault(query.ctx, rows)
 }
 
 func (query Cardinality) String() string {
