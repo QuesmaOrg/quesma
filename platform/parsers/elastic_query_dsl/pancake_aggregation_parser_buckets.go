@@ -12,6 +12,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	cidr2 "github.com/apparentlymart/go-cidr/cidr"
+	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
 	"math"
 	"net"
@@ -38,6 +39,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		{"range", cw.parseRangeAggregation},
 		{"auto_date_histogram", cw.parseAutoDateHistogram},
 		{"geotile_grid", cw.parseGeotileGrid},
+		{"geohash_grid", cw.parseGeohashGrid},
 		{"significant_terms", func(node *pancakeAggregationTreeNode, params QueryMap) error {
 			return cw.parseTermsAggregation(node, params, "significant_terms")
 		}},
@@ -351,6 +353,30 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 	aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewLiteral(fmt.Sprintf("CAST(%f AS Float32)", precisionZoom)))
 	aggregation.selectedColumns = append(aggregation.selectedColumns, xTile)
 	aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
+	return nil
+}
+
+func (cw *ClickhouseQueryTranslator) parseGeohashGrid(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
+	const (
+		defaultSize      = 10000
+		defaultPrecision = 5
+	)
+	if err := bucket_aggregations.CheckParamsGeohashGrid(cw.Ctx, params); err != nil {
+		return err
+	}
+
+	fieldName := cw.parseStringField(params, "field", "") // default doesn't matter, we checked it's present in CheckParamsGeohashGrid
+	pp.Println(fieldName)
+	lon := model.NewGeoLon(fieldName)
+	lat := model.NewGeoLat(fieldName)
+	precision := cw.parseIntField(params, "precision", defaultPrecision)
+
+	aggregation.queryType = bucket_aggregations.NewGeoHashGrid(cw.Ctx)
+	aggregation.selectedColumns = append(aggregation.selectedColumns,
+		model.NewFunction("geohashEncode", lon, lat, model.NewLiteral(precision)))
+	aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExpr(model.NewCountFunc(), model.DescOrder))
+	aggregation.limit = cw.parseSize(params, defaultSize)
+
 	return nil
 }
 
