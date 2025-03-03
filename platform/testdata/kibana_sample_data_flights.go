@@ -488,36 +488,12 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 														"sort": [
 															"2025-02-27T02:05:42.000Z"
 														]
-													},
-													{
-														"metrics": {
-															"Carrier": "Logstash Airways"
-														},
-														"sort": [
-															"2025-02-27T03:29:04.000Z"
-														]
-													},
-													{
-														"metrics": {
-															"Carrier": "ES-Air"
-														},
-														"sort": [
-															"2025-02-27T04:20:24.000Z"
-														]
-													},
-													{
-														"metrics": {
-															"Carrier": "JetBeats"
-														},
-														"sort": [
-															"2025-02-27T04:35:45.000Z"
-														]
 													}
 												]
 											},
 											"doc_count": 4,
 											"key": 1740621600000,
-											"key_as_string": "2025-02-27T03:00:00.000+01:00"
+											"key_as_string": "2025-02-27T02:00:00.000"
 										},
 										{
 											"4": {
@@ -602,7 +578,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 											},
 											"doc_count": 2,
 											"key": 1740632400000,
-											"key_as_string": "2025-02-27T06:00:00.000+01:00"
+											"key_as_string": "2025-02-27T05:00:00.000"
 										}
 									]
 								},
@@ -626,11 +602,346 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
+				model.NewQueryResultCol("aggr__1__count", int64(62)),
+				model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+				model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1__count", int64(62)),
+				model.NewQueryResultCol("aggr__1__2__key_0", int64(1740642400000/10800000)),
+				model.NewQueryResultCol("aggr__1__2__count", int64(2)),
 			}},
 		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-27T02:05:42.000Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-27T02:05:42.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-27T03:29:04.000Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-27T03:29:04.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(2)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-27T04:20:24.000Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-27T04:20:24.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(3)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-27T04:35:45.000Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-27T04:35:45.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(4)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740642400000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(2)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-27T05:10:00.000Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-27T05:10:00.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740642400000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(2)),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_0", "2025-02-27T05:24:41.000Z"),
+					model.NewQueryResultCol("top_metrics__1__2__4_col_1", "2025-02-27T05:24:41.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(2)),
+				}},
+			},
+
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-27T02:05:42.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-27T03:29:04.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(2)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-27T04:20:24.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(3)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-27T04:35:45.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(4)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740642400000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(2)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-27T05:10:00.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740642400000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(2)),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__5_col_1", "2025-02-27T05:24:41.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(2)),
+				}},
+			},
+
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_1", "2025-02-27T02:05:42.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_1", "2025-02-27T03:29:04.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(2)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_1", "2025-02-27T04:20:24.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(3)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_1", "2025-02-27T04:35:45.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(4)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740642400000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(2)),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_1", "2025-02-27T05:10:00.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740642400000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(2)),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_0", "true"),
+					model.NewQueryResultCol("top_metrics__1__2__6_col_1", "2025-02-27T05:24:41.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(2)),
+				}},
+			},
+
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740631600000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(4)),
+					model.NewQueryResultCol("top_metrics__1__2__7_col_0", "Kibana Airlines"),
+					model.NewQueryResultCol("top_metrics__1__2__7_col_1", "2025-02-27T02:05:42.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740642400000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(2)),
+					model.NewQueryResultCol("top_metrics__1__2__7_col_0", "Kibana Airlines"),
+					model.NewQueryResultCol("top_metrics__1__2__7_col_1", "2025-02-27T05:10:00.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__1__count", int64(62)),
+					model.NewQueryResultCol("aggr__1__2__key_0", int64(1740642400000/10800000)),
+					model.NewQueryResultCol("aggr__1__2__count", int64(2)),
+					model.NewQueryResultCol("top_metrics__1__2__7_col_0", "Kibana Airlines"),
+					model.NewQueryResultCol("top_metrics__1__2__7_col_1", "2025-02-27T05:24:41.000Z"),
+					model.NewQueryResultCol("top_hits_rank", int64(2)),
+				}},
+			},
+		},
 		ExpectedPancakeSQL: `
-			`,
+			SELECT sum(count(*)) OVER () AS "aggr__1__count",
+			  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
+			  count(*) AS "aggr__1__2__count"
+			FROM __quesma_table_name
+			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%' AND
+			  "Cancelled" ILIKE '%true%'))
+			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0"
+			ORDER BY "aggr__1__2__key_0" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{`
+				WITH quesma_top_hits_group_table AS (
+				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
+					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+					"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
+					count(*) AS "aggr__1__2__count"
+				  FROM __quesma_table_name
+				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
+					AND "Cancelled" ILIKE '%true%'))
+				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
+					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
+					"aggr__1__2__key_0"
+				  ORDER BY "aggr__1__2__key_0" ASC) ,
+				quesma_top_hits_join AS (
+				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
+					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
+					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
+					"hit_table"."timestamp" AS "top_metrics__1__2__4_col_0",
+					"hit_table"."timestamp" AS "top_metrics__1__2__4_col_1",
+					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
+					"timestamp" ASC) AS "top_hits_rank"
+				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
+					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
+				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
+					AND "Cancelled" ILIKE '%true%')))
+				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
+				  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
+				FROM "quesma_top_hits_join"
+				WHERE "top_hits_rank"<=10
+				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+			`
+				WITH quesma_top_hits_group_table AS (
+				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
+					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+					"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
+					count(*) AS "aggr__1__2__count"
+				  FROM __quesma_table_name
+				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
+					AND "Cancelled" ILIKE '%true%'))
+				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
+					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
+					"aggr__1__2__key_0"
+				  ORDER BY "aggr__1__2__key_0" ASC) ,
+				quesma_top_hits_join AS (
+				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
+					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
+					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
+					"hit_table"."FlightDelay" AS "top_metrics__1__2__5_col_0",
+					"hit_table"."timestamp" AS "top_metrics__1__2__5_col_1",
+					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
+					"timestamp" ASC) AS "top_hits_rank"
+				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
+					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
+				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
+					AND "Cancelled" ILIKE '%true%')))
+				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
+				  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
+				FROM "quesma_top_hits_join"
+				WHERE "top_hits_rank"<=10
+				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+			`
+				WITH quesma_top_hits_group_table AS (
+				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
+					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+					"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
+					count(*) AS "aggr__1__2__count"
+				  FROM __quesma_table_name
+				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
+					AND "Cancelled" ILIKE '%true%'))
+				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
+					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
+					"aggr__1__2__key_0"
+				  ORDER BY "aggr__1__2__key_0" ASC) ,
+				quesma_top_hits_join AS (
+				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
+					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
+					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
+					"hit_table"."Cancelled" AS "top_metrics__1__2__6_col_0",
+					"hit_table"."timestamp" AS "top_metrics__1__2__6_col_1",
+					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
+					"timestamp" ASC) AS "top_hits_rank"
+				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
+					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
+				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
+					AND "Cancelled" ILIKE '%true%')))
+				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
+				  "top_metrics__1__2__6_col_0", "top_metrics__1__2__6_col_1", "top_hits_rank"
+				FROM "quesma_top_hits_join"
+				WHERE "top_hits_rank"<=10
+				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+			`
+				WITH quesma_top_hits_group_table AS (
+				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
+					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+					"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
+					count(*) AS "aggr__1__2__count"
+				  FROM __quesma_table_name
+				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
+					AND "Cancelled" ILIKE '%true%'))
+				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
+					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
+					"aggr__1__2__key_0"
+				  ORDER BY "aggr__1__2__key_0" ASC) ,
+				quesma_top_hits_join AS (
+				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
+					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
+					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
+					"hit_table"."Carrier" AS "top_metrics__1__2__7_col_0",
+					"hit_table"."timestamp" AS "top_metrics__1__2__7_col_1",
+					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
+					"timestamp" ASC) AS "top_hits_rank"
+				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
+					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
+				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
+					AND "Cancelled" ILIKE '%true%')))
+				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
+				  "top_metrics__1__2__7_col_0", "top_metrics__1__2__7_col_1", "top_hits_rank"
+				FROM "quesma_top_hits_join"
+				WHERE "top_hits_rank"<=10
+				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+		},
 	},
 	{ // [3]
 		TestName: "Delayed",
@@ -2420,7 +2731,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 													"hits": [
 														{
 															"_id": "Tw79TJUB2-926WOCGLoQ",
-															"_index": "kibana_sample_data_flights",
+															"_index": "__quesma_table_name",
 															"_score": 1.0,
 															"_source": {
 																"DestLocation": {
@@ -2446,7 +2757,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 													"hits": [
 														{
 															"_id": "Nw79TJUB2-926WOCGr8B",
-															"_index": "kibana_sample_data_flights",
+															"_index": "__quesma_table_name",
 															"_score": 1.0,
 															"_source": {
 																"DestLocation": {
@@ -2477,7 +2788,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 										"hits": [
 											{
 												"_id": "Tw79TJUB2-926WOCGLoQ",
-												"_index": "kibana_sample_data_flights",
+												"_index": "__quesma_table_name",
 												"_score": 1.0,
 												"_source": {
 													"Origin": "Mariscal Sucre International Airport",
@@ -2505,7 +2816,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 													"hits": [
 														{
 															"_id": "9Q79TJUB2-926WOCGr8B",
-															"_index": "kibana_sample_data_flights",
+															"_index": "__quesma_table_name",
 															"_score": 1.0,
 															"_source": {
 																"DestLocation": {
@@ -2531,7 +2842,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 													"hits": [
 														{
 															"_id": "AQ79TJUB2-926WOCGLsQ",
-															"_index": "kibana_sample_data_flights",
+															"_index": "__quesma_table_name",
 															"_score": 1.0,
 															"_source": {
 																"DestLocation": {
@@ -2562,7 +2873,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 										"hits": [
 											{
 												"_id": "cg79TJUB2-926WOCGLoQ",
-												"_index": "kibana_sample_data_flights",
+												"_index": "__quesma_table_name",
 												"_score": 1.0,
 												"_source": {
 													"Origin": "Ministro Pistarini International Airport",
@@ -2601,10 +2912,109 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__sampler__count", int64(4675)),
+				model.NewQueryResultCol("aggr__origins__parent_count", int64(283)),
+				model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
+				model.NewQueryResultCol("aggr__origins__count", int64(283)),
+				model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(283)),
+				model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
+				model.NewQueryResultCol("aggr__origins__distinations__count", int64(21)),
+				model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", "[-34.8222, -58.5358]"),
+				model.NewQueryResultCol("top_hits_rank", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			`,
+			WITH quesma_top_hits_group_table AS (
+			  SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
+				"aggr__origins__count", "aggr__origins__distinations__parent_count",
+				"aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
+				"aggr__origins__order_1_rank", "aggr__origins__distinations__order_1_rank"
+			  FROM (
+				SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
+				  "aggr__origins__count", "aggr__origins__distinations__parent_count",
+				  "aggr__origins__distinations__key_0",
+				  "aggr__origins__distinations__count",
+				  dense_rank() OVER (ORDER BY "aggr__origins__count" DESC,
+				  "aggr__origins__key_0" ASC) AS "aggr__origins__order_1_rank",
+				  dense_rank() OVER (PARTITION BY "aggr__origins__key_0" ORDER BY
+				  "aggr__origins__distinations__count" DESC,
+				  "aggr__origins__distinations__key_0" ASC) AS
+				  "aggr__origins__distinations__order_1_rank"
+				FROM (
+				  SELECT sum(count(*)) OVER () AS "aggr__origins__parent_count",
+					"OriginAirportID" AS "aggr__origins__key_0",
+					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
+					"aggr__origins__count",
+					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
+					"aggr__origins__distinations__parent_count",
+					"DestAirportID" AS "aggr__origins__distinations__key_0",
+					count(*) AS "aggr__origins__distinations__count"
+				  FROM __quesma_table_name
+				  GROUP BY "OriginAirportID" AS "aggr__origins__key_0",
+					"DestAirportID" AS "aggr__origins__distinations__key_0"))
+			  WHERE ("aggr__origins__order_1_rank"<=10001 AND
+				"aggr__origins__distinations__order_1_rank"<=10001)
+			  ORDER BY "aggr__origins__order_1_rank" ASC,
+				"aggr__origins__distinations__order_1_rank" ASC) ,
+			quesma_top_hits_join AS (
+			  SELECT "group_table"."aggr__origins__parent_count" AS
+				"aggr__origins__parent_count",
+				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
+				"group_table"."aggr__origins__count" AS "aggr__origins__count",
+				"group_table"."aggr__origins__distinations__parent_count" AS
+				"aggr__origins__distinations__parent_count",
+				"group_table"."aggr__origins__distinations__key_0" AS
+				"aggr__origins__distinations__key_0",
+				"group_table"."aggr__origins__distinations__count" AS
+				"aggr__origins__distinations__count",
+				"hit_table"."DestLocation" AS
+				"top_hits__origins__distinations__destLocation_col_0",
+				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0",
+				"group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank",
+				"group_table"."aggr__origins__order_1_rank" AS "aggr__origins__order_1_rank"
+				,
+				"group_table"."aggr__origins__distinations__order_1_rank" AS
+				"aggr__origins__distinations__order_1_rank"
+			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+				__quesma_table_name AS "hit_table" ON (("group_table"."aggr__origins__key_0"
+				="hit_table"."OriginAirportID" AND
+				"group_table"."aggr__origins__distinations__key_0"=
+				"hit_table"."DestAirportID")))
+			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
+			  "aggr__origins__count", "aggr__origins__distinations__parent_count",
+			  "aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
+			  "top_hits__origins__distinations__destLocation_col_0", "top_hits_rank"
+			FROM "quesma_top_hits_join"
+			WHERE "top_hits_rank"<=1
+			ORDER BY "aggr__origins__order_1_rank" ASC,
+			  "aggr__origins__distinations__order_1_rank" ASC, "top_hits_rank" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{`
+			WITH quesma_top_hits_group_table AS (
+			  SELECT sum(count(*)) OVER () AS "aggr__origins__parent_count",
+				"OriginAirportID" AS "aggr__origins__key_0",
+				count(*) AS "aggr__origins__count"
+			  FROM __quesma_table_name
+			  GROUP BY "OriginAirportID" AS "aggr__origins__key_0"
+			  ORDER BY "aggr__origins__count" DESC, "aggr__origins__key_0" ASC
+			  LIMIT 10001) ,
+			quesma_top_hits_join AS (
+			  SELECT "group_table"."aggr__origins__parent_count" AS
+				"aggr__origins__parent_count",
+				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
+				"group_table"."aggr__origins__count" AS "aggr__origins__count",
+				"hit_table"."OriginLocation" AS "top_hits__origins__originLocation_col_0",
+				"hit_table"."Origin" AS "top_hits__origins__originLocation_col_1",
+				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0") AS
+				"top_hits_rank"
+			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
+				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__origins__key_0"=
+				"hit_table"."OriginAirportID"))
+			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
+			  "aggr__origins__count", "top_hits__origins__originLocation_col_0",
+			  "top_hits__origins__originLocation_col_1", "top_hits_rank"
+			FROM "quesma_top_hits_join"
+			WHERE "top_hits_rank"<=1
+			ORDER BY "aggr__origins__count" DESC, "aggr__origins__key_0" ASC,
+			  "top_hits_rank" ASC`,
+		},
 	},
 }

@@ -645,7 +645,7 @@ var aggregationTests = []struct {
 }*/
 
 func allAggregationTests() []testdata.AggregationTestCase {
-	const lowerBoundTestNr = 90
+	const lowerBoundTestNr = 220
 	allTests := make([]testdata.AggregationTestCase, 0, lowerBoundTestNr)
 
 	add := func(testsToAdd []testdata.AggregationTestCase, testFilename string) {

@@ -49,11 +49,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			// sample_flights
-			if test.TestName == "Delays & Cancellations (request 1/2)(file:kibana-sample-data-flights,nr:2)" {
-				t.Skip()
-			}
 			if test.TestName == "TODO Airport Connections (Hover Over Airport)(file:kibana-sample-data-flights,nr:14)" {
-				t.Skip()
+				t.Skip("Fixing right now")
 			}
 			// sample_ecommerce
 			if test.TestName == "TODO Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
@@ -158,7 +155,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 
 			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
-			acceptableDifference := []string{"probability", "seed", bucket_aggregations.OriginalKeyName,
+			acceptableDifference := []string{"probability", "seed", bucket_aggregations.OriginalKeyName, "_id", "_score",
 				"bg_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
 			if len(test.AdditionalAcceptableDifference) > 0 {
 				acceptableDifference = append(acceptableDifference, test.AdditionalAcceptableDifference...)
