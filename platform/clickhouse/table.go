@@ -87,6 +87,17 @@ func (t *Table) FullTableName() string {
 	}
 }
 
+// FullTableNameUnquoted returns full table name with database name if it's not empty.
+// in a format: [database.]table.
+// Used e.g. to add that information to query response.
+func (t *Table) FullTableNameUnquoted() string {
+	if t.DatabaseName != "" {
+		return fmt.Sprintf("%s.%s", t.DatabaseName, t.Name)
+	} else {
+		return t.Name
+	}
+}
+
 // GetDateTimeType returns type of a field (currently DateTime/DateTime64), if it's a DateTime type. Invalid otherwise.
 // Timestamp from config defaults to DateTime64.
 // We don't warn the log message e.g. in e.g. in sum/avg/etc. aggregations, where date is (very) unexpected or impossible.
