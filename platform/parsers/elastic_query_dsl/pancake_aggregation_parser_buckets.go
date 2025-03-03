@@ -38,6 +38,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		{"range", cw.parseRangeAggregation},
 		{"auto_date_histogram", cw.parseAutoDateHistogram},
 		{"geotile_grid", cw.parseGeotileGrid},
+		{"geohash_grid", cw.parseGeohashGrid},
 		{"significant_terms", func(node *pancakeAggregationTreeNode, params QueryMap) error {
 			return cw.parseTermsAggregation(node, params, "significant_terms")
 		}},
@@ -135,6 +136,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 
 	minDocCount := cw.parseMinDocCount(params)
 	timezone := cw.parseStringField(params, "time_zone", "")
+	format := cw.parseStringField(params, "format", "")
 	interval, intervalType := cw.extractInterval(params)
 	// TODO  GetDateTimeTypeFromExpr can be moved and it should take cw.Schema as an argument
 
@@ -143,7 +145,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 	}
 
 	dateHistogram := bucket_aggregations.NewDateHistogram(cw.Ctx,
-		field, interval, timezone, minDocCount, ebMin, ebMax, intervalType, dateTimeType)
+		field, interval, timezone, format, minDocCount, ebMin, ebMax, intervalType, dateTimeType)
 	aggregation.queryType = dateHistogram
 
 	columnSql := dateHistogram.GenerateSQL()
@@ -158,8 +160,14 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 		return err
 	}
 
+	const (
+		defaultSize        = 10
+		defaultMinDocCount = 1
+	)
+
+	minDocCount := cw.parseIntField(params, "min_doc_count", defaultMinDocCount)
 	terms := bucket_aggregations.NewTerms(
-		cw.Ctx, aggrName == "significant_terms", params["include"], params["exclude"],
+		cw.Ctx, aggrName == "significant_terms", minDocCount, params["include"], params["exclude"],
 	)
 
 	var didWeAddMissing, didWeUpdateFieldHere bool
@@ -177,9 +185,6 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 		aggregation.filterOutEmptyKeyBucket = true
 	}
 
-	const defaultSize = 10
-	size := cw.parseSize(params, defaultSize)
-
 	orderBy, err := cw.parseOrder(params, []model.Expr{field})
 	if err != nil {
 		return err
@@ -187,8 +192,30 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 
 	aggregation.queryType = terms
 	aggregation.selectedColumns = append(aggregation.selectedColumns, field)
-	aggregation.limit = size
+	aggregation.limit = cw.parseSize(params, defaultSize)
 	aggregation.orderBy = orderBy
+	if minDocCount > 1 {
+		// If you have a better solution, feel free to implement. This works, but adds another ORDER BY + we have to filter out rows later.
+		//
+		// We only want rows with (count() >= min_doc_count).
+		// I think we can't do it in WHERE or HAVING clause, as it might affect the aggregations before/after in the aggregation tree.
+		// Or at least it's not obvious, this solution is much easier.
+		// We add the condition as the first ORDER BY. This way rows with count() < min_doc_count will be at the end, and we'll filter them out later.
+		//
+		// Example:
+		// Without this trick, if we have rows (key, count): (k1, 1), (k2, 1), ..., (k_n, 1) and (a, 100), (b, 100)
+		// (they'll be returned this way, because of some order by)
+		// If we add the condition below, if min_doc_count>1, rows will be returned (a, 100), (b, 100), (k1, 1), (k2, 1), ...
+		// We filter out (k1, 1), (k2, 1), ..., and we are fine.
+		// Without this trick, if we do a query with a limit (without filtering in SQL), we could only receive (k1, 1), (k2, 1), ...,
+		// and after filtering we'd have 0 rows to return.
+		condition := model.NewInfixExpr(model.NewCountFunc(), ">=", model.NewLiteral(minDocCount))
+		firstOrderBy := model.NewOrderByExpr(condition, model.DescOrder)
+		aggregation.orderBy = append(
+			[]model.OrderByExpr{firstOrderBy},
+			aggregation.orderBy...,
+		)
+	}
 	return nil
 }
 
@@ -350,6 +377,30 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 	aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewLiteral(fmt.Sprintf("CAST(%f AS Float32)", precisionZoom)))
 	aggregation.selectedColumns = append(aggregation.selectedColumns, xTile)
 	aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
+	return nil
+}
+
+func (cw *ClickhouseQueryTranslator) parseGeohashGrid(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
+	const (
+		defaultSize      = 10000
+		defaultPrecision = 5
+	)
+
+	if err := bucket_aggregations.CheckParamsGeohashGrid(cw.Ctx, params); err != nil {
+		return err
+	}
+
+	fieldName := cw.parseStringField(params, "field", "") // default doesn't matter, we checked it's present in CheckParamsGeohashGrid
+	lon := model.NewGeoLon(fieldName)
+	lat := model.NewGeoLat(fieldName)
+	precision := cw.parseIntField(params, "precision", defaultPrecision)
+
+	aggregation.queryType = bucket_aggregations.NewGeoHashGrid(cw.Ctx)
+	aggregation.selectedColumns = append(aggregation.selectedColumns,
+		model.NewFunction("geohashEncode", lon, lat, model.NewLiteral(precision)))
+	aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExpr(model.NewCountFunc(), model.DescOrder))
+	aggregation.limit = cw.parseSize(params, defaultSize)
+
 	return nil
 }
 

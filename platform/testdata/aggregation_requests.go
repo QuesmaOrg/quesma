@@ -3213,7 +3213,8 @@ var AggregationTests = []AggregationTestCase{
 								"1-bucket": {
 									"1-metric": {
 										"value": null
-									}
+									},
+									"doc_count": 0
 								},
 								"doc_count": 0,
 								"key": 1708732800000,
@@ -3223,7 +3224,8 @@ var AggregationTests = []AggregationTestCase{
 								"1-bucket": {
 									"1-metric": {
 										"value": null
-									}
+									},
+									"doc_count": 0
 								},
 								"doc_count": 0,
 								"key": 1708776000000,

@@ -132,6 +132,8 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 					funcParsed.isArray = true
 					childGotArrayFunc = true
 					e.Name = funcParsed.String()
+				} else {
+					e.Args = b.VisitChildren(e.Args)
 				}
 			} else {
 				e.Args = b.VisitChildren(e.Args)
@@ -222,7 +224,7 @@ func NewArrayJoinVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		dbType := resolver.dbColumnType(e.ColumnName)
 		if strings.HasPrefix(dbType, "Array") {
-			return model.NewFunction("arrayJoin", e)
+			return model.NewFunction("arrayJoin", model.NewFunction("arrayDistinct", e))
 		}
 		return e
 	}

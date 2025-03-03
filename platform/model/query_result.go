@@ -120,6 +120,10 @@ func (r *QueryResultRow) LastColValue() any {
 	return r.Cols[len(r.Cols)-1].Value
 }
 
+func (r *QueryResultRow) SecondLastColValue() any {
+	return r.Cols[len(r.Cols)-2].Value
+}
+
 // SameSubsetOfColumns returns if r and other have the same values for columns with names in colNames
 // They are results of the same query, so we can assume that the columns are in the same order.
 func (r *QueryResultRow) SameSubsetOfColumns(other *QueryResultRow, colNames []string) bool {
