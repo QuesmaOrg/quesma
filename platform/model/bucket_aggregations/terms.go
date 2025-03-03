@@ -259,6 +259,7 @@ type TermsRowsTransformer struct {
 	minDocCount int64
 }
 
+// TODO unify with other transformers
 func (qt TermsRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
 	for _, row := range rowsFromDB {
