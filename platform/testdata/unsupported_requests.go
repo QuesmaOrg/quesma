@@ -143,25 +143,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [6]
-		TestName:  "bucket aggregation: geohash_grid",
-		QueryType: "geohash_grid",
-		QueryRequestJson: `
-		{
-			"aggs": {
-				"zoomed-in": {
-					"aggs": {
-						"zoom1": {
-							"geohash_grid": {
-								"field": "location",
-								"precision": 8
-							}
-						}
-					}
-				}
-			}
-		}`,
-	},
 	{ // [7]
 		TestName:  "bucket aggregation: geohex_grid",
 		QueryType: "geohex_grid",
