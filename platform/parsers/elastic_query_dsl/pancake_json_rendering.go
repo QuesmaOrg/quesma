@@ -63,6 +63,9 @@ func (p *pancakeJSONRenderer) selectTopHitsRows(topAggr *pancakeModelMetricAggre
 					}
 					newCols = append(newCols, col)
 				}
+			} else if topAggr.isColumnParentCount(col.ColName) {
+				// top_hits needs parent count, when it's available
+				newCols = append(newCols, col)
 			}
 		}
 		result = append(result, model.QueryResultRow{Index: row.Index, Cols: newCols})
