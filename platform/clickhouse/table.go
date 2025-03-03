@@ -77,8 +77,8 @@ func (t *Table) CreateTableString() string {
 }
 
 // FullTableName returns full table name with database name if it's not empty.
-// in a format: ["database".]"table" as it seems to work for all cases in Clickhouse.
-// You can use it in any query to Clickhouse, e.g. in FROM ... clause.
+// Format: ["database".]"table" as it seems to work for all cases in Clickhouse.
+// Use this in Clickhouse queries, e.g. in FROM clause.
 func (t *Table) FullTableName() string {
 	if t.DatabaseName != "" {
 		return strconv.Quote(t.DatabaseName) + "." + strconv.Quote(t.Name)
@@ -87,8 +87,8 @@ func (t *Table) FullTableName() string {
 	}
 }
 
-// FullTableNameUnquoted returns full table name with database name if it's not empty.
-// in a format: [database.]table.
+// FullTableNameUnquoted returns full table name with database name if it's not empty
+// Format: [database.]table
 // Used e.g. to add that information to query response.
 func (t *Table) FullTableNameUnquoted() string {
 	if t.DatabaseName != "" {
