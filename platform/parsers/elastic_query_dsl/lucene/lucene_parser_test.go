@@ -64,6 +64,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`x:aaa_bbb`, `"x" __quesma_match '%aaa\_bbb%'`},
 		{`x:aaa%bbb`, `"x" __quesma_match '%aaa\%bbb%'`},
 		{`x:aaa%\*_bbb`, `"x" __quesma_match '%aaa\%*\_bbb%'`},
+		{"\"* logged\"", `("title" __quesma_match '"* logged%' OR "text" __quesma_match '%* logged%')`},
 
 		// tests for wildcards
 		{"%", `("title" __quesma_match '%\%%' OR "text" __quesma_match '%\%%')`},

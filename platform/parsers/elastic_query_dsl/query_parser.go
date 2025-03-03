@@ -725,9 +725,11 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 	}
 
 	query := queryMap["query"].(string) // query: (Required, string)
-
+	pp.Println(query)
+	fmt.Println(query)
 	// we always call `TranslateToSQL` - Lucene parser returns "false" in case of invalid query
 	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields, cw.Schema)
+	pp.Println(whereStmtFromLucene)
 	return model.NewSimpleQuery(whereStmtFromLucene, true)
 }
 
