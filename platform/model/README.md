@@ -23,7 +23,7 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
  Geo-line                  |          :x:           | Filters                      | :white_check_mark: | Derivative             | :white_check_mark: |
  Cartesian-bounds          |          :x:           | Frequent item sets           |        :x:         | Extended stats bucket  |        :x:         |
  Cartesian-centroid        |          :x:           | Geo-distance                 |        :x:         | Inference bucket       |        :x:         |
- Matrix stats              |          :x:           | Geohash grid                 |        :x:         | Max bucket             | :white_check_mark: |
+ Matrix stats              |          :x:           | Geohash grid                 | :white_check_mark: | Max bucket             | :white_check_mark: |
  Max                       |   :white_check_mark:   | Geotile grid                 |        :x:         | Min bucket             | :white_check_mark: |
  Median absolute deviation |          :x:           | Global                       |        :x:         | Moving function        |    :wavy_dash:     |
  Min                       |   :white_check_mark:   | Histogram                    | :white_check_mark: | Moving percentiles     |        :x:         |
