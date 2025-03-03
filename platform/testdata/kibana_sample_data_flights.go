@@ -2735,8 +2735,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 															"_score": 1.0,
 															"_source": {
 																"DestLocation": {
-																	"lat": "-34.8222",
-																	"lon": "-58.5358"
+																	"lat": -34.8222,
+																	"lon": -58.5358
 																}
 															}
 														}
@@ -2761,8 +2761,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 															"_score": 1.0,
 															"_source": {
 																"DestLocation": {
-																	"lat": "-0.129166667",
-																	"lon": "-78.3575"
+																	"lat": -0.129166667,
+																	"lon": -78.3575
 																}
 															}
 														}
@@ -2793,8 +2793,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 												"_source": {
 													"Origin": "Mariscal Sucre International Airport",
 													"OriginLocation": {
-														"lat": "-0.129166667",
-														"lon": "-78.3575"
+														"lat": -0.129166667,
+														"lon": -78.3575
 													}
 												}
 											}
@@ -2820,8 +2820,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 															"_score": 1.0,
 															"_source": {
 																"DestLocation": {
-																	"lat": "45.47060013",
-																	"lon": "-73.74079895"
+																	"lat": 45.47060013,
+																	"lon": -73.74079895
 																}
 															}
 														}
@@ -2846,8 +2846,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 															"_score": 1.0,
 															"_source": {
 																"DestLocation": {
-																	"lat": "-34.8222",
-																	"lon": "-58.5358"
+																	"lat": -34.8222,
+																	"lon": -58.5358
 																}
 															}
 														}
@@ -2878,8 +2878,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 												"_source": {
 													"Origin": "Ministro Pistarini International Airport",
 													"OriginLocation": {
-														"lat": "-34.8222",
-														"lon": "-58.5358"
+														"lat": -34.8222,
+														"lon": -58.5358
 													}
 												}
 											}
@@ -2894,7 +2894,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 							}
 						],
 						"doc_count_error_upper_bound": 0,
-						"sum_other_doc_count": 12474
+						"sum_other_doc_count": 1460
 					}
 				},
 				"hits": {
@@ -2902,7 +2902,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					"max_score": null,
 					"total": {
 						"relation": "eq",
-						"value": 13014
+						"value": 2000
 					}
 				},
 				"timed_out": false,
@@ -2912,15 +2912,71 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__origins__parent_count", int64(283)),
+				model.NewQueryResultCol("aggr__origins__parent_count", int64(2000)),
 				model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
 				model.NewQueryResultCol("aggr__origins__count", int64(283)),
 				model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(283)),
 				model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
 				model.NewQueryResultCol("aggr__origins__distinations__count", int64(21)),
-				model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", "[-34.8222, -58.5358]"),
+				model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", model.JsonMap{"lat": -34.8222, "lon": -58.5358}),
 				model.NewQueryResultCol("top_hits_rank", int64(1)),
 			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__origins__parent_count", int64(2000)),
+				model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
+				model.NewQueryResultCol("aggr__origins__count", int64(283)),
+				model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(283)),
+				model.NewQueryResultCol("aggr__origins__distinations__key_0", "UIO"),
+				model.NewQueryResultCol("aggr__origins__distinations__count", int64(12)),
+				model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", model.JsonMap{"lat": -0.129167, "lon": -78.3575}),
+				model.NewQueryResultCol("top_hits_rank", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__origins__parent_count", int64(2000)),
+				model.NewQueryResultCol("aggr__origins__key_0", "EZE"),
+				model.NewQueryResultCol("aggr__origins__count", int64(257)),
+				model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(257)),
+				model.NewQueryResultCol("aggr__origins__distinations__key_0", "YUL"),
+				model.NewQueryResultCol("aggr__origins__distinations__count", int64(11)),
+				model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", model.JsonMap{"lat": 45.470600, "lon": -73.740799}),
+				model.NewQueryResultCol("top_hits_rank", int64(1)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__origins__parent_count", int64(2000)),
+				model.NewQueryResultCol("aggr__origins__key_0", "EZE"),
+				model.NewQueryResultCol("aggr__origins__count", int64(257)),
+				model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(257)),
+				model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
+				model.NewQueryResultCol("aggr__origins__distinations__count", int64(10)),
+				model.NewQueryResultCol("top_hits__origins__distinations__destLocation_col_0", model.JsonMap{"lat": -34.822200, "lon": -58.535800}),
+				model.NewQueryResultCol("top_hits_rank", int64(1)),
+			}},
+		},
+		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__origins__parent_count", int64(2000)),
+					model.NewQueryResultCol("aggr__origins__key_0", "UIO"),
+					model.NewQueryResultCol("aggr__origins__count", int64(283)),
+					model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(283)),
+					model.NewQueryResultCol("aggr__origins__distinations__key_0", "EZE"),
+					model.NewQueryResultCol("aggr__origins__distinations__count", int64(21)),
+					model.NewQueryResultCol("top_hits__origins__originLocation_col_0", model.JsonMap{"lat": -0.129167, "lon": -78.3575}),
+					model.NewQueryResultCol("top_hits__origins__originLocation_col_1", "Mariscal Sucre International Airport"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("aggr__origins__parent_count", int64(2000)),
+					model.NewQueryResultCol("aggr__origins__key_0", "EZE"),
+					model.NewQueryResultCol("aggr__origins__count", int64(257)),
+					model.NewQueryResultCol("aggr__origins__distinations__parent_count", int64(257)),
+					model.NewQueryResultCol("aggr__origins__distinations__key_0", "YUL"),
+					model.NewQueryResultCol("aggr__origins__distinations__count", int64(11)),
+					model.NewQueryResultCol("top_hits__origins__originLocation_col_0", model.JsonMap{"lat": -34.822200, "lon": -58.535800}),
+					model.NewQueryResultCol("top_hits__origins__originLocation_col_1", "Ministro Pistarini International Airport"),
+					model.NewQueryResultCol("top_hits_rank", int64(1)),
+				}},
+			},
 		},
 		ExpectedPancakeSQL: `
 			WITH quesma_top_hits_group_table AS (

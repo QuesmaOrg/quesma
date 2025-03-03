@@ -46,7 +46,12 @@ func (p *pancakeJSONRenderer) selectTopHitsRows(topAggr *pancakeModelMetricAggre
 	for _, row := range rows {
 		var newCols []model.QueryResultCol
 		for _, col := range row.Cols {
+			fmt.Println("LOLOL", col.ColName, topAggr.internalName)
+			if topAggr.isColumnParentCount(col.ColName) {
+				//fmt.Println("LOLOL", col.ColName, topAggr.internalName)
+			}
 			if strings.HasPrefix(col.ColName, topAggr.InternalNamePrefix()) {
+				//fmt.Println("COL1", col.ColName, col.Value)
 				numStr := strings.TrimPrefix(col.ColName, topAggr.InternalNamePrefix())
 				if num, err := strconv.Atoi(numStr); err == nil {
 					var overrideName string
@@ -61,8 +66,11 @@ func (p *pancakeJSONRenderer) selectTopHitsRows(topAggr *pancakeModelMetricAggre
 					if len(overrideName) > 0 {
 						col.ColName = overrideName
 					}
+					//fmt.Println("COL2", col.ColName, col.Value)
 					newCols = append(newCols, col)
 				}
+			} else if topAggr.isColumnParentCount(col.ColName) {
+				newCols = append(newCols, col)
 			}
 		}
 		result = append(result, model.QueryResultRow{Index: row.Index, Cols: newCols})
