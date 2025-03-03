@@ -38,6 +38,7 @@ func newTermValue(term string) termValue {
 }
 
 func (v termValue) toExpression(fieldName string) model.Expr {
+	fmt.Println("TOEXPR")
 	termAsStringToClickhouse := v.transformSpecialCharacters()
 
 	_, err := strconv.ParseFloat(termAsStringToClickhouse, 64)
@@ -45,11 +46,15 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 	if isNumber {
 		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteral(termAsStringToClickhouse))
 	} else {
+		fmt.Println("TOEXPRESSION", termAsStringToClickhouse)
 		if alreadyQuoted(v.term) {
 			termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
 		}
 		if len(termAsStringToClickhouse) > 0 && (termAsStringToClickhouse[0] != '%' || termAsStringToClickhouse[len(termAsStringToClickhouse)-1] != '%') {
 			termAsStringToClickhouse = fmt.Sprintf("%%%s%%", termAsStringToClickhouse)
+		}
+		if len(termAsStringToClickhouse) > 0 && (termAsStringToClickhouse[0] != '\'' || termAsStringToClickhouse[len(termAsStringToClickhouse)-1] != '\'') {
+			termAsStringToClickhouse = fmt.Sprintf("'%s'", termAsStringToClickhouse)
 		}
 		return model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteralWithEscapeType(termAsStringToClickhouse, model.FullyEscaped))
 	}

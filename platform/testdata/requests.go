@@ -1379,7 +1379,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" __quesma_match '%% logged%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" __quesma_match '%% logged%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%% logged%'`},
 		[]string{},
 	},
 	{ // [16]

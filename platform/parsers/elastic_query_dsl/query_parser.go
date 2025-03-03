@@ -558,6 +558,8 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 		return model.NewSimpleQueryInvalid()
 	}
 
+	fmt.Println("MATCH", queryMap, matchPhrase)
+
 	for fieldName, v := range queryMap {
 		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
 		// (fieldName, v) = either e.g. ("message", "this is a test")
@@ -579,10 +581,11 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
 				} else {
-					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteral("'"+subQuery+"'"))
+					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteralWithEscapeType("'"+subQuery+"'", model.NotEscapedLikeFull))
 					statements = append(statements, simpleStat)
 				}
 			}
+			fmt.Println("STATS", statements)
 			return model.NewSimpleQuery(model.Or(statements), true)
 		}
 

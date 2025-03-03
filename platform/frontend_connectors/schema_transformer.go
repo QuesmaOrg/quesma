@@ -1037,7 +1037,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeBoolean.Name:
 				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
 			default:
-				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteralWithEscapeType(rhsValue, model.NotEscapedLikeFull))
+				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))
 			}
 		}
 
