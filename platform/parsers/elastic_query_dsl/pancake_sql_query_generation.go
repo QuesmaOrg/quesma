@@ -47,8 +47,9 @@ func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.Al
 
 // TODO: Implement more if needed.
 func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
-	switch origFunc := origExpr.(type) {
+	switch origExprTyped := origExpr.(type) {
 	case model.FunctionExpr:
+		origFunc := origExprTyped
 		switch origFunc.Name {
 		case "sum", "sumOrNull", "min", "minOrNull", "max", "maxOrNull":
 			return origExpr, origFunc.Name, nil
@@ -63,6 +64,11 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 		if strings.HasPrefix(origFunc.Name, "quantiles") {
 			return model.NewFunction(strings.Replace(origFunc.Name, "quantiles", "quantilesState", 1), origFunc.Args...),
 				strings.Replace(origFunc.Name, "quantiles", "quantilesMerge", 1), nil
+		}
+	case model.InfixExpr:
+		origInfix := origExprTyped
+		if f, ok := origInfix.Left.(model.FunctionExpr); ok && f.Name == "count" {
+			return origInfix, "sum", nil
 		}
 	}
 	debugQueryType := "<nil>"
