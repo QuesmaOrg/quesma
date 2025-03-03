@@ -59,9 +59,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "Errors by host(file:kibana-sample-data-logs,nr:7)" {
 				t.Skip()
 			}
-			if i < 20 {
-				t.Skip()
-			}
 
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
@@ -169,8 +166,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if len(expectedMinusActual) != 0 {
 				pp.Println("EXPECTED diff", expectedMinusActual)
 			}
-			// pp.Println("ACTUAL", pancakeJson)
-			// pp.Println("EXPECTED", expectedAggregationsPart)
+			//pp.Println("ACTUAL", pancakeJson)
+			//pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 

@@ -1840,7 +1840,7 @@ var AggregationTests = []AggregationTestCase{
 				  "@timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE (("host.name" __quesma_match 'prometheus') AND ("@timestamp">=
+				WHERE ("host.name" __quesma_match 'prometheus' AND ("@timestamp">=
 				  fromUnixTimestamp64Milli(1706891809940) AND "@timestamp"<=
 				  fromUnixTimestamp64Milli(1707496609940)))
 				GROUP BY "severity" AS "aggr__0__key_0",
@@ -2453,7 +2453,7 @@ var AggregationTests = []AggregationTestCase{
 			  FROM __quesma_table_name
 			  WHERE (("@timestamp">=fromUnixTimestamp64Milli(1706009236820) AND "@timestamp"
 				<=fromUnixTimestamp64Milli(1706010136820)) AND
-				"__quesma_fulltext_field_name" __quesma_match '%user%')
+				"__quesma_fulltext_field_name" iLIKE '%user%')
 			  LIMIT 8000)
 			GROUP BY "host.name" AS "aggr__sample__top_values__key_0"
 			ORDER BY "aggr__sample__top_values__count" DESC,
@@ -2596,7 +2596,7 @@ var AggregationTests = []AggregationTestCase{
 			  , count(*) AS "aggr__0__count"
 			FROM ` + TableName + `
 
-			WHERE (` + fullTextFieldName + ` __quesma_match '%user%' AND
+			WHERE (` + fullTextFieldName + ` iLIKE '%user%' AND
               ("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)))
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 			  "aggr__0__key_0"
@@ -2845,8 +2845,8 @@ var AggregationTests = []AggregationTestCase{
 			  "@timestamp") AS "metric__earliest_timestamp_col_0", maxOrNull("@timestamp")
 			  AS "metric__latest_timestamp_col_0"
 			FROM ` + TableName + `
-			WHERE ((` + fullTextFieldName + ` __quesma_match '%posei%' AND ("message" __quesma_match 'User logged out')) AND
-			  ("host.name" __quesma_match 'poseidon'))`,
+			WHERE ((` + fullTextFieldName + ` iLIKE '%posei%' AND "message" __quesma_match 'User logged out') AND
+			  "host.name" __quesma_match 'poseidon')`,
 	},
 	{ // [15]
 		TestName: "date_histogram: regression test",
