@@ -645,7 +645,7 @@ var aggregationTests = []struct {
 }*/
 
 func allAggregationTests() []testdata.AggregationTestCase {
-	const lowerBoundTestNr = 90
+	const lowerBoundTestNr = 220
 	allTests := make([]testdata.AggregationTestCase, 0, lowerBoundTestNr)
 
 	add := func(testsToAdd []testdata.AggregationTestCase, testFilename string) {
@@ -660,6 +660,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(testdata.AggregationTestsWithDates, "dates")
 	add(testdata.GrafanaAggregationTests, "grafana")
 	add(testdata.KibanaSampleDataEcommerce, "kibana-sample-data-ecommerce")
+	add(testdata.KibanaSampleDataFlights, "kibana-sample-data-flights")
 	add(testdata.KibanaSampleDataLogs, "kibana-sample-data-logs")
 	add(testdata.PipelineAggregationTests, "pipeline_agg_req")
 	add(dashboard_1.AggregationTests, "dashboard-1/agg_req")
