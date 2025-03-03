@@ -21,6 +21,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/processors"
+	"github.com/QuesmaOrg/quesma/platform/recovery"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
 	"github.com/QuesmaOrg/quesma/platform/telemetry"
@@ -56,6 +57,8 @@ const EnableConcurrencyProfiling = false
 //}
 
 func main() {
+	defer recovery.LogPanic()
+
 	// TODO: Experimental feature, move to the configuration after architecture v2
 	const mysql_passthrough_experiment = false
 	if mysql_passthrough_experiment {
