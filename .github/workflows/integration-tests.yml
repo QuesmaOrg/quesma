@@ -49,7 +49,8 @@ jobs:
 
   integration-test-run:
     runs-on: ubuntu-latest
-    needs: [build-quesma-docker-image]
+    needs: [build-quesma-docker-image, check-comment]
+    if: ${{ always() && (github.event_name != 'issue_comment' || needs.check-comment.result == 'success') }}
     steps:
       - uses: actions/checkout@v4
         with:
