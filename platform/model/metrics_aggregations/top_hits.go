@@ -6,6 +6,8 @@ import (
 	"context"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
+	"github.com/QuesmaOrg/quesma/platform/util"
+	"strings"
 )
 
 type TopHits struct {
@@ -23,7 +25,6 @@ func (query *TopHits) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-// TODO: implement correct
 func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
 	var topElems []any
 	if len(rows) > 0 && 0 >= len(rows[0].Cols) {
@@ -39,7 +40,13 @@ func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 			continue
 		}
 
-		valuesForHits := row.Cols
+		var valuesForHits []model.QueryResultCol
+		if query.isCount(row.Cols[0]) {
+			valuesForHits = row.Cols[1:]
+		} else {
+			valuesForHits = row.Cols
+		}
+
 		sourceMap := model.JsonMap{}
 
 		for _, col := range valuesForHits {
@@ -63,13 +70,19 @@ func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 	if len(topElems) == 0 {
 		maxScore = nil
 	}
+
+	var total int
+	if len(rows) > 0 {
+		total = query.getCount(&rows[0])
+	}
+
 	return model.JsonMap{
 		"hits": model.JsonMap{
 			"hits":      topElems,
 			"max_score": maxScore, // placeholder
 			"total": model.JsonMap{ // could be better
 				"relation": "eq", // TODO: wrong, but let's pass test, it should ge geq
-				"value":    len(topElems),
+				"value":    total,
 			},
 		},
 	}
@@ -77,4 +90,20 @@ func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 
 func (query *TopHits) String() string {
 	return "top_hits"
+}
+
+func (query *TopHits) getCount(row *model.QueryResultRow) int {
+	if len(row.Cols) == 0 {
+		return 0
+	}
+	if asInt, ok := util.ExtractInt64Maybe(row.Cols[0].ExtractValue()); ok {
+		return int(asInt)
+	} else {
+		logger.WarnWithCtxAndThrottling(query.ctx, "top_hits", "count", "could not extract count from top_hits, row: %v", row)
+		return 0
+	}
+}
+
+func (query *TopHits) isCount(col model.QueryResultCol) bool {
+	return strings.HasSuffix(col.ColName, "count")
 }
