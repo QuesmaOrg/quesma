@@ -4,11 +4,9 @@ package metrics_aggregations
 
 import (
 	"context"
-	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"github.com/k0kubun/pp"
 	"strings"
 )
 
@@ -27,9 +25,7 @@ func (query *TopHits) AggregationType() model.AggregationType {
 	return model.MetricsAggregation
 }
 
-// TODO: implement correct
 func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.JsonMap {
-	pp.Println("ROws", rows)
 	var topElems []any
 	if len(rows) > 0 && 0 >= len(rows[0].Cols) {
 		// values are [level, len(row.Cols) - 1]
@@ -79,7 +75,7 @@ func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 	if len(rows) > 0 {
 		total = query.getCount(&rows[0])
 	}
-	fmt.Println("TOTAL", total, len(rows))
+
 	return model.JsonMap{
 		"hits": model.JsonMap{
 			"hits":      topElems,
@@ -100,12 +96,12 @@ func (query *TopHits) getCount(row *model.QueryResultRow) int {
 	if len(row.Cols) == 0 {
 		return 0
 	}
-	asInt, ok := util.ExtractInt64Maybe(row.Cols[0].ExtractValue())
-	if !ok {
+	if asInt, ok := util.ExtractInt64Maybe(row.Cols[0].ExtractValue()); ok {
+		return int(asInt)
+	} else {
 		logger.WarnWithCtxAndThrottling(query.ctx, "top_hits", "count", "could not extract count from top_hits, row: %v", row)
 		return 0
 	}
-	return int(asInt)
 }
 
 func (query *TopHits) isCount(col model.QueryResultCol) bool {

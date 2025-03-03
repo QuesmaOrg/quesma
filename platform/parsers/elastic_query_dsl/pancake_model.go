@@ -119,24 +119,21 @@ func (p pancakeModelMetricAggregation) InternalNameForCol(id int) string {
 }
 
 // isColumnParentCount checks if `internalName` is a parent count column for this metric aggregation
-// Only works for `top_hits`, not needed anywhere else for now.
+// Only tested/works for `top_hits`, not needed anywhere else.
 func (p pancakeModelMetricAggregation) isColumnParentCount(internalNameMaybeParent string) bool {
-	// we return true only when:
-	// p.InternalNamePrefix() ==."top_hits__[AGG_PATH]__[name]
+	// We return true only when:
+	// p.internalName ==."top_hits__[AGG_PATH]__[name]
 	// AND internalNameMaybeParent == "aggr__[AGG_PATH]__count"
-	// Create regex for top_hits__X__name_col_INT
-	fmt.Println(p.internalName, internalNameMaybeParent)
+	// (AGG_PATH must be the same)
 	thisAggrRegex := regexp.MustCompile("top_hits__([a-zA-Z0-9_]+)__[a-zA-Z0-9_]+")
 	maybeParentRegex := regexp.MustCompile("aggr__([a-zA-Z0-9_]+)__count")
 	if !thisAggrRegex.MatchString(p.internalName) || !maybeParentRegex.MatchString(internalNameMaybeParent) {
 		return false
 	}
 
-	//pp.Println("thisAggrRegex", p.internalName, thisAggrRegex.FindStringSubmatch(p.internalName), internalNameMaybeParent, maybeParentRegex.FindStringSubmatch(internalNameMaybeParent))
-
-	match1 := thisAggrRegex.FindStringSubmatch(p.InternalNamePrefix())
-	match2 := maybeParentRegex.FindStringSubmatch(internalNameMaybeParent)
-	return len(match1) == 2 && len(match2) == 2 && match1[1] == match2[1]
+	matchThisAggr := thisAggrRegex.FindStringSubmatch(p.InternalNamePrefix())
+	matchMaybeParent := maybeParentRegex.FindStringSubmatch(internalNameMaybeParent)
+	return len(matchThisAggr) == 2 && len(matchMaybeParent) == 2 && matchThisAggr[1] == matchMaybeParent[1]
 }
 
 func (p pancakeModelBucketAggregation) ShallowClone() pancakeModelBucketAggregation {
