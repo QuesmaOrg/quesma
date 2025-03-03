@@ -9,13 +9,14 @@ import (
 )
 
 type TopHits struct {
-	ctx     context.Context
-	Size    int
-	OrderBy []model.OrderByExpr
+	ctx       context.Context
+	Size      int
+	OrderBy   []model.OrderByExpr
+	tableName string
 }
 
-func NewTopHits(ctx context.Context, size int, orderBy []model.OrderByExpr) *TopHits {
-	return &TopHits{ctx: ctx, Size: size, OrderBy: orderBy}
+func NewTopHits(ctx context.Context, size int, orderBy []model.OrderByExpr, tableName string) *TopHits {
+	return &TopHits{ctx: ctx, Size: size, OrderBy: orderBy, tableName: tableName}
 }
 
 func (query *TopHits) AggregationType() model.AggregationType {
@@ -53,7 +54,7 @@ func (query *TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) mo
 			"_source": sourceMap,
 			"_score":  1.0, // placeholder
 			"_id":     "",  // TODO: placeholder
-			"_index":  "",  // TODO: placeholder
+			"_index":  query.tableName,
 		}
 		topElems = append(topElems, elem)
 	}
