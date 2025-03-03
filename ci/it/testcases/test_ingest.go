@@ -63,8 +63,8 @@ var (
 		"destairportid":       "Nullable(String)",
 		"destcityname":        "Nullable(String)",
 		"destcountry":         "Nullable(String)",
-		"destlocation_lat":    "Nullable(String)",
-		"destlocation_lon":    "Nullable(String)",
+		"destlocation_lat":    "Nullable(Float64)",
+		"destlocation_lon":    "Nullable(Float64)",
 		"destregion":          "Nullable(String)",
 		"destweather":         "Nullable(String)",
 		"distancekilometers":  "Nullable(Float64)",
@@ -465,9 +465,6 @@ func (a *IngestTestcase) testKibanaSampleFlightsIngestWithMappingToClickHouse(ct
 
 	// Because of the mappings, some types have changed (compared to ingest with schema inferred solely from JSON)
 	expectedCols["timestamp"] = "Nullable(DateTime64(3))"
-
-	expectedCols["destlocation_lat"] = "Nullable(String)"
-	expectedCols["destlocation_lon"] = "Nullable(String)"
 
 	expectedCols["flighttimehour"] = "Nullable(String)"
 
