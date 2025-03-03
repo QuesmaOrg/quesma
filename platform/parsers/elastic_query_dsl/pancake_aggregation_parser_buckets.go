@@ -194,10 +194,20 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 	aggregation.limit = cw.parseSize(params, defaultSize)
 	aggregation.orderBy = orderBy
 	if minDocCount > 1 {
+		// If you have a better solution, feel free to implement. This works, but adds another ORDER BY + we have to filter out rows later.
+		//
 		// We only want rows with (count() >= min_doc_count).
 		// I think we can't do it in WHERE or HAVING clause, as it might affect the aggregations before/after in the aggregation tree.
 		// Or at least it's not obvious, this solution is much easier.
 		// We add the condition as the first ORDER BY. This way rows with count() < min_doc_count will be at the end, and we'll filter them out later.
+		//
+		// Example:
+		// Without this trick, if we have rows (key, count): (k1, 1), (k2, 1), ..., (k_n, 1) and (a, 100), (b, 100)
+		// (they'll be returned this way, because of some order by)
+		// If we add the condition below, if min_doc_count>1, rows will be returned (a, 100), (b, 100), (k1, 1), (k2, 1), ...
+		// We filter out (k1, 1), (k2, 1), ..., and we are fine.
+		// Without this trick, if we do a query with a limit (without filtering in SQL), we could only receive (k1, 1), (k2, 1), ...,
+		// and after filtering we'd have 0 rows to return.
 		condition := model.NewInfixExpr(model.NewCountFunc(), ">=", model.NewLiteral(minDocCount))
 		firstOrderBy := model.NewOrderByExpr(condition, model.DescOrder)
 		aggregation.orderBy = append(
