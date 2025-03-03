@@ -1023,8 +1023,10 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 		lhs, ok := e.Left.(model.ColumnRef)
 		rhs, ok2 := e.Right.(model.LiteralExpr)
 
+		fmt.Println("lhs", lhs, "op", e.Op, "rhs", rhs)
 		if ok && ok2 && e.Op == model.MatchOperator {
 			field, found := indexSchema.ResolveFieldByInternalName(lhs.ColumnName)
+			fmt.Println(field, found)
 			if !found {
 				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhs.ColumnName, query.TableName)
 			}
@@ -1033,8 +1035,10 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
 
+			fmt.Println(field.Type.String())
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeBoolean.Name:
+				rhsValue = strings.Trim(rhsValue, "%")
 				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
 			default:
 				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteralWithEscapeType(rhsValue, model.NotEscapedLikeFull))
