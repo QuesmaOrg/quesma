@@ -194,7 +194,10 @@ func (cw *ClickhouseQueryTranslator) parseTermsAggregation(aggregation *pancakeA
 	aggregation.limit = cw.parseSize(params, defaultSize)
 	aggregation.orderBy = orderBy
 	if minDocCount > 1 {
-		// need to filter out buckets with doc_count < min_doc_count, so first order by is (count() >= min_doc_count) DESC
+		// We only want rows with (count() >= min_doc_count).
+		// I think we can't do it in WHERE or HAVING clause, as it might affect the aggregations before/after in the aggregation tree.
+		// Or at least it's not obvious, this solution is much easier.
+		// We add the condition as the first ORDER BY. This way rows with count() < min_doc_count will be at the end, and we'll filter them out later.
 		condition := model.NewInfixExpr(model.NewCountFunc(), ">=", model.NewLiteral(minDocCount))
 		firstOrderBy := model.NewOrderByExpr(condition, model.DescOrder)
 		aggregation.orderBy = append(
