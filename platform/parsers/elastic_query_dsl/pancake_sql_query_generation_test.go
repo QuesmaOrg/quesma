@@ -54,140 +54,139 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			if test.TestName == "TODO Airport Connections (Hover Over Airport)(file:kibana-sample-data-flights,nr:14)" {
 				t.Skip()
-				// sample_ecommerce
-				if test.TestName == "TODO Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
-					t.Skip("works IRL, need to update test's schema. It's already WIP https://github.com/QuesmaOrg/quesma/pull/1255. Let's wait for merge.")
-				}
-
-				// sample_logs
-				if test.TestName == "Table gz, css, zip, etc.(file:kibana-sample-data-logs,nr:6)" {
-					t.Skip()
-				}
-				if test.TestName == "Errors by host(file:kibana-sample-data-logs,nr:7)" {
-					t.Skip()
-				}
-
-				if filters(test.TestName) {
-					t.Skip("Fix filters")
-				}
-
-				if test.TestName == "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram(file:kibana-visualize/agg_req,nr:9)" {
-					t.Skip("Date range is broken, fix in progress (PR #971)")
-				}
-
-				if test.TestName == "Terms with order by top metrics(file:kibana-visualize/agg_req,nr:8)" {
-					t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
-				}
-
-				if test.TestName == "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)(file:opensearch-visualize/pipeline_agg_req,nr:20)" ||
-					test.TestName == "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range(file:opensearch-visualize/pipeline_agg_req,nr:21)" {
-					t.Skip("Was skipped before. Wrong key in max_bucket, should be an easy fix")
-				}
-
-				// TODO: add test for filter(s) both at the beginning and end of aggregation tree
-
-				fmt.Println("i:", i, "test:", test.TestName)
-
-				jsonp, err := types.ParseJSON(test.QueryRequestJson)
-				assert.NoError(t, err)
-
-				pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
-				assert.NoError(t, err)
-				assert.True(t, len(pancakeSqls) >= 1, "pancakeSqls should have at least one query")
-				if len(pancakeSqls) < 1 {
-					return
-				}
-
-				assert.Len(t, pancakeSqls, 1+len(test.ExpectedAdditionalPancakeSQLs),
-					"Mismatch pancake sqls vs main and 'ExpectedAdditionalPancakeSQLs'")
-				for pancakeIdx, pancakeSql := range pancakeSqls {
-					pancakeSqlStr := model.AsString(pancakeSql.SelectCommand)
-
-					prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
-
-					var expectedSql string
-					if pancakeIdx == 0 {
-						expectedSql = test.ExpectedPancakeSQL
-					} else {
-						if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeSQLs) {
-							pp.Println("=== Expected additional SQL:")
-							fmt.Println(prettyPancakeSql)
-							continue
-						}
-						if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeResults) {
-							pp.Println("=== Expected additional results for SQL:")
-							fmt.Println(prettyPancakeSql)
-						}
-						expectedSql = test.ExpectedAdditionalPancakeSQLs[pancakeIdx-1]
-					}
-					prettyExpectedSql := util.SqlPrettyPrint([]byte(strings.TrimSpace(expectedSql)))
-
-					util.AssertSqlEqual(t, prettyExpectedSql, prettyPancakeSql)
-
-					_, ok := pancakeSql.Type.(PancakeQueryType)
-					if !ok {
-						assert.Fail(t, "Expected pancake query type")
-					}
-				}
-
-				if incorrectResult(test.TestName) {
-					t.Skip("We don't have result yet")
-				}
-
-				expectedJson, err := util.JsonToMap(test.ExpectedResponse)
-				if err != nil {
-					assert.Fail(t, "Failed to parse expected JSON")
-				}
-				var expectedAggregationsPart model.JsonMap
-				if responseSubMap, hasResponse := expectedJson["response"]; hasResponse {
-					expectedAggregationsPart = responseSubMap.(JsonMap)["aggregations"].(JsonMap)
-				} else {
-					expectedAggregationsPart = expectedJson["aggregations"].(JsonMap)
-				}
-				assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
-
-				sqlResults := [][]model.QueryResultRow{test.ExpectedPancakeResults}
-				if len(test.ExpectedAdditionalPancakeResults) > 0 {
-					sqlResults = append(sqlResults, test.ExpectedAdditionalPancakeResults...)
-				}
-
-				pancakeJson, err := cw.MakeAggregationPartOfResponse(pancakeSqls, sqlResults)
-
-				if err != nil {
-					t.Fatal("Failed to render pancake JSON", err)
-				}
-
-				// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
-				acceptableDifference := []string{"probability", "seed", bucket_aggregations.OriginalKeyName,
-					"bg_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
-				if len(test.AdditionalAcceptableDifference) > 0 {
-					acceptableDifference = append(acceptableDifference, test.AdditionalAcceptableDifference...)
-				}
-
-				actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson,
-					expectedAggregationsPart, acceptableDifference, true, true)
-
-				if len(actualMinusExpected) != 0 {
-					pp.Println("ACTUAL diff", actualMinusExpected)
-				}
-				if len(expectedMinusActual) != 0 {
-					pp.Println("EXPECTED diff", expectedMinusActual)
-				}
-				//pp.Println("ACTUAL", pancakeJson)
-				//pp.Println("EXPECTED", expectedAggregationsPart)
-				assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
-				assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
-
-				/*
-					if i == 0 {
-						 Sample code for Rafal:
-						sqlRowResults := clients.OpheliaTestsPancake[0]
-						pancakeSqls[0].pancakeItself
-						jsonP := panckakeGenerateJsonReturn(pancakeSqls[0].pancakeItself, sqlRowResults)
-						test.ExpectedResponse // parse and take "aggs" and compare
-					}
-				*/
 			}
+			// sample_ecommerce
+			if test.TestName == "TODO Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
+				t.Skip("works IRL, need to update test's schema. It's already WIP https://github.com/QuesmaOrg/quesma/pull/1255. Let's wait for merge.")
+			}
+			// sample_logs
+			if test.TestName == "Table gz, css, zip, etc.(file:kibana-sample-data-logs,nr:6)" {
+				t.Skip()
+			}
+			if test.TestName == "Errors by host(file:kibana-sample-data-logs,nr:7)" {
+				t.Skip()
+			}
+
+			if filters(test.TestName) {
+				t.Skip("Fix filters")
+			}
+
+			if test.TestName == "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram(file:kibana-visualize/agg_req,nr:9)" {
+				t.Skip("Date range is broken, fix in progress (PR #971)")
+			}
+
+			if test.TestName == "Terms with order by top metrics(file:kibana-visualize/agg_req,nr:8)" {
+				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
+			}
+
+			if test.TestName == "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)(file:opensearch-visualize/pipeline_agg_req,nr:20)" ||
+				test.TestName == "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range(file:opensearch-visualize/pipeline_agg_req,nr:21)" {
+				t.Skip("Was skipped before. Wrong key in max_bucket, should be an easy fix")
+			}
+
+			// TODO: add test for filter(s) both at the beginning and end of aggregation tree
+
+			fmt.Println("i:", i, "test:", test.TestName)
+
+			jsonp, err := types.ParseJSON(test.QueryRequestJson)
+			assert.NoError(t, err)
+
+			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
+			assert.NoError(t, err)
+			assert.True(t, len(pancakeSqls) >= 1, "pancakeSqls should have at least one query")
+			if len(pancakeSqls) < 1 {
+				return
+			}
+
+			assert.Len(t, pancakeSqls, 1+len(test.ExpectedAdditionalPancakeSQLs),
+				"Mismatch pancake sqls vs main and 'ExpectedAdditionalPancakeSQLs'")
+			for pancakeIdx, pancakeSql := range pancakeSqls {
+				pancakeSqlStr := model.AsString(pancakeSql.SelectCommand)
+
+				prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
+
+				var expectedSql string
+				if pancakeIdx == 0 {
+					expectedSql = test.ExpectedPancakeSQL
+				} else {
+					if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeSQLs) {
+						pp.Println("=== Expected additional SQL:")
+						fmt.Println(prettyPancakeSql)
+						continue
+					}
+					if pancakeIdx-1 >= len(test.ExpectedAdditionalPancakeResults) {
+						pp.Println("=== Expected additional results for SQL:")
+						fmt.Println(prettyPancakeSql)
+					}
+					expectedSql = test.ExpectedAdditionalPancakeSQLs[pancakeIdx-1]
+				}
+				prettyExpectedSql := util.SqlPrettyPrint([]byte(strings.TrimSpace(expectedSql)))
+
+				util.AssertSqlEqual(t, prettyExpectedSql, prettyPancakeSql)
+
+				_, ok := pancakeSql.Type.(PancakeQueryType)
+				if !ok {
+					assert.Fail(t, "Expected pancake query type")
+				}
+			}
+
+			if incorrectResult(test.TestName) {
+				t.Skip("We don't have result yet")
+			}
+
+			expectedJson, err := util.JsonToMap(test.ExpectedResponse)
+			if err != nil {
+				assert.Fail(t, "Failed to parse expected JSON")
+			}
+			var expectedAggregationsPart model.JsonMap
+			if responseSubMap, hasResponse := expectedJson["response"]; hasResponse {
+				expectedAggregationsPart = responseSubMap.(JsonMap)["aggregations"].(JsonMap)
+			} else {
+				expectedAggregationsPart = expectedJson["aggregations"].(JsonMap)
+			}
+			assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
+
+			sqlResults := [][]model.QueryResultRow{test.ExpectedPancakeResults}
+			if len(test.ExpectedAdditionalPancakeResults) > 0 {
+				sqlResults = append(sqlResults, test.ExpectedAdditionalPancakeResults...)
+			}
+
+			pancakeJson, err := cw.MakeAggregationPartOfResponse(pancakeSqls, sqlResults)
+
+			if err != nil {
+				t.Fatal("Failed to render pancake JSON", err)
+			}
+
+			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
+			acceptableDifference := []string{"probability", "seed", bucket_aggregations.OriginalKeyName,
+				"bg_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+			if len(test.AdditionalAcceptableDifference) > 0 {
+				acceptableDifference = append(acceptableDifference, test.AdditionalAcceptableDifference...)
+			}
+
+			actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson,
+				expectedAggregationsPart, acceptableDifference, true, true)
+
+			if len(actualMinusExpected) != 0 {
+				pp.Println("ACTUAL diff", actualMinusExpected)
+			}
+			if len(expectedMinusActual) != 0 {
+				pp.Println("EXPECTED diff", expectedMinusActual)
+			}
+			//pp.Println("ACTUAL", pancakeJson)
+			//pp.Println("EXPECTED", expectedAggregationsPart)
+			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
+			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
+
+			/*
+				if i == 0 {
+					 Sample code for Rafal:
+					sqlRowResults := clients.OpheliaTestsPancake[0]
+					pancakeSqls[0].pancakeItself
+					jsonP := panckakeGenerateJsonReturn(pancakeSqls[0].pancakeItself, sqlRowResults)
+					test.ExpectedResponse // parse and take "aggs" and compare
+				}
+			*/
 		})
 	}
 }
