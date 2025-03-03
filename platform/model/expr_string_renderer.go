@@ -118,7 +118,7 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 
 	// This might look like a strange heuristics to but is aligned with the way we are currently generating the statement
 	// I think in the future every infix op should be in braces.
-	if (strings.HasPrefix(e.Op, "_") && e.Op != MatchOperator) || e.Op == "AND" || e.Op == "OR" {
+	if (strings.HasPrefix(e.Op, "_") && e.Op != MatchOperator) || e.Op == "AND" || e.Op == "OR" { // LIKE is without (), so I propose MatchOperator as well
 		return fmt.Sprintf("(%v %v %v)", lhs, e.Op, rhs)
 	} else if strings.Contains(e.Op, "LIKE") || e.Op == MatchOperator || e.Op == "IS" || e.Op == "IN" || e.Op == "NOT IN" || e.Op == "REGEXP" || strings.Contains(e.Op, "UNION") {
 		return fmt.Sprintf("%v %v %v", lhs, e.Op, rhs)
