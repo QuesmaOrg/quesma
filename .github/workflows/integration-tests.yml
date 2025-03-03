@@ -8,19 +8,37 @@ on:
       GIT_REF:
         description: 'Commit hash to run the tests'
         required: true
+  issue_comment:
+    types: [created]
+
 jobs:
+  check-comment:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request && github.event.comment.body == '/run-integration-tests' }}
+    outputs:
+      ref: ${{ steps.get-pr-ref.outputs.ref }}
+    steps:
+      - name: Get PR ref
+        id: get-pr-ref
+        run: |
+          PR_URL="${{ github.event.issue.pull_request.url }}"
+          PR_INFO=$(curl -s -H "Authorization: token ${{ github.token }}" $PR_URL)
+          echo "ref=$(echo $PR_INFO | jq -r .head.sha)" >> $GITHUB_OUTPUT
+
   build-quesma-docker-image:
+    needs: [check-comment]
+    if: ${{ always() && (github.event_name != 'issue_comment' || needs.check-comment.result == 'success') }}
     uses: ./.github/workflows/build-quesma-docker-image.yml
     with:
-      REF: ${{inputs.GIT_REF}}
+      REF: ${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
 
   integration-test-run:
     runs-on: ubuntu-latest
     needs: [build-quesma-docker-image]
     steps:
       - uses: actions/checkout@v4
-        with:     ## @TODO REMOVE
-          ref: ${{ github.event.inputs.GIT_REF }}
+        with:
+          ref: ${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
