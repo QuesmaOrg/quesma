@@ -84,7 +84,7 @@ func CheckParamsGeohashGrid(ctx context.Context, paramsRaw any) error {
 		if _, isRequired := requiredParams[paramName]; !isRequired {
 			wantedType, isOptional := optionalParams[paramName]
 			if !isOptional {
-				return fmt.Errorf("unexpected parameter %s found in IP Range params %v", paramName, params)
+				return fmt.Errorf("unexpected parameter %s found in GeoHash Grid params %v", paramName, params)
 			}
 			if reflect.TypeOf(params[paramName]).Name() != wantedType { // TODO I'll make a small rewrite to not use reflect here
 				return fmt.Errorf("optional parameter %s is not of type %s, but %T", paramName, wantedType, params[paramName])
@@ -95,7 +95,7 @@ func CheckParamsGeohashGrid(ctx context.Context, paramsRaw any) error {
 	// log if you see them
 	for _, warnParam := range logIfYouSeeThemParams {
 		if _, exists := params[warnParam]; exists {
-			logger.WarnWithCtxAndThrottling(ctx, "ip_prefix", warnParam, "we didn't expect %s in IP Range params %v", warnParam, params)
+			logger.WarnWithCtxAndThrottling(ctx, "geohash_grid", warnParam, "we didn't expect %s in GeoHash Grid params %v", warnParam, params)
 		}
 	}
 
