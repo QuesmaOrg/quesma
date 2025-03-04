@@ -2468,14 +2468,14 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT CAST(5.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((toFloat64(__quesma_geo_lon("geoip.location"))+180)/360)*POWER(2, 5))
+			  FLOOR(((__quesma_geo_lon("geoip.location")+180)/360)*POWER(2, 5))
 			  AS "aggr__gridSplit__key_1",
-			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("geoip.location"))))+(1/
-			  COS(RADIANS(toFloat64(__quesma_geo_lat("geoip.location"))))))/PI())/2*POWER(2,
-			  5)) AS "aggr__gridSplit__key_2", count(*) AS "aggr__gridSplit__count",
-			  avgOrNull(CAST(__quesma_geo_lat("geoip_location"), 'Float')) AS
+			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geoip.location")))+(1/COS(RADIANS(
+			  __quesma_geo_lat("geoip.location")))))/PI())/2*POWER(2, 5))
+			  AS "aggr__gridSplit__key_2", count(*) AS "aggr__gridSplit__count",
+			  avgOrNull(__quesma_geo_lat("geoip_location")) AS
 			  "metric__gridSplit__gridCentroid_col_0",
-			  avgOrNull(CAST(__quesma_geo_lon("geoip_location"), 'Float')) AS
+			  avgOrNull(__quesma_geo_lon("geoip_location")) AS
 			  "metric__gridSplit__gridCentroid_col_1",
 			  count(*) AS "metric__gridSplit__gridCentroid_col_2",
 			  sumOrNull("taxful_total_price") AS
@@ -2484,11 +2484,10 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			WHERE ("geoip.location" IS NOT NULL AND ("order_date">=fromUnixTimestamp64Milli(
 			  1740143222223) AND "order_date"<=fromUnixTimestamp64Milli(1740748022223)))
 			GROUP BY CAST(5.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((toFloat64(__quesma_geo_lon("geoip.location"))+180)/360)*POWER(2, 5))
+			  FLOOR(((__quesma_geo_lon("geoip.location")+180)/360)*POWER(2, 5))
 			  AS "aggr__gridSplit__key_1",
-			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("geoip.location"))))+(1/
-			  COS(RADIANS(toFloat64(__quesma_geo_lat("geoip.location"))))))/PI())/2*POWER(2,
-			  5)) AS "aggr__gridSplit__key_2"`,
+			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geoip.location")))+(1/COS(RADIANS(
+			  __quesma_geo_lat("geoip.location")))))/PI())/2*POWER(2, 5)) AS "aggr__gridSplit__key_2"`,
 	},
 	{ // [13]
 		TestName: "Orders by Country (request 2/3)",
