@@ -4,7 +4,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
@@ -341,16 +340,16 @@ func TestIngestOptimizers(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestA(t *testing.T) {
+func TestPartitionBy(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/partition_by.yaml")
 	cfg := LoadV2Config()
-	pp.Println(cfg)
 	if err := cfg.Validate(); err != nil {
-
-		if !strings.Contains(err.Error(), "has invalid dual query target configuration - when you specify two targets") {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		t.Fatalf("expected error, but got none")
+		t.Fatalf("error validating config: %v", err)
 	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+	ecommerce := legacyConf.IndexConfig["kibana_sample_data_ecommerce"]
+	flights := legacyConf.IndexConfig["kibana_sample_data_flights"]
+	assert.Equal(t, "toYYYYMM", ecommerce.PartitionBy)
+	assert.Equal(t, "", flights.PartitionBy)
 }
