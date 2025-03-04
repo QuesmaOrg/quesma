@@ -971,11 +971,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				}
 			}
 
-			// maybe delete this?
-			if indexConfig.PartitionBy != "" {
-				processedConfig.PartitionBy = indexConfig.PartitionBy
-			}
-
 			// copy ingest optimizers to the destination
 			if indexConfig.Optimizers != nil {
 				if processedConfig.Optimizers == nil {
