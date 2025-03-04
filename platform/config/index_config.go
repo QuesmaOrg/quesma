@@ -17,6 +17,7 @@ type IndexConfiguration struct {
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
 	Override        string                            `koanf:"tableName"` // use method TableName()
+	PartitionBy     string                            `koanf:"partitionBy"`
 	UseCommonTable  bool                              `koanf:"useCommonTable"`
 	Target          any                               `koanf:"target"`
 
@@ -59,6 +60,9 @@ func (c IndexConfiguration) String(indexName string) string {
 	}
 	if c.UseCommonTable {
 		builder.WriteString(", useSingleTable: true")
+	}
+	if len(c.PartitionBy) > 0 {
+		builder.WriteString(", partitionBy: " + c.PartitionBy)
 	}
 
 	return builder.String()
