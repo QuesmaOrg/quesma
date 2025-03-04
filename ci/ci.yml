@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   quesma:
-    build: ../cli
+    build: ../cmd
     image: quesma:nightly
     environment:
       - QUESMA_CONFIG_FILE=/mnt/ci-config.yaml
