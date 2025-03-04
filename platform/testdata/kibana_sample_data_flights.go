@@ -1048,11 +1048,11 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0-bucket__count", int64(532)),
+				model.NewQueryResultCol("metric__0-bucket_col_0", int64(532)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf("FlightDelay"==true) AS "aggr__0-bucket__count"
+			SELECT countIf("FlightDelay"==true) AS "metric__0-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))`,
@@ -1162,11 +1162,11 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0-bucket__count", int64(278)),
+				model.NewQueryResultCol("metric__0-bucket_col_0", int64(278)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf("Cancelled"==true) AS "aggr__0-bucket__count"
+			SELECT countIf("Cancelled"==true) AS "metric__0-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))`,
@@ -1624,22 +1624,21 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__key_0", int64(1740232000000/10800000)),
 				model.NewQueryResultCol("aggr__0__count", int64(6)),
 				model.NewQueryResultCol("metric__0__2-bucket_col_0", int64(6)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", int64(1)),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", int64(1)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__key_0", int64(1740242800000/10800000)),
 				model.NewQueryResultCol("aggr__0__count", int64(41)),
 				model.NewQueryResultCol("metric__0__2-bucket_col_0", int64(41)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", int64(7)),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", int64(7)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count",
-			  countIf("__quesma_fulltext_field_name" ILIKE '%') AS
-			  "metric__0__2-bucket_col_0",
-			  countIf("FlightDelay" ILIKE '%true%') AS "aggr__0__1-bucket__count"
+			  countIf("FlightDelay" ILIKE '%true%') AS "metric__0__1-bucket_col_0",
+			  countIf("__quesma_fulltext_field_name" ILIKE '%') AS "metric__0__2-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))
@@ -1823,28 +1822,28 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__key_0", "Abu Dhabi"),
 				model.NewQueryResultCol("aggr__0__count", int64(18)),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", int64(2)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", int64(5)),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", int64(5)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", int64(27)),
 				model.NewQueryResultCol("aggr__0__key_0", "Atlanta"),
 				model.NewQueryResultCol("aggr__0__count", int64(4)),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", int64(0)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", int64(0)),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", int64(0)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", int64(27)),
 				model.NewQueryResultCol("aggr__0__key_0", "Baltimore"),
 				model.NewQueryResultCol("aggr__0__count", int64(5)),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", int64(0)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", int64(2)),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", int64(2)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0",
-			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket__count"
+			  countIf("FlightDelay"==true) AS "metric__0__1-bucket_col_0",
+			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))
