@@ -38,7 +38,7 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
 		return schema.QuesmaTypeDate, true
 	case "Point":
 		return schema.QuesmaTypePoint, true
-	case "Map(String, Nullable(String))", "Map(String, String)":
+	case "Map(String, Nullable(String))", "Map(String, String)", "Map(LowCardinality(String), Nullable(String))", "Map(LowCardinality(String), String)":
 		return schema.QuesmaTypeMap, true
 	default:
 		return schema.QuesmaTypeUnknown, false
