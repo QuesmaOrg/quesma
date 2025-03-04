@@ -5,7 +5,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/parsers/json"
@@ -853,7 +852,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 			processedConfig := indexConfig
-			logger.Info().Msgf("indexConfig %v", indexConfig)
 
 			processedConfig.IngestTarget = defaultConfig.IngestTarget
 			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
