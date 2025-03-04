@@ -4,7 +4,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/logger"
 	"slices"
 	"strings"
 )
@@ -62,7 +61,6 @@ func (c IndexConfiguration) String(indexName string) string {
 	if c.UseCommonTable {
 		builder.WriteString(", useSingleTable: true")
 	}
-	logger.Error().Msgf("IndexConfiguration: part %s ", c.PartitionBy)
 	if len(c.PartitionBy) > 0 {
 		builder.WriteString(", partitionBy: " + c.PartitionBy)
 	}

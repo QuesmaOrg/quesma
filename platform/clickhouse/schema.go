@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"github.com/k0kubun/pp"
 	"math"
 	"reflect"
 	"strings"
@@ -339,7 +338,6 @@ func (col *Column) createTableString(indentLvl int) string {
 
 // TODO TTL only by timestamp for now!
 func (config *ChTableConfig) CreateTablePostFieldsString() string {
-	pp.Println("aaaa", config)
 	s := "ENGINE = " + config.Engine + "\n"
 	if config.OrderBy != "" {
 		s += "ORDER BY " + config.OrderBy + "\n"

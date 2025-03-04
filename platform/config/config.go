@@ -5,7 +5,6 @@ package config
 import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch/elasticsearch_field_types"
-	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/parsers/yaml"
@@ -84,7 +83,6 @@ func loadConfigFile() {
 		configPath = defaultConfigFileName
 	}
 	fmt.Printf("Using config file: [%s]\n", configPath)
-	logger.Error().Msgf("Using config file: [%s]", configPath)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		fmt.Printf("Error loading config file [%v], proceeding without it...\n", err)
 		return
@@ -194,7 +192,6 @@ func (c *QuesmaConfiguration) OptimizersConfigAsString() string {
 }
 
 func (c *QuesmaConfiguration) String() string {
-	logger.Error().Msgf("QuesmaConfiguration: %v", c.IndexConfig)
 	var indexConfigs string
 	for indexName, idx := range c.IndexConfig {
 		indexConfigs += idx.String(indexName)

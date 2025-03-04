@@ -955,7 +955,6 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				errAcc = multierror.Append(errAcc, errTarget)
 			}
 			for _, target := range targets {
-				logger.Info().Msgf("target %v", target)
 				if targetType, found := c.getTargetType(target.target); found {
 					if !slices.Contains(processedConfig.IngestTarget, targetType) {
 						processedConfig.IngestTarget = append(processedConfig.IngestTarget, targetType)
@@ -972,11 +971,9 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				if val, exists := target.properties["tableName"]; exists {
 					processedConfig.Override = val.(string)
 				}
-				if val, exists := target.properties["partitionBy"]; exists {
-					processedConfig.PartitionBy = val.(string)
-				}
 			}
 
+			// maybe delete this?
 			if indexConfig.PartitionBy != "" {
 				processedConfig.PartitionBy = indexConfig.PartitionBy
 			}
