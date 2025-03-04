@@ -726,7 +726,9 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			if len(elements) > 1 {
 				if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
 					// check if we have map type, especially  Map(String, any) here
-					if mapField.Type.Name == schema.QuesmaTypeMap.Name && strings.HasPrefix(mapField.InternalPropertyType, "Map(String") {
+					if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
+						(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
+							strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
 						return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
 					}
 				}
