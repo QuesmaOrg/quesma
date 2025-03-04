@@ -1887,14 +1887,14 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT CAST(6.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((toFloat64(__quesma_geo_lon("geo.coordinates"))+180)/360)*POWER(2, 6))
+			  FLOOR(((__quesma_geo_lon("geo.coordinates")+180)/360)*POWER(2, 6))
 			  AS "aggr__gridSplit__key_1",
-			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("geo.coordinates"))))+(1/
-			  COS(RADIANS(toFloat64(__quesma_geo_lat("geo.coordinates"))))))/PI())/2*POWER(2
-			  , 6)) AS "aggr__gridSplit__key_2", count(*) AS "aggr__gridSplit__count",
-			  avgOrNull(CAST(__quesma_geo_lat("geo_coordinates"), 'Float')) AS
+			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geo.coordinates")))+(1/COS(RADIANS(
+			  __quesma_geo_lat("geo.coordinates")))))/PI())/2*POWER(2, 6))
+			  AS "aggr__gridSplit__key_2", count(*) AS "aggr__gridSplit__count",
+			  avgOrNull(__quesma_geo_lat("geo_coordinates")) AS
 			  "metric__gridSplit__gridCentroid_col_0",
-			  avgOrNull(CAST(__quesma_geo_lon("geo_coordinates"), 'Float')) AS
+			  avgOrNull(__quesma_geo_lon("geo_coordinates")) AS
 			  "metric__gridSplit__gridCentroid_col_1",
 			  count(*) AS "metric__gridSplit__gridCentroid_col_2",
 			  sumOrNull("bytes") AS "metric__gridSplit__sum_of_bytes_col_0"
@@ -1902,11 +1902,10 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			WHERE ("geo.coordinates" IS NOT NULL AND ("timestamp">=fromUnixTimestamp64Milli(
 			  1740178800000) AND "timestamp"<=fromUnixTimestamp64Milli(1740831278103)))
 			GROUP BY CAST(6.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((toFloat64(__quesma_geo_lon("geo.coordinates"))+180)/360)*POWER(2, 6))
+			  FLOOR(((__quesma_geo_lon("geo.coordinates")+180)/360)*POWER(2, 6))
 			  AS "aggr__gridSplit__key_1",
-			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("geo.coordinates"))))+(1/
-			  COS(RADIANS(toFloat64(__quesma_geo_lat("geo.coordinates"))))))/PI())/2*POWER(2
-			  , 6)) AS "aggr__gridSplit__key_2"`,
+			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geo.coordinates")))+(1/COS(
+			  RADIANS(__quesma_geo_lat("geo.coordinates")))))/PI())/2*POWER(2, 6)) AS "aggr__gridSplit__key_2"`,
 	},
 	{ // [9]
 		TestName: "Total Requests and Bytes (2/2 request)",

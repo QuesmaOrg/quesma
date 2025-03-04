@@ -2499,14 +2499,14 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT CAST(7.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2, 7))
+			  FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 7))
 			  AS "aggr__gridSplit__key_1",
-			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
-			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
-			  7)) AS "aggr__gridSplit__key_2", count(*) AS "aggr__gridSplit__count",
-			  avgOrNull(CAST(__quesma_geo_lat("originlocation"), 'Float')) AS
+			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
+			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 7))
+			  AS "aggr__gridSplit__key_2", count(*) AS "aggr__gridSplit__count",
+			  avgOrNull(__quesma_geo_lat("originlocation")) AS
 			  "metric__gridSplit__gridCentroid_col_0",
-			  avgOrNull(CAST(__quesma_geo_lon("originlocation"), 'Float')) AS
+			  avgOrNull(__quesma_geo_lon("originlocation")) AS
 			  "metric__gridSplit__gridCentroid_col_1",
 			  count(*) AS "metric__gridSplit__gridCentroid_col_2",
 			  sumOrNull("FlightDelayMin") AS
@@ -2515,11 +2515,10 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			WHERE ("OriginLocation" IS NOT NULL AND ("timestamp">=fromUnixTimestamp64Milli(
 			  1740230608853) AND "timestamp"<=fromUnixTimestamp64Milli(1740835408853)))
 			GROUP BY CAST(7.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2, 7))
+			  FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 7))
 			  AS "aggr__gridSplit__key_1",
-			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
-			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
-			  7)) AS "aggr__gridSplit__key_2"`,
+			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
+			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 7)) AS "aggr__gridSplit__key_2"`,
 	},
 	{ // [13]
 		TestName: "Delay Buckets",
