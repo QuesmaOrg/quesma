@@ -4,6 +4,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
@@ -338,4 +339,18 @@ func TestIngestOptimizers(t *testing.T) {
 
 	_, ok = legacyConf.DefaultIngestOptimizers["query_only"]
 	assert.False(t, ok)
+}
+
+func TestA(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/partition_by.yaml")
+	cfg := LoadV2Config()
+	pp.Println(cfg)
+	if err := cfg.Validate(); err != nil {
+
+		if !strings.Contains(err.Error(), "has invalid dual query target configuration - when you specify two targets") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		t.Fatalf("expected error, but got none")
+	}
 }

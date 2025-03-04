@@ -5,6 +5,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/hashicorp/go-multierror"
 	"github.com/knadh/koanf/parsers/json"
@@ -340,6 +341,9 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				}
 				if queryIndexConf.UseCommonTable != ingestIndexConf.UseCommonTable {
 					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable' for index '%s' due to current limitations", indexName)
+				}
+				if queryIndexConf.PartitionBy != ingestIndexConf.PartitionBy {
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'partitionBy' for index '%s' due to current limitations", indexName)
 				}
 				if queryIndexConf.SchemaOverrides == nil || ingestIndexConf.SchemaOverrides == nil {
 					if queryIndexConf.SchemaOverrides != ingestIndexConf.SchemaOverrides {
@@ -849,6 +853,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
 			processedConfig := indexConfig
+			logger.Info().Msgf("indexConfig %v", indexConfig)
 
 			processedConfig.IngestTarget = defaultConfig.IngestTarget
 			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
@@ -950,6 +955,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				errAcc = multierror.Append(errAcc, errTarget)
 			}
 			for _, target := range targets {
+				logger.Info().Msgf("target %v", target)
 				if targetType, found := c.getTargetType(target.target); found {
 					if !slices.Contains(processedConfig.IngestTarget, targetType) {
 						processedConfig.IngestTarget = append(processedConfig.IngestTarget, targetType)
@@ -966,6 +972,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 				if val, exists := target.properties["tableName"]; exists {
 					processedConfig.Override = val.(string)
 				}
+				if val, exists := target.properties["partitionBy"]; exists {
+					processedConfig.PartitionBy = val.(string)
+				}
+			}
+
+			if indexConfig.PartitionBy != "" {
+				processedConfig.PartitionBy = indexConfig.PartitionBy
 			}
 
 			// copy ingest optimizers to the destination

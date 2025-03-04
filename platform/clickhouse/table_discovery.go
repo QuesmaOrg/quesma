@@ -80,6 +80,7 @@ func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.Ba
 		virtualTableStorage: virtualTablesDB,
 	}
 	result.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
+	logger.Error().Msgf("Table discovery initialized %v", cfg.IndexConfig)
 	return result
 }
 
