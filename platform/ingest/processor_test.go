@@ -657,7 +657,7 @@ func TestCreateTableString_1(t *testing.T) {
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
 			OrderBy:              "(@timestamp)",
-			PartitionBy:          "toStartOfMonth(@timestamp)",
+			PartitionBy:          `toStartOfMonth("@timestamp")`,
 			PrimaryKey:           "",
 			Ttl:                  "",
 			Attributes: []clickhouse.Attribute{
@@ -699,7 +699,7 @@ func TestCreateTableString_1(t *testing.T) {
 		`INDEX severity_idx severity TYPE set(25) GRANULARITY 4`,
 		`)`,
 		`ENGINE = MergeTree`,
-		`PARTITION BY toStartOfMonth(@timestamp)`,
+		`PARTITION BY toStartOfMonth("@timestamp")`,
 		`ORDER BY (@timestamp)`,
 		"",
 	}
