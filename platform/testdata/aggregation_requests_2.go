@@ -4559,18 +4559,18 @@ var AggregationTests2 = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT CAST(8.000000 AS Float32) AS "aggr__my_buckets__key_0",
-			  FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2, 8))
+			  FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8))
 			  AS "aggr__my_buckets__key_1",
-			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
-			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
-			  8)) AS "aggr__my_buckets__key_2", count(*) AS "aggr__my_buckets__count"
+			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
+			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8))
+			  AS "aggr__my_buckets__key_2", count(*) AS "aggr__my_buckets__count"
 			FROM __quesma_table_name
 			GROUP BY CAST(8.000000 AS Float32) AS "aggr__my_buckets__key_0",
-			  FLOOR(((toFloat64(__quesma_geo_lon("OriginLocation"))+180)/360)*POWER(2, 8))
+			  FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8))
 			  AS "aggr__my_buckets__key_1",
-			  FLOOR((1-LOG(TAN(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))+(1/
-			  COS(RADIANS(toFloat64(__quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2,
-			  8)) AS "aggr__my_buckets__key_2"
+			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(
+			  RADIANS(__quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8))
+			  AS "aggr__my_buckets__key_2"
 			LIMIT 10`,
 	},
 	{ // [69]
