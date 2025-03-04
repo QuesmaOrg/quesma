@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -ex
 
 find . -type f -name go.mod | while read -r gomod; do
   pushd "$(dirname "$gomod")" 1>&2
