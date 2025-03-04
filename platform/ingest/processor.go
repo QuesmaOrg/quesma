@@ -642,6 +642,9 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	var createTableCmd string
 	if table == nil {
 		tableConfig = NewOnlySchemaFieldsCHConfig(ip.cfg.ClusterName)
+		if indexConfig, ok := ip.cfg.IndexConfig[tableName]; ok {
+			tableConfig.PartitionBy = indexConfig.PartitionBy
+		}
 		columnsFromJson := JsonToColumns(transformedJsons[0], tableConfig)
 
 		fieldOrigins := make(map[schema.FieldName]schema.FieldSource)

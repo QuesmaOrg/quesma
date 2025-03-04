@@ -351,7 +351,6 @@ func parseExpr(q string, i int) int {
 // if it's worth adding right now.
 func ParseCreateTable(q string) (*Table, int) {
 	t := Table{}
-	logger.Error().Msgf("Create table query: %v", q)
 
 	// parse header
 	i := parseExact(q, 0, "CREATE TABLE ")

@@ -29,10 +29,63 @@ processors:
     type: quesma-v1-processor-query
     config:
       indexes:
+        example-elastic-index:
+          target:
+            - my-minimal-elasticsearch
+        example-index:
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_ecommerce:
           target:
             - my-clickhouse-data-source
-          partitionBy: toYYYYMMDD(\"@timestamp)\"
+          partitionBy: toYYYYMM
+        kibana_sample_data_flights:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              timestamp:
+                type: alias
+                targetColumnName: "@timestamp"
+        kafka-example-topic:
+          target:
+            - my-clickhouse-data-source
+        logs-generic-default:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+              "host.name":
+                type: text
+        device-logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        phone_home_logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        windows_logs:
+          target:
+            - my-clickhouse-data-source
+        phone_home_data:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
         "*":
           target:
             - my-minimal-elasticsearch
@@ -40,10 +93,63 @@ processors:
     type: quesma-v1-processor-ingest
     config:
       indexes:
+        example-elastic-index:
+          target:
+            - my-minimal-elasticsearch
+        example-index:
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_ecommerce:
           target:
             - my-clickhouse-data-source
-          partitionBy: toYYYYMMDD(\"@timestamp)\"
+          partitionBy: toYYYYMM
+        kibana_sample_data_flights:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              timestamp:
+                type: alias
+                targetColumnName: "@timestamp"
+        kafka-example-topic:
+          target:
+            - my-clickhouse-data-source
+        logs-generic-default:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+              "host.name":
+                type: text
+        device-logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        phone_home_logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        windows_logs:
+          target:
+            - my-clickhouse-data-source
+        phone_home_data:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
         "*":
           target:
             - my-minimal-elasticsearch
