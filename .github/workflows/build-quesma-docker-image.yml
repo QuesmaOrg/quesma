@@ -31,7 +31,7 @@ jobs:
   build-quesma-docker-image:
     strategy:
       matrix:
-        module: [ "platform" ]
+        module: [ "cmd" ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
