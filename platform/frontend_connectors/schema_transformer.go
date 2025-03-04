@@ -38,9 +38,6 @@ func (s *SchemaCheckPass) isFieldMapSyntaxEnabled(query *model.Query) bool {
 			enabled = indexConf.EnableFieldMapSyntax
 		}
 	}
-	enabled = true
-
-	fmt.Println("XXX isFieldMapSyntaxEnabled ", query.Indexes, enabled)
 
 	return enabled
 }
