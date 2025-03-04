@@ -347,9 +347,12 @@ func TestPartitionBy(t *testing.T) {
 		t.Fatalf("error validating config: %v", err)
 	}
 	legacyConf := cfg.TranslateToLegacyConfig()
+
 	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+
 	ecommerce := legacyConf.IndexConfig["kibana_sample_data_ecommerce"]
-	flights := legacyConf.IndexConfig["kibana_sample_data_flights"]
 	assert.Equal(t, "toYYYYMM", ecommerce.PartitionBy)
+
+	flights := legacyConf.IndexConfig["kibana_sample_data_flights"]
 	assert.Equal(t, "", flights.PartitionBy)
 }
