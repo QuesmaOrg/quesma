@@ -160,7 +160,6 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 	metrics := make([]*pancakeModelMetricAggregation, 0)
 
 	for i, childAgg := range childAggregations {
-		fmt.Printf("%d create layer %+v %s\n", i, childAgg, childAgg.queryType.AggregationType().String())
 		if childAgg.queryType == nil {
 			return nil, fmt.Errorf("query type is nil in createLayer")
 		}
