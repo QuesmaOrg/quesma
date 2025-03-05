@@ -729,9 +729,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 		if resolvedField, ok := indexSchema.ResolveField(e.ColumnName); ok {
 			return model.NewColumnRefWithTable(resolvedField.InternalPropertyName.AsString(), e.TableAlias)
 		} else {
-
-			fmt.Println("XXX applyFieldEncoding ", e.ColumnName)
-
+			
 			// here we didn't find a column by field name,
 			// we try some other options
 
