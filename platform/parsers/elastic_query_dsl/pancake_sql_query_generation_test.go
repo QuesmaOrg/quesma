@@ -52,13 +52,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "TODO Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
 				t.Skip("works IRL, need to update test's schema. It's already WIP https://github.com/QuesmaOrg/quesma/pull/1255. Let's wait for merge.")
 			}
-			// sample_logs
-			if test.TestName == "Table gz, css, zip, etc.(file:kibana-sample-data-logs,nr:6)" {
-				t.Skip()
-			}
-			if test.TestName == "Errors by host(file:kibana-sample-data-logs,nr:7)" {
-				t.Skip()
-			}
 
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
