@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -342,8 +343,8 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 	if config.OrderBy != "" {
 		s += "ORDER BY " + config.OrderBy + "\n"
 	}
-	if config.PartitionBy != "" {
-		s += "PARTITION BY " + config.PartitionBy + "\n"
+	if config.PartitionStrategy != "" {
+		s += "PARTITION BY " + getPartitioningFunc(config.PartitionStrategy) + "(" + strconv.Quote(timestampFieldName) + ")" + "\n"
 	}
 	if config.PrimaryKey != "" {
 		s += "PRIMARY KEY " + config.PrimaryKey + "\n"
@@ -356,6 +357,21 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 		s += "SETTINGS " + config.Settings + "\n"
 	}
 	return s
+}
+
+func getPartitioningFunc(strategy PartitionStrategy) string {
+	switch strategy {
+	case Hourly:
+		return "toStartOfHour"
+	case Daily:
+		return "toYYYYMMDD"
+	case Monthly:
+		return "toYYYYMM"
+	case Yearly:
+		return "toYYYY"
+	default:
+		return ""
+	}
 }
 
 func NewDefaultStringAttribute() Attribute {

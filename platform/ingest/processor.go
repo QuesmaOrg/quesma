@@ -229,6 +229,7 @@ func createTableQuery(name string, columns string, config *chLib.ChTableConfig) 
 	if config.ClusterName != "" {
 		onClusterClause = "ON CLUSTER " + strconv.Quote(config.ClusterName) + " "
 	}
+	config.PartitionStrategy = chLib.Hourly
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" %s
 (
 
@@ -1008,11 +1009,11 @@ func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.Backend
 
 func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
-		HasTimestamp:                          true,
-		TimestampDefaultsNow:                  true,
-		Engine:                                "MergeTree",
-		OrderBy:                               "(" + `"@timestamp"` + ")",
-		PartitionBy:                           "",
+		HasTimestamp:         true,
+		TimestampDefaultsNow: true,
+		Engine:               "MergeTree",
+		OrderBy:              "(" + `"@timestamp"` + ")",
+		//PartitionBy:                           "",
 		ClusterName:                           clusterName,
 		PrimaryKey:                            "",
 		Ttl:                                   "",
@@ -1029,9 +1030,9 @@ func NewDefaultCHConfig() *chLib.ChTableConfig {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
-		PartitionBy:          "",
-		PrimaryKey:           "",
-		Ttl:                  "",
+		//PartitionBy:          "",
+		PrimaryKey: "",
+		Ttl:        "",
 		Attributes: []chLib.Attribute{
 			chLib.NewDefaultInt64Attribute(),
 			chLib.NewDefaultFloat64Attribute(),

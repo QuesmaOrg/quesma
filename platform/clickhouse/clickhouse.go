@@ -26,6 +26,17 @@ const (
 	allElasticsearchIndicesPattern = "_all"
 )
 
+// PartitionStrategy is a custom type for partitioning strategies
+type PartitionStrategy string
+
+// Enum values for PartitionStrategy
+const (
+	Hourly  PartitionStrategy = "hourly"
+	Daily   PartitionStrategy = "daily"
+	Monthly PartitionStrategy = "monthly"
+	Yearly  PartitionStrategy = "yearly"
+)
+
 type (
 	LogManager struct {
 		ctx            context.Context
@@ -55,10 +66,11 @@ type (
 		ClusterName          string // Name of the cluster if created with `CREATE TABLE ... ON CLUSTER ClusterName`
 		Engine               string // "Log", "MergeTree", etc.
 		OrderBy              string // "" if none
-		PartitionBy          string // "" if none
-		PrimaryKey           string // "" if none
-		Settings             string // "" if none
-		Ttl                  string // of type Interval, e.g. 3 MONTH, 1 YEAR
+		//PartitionBy          string // "" if none
+		PartitionStrategy PartitionStrategy
+		PrimaryKey        string // "" if none
+		Settings          string // "" if none
+		Ttl               string // of type Interval, e.g. 3 MONTH, 1 YEAR
 		// look https://clickhouse.com/docs/en/sql-reference/data-types/special-data-types/interval
 		// "" if none
 		// TODO make sure it's unique in schema (there's no other 'others' field)
@@ -360,9 +372,10 @@ func NewDefaultCHConfig() *ChTableConfig {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
-		PartitionBy:          "",
-		PrimaryKey:           "",
-		Ttl:                  "",
+		//PartitionBy:          "",
+		PartitionStrategy: Hourly,
+		PrimaryKey:        "",
+		Ttl:               "",
 		Attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
@@ -381,9 +394,9 @@ func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 		TimestampDefaultsNow: false,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
-		PartitionBy:          "",
-		PrimaryKey:           "",
-		Ttl:                  "",
+		//PartitionBy:          "",
+		PrimaryKey: "",
+		Ttl:        "",
 		Attributes: []Attribute{
 			NewDefaultStringAttribute(),
 		},
