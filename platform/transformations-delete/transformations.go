@@ -13,6 +13,7 @@ import (
 	"github.com/k0kubun/pp"
 	"slices"
 	"strings"
+	"time"
 )
 
 // Delete some time in the future. It should just use normal schema transformations.
@@ -84,25 +85,19 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 			return visitChildren()
 		}
 
-		arg := tsFunc.Args[0].Accept(b).(model.Expr)
+		literal, ok := tsFunc.Args[0].(model.LiteralExpr)
+		if !ok {
+			logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't time.Time, but %T", tsFunc.Name, tsFunc.Args[0], tsFunc.Args[0])
+			return visitChildren()
+		}
+		tim, ok := literal.Value.(time.Time)
 		if isDateTime64 {
 			return model.NewInfixExpr(col, e.Op,
-				model.NewFunction(model.ClickhouseFromUnixTimestampMsToDatetime64Function, arg),
+				model.NewFunction(model.ClickhouseFromUnixTimestampMsToDatetime64Function, model.NewLiteral(tim.UnixMilli())),
 			)
 		} else if isDatetime {
-			tsAny, isLiteral := arg.(model.LiteralExpr)
-			if !isLiteral {
-				logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't literal, but %T", tsFunc.Name, arg, arg)
-				return visitChildren()
-			}
-			ts, err := util.ExtractInt64(tsAny.Value)
-			if err != nil {
-				logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't integer, but %T", tsFunc.Name, arg, arg)
-				return visitChildren()
-			}
-
 			return model.NewInfixExpr(col, e.Op,
-				model.NewFunction(model.ClickhouseFromUnixTimestampMsToDatetimeFunction, model.NewLiteral(ts/1000)),
+				model.NewFunction(model.ClickhouseFromUnixTimestampMsToDatetimeFunction, model.NewLiteral(tim.Unix())),
 			)
 		}
 
@@ -169,6 +164,8 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 			clickhouseFunc = model.ClickhouseFromUnixTimestampMsToDatetime64Function
 
 		default:
+			model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+
 		}
 
 		return model.NewFunction(clickhouseFunc, b.VisitChildren(e.Args)...)
@@ -183,12 +180,20 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 			}
 		}
 
-		msLiteral, ok := l.Value.(model.MillisecondsLiteral)
-		if !ok {
+		var ts int64
+		switch literal := l.Value.(type) {
+		case model.MillisecondsLiteral:
+			ts = literal.Value
+		case time.Time:
+			ts = literal.UnixMilli()
+		default:
 			return l.Clone()
 		}
 
 		fmt.Println("LOL", msLiteral)
+		for _, msLiteral := range msLiterals {
+
+		}
 
 		field, ok := indexSchema.ResolveField(msLiteral.TimestampField.ColumnName)
 		fmt.Println("1 LOL", msLiteral, field, ok)

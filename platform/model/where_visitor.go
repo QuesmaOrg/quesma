@@ -3,8 +3,7 @@
 package model
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/util"
-	"math"
+	"time"
 )
 
 // FindTimestampLowerBound returns y if there is "x>=y" or "x>y" in the WHERE clause, but only as a single top-level expression.
@@ -14,15 +13,14 @@ import (
 // If there are multiple such expressions, we return the smallest one.
 //
 // TODO: add upper bound here too, when bucket_nr=1 in auto_date_histogram (only use case of this function), it's not needed.
-func FindTimestampLowerBound(field ColumnRef, whereClause Expr) (timestampInMillis int64, found bool) {
-	timestampInMillis = math.MaxInt64
+func FindTimestampLowerBound(field ColumnRef, whereClause Expr) (lowerBoundTs time.Time, found bool) {
 	visitor := NewBaseVisitor()
 	visitor.OverrideVisitInfix = func(visitor *BaseExprVisitor, e InfixExpr) interface{} {
 		if columnRef, ok := e.Left.(ColumnRef); ok && columnRef == field && e.Op == ">=" || e.Op == ">" {
 			if fun, ok := e.Right.(FunctionExpr); ok && fun.Name == FromUnixTimestampMs && len(fun.Args) == 1 {
 				if rhs, ok := fun.Args[0].(LiteralExpr); ok {
-					if rhsInt64, ok := util.ExtractInt64Maybe(rhs.Value); ok {
-						timestampInMillis = min(timestampInMillis, rhsInt64)
+					if tim, ok := rhs.Value.(time.Time); ok && (!found || tim.Before(lowerBoundTs)) {
+						lowerBoundTs = tim
 						found = true
 					}
 				}

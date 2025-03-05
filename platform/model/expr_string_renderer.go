@@ -67,6 +67,7 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 }
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
+	fmt.Println("VisitLiteral", l)
 	switch val := l.Value.(type) {
 	case string:
 		switch l.EscapeType {
@@ -82,6 +83,8 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 			logger.WarnWithThrottling("unknown_literal", "VisitLiteral %s", val)
 			return escapeStringNormal(val) // like normal
 		}
+	case MillisecondsLiteral:
+		return fmt.Sprintf("%v", val.Value)
 	default:
 		return fmt.Sprintf("%v", val)
 	}

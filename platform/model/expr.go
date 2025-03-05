@@ -5,6 +5,7 @@ package model
 import (
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // Expr is a generic representation of an expression which is a part of the SQL query.
@@ -151,11 +152,11 @@ func NewLiteral(value any) LiteralExpr {
 
 type MillisecondsLiteral struct {
 	TimestampField ColumnRef
-	Value          int64
+	Value          time.Time // timestamp
 }
 
-func NewMillisecondsLiteral(timestampField ColumnRef, value int64) LiteralExpr {
-	return NewLiteral(MillisecondsLiteral{Value: value, TimestampField: timestampField})
+func NewMillisecondsLiteral(timestampField ColumnRef, value time.Time) LiteralExpr {
+	return NewLiteral(MillisecondsLiteral{TimestampField: timestampField, Value: value})
 }
 
 // NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else

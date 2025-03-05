@@ -387,7 +387,7 @@ func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLa
 		if layer.nextBucketAggregation != nil {
 			if autoDateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.AutoDateHistogram); ok {
 				if tsLowerBound, found := model.FindTimestampLowerBound(autoDateHistogram.GetField(), whereClause); found {
-					autoDateHistogram.SetKey(tsLowerBound)
+					autoDateHistogram.SetKey(tsLowerBound.UnixMilli())
 				} else {
 					logger.WarnWithCtx(a.ctx).Msgf("could not find timestamp lower bound (field: %v, where clause: %v)",
 						autoDateHistogram.GetField(), whereClause)

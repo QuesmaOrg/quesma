@@ -21,7 +21,7 @@ func NewDateManager(ctx context.Context) DateManager {
 }
 
 var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-01-02", "2006-01-02T15",
-	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
+	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05.123Z07:00", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
 
 // parseStrictDateOptionalTimeOrEpochMillis parses date, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
@@ -67,7 +67,7 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 // It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
 func (dm DateManager) ParseDateUsualFormat(exprFromRequest any) (funcName string, resultExpr model.Expr) {
 	if unixTsInMs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
-		fmt.Println("KK koniec parsowania daty", unixTsInMs)
+		fmt.Println("KK koniec parsowania daty", unixTsInMs, "exprFromRequest", exprFromRequest)
 		return model.FromUnixTimestampMs, model.NewLiteral(unixTsInMs)
 	}
 	return "", nil
