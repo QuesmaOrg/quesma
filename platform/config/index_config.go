@@ -20,6 +20,8 @@ type IndexConfiguration struct {
 	UseCommonTable  bool                              `koanf:"useCommonTable"`
 	Target          any                               `koanf:"target"`
 
+	EnableFieldMapSyntax bool `koanf:"enableFieldMapSyntax"`
+
 	// Computed based on the overall configuration
 	QueryTarget  []string
 	IngestTarget []string
