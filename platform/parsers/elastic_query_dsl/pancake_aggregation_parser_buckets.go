@@ -6,7 +6,6 @@ package elastic_query_dsl
 import (
 	"fmt"
 	"github.com/H0llyW00dzZ/cidr"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"

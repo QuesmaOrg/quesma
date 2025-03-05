@@ -5,7 +5,7 @@ package elastic_query_dsl
 import (
 	"errors"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/model"
+	"github.com/QuesmaOrg/quesma/platform/model"
 	"strconv"
 	"strings"
 	"time"

@@ -5,6 +5,7 @@ package elastic_query_dsl
 
 import (
 	"context"
+	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"strconv"
@@ -66,6 +67,7 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 // It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
 func (dm DateManager) ParseDateUsualFormat(exprFromRequest any) (funcName string, resultExpr model.Expr) {
 	if unixTsInMs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
+		fmt.Println("KK koniec parsowania daty", unixTsInMs)
 		return model.FromUnixTimestampMs, model.NewLiteral(unixTsInMs)
 	}
 	return "", nil
