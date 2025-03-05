@@ -23,6 +23,8 @@ docker/security/certificate-bundle.zip
 docker/security/clickhouse
 platform/config.yaml
 platform/.installation_id
+cmd/config.yaml
+cmd/.installation_id
 examples/kibana-sample-data/quesma/logs/*
 bin/.running-docker-compose
 docs/public/node_modules

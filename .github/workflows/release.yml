@@ -61,7 +61,6 @@ jobs:
       - name: Build and export
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.module }}/.
           tags: |
             europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION }}
             europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:latest
