@@ -229,7 +229,6 @@ func createTableQuery(name string, columns string, config *chLib.ChTableConfig) 
 	if config.ClusterName != "" {
 		onClusterClause = "ON CLUSTER " + strconv.Quote(config.ClusterName) + " "
 	}
-	config.PartitionStrategy = chLib.Hourly
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" %s
 (
 
@@ -642,7 +641,8 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	var tableConfig *chLib.ChTableConfig
 	var createTableCmd string
 	if table == nil {
-		tableConfig = NewOnlySchemaFieldsCHConfig(ip.cfg.ClusterName)
+		tableConfig = NewOnlySchemaFieldsCHConfig(ip.cfg.ClusterName, ip.cfg.ClickHouse.DefaultPartitioningStrategy)
+
 		columnsFromJson := JsonToColumns(transformedJsons[0], tableConfig)
 
 		fieldOrigins := make(map[schema.FieldName]schema.FieldSource)
@@ -1007,13 +1007,14 @@ func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.Backend
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
 }
 
-func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {
+func NewOnlySchemaFieldsCHConfig(clusterName, partitioningStrategy string) *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
 		HasTimestamp:         true,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
 		//PartitionBy:                           "",
+		PartitionStrategy:                     chLib.PartitionStrategyFromString(partitioningStrategy),
 		ClusterName:                           clusterName,
 		PrimaryKey:                            "",
 		Ttl:                                   "",

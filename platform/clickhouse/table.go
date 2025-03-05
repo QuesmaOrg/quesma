@@ -73,7 +73,6 @@ func (t *Table) CreateTableString() string {
 	for _, index := range t.Indexes {
 		rows = append(rows, util.Indent(1)+index.Statement())
 	}
-	t.Config.PartitionStrategy = Hourly
 	return s + strings.Join(rows, ",\n") + "\n)\n" + t.Config.CreateTablePostFieldsString()
 }
 
