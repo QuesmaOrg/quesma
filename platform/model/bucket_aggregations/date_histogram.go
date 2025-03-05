@@ -31,7 +31,8 @@ const (
 
 type DateHistogram struct {
 	ctx               context.Context
-	field             model.Expr // name of the field, e.g. timestamp
+	field             model.Expr // full expression as in SQL, e.g. toInt64(toUnixTimestamp(timestamp))
+	timestampColumn   model.ColumnRef
 	interval          string
 	timezone          string
 	defaultFormat     bool           // how we format "key_as_string". If not default, it's milliseconds
@@ -40,11 +41,10 @@ type DateHistogram struct {
 	extendedBoundsMax int64
 	minDocCount       int
 	intervalType      DateHistogramIntervalType
-	fieldDateTimeType clickhouse.DateTimeType
 }
 
-func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone, format string, minDocCount int,
-	extendedBoundsMin, extendedBoundsMax int64, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
+func NewDateHistogram(ctx context.Context, field model.Expr, timestampColumn model.ColumnRef, interval, timezone, format string,
+	minDocCount int, extendedBoundsMin, extendedBoundsMax int64, intervalType DateHistogramIntervalType) *DateHistogram {
 
 	wantedTimezone, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -56,7 +56,7 @@ func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone,
 
 	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
 		minDocCount: minDocCount, extendedBoundsMin: extendedBoundsMin, extendedBoundsMax: extendedBoundsMax,
-		intervalType: intervalType, fieldDateTimeType: fieldDateTimeType, defaultFormat: defaultFormat}
+		intervalType: intervalType, defaultFormat: defaultFormat}
 }
 
 func (typ DateHistogramIntervalType) String(ctx context.Context) string {
@@ -162,13 +162,44 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 	interval, err := util.ParseInterval(query.interval)
 	if err != nil {
 		logger.ErrorWithCtx(query.ctx).Msg(err.Error())
+		return model.InvalidExpr
 	}
-	dateTimeType := query.fieldDateTimeType
-	if query.fieldDateTimeType == clickhouse.Invalid {
-		logger.ErrorWithCtx(query.ctx).Msgf("invalid date type for DateHistogram %+v. Using DateTime64 as default.", query)
-		dateTimeType = defaultDateTimeType
+
+	var groupBy model.InfixExpr
+	// If no timezone, or timezone is default (UTC)
+	if query.timezone == "" {
+		groupBy = model.NewInfixExpr(
+			model.NewFunction(model.ToUnixTimestampMs, query.field),
+			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
+			model.NewMillisecondsLiteral(query.timestampColumn, interval.Milliseconds()),
+		)
+	} else {
+		offset := model.NewInfixExpr(
+			model.NewFunction(
+				"timeZoneOffset",
+				model.NewFunction(
+					"toTimezone",
+					query.field, model.NewLiteralSingleQuoteString(query.timezone),
+				),
+			),
+			"*",
+			model.NewMillisecondsLiteral(query.timestampColumn, 1000),
+		)
+
+		unixTsWithOffset := model.NewInfixExpr(
+			model.NewFunction(model.ToUnixTimestampMs, query.field),
+			"+",
+			offset,
+		)
+
+		groupBy = model.NewInfixExpr(
+			model.NewParenExpr(unixTsWithOffset),
+			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
+			model.NewMillisecondsLiteral(query.timestampColumn, interval.Milliseconds()),
+		)
 	}
-	return clickhouse.TimestampGroupByWithTimezone(query.field, dateTimeType, interval, query.timezone)
+
+	return model.NewFunction("toInt64", groupBy)
 }
 
 func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {

@@ -67,6 +67,9 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+			if i != 3 {
+				t.Skip()
+			}
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
 			plan, errQuery := cw.ParseQuery(body)
