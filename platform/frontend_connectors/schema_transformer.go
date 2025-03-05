@@ -32,6 +32,19 @@ func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhou
 	}
 }
 
+func (s *SchemaCheckPass) isFieldMapSyntaxEnabled(query *model.Query) bool {
+
+	var enabled bool
+
+	if len(query.Indexes) == 1 {
+		if indexConf, ok := s.cfg.IndexConfig[query.Indexes[0]]; ok {
+			enabled = indexConf.EnableFieldMapSyntax
+		}
+	}
+
+	return enabled
+}
+
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(ctx context.Context, index schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
@@ -694,8 +707,6 @@ func (s *SchemaCheckPass) applyTimestampField(ctx context.Context, indexSchema s
 }
 
 func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-	fmt.Println("KK TRANSF")
-	pp.Println(query)
 	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
 	if !ok {
 		logger.WarnWithCtx(ctx).Msgf("table %s not found", query.TableName)
@@ -830,7 +841,6 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 
 	// we look for: MillisecondsLiteral
 	visitor.OverrideVisitLiteral = func(b *model.BaseExprVisitor, l model.LiteralExpr) interface{} {
-		pp.Println("literal", l)
 		msLiteral, ok := l.Value.(model.MillisecondsLiteral)
 		if !ok {
 			return l.Clone()
@@ -899,6 +909,26 @@ func (s *SchemaCheckPass) applyFieldEncoding(ctx context.Context, indexSchema sc
 		if resolvedField, ok := indexSchema.ResolveField(e.ColumnName); ok {
 			return model.NewColumnRefWithTable(resolvedField.InternalPropertyName.AsString(), e.TableAlias)
 		} else {
+			// here we didn't find a column by field name,
+			// we try some other options
+
+			// 1. we check if the field name point to the map
+			if s.isFieldMapSyntaxEnabled(query) {
+				elements := strings.Split(e.ColumnName, ".")
+				if len(elements) > 1 {
+					if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
+						// check if we have map type, especially  Map(String, any) here
+						if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
+							(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
+								strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
+							return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
+						}
+					}
+				}
+			}
+
+			// 2. maybe we should use attributes
+
 			if hasAttributesValuesColumn {
 				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
 			} else {
@@ -1222,6 +1252,46 @@ func (s *SchemaCheckPass) applyMatchOperator(ctx context.Context, indexSchema sc
 				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
 			default:
 				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteralWithEscapeType(rhsValue, model.NotEscapedLikeFull))
+			}
+		}
+
+		if s.isFieldMapSyntaxEnabled(query) {
+			// special case where left side is arrayElement,
+			// arrayElement comes from applyFieldEncoding function
+			arrayElementFn, ok := e.Left.(model.FunctionExpr)
+			if ok && arrayElementFn.Name == "arrayElement" && e.Op == model.MatchOperator {
+
+				if len(arrayElementFn.Args) == 2 {
+					if col, ok := arrayElementFn.Args[0].(model.ColumnRef); ok {
+						field, found := indexSchema.ResolveFieldByInternalName(col.ColumnName)
+
+						if found {
+							internalType := field.InternalPropertyType
+
+							// we support Map(K,V) type only
+							if strings.HasPrefix(internalType, "Map(") {
+								types := strings.TrimPrefix(strings.TrimSuffix(internalType, ")"), "Map(")
+								types = strings.ReplaceAll(types, " ", "")
+								kvTypes := strings.Split(types, ",")
+
+								// sanity check for map type with two elements
+								if len(kvTypes) == 2 {
+									rhsValue := rhs.Value.(string)
+									rhsValue = strings.TrimPrefix(rhsValue, "'")
+									rhsValue = strings.TrimSuffix(rhsValue, "'")
+
+									// here we check if the value of the map is string or not
+
+									if strings.Contains(kvTypes[1], "String") {
+										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "iLIKE", model.NewLiteralWithEscapeType(rhsValue, model.NotEscapedLikeFull))
+									} else {
+										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "=", e.Right.Accept(b).(model.Expr))
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 

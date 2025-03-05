@@ -21,6 +21,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/processors"
+	"github.com/QuesmaOrg/quesma/platform/recovery"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
 	"github.com/QuesmaOrg/quesma/platform/telemetry"
@@ -56,6 +57,8 @@ const EnableConcurrencyProfiling = false
 //}
 
 func main() {
+	defer recovery.LogPanic()
+
 	// TODO: Experimental feature, move to the configuration after architecture v2
 	const mysql_passthrough_experiment = false
 	if mysql_passthrough_experiment {
@@ -66,7 +69,7 @@ func main() {
 	// TODO: Experimental feature, move to the configuration after architecture v2
 	const mysql_vitess_experiment = false
 	if mysql_vitess_experiment {
-		launchMySqlVitess()
+		// launchMySqlVitess()
 		return
 	}
 
@@ -165,29 +168,29 @@ func main() {
 
 }
 
-func launchMySqlVitess() {
-	var frontendConn, err = frontend_connectors.NewVitessMySqlConnector(":13306")
-	if err != nil {
-		panic(err)
-	}
-	var vitessProcessor quesma_api.Processor = processors.NewVitessMySqlProcessor()
-	frontendConn.SetHandlers([]quesma_api.Processor{vitessProcessor})
-	var mySqlBackendConn = backend_connectors.NewMySqlBackendConnector("root:my-secret-pw@tcp(localhost:3306)/exampledb3")
-	var mySqlPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
-	mySqlPipeline.AddProcessor(vitessProcessor)
-	mySqlPipeline.AddFrontendConnector(frontendConn)
-	mySqlPipeline.AddBackendConnector(mySqlBackendConn)
-	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
-	quesmaBuilder.AddPipeline(mySqlPipeline)
-	qb, err := quesmaBuilder.Build()
-	if err != nil {
-		panic(err)
-	}
-	qb.Start()
-	stop := make(chan os.Signal, 1)
-	<-stop
-	qb.Stop(context.Background())
-}
+//func launchMySqlVitess() {
+//	var frontendConn, err = frontend_connectors.NewVitessMySqlConnector(":13306")
+//	if err != nil {
+//		panic(err)
+//	}
+//	var vitessProcessor quesma_api.Processor = processors.NewVitessMySqlProcessor()
+//	frontendConn.SetHandlers([]quesma_api.Processor{vitessProcessor})
+//	var mySqlBackendConn = backend_connectors.NewMySqlBackendConnector("root:my-secret-pw@tcp(localhost:3306)/exampledb3")
+//	var mySqlPipeline quesma_api.PipelineBuilder = quesma_api.NewPipeline()
+//	mySqlPipeline.AddProcessor(vitessProcessor)
+//	mySqlPipeline.AddFrontendConnector(frontendConn)
+//	mySqlPipeline.AddBackendConnector(mySqlBackendConn)
+//	var quesmaBuilder quesma_api.QuesmaBuilder = quesma_api.NewQuesma(quesma_api.EmptyDependencies())
+//	quesmaBuilder.AddPipeline(mySqlPipeline)
+//	qb, err := quesmaBuilder.Build()
+//	if err != nil {
+//		panic(err)
+//	}
+//	qb.Start()
+//	stop := make(chan os.Signal, 1)
+//	<-stop
+//	qb.Stop(context.Background())
+//}
 
 func launchMySqlPassthrough() {
 	var frontendConn = frontend_connectors.NewTCPConnector(":13306")

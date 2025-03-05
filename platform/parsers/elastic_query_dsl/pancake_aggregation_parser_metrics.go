@@ -112,10 +112,8 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			// TODO we have create columns according to the schema
 			latColumn := model.NewGeoLat(colName)
 			lonColumn := model.NewGeoLon(colName)
-			castLat := model.NewFunction("CAST", latColumn, model.NewLiteral(fmt.Sprintf("'%s'", "Float")))
-			castLon := model.NewFunction("CAST", lonColumn, model.NewLiteral(fmt.Sprintf("'%s'", "Float")))
-			result = append(result, model.NewFunction("avgOrNull", castLat))
-			result = append(result, model.NewFunction("avgOrNull", castLon))
+			result = append(result, model.NewFunction("avgOrNull", latColumn))
+			result = append(result, model.NewFunction("avgOrNull", lonColumn))
 			result = append(result, model.NewCountFunc())
 		}
 	default:
@@ -125,34 +123,34 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 	return
 }
 
-func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) model.QueryType {
+func (cw *ClickhouseQueryTranslator) generateMetricsType(metricsAggr metricsAggregation) model.QueryType {
 	switch metricsAggr.AggrType {
 	case "sum":
-		return metrics_aggregations.NewSum(ctx, metricsAggr.FieldType)
+		return metrics_aggregations.NewSum(cw.Ctx, metricsAggr.FieldType)
 	case "min":
-		return metrics_aggregations.NewMin(ctx, metricsAggr.FieldType)
+		return metrics_aggregations.NewMin(cw.Ctx, metricsAggr.FieldType)
 	case "max":
-		return metrics_aggregations.NewMax(ctx, metricsAggr.FieldType)
+		return metrics_aggregations.NewMax(cw.Ctx, metricsAggr.FieldType)
 	case "avg":
-		return metrics_aggregations.NewAvg(ctx, metricsAggr.FieldType)
+		return metrics_aggregations.NewAvg(cw.Ctx, metricsAggr.FieldType)
 	case "stats":
-		return metrics_aggregations.NewStats(ctx)
+		return metrics_aggregations.NewStats(cw.Ctx)
 	case "extended_stats":
-		return metrics_aggregations.NewExtendedStats(ctx, metricsAggr.sigma)
+		return metrics_aggregations.NewExtendedStats(cw.Ctx, metricsAggr.sigma)
 	case "cardinality":
-		return metrics_aggregations.NewCardinality(ctx)
+		return metrics_aggregations.NewCardinality(cw.Ctx)
 	case "quantile":
-		return metrics_aggregations.NewQuantile(ctx, util.MapKeysSortedByValue(metricsAggr.Percentiles), metricsAggr.Keyed, metricsAggr.FieldType)
+		return metrics_aggregations.NewQuantile(cw.Ctx, util.MapKeysSortedByValue(metricsAggr.Percentiles), metricsAggr.Keyed, metricsAggr.FieldType)
 	case "top_hits":
-		return metrics_aggregations.NewTopHits(ctx, metricsAggr.Size, metricsAggr.OrderBy)
+		return metrics_aggregations.NewTopHits(cw.Ctx, metricsAggr.Size, metricsAggr.OrderBy, cw.Table.FullTableNameUnquoted())
 	case "top_metrics":
-		return metrics_aggregations.NewTopMetrics(ctx, metricsAggr.Size, metricsAggr.SortBy, metricsAggr.Order)
+		return metrics_aggregations.NewTopMetrics(cw.Ctx, metricsAggr.Size, metricsAggr.SortBy, metricsAggr.Order)
 	case "value_count":
-		return metrics_aggregations.NewValueCount(ctx)
+		return metrics_aggregations.NewValueCount(cw.Ctx)
 	case "percentile_ranks":
-		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.CutValues, metricsAggr.Keyed)
+		return metrics_aggregations.NewPercentileRanks(cw.Ctx, metricsAggr.CutValues, metricsAggr.Keyed)
 	case "geo_centroid":
-		return metrics_aggregations.NewGeoCentroid(ctx)
+		return metrics_aggregations.NewGeoCentroid(cw.Ctx)
 	}
 	return nil
 }

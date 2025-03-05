@@ -279,29 +279,29 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", 46),
 				model.NewQueryResultCol("aggr__0__key_0", "Abu Dhabi"),
 				model.NewQueryResultCol("aggr__0__count", uint64(23)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", 7),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", 7),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", 3),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", 46),
 				model.NewQueryResultCol("aggr__0__key_0", "Adelaide"),
 				model.NewQueryResultCol("aggr__0__count", uint64(20)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", 3),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", 3),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", 2),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", 46),
 				model.NewQueryResultCol("aggr__0__key_0", "Albuquerque"),
 				model.NewQueryResultCol("aggr__0__count", uint64(3)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", 0),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", 0),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", 2),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0",
-			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket__count"
+			  countIf("FlightDelay"==true) AS "metric__0__1-bucket_col_0",
+			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
@@ -848,11 +848,11 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__0-bucket__count", uint64(553)),
+				model.NewQueryResultCol("metric__0-bucket_col_0", uint64(553)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf("FlightDelay"==true) AS "aggr__0-bucket__count"
+			SELECT countIf("FlightDelay"==true) AS "metric__0-bucket_col_0"
 			FROM ` + TableName + `
 			 WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))`,
 	},
@@ -3204,7 +3204,8 @@ var AggregationTests = []AggregationTestCase{
 								"1-bucket": {
 									"1-metric": {
 										"value": null
-									}
+									},
+									"doc_count": 0
 								},
 								"doc_count": 0,
 								"key": 1708732800000,
@@ -3214,7 +3215,8 @@ var AggregationTests = []AggregationTestCase{
 								"1-bucket": {
 									"1-metric": {
 										"value": null
-									}
+									},
+									"doc_count": 0
 								},
 								"doc_count": 0,
 								"key": 1708776000000,
@@ -3907,7 +3909,7 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
-			{
+			{ // not all columns, but it doesn't matter, we don't need them in this testcase, it seems
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("aggr__sample__count", int64(1634)),
 					model.NewQueryResultCol("aggr__sample__bytes_gauge_top__parent_count", int64(1634)),
@@ -4025,22 +4027,104 @@ var AggregationTests = []AggregationTestCase{
 			FROM (
 			  SELECT "bytes_gauge"
 			  FROM __quesma_table_name
-			  WHERE ("timestamp">=fromUnixTimestamp64Milli(1709932426749) AND "timestamp"<=fromUnixTimestamp64Milli(1711228426749))
+			  WHERE ("timestamp">=fromUnixTimestamp64Milli(1709932426749) AND "timestamp"<=
+				fromUnixTimestamp64Milli(1711228426749))
 			  LIMIT 20000)`,
-		ExpectedAdditionalPancakeSQLs: []string{
-			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+		ExpectedAdditionalPancakeSQLs: []string{`
+			SELECT sum(count(*)) OVER () AS "aggr__sample__count",
+			  quantilesMerge(0.050000)(quantilesState(0.050000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_0",
+			  quantilesMerge(0.100000)(quantilesState(0.100000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_1",
+			  quantilesMerge(0.150000)(quantilesState(0.150000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_2",
+			  quantilesMerge(0.200000)(quantilesState(0.200000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_3",
+			  quantilesMerge(0.250000)(quantilesState(0.250000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_4",
+			  quantilesMerge(0.300000)(quantilesState(0.300000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_5",
+			  quantilesMerge(0.350000)(quantilesState(0.350000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_6",
+			  quantilesMerge(0.400000)(quantilesState(0.400000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_7",
+			  quantilesMerge(0.450000)(quantilesState(0.450000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_8",
+			  quantilesMerge(0.500000)(quantilesState(0.500000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_9",
+			  quantilesMerge(0.550000)(quantilesState(0.550000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_10",
+			  quantilesMerge(0.600000)(quantilesState(0.600000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_11",
+			  quantilesMerge(0.650000)(quantilesState(0.650000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_12",
+			  quantilesMerge(0.700000)(quantilesState(0.700000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_13",
+			  quantilesMerge(0.750000)(quantilesState(0.750000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_14",
+			  quantilesMerge(0.800000)(quantilesState(0.800000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_15",
+			  quantilesMerge(0.850000)(quantilesState(0.850000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_16",
+			  quantilesMerge(0.900000)(quantilesState(0.900000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_17",
+			  quantilesMerge(0.950000)(quantilesState(0.950000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_18",
+			  quantilesMerge(0.999999)(quantilesState(0.999999)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_col_19",
+			  quantilesMerge(0.050000)(quantilesState(0.050000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_0",
+			  quantilesMerge(0.100000)(quantilesState(0.100000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_1",
+			  quantilesMerge(0.150000)(quantilesState(0.150000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_2",
+			  quantilesMerge(0.200000)(quantilesState(0.200000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_3",
+			  quantilesMerge(0.250000)(quantilesState(0.250000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_4",
+			  quantilesMerge(0.300000)(quantilesState(0.300000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_5",
+			  quantilesMerge(0.350000)(quantilesState(0.350000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_6",
+			  quantilesMerge(0.400000)(quantilesState(0.400000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_7",
+			  quantilesMerge(0.450000)(quantilesState(0.450000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_8",
+			  quantilesMerge(0.500000)(quantilesState(0.500000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_9",
+			  quantilesMerge(0.550000)(quantilesState(0.550000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_10",
+			  quantilesMerge(0.600000)(quantilesState(0.600000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_11",
+			  quantilesMerge(0.650000)(quantilesState(0.650000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_12",
+			  quantilesMerge(0.700000)(quantilesState(0.700000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_13",
+			  quantilesMerge(0.750000)(quantilesState(0.750000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_14",
+			  quantilesMerge(0.800000)(quantilesState(0.800000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_15",
+			  quantilesMerge(0.850000)(quantilesState(0.850000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_16",
+			  quantilesMerge(0.900000)(quantilesState(0.900000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_17",
+			  quantilesMerge(0.950000)(quantilesState(0.950000)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_18",
+			  quantilesMerge(0.999999)(quantilesState(0.999999)("bytes_gauge")) OVER () AS
+			  "metric__sample__bytes_gauge_percentiles_keyed_true_col_19",
 			  sum(count(*)) OVER () AS "aggr__sample__bytes_gauge_top__parent_count",
 			  "bytes_gauge" AS "aggr__sample__bytes_gauge_top__key_0",
 			  count(*) AS "aggr__sample__bytes_gauge_top__count"
 			FROM (
 			  SELECT "bytes_gauge"
 			  FROM __quesma_table_name
-			  WHERE ("timestamp">=fromUnixTimestamp64Milli(1709932426749) AND "timestamp"<=fromUnixTimestamp64Milli(1711228426749))
+			  WHERE ("timestamp">=fromUnixTimestamp64Milli(1709932426749) AND "timestamp"<=
+				fromUnixTimestamp64Milli(1711228426749))
 			  LIMIT 20000)
 			GROUP BY "bytes_gauge" AS "aggr__sample__bytes_gauge_top__key_0"
 			ORDER BY "aggr__sample__bytes_gauge_top__count" DESC,
-			  "aggr__sample__bytes_gauge_top__key_0" ASC
-			LIMIT 11`,
+				  "aggr__sample__bytes_gauge_top__key_0" ASC
+				LIMIT 11`,
 		},
 	},
 	{ // [21]
@@ -5221,29 +5305,29 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
 				model.NewQueryResultCol("aggr__0__key_0", "Albuquerque"),
 				model.NewQueryResultCol("aggr__0__count", uint64(4)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", uint64(1)),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", uint64(1)),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", uint64(2)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
 				model.NewQueryResultCol("aggr__0__key_0", "Atlanta"),
 				model.NewQueryResultCol("aggr__0__count", uint64(5)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", uint64(0)),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", uint64(0)),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", uint64(0)),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__0__parent_count", uint64(14)),
 				model.NewQueryResultCol("aggr__0__key_0", "Baltimore"),
 				model.NewQueryResultCol("aggr__0__count", uint64(5)),
-				model.NewQueryResultCol("aggr__0__1-bucket__count", uint64(2)),
+				model.NewQueryResultCol("metric__0__1-bucket_col_0", uint64(2)),
 				model.NewQueryResultCol("metric__0__3-bucket_col_0", uint64(0)),
 			}},
 		},
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0",
-			  countIf("FlightDelay"==true) AS "aggr__0__1-bucket__count"
+			    countIf("FlightDelay"==true) AS "metric__0__1-bucket_col_0",
+  				countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0"
 			FROM ` + TableName + `
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC

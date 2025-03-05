@@ -31,7 +31,7 @@ jobs:
   build-quesma-docker-image:
     strategy:
       matrix:
-        module: [ "platform" ]
+        module: [ "cmd" ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,7 +64,6 @@ jobs:
         uses: docker/build-push-action@v6
         if: ${{ !inputs.PUSH }}
         with:
-          context: ${{ matrix.module }}/.
           tags: |
             quesma/quesma:${{ inputs.VERSION }}
             quesma/quesma:nightly
@@ -80,7 +79,6 @@ jobs:
         uses: docker/build-push-action@v6
         if: ${{ inputs.PUSH }}
         with:
-          context: ${{ matrix.module }}/.
           tags: |
             quesma/quesma:${{ inputs.VERSION }}
             quesma/quesma:nightly
@@ -97,6 +95,6 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ !inputs.PUSH }}
         with:
-          name: ${{ matrix.module }}
+          name: "quesma-nightly" # this is just a name for artifact stored in github, not in dockerhub
           path: /tmp/image.tar
           retention-days: 1

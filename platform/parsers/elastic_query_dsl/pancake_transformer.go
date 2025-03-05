@@ -157,19 +157,32 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 		return childAggregations[i].name < childAggregations[j].name
 	})
 
+	metrics := make([]*pancakeModelMetricAggregation, 0)
+
 	for _, childAgg := range childAggregations {
 		if childAgg.queryType == nil {
 			return nil, fmt.Errorf("query type is nil in createLayer")
 		}
 		switch childAgg.queryType.AggregationType() {
 		case model.MetricsAggregation:
-			metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
+			metric, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
 			if err != nil {
 				return nil, err
 			}
-			result[0].layer.currentMetricAggregations = append(result[0].layer.currentMetricAggregations, metrics)
+			metrics = append(metrics, metric)
 
 		case model.BucketAggregation:
+			filter, isFilter := childAgg.queryType.(bucket_aggregations.FilterAgg)
+			if isFilter && len(childAgg.children) == 0 {
+				childAgg.selectedColumns = append(childAgg.selectedColumns, model.NewFunction("countIf", filter.WhereClause))
+				metric, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
+				if err != nil {
+					return nil, err
+				}
+				metrics = append(metrics, metric)
+				break
+			}
+
 			bucket, err := a.bucketAggregationToLayer(previousAggrNames, childAgg)
 			if err != nil {
 				return nil, err
@@ -201,6 +214,9 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 			return nil, fmt.Errorf("unsupported aggregation type in pancake, name: %s, type: %s",
 				childAgg.name, childAgg.queryType.AggregationType().String())
 		}
+	}
+	for _, resultLayer := range result {
+		resultLayer.layer.currentMetricAggregations = metrics
 	}
 	return result, nil
 }
@@ -255,7 +271,7 @@ func (a *pancakeTransformer) connectPipelineAggregations(layers []*pancakeModelL
 			}
 
 			parentBucketLayerIdx := i + layerIdx
-			if parentBucketLayerIdx > 0 {
+			if parentBucketLayerIdx > 0 && layers[parentBucketLayerIdx-1].nextBucketAggregation != nil {
 				pipeline.queryType.SetParentBucketAggregation(layers[parentBucketLayerIdx-1].nextBucketAggregation.queryType)
 			}
 			parentBucketLayer.childrenPipelineAggregations = append(parentBucketLayer.childrenPipelineAggregations, pipeline)
@@ -276,7 +292,16 @@ func (a *pancakeTransformer) findParentBucketLayer(layers []*pancakeModelLayer, 
 	layer := layers[0]
 	for i, aggrName := range pipeline.GetPathToParent() {
 		layer = layers[i]
-		if layer.nextBucketAggregation == nil || layer.nextBucketAggregation.name != aggrName {
+		asBucket := layer.nextBucketAggregation != nil && layer.nextBucketAggregation.name == aggrName
+		asMetric := false
+		for _, metric := range layer.currentMetricAggregations {
+			if metric.name == aggrName {
+				asMetric = true
+				break
+			}
+		}
+
+		if !asBucket && !asMetric {
 			return nil, -1, fmt.Errorf("could not find parent bucket layer")
 		}
 	}

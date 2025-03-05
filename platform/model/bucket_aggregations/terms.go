@@ -16,6 +16,7 @@ import (
 type Terms struct {
 	ctx         context.Context
 	significant bool // true <=> significant_terms, false <=> terms
+	minDocCount int
 	// include is either:
 	//   - single value: then for strings, it can be a regex.
 	//   - array: then field must match exactly one of the values (never a regex)
@@ -28,8 +29,8 @@ type Terms struct {
 	exclude any
 }
 
-func NewTerms(ctx context.Context, significant bool, include, exclude any) Terms {
-	return Terms{ctx: ctx, significant: significant, include: include, exclude: exclude}
+func NewTerms(ctx context.Context, significant bool, minDocCount int, include, exclude any) Terms {
+	return Terms{ctx: ctx, significant: significant, minDocCount: minDocCount, include: include, exclude: exclude}
 }
 
 func (query Terms) AggregationType() model.AggregationType {
@@ -43,6 +44,10 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 	}
 	if len(rows) == 0 {
 		return model.JsonMap{"buckets": []model.JsonMap{}}
+	}
+
+	if query.minDocCount > 1 {
+		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
 	}
 
 	buckets := make([]model.JsonMap, 0, len(rows))
@@ -187,8 +192,8 @@ func CheckParamsTerms(ctx context.Context, paramsRaw any) error {
 		"value_type":                "string",
 	}
 	logIfYouSeeThemParams := []string{
-		"shard_size", "min_doc_count", "shard_min_doc_count",
-		"show_term_doc_count_error", "collect_mode", "execution_hint", "value_type",
+		"shard_size", "shard_min_doc_count", "show_term_doc_count_error",
+		"collect_mode", "execution_hint", "value_type",
 	}
 
 	params, ok := paramsRaw.(model.JsonMap)
@@ -244,4 +249,29 @@ func CheckParamsTerms(ctx context.Context, paramsRaw any) error {
 	}
 
 	return nil
+}
+
+func (query Terms) NewRowsTransformer() model.QueryRowsTransformer {
+	return &TermsRowsTransformer{minDocCount: int64(query.minDocCount)}
+}
+
+type TermsRowsTransformer struct {
+	minDocCount int64
+}
+
+// TODO unify with other transformers
+func (qt TermsRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
+	for _, row := range rowsFromDB {
+		docCount, err := util.ExtractInt64(row.LastColValue())
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("unexpected type for terms doc_count: %T, value: %v. Returning empty rows.",
+				row.LastColValue(), row.LastColValue())
+			return []model.QueryResultRow{}
+		}
+		if docCount >= qt.minDocCount {
+			postprocessedRows = append(postprocessedRows, row)
+		}
+	}
+	return postprocessedRows
 }
