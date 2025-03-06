@@ -44,14 +44,6 @@ func (q *Quesma) Start() {
 	go q.quesmaManagementConsole.Run()
 }
 
-func NewQuesmaTcpProxy(config *config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, inspect bool) *Quesma {
-	return &Quesma{
-		processor:               NewTcpProxy(config.PublicTcpPort, config.Elasticsearch.Url.Host, inspect),
-		publicTcpPort:           config.PublicTcpPort,
-		quesmaManagementConsole: quesmaManagementConsole,
-		config:                  config,
-	}
-}
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
 	logManager *clickhouse.LogManager, ingestProcessor *ingest.IngestProcessor,
 	schemaLoader clickhouse.TableDiscovery,
