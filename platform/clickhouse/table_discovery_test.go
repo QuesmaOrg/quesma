@@ -262,6 +262,39 @@ func Test_resolveColumn_Nullable(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Array(Array(Tuple(...)))",
+			args: args{colName: "nested_array_tuple", colType: "Array(Array(Tuple(group_a Tuple(field_a Nullable(Int64), field_b Nullable(Int64), field_c Nullable(Int64), field_d Nullable(Int64)), group_b Tuple(field_x Nullable(String)))))"},
+			want: &Column{
+				Name: "nested_array_tuple",
+				Type: CompoundType{
+					Name: "Array",
+					BaseType: CompoundType{
+						Name: "Array",
+						BaseType: MultiValueType{
+							Name: "Tuple",
+							Cols: []*Column{
+								{Name: "group_a", Type: MultiValueType{
+									Name: "Tuple",
+									Cols: []*Column{
+										{Name: "field_a", Type: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0)), Nullable: true}},
+										{Name: "field_b", Type: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0)), Nullable: true}},
+										{Name: "field_c", Type: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0)), Nullable: true}},
+										{Name: "field_d", Type: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0)), Nullable: true}},
+									},
+								}},
+								{Name: "group_b", Type: MultiValueType{
+									Name: "Tuple",
+									Cols: []*Column{
+										{Name: "field_x", Type: BaseType{Name: "String", GoType: reflect.TypeOf(""), Nullable: true}},
+									},
+								}},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
