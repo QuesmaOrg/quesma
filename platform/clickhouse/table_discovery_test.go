@@ -228,6 +228,20 @@ func Test_resolveColumn_Nullable(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Array(Array(Int64))",
+			args: args{colName: "array_of_arrays", colType: "Array(Array(Int64))"},
+			want: &Column{
+				Name: "array_of_arrays",
+				Type: CompoundType{
+					Name: "Array",
+					BaseType: CompoundType{
+						Name:     "Array",
+						BaseType: BaseType{Name: "Int64", GoType: reflect.TypeOf(int64(0))},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
