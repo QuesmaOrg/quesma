@@ -222,7 +222,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			  minOrNull("FlightDelayMin") AS "metric__minAgg_col_0"
 			FROM __quesma_table_name
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND NOT ("FlightDelayMin"==0))`,
+			  fromUnixTimestamp64Milli(1740835408853)) AND NOT (("FlightDelayMin" __quesma_match 0)))`,
 	},
 	{ // [2]
 		TestName: "Delays & Cancellations (request 1/2)",
@@ -1051,8 +1051,9 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0-bucket_col_0", int64(532)),
 			}},
 		},
+		// TODO Sprawdz boola
 		ExpectedPancakeSQL: `
-			SELECT countIf("FlightDelay"==true) AS "metric__0-bucket_col_0"
+			SELECT countIf(("FlightDelay" __quesma_match true)) AS "metric__0-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))`,
@@ -1166,7 +1167,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf("Cancelled"==true) AS "metric__0-bucket_col_0"
+			SELECT countIf(("Cancelled" __quesma_match true)) AS "metric__0-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))`,
@@ -1330,7 +1331,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			  <=fromUnixTimestamp64Milli(1740230608853))) AS
 			  "filter_1__aggr__time_offset_split__count"
 			FROM __quesma_table_name
-			WHERE ("Cancelled"==true AND (("timestamp">=fromUnixTimestamp64Milli(
+			WHERE (("Cancelled" __quesma_match true) AND (("timestamp">=fromUnixTimestamp64Milli(
 			  1740230608853) AND "timestamp"<=fromUnixTimestamp64Milli(1740835408853)) OR (
 			  "timestamp">=fromUnixTimestamp64Milli(1739625808853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740230608853))))`,
@@ -1842,8 +1843,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("FlightDelay"==true) AS "metric__0__1-bucket_col_0",
-			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0"
+			  countIf(("FlightDelay" __quesma_match true)) AS "metric__0__1-bucket_col_0",
+			  countIf(("Cancelled" __quesma_match true)) AS "metric__0__3-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))
@@ -2638,7 +2639,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			SELECT "FlightDelayMin" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND NOT ("FlightDelayMin"==0))
+			  fromUnixTimestamp64Milli(1740835408853)) AND NOT (("FlightDelayMin" __quesma_match 0)))
 			GROUP BY "FlightDelayMin" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},
