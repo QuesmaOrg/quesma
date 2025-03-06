@@ -242,6 +242,26 @@ func Test_resolveColumn_Nullable(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Array(Array(Array(Array(String))))",
+			args: args{colName: "deeply_nested_array", colType: "Array(Array(Array(Array(String))))"},
+			want: &Column{
+				Name: "deeply_nested_array",
+				Type: CompoundType{
+					Name: "Array",
+					BaseType: CompoundType{
+						Name: "Array",
+						BaseType: CompoundType{
+							Name: "Array",
+							BaseType: CompoundType{
+								Name:     "Array",
+								BaseType: BaseType{Name: "String", GoType: reflect.TypeOf("")},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
