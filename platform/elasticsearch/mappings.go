@@ -81,6 +81,8 @@ func ParseElasticType(t string) (schema.QuesmaType, bool) {
 		return schema.QuesmaTypeIp, true
 	case elasticsearch_field_types.FieldTypeGeoPoint:
 		return schema.QuesmaTypePoint, true
+	case elasticsearch_field_types.FieldTypeObject:
+		return schema.QuesmaTypeObject, true
 	default:
 		return schema.QuesmaTypeUnknown, false
 	}

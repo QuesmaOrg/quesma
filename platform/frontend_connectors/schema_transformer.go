@@ -538,7 +538,7 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 		cols := make([]string, 0, len(indexSchema.Fields))
 		for _, col := range indexSchema.Fields {
 			// Take only fields that are ingested
-			if col.Origin == schema.FieldSourceIngest {
+			if col.Origin == schema.FieldSourceIngest || col.Origin == schema.FieldSourceMapping {
 				cols = append(cols, col.PropertyName.AsString())
 			}
 		}
