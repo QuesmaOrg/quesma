@@ -172,6 +172,7 @@ func TestGroupParenthesis(t *testing.T) {
 }
 
 func generateRandomCases() []parenthesisTestCase {
+	// Randomly generate possible combinations of parenthesis (up to some small depth)
 	r := rand.New(rand.NewSource(12345))
 
 	generatedCases := []parenthesisTestCase{
@@ -225,8 +226,6 @@ func generateRandomCases() []parenthesisTestCase {
 }
 
 func TestGroupParenthesisRandom(t *testing.T) {
-	// Check randomly generated possible combinations of parenthesis (up to some small depth)
-
 	for _, tc := range generateRandomCases() {
 		t.Run(tc.input, func(t *testing.T) {
 			lexed := lexer_core.Lex(tc.input, parenthesisRuleList)
@@ -249,14 +248,11 @@ func FuzzGroupParenthesis(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input string) {
 		lexed := lexer_core.Lex(input, parenthesisRuleList)
+
 		node := parser_core.TokensToNode(lexed)
+		assert.Equal(t, input, ConcatTokenNodes(node))
 
 		GroupParenthesis(node)
-
-		reconstructed := ""
-		VisitTokenNodes(node, func(t parser_core.TokenNode) {
-			reconstructed += t.Token.RawValue
-		})
-		assert.Equal(t, input, reconstructed)
+		assert.Equal(t, input, ConcatTokenNodes(node))
 	})
 }
