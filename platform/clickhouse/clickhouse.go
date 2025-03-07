@@ -48,6 +48,7 @@ func PartitionStrategyFromString(s string) PartitionStrategy {
 	case "yearly":
 		return Yearly
 	default:
+		logger.Warn().Msgf("Failed to parse partitioning strategy '%s'", s)
 		return None
 	}
 }

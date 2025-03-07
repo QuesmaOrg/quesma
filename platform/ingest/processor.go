@@ -641,8 +641,12 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	var tableConfig *chLib.ChTableConfig
 	var createTableCmd string
 	if table == nil {
-		tableConfig = NewOnlySchemaFieldsCHConfig(ip.cfg.ClusterName, ip.cfg.ClickHouse.DefaultPartitioningStrategy)
-
+		tableConfig = NewOnlySchemaFieldsCHConfig(ip.cfg.ClusterName)
+		if indexConfig, ok := ip.cfg.IndexConfig[tableName]; ok {
+			tableConfig.PartitionStrategy = chLib.PartitionStrategyFromString(indexConfig.PartitioningStrategy)
+		} else if strategy := ip.cfg.DefaultPartitioningStrategy; strategy != "" {
+			tableConfig.PartitionStrategy = chLib.PartitionStrategyFromString(strategy)
+		}
 		columnsFromJson := JsonToColumns(transformedJsons[0], tableConfig)
 
 		fieldOrigins := make(map[schema.FieldName]schema.FieldSource)
@@ -1007,14 +1011,13 @@ func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.Backend
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
 }
 
-func NewOnlySchemaFieldsCHConfig(clusterName, partitioningStrategy string) *chLib.ChTableConfig {
+func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
 		HasTimestamp:         true,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
 		//PartitionBy:                           "",
-		PartitionStrategy:                     chLib.PartitionStrategyFromString(partitioningStrategy),
 		ClusterName:                           clusterName,
 		PrimaryKey:                            "",
 		Ttl:                                   "",

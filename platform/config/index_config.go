@@ -20,7 +20,9 @@ type IndexConfiguration struct {
 	UseCommonTable  bool                              `koanf:"useCommonTable"`
 	Target          any                               `koanf:"target"`
 
-	EnableFieldMapSyntax bool `koanf:"enableFieldMapSyntax"`
+	// PartitioningStrategy adds PARTITION BY clause to the table creation query
+	PartitioningStrategy string `koanf:"partitioningStrategy"` // Experimental feature
+	EnableFieldMapSyntax bool   `koanf:"enableFieldMapSyntax"` // Experimental feature
 
 	// Computed based on the overall configuration
 	QueryTarget  []string

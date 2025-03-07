@@ -85,15 +85,14 @@ type BackendConnector struct {
 // RelationalDbConfiguration works fine for non-relational databases too, consider rename
 type RelationalDbConfiguration struct {
 	//ConnectorName string `koanf:"name"`
-	ConnectorType               string `koanf:"type"`
-	Url                         *Url   `koanf:"url"`
-	User                        string `koanf:"user"`
-	Password                    string `koanf:"password"`
-	Database                    string `koanf:"database"`
-	ClusterName                 string `koanf:"clusterName"`                 // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
-	DefaultPartitioningStrategy string `koanf:"defaultPartitioningStrategy"` // when creating tables by Quesma - they'll use this partitioning strategy
-	AdminUrl                    *Url   `koanf:"adminUrl"`
-	DisableTLS                  bool   `koanf:"disableTLS"`
+	ConnectorType string `koanf:"type"`
+	Url           *Url   `koanf:"url"`
+	User          string `koanf:"user"`
+	Password      string `koanf:"password"`
+	Database      string `koanf:"database"`
+	ClusterName   string `koanf:"clusterName"` // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
+	AdminUrl      *Url   `koanf:"adminUrl"`
+	DisableTLS    bool   `koanf:"disableTLS"`
 }
 
 func (c *RelationalDbConfiguration) IsEmpty() bool {
@@ -341,6 +340,13 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				}
 				if queryIndexConf.UseCommonTable != ingestIndexConf.UseCommonTable {
 					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable' for index '%s' due to current limitations", indexName)
+				}
+				if queryIndexConf.PartitioningStrategy != ingestIndexConf.PartitioningStrategy {
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'partitioningStrategy' for index '%s' due to current limitations", indexName)
+				}
+				allowedPartitioningStrategies := []string{"", "hourly", "daily", "monthly", "yearly"} // can't cause import cycle, but that's coming from `platform/clickhouse/clickhouse.go`
+				if !slices.Contains(allowedPartitioningStrategies, queryIndexConf.PartitioningStrategy) {
+					return fmt.Errorf("partitioning strategy '%s' is not allowed for index '%s', only %s are supported", queryIndexConf.PartitioningStrategy, indexName, allowedPartitioningStrategies)
 				}
 				if queryIndexConf.SchemaOverrides == nil || ingestIndexConf.SchemaOverrides == nil {
 					if queryIndexConf.SchemaOverrides != ingestIndexConf.SchemaOverrides {
@@ -843,6 +849,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 		if defaultQueryConfig, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
 			conf.DefaultQueryOptimizers = defaultQueryConfig.Optimizers
+			conf.DefaultPartitioningStrategy = queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].PartitioningStrategy
 		} else {
 			conf.DefaultQueryOptimizers = nil
 		}
