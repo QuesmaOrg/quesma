@@ -525,7 +525,6 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 	var hasWildcard bool
 
 	for _, selectColumn := range query.SelectCommand.Columns {
-
 		if selectColumn == model.NewWildcardExpr {
 			hasWildcard = true
 		} else {
@@ -538,7 +537,7 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 		cols := make([]string, 0, len(indexSchema.Fields))
 		for _, col := range indexSchema.Fields {
 			// Take only fields that are ingested
-			if col.Origin == schema.FieldSourceIngest || col.Origin == schema.FieldSourceMapping {
+			if col.Origin == schema.FieldSourceIngest {
 				cols = append(cols, col.PropertyName.AsString())
 			}
 		}
@@ -592,7 +591,6 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 	var err error
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
 		// full text field should be used only in where clause
 		if e.ColumnName == model.FullTextFieldNamePlaceHolder {
 			err = fmt.Errorf("full text field name placeholder found in query")
@@ -718,6 +716,20 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 		if e.ColumnName == model.FullTextFieldNamePlaceHolder || e.ColumnName == common_table.IndexNameColumn {
 			return e
 		}
+		// 1. we check if the field name point to the map
+		if s.isFieldMapSyntaxEnabled(query) {
+			elements := strings.Split(e.ColumnName, ".")
+			if len(elements) > 1 {
+				if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
+					// check if we have map type, especially  Map(String, any) here
+					if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
+						(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
+							strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
+						return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
+					}
+				}
+			}
+		}
 
 		// This is workaround.
 		// Our query parse resolves columns sometimes. Here we detect it and skip the resolution.
@@ -731,21 +743,6 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 		} else {
 			// here we didn't find a column by field name,
 			// we try some other options
-
-			// 1. we check if the field name point to the map
-			if s.isFieldMapSyntaxEnabled(query) {
-				elements := strings.Split(e.ColumnName, ".")
-				if len(elements) > 1 {
-					if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
-						// check if we have map type, especially  Map(String, any) here
-						if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
-							(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
-								strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
-							return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
-						}
-					}
-				}
-			}
 
 			// 2. maybe we should use attributes
 
