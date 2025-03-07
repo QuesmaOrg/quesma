@@ -1068,6 +1068,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+				rhsValue = strings.Trim(rhsValue, "%")
 				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
 			default:
 				return model.NewInfixExpr(lhs, "iLIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))

@@ -757,6 +757,11 @@ func SingleQuote(value string) string {
 	return "'" + value + "'"
 }
 
+// IsSingleQuoted checks if a string is single-quoted
+func IsSingleQuoted(s string) bool {
+	return len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\''
+}
+
 // SingleQuoteIfString is a simple helper function: (str -> 'str', other -> other)
 func SingleQuoteIfString(value any) any {
 	if str, ok := value.(string); ok {

@@ -77,8 +77,15 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 		case NotEscapedLikePrefix:
 			return util.SingleQuote(escapeStringLike(escapeStringNormal(val)) + "%")
 		case NotEscapedLikeFull:
-			return util.SingleQuote("%" + escapeStringLike(escapeStringNormal(val)) + "%")
+			withoutPercents := escapeStringLike(escapeStringNormal(val))
+			if util.IsSingleQuoted(val) {
+				util.SingleQuote("%" + withoutPercents[1:len(withoutPercents)-1] + "%")
+			}
+			return util.SingleQuote("%" + withoutPercents + "%")
 		case FullyEscaped:
+			if util.IsSingleQuoted(val) {
+				return val
+			}
 			return util.SingleQuote(val)
 		default:
 			logger.WarnWithThrottling("unknown_literal", "VisitLiteral %s", val)

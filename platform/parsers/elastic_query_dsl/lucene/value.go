@@ -56,6 +56,7 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 		if len(termAsStringToClickhouse) > 0 && (termAsStringToClickhouse[0] != '\'' || termAsStringToClickhouse[len(termAsStringToClickhouse)-1] != '\'') {
 			termAsStringToClickhouse = fmt.Sprintf("'%s'", termAsStringToClickhouse)
 		}
+		fmt.Println("at end, lol", termAsStringToClickhouse)
 		return model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteralWithEscapeType(termAsStringToClickhouse, model.FullyEscaped))
 	}
 }
