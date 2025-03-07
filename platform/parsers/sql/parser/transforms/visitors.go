@@ -5,9 +5,9 @@ package transforms
 
 import "github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
 
-func VisitListNodes(node core.Node, visitor func(nodeListNode *core.NodeListNode) []core.Node) {
+func TransformListNodes(node core.Node, visitor func(nodeListNode *core.NodeListNode) []core.Node) {
 	for _, child := range node.Children() {
-		VisitListNodes(child, visitor)
+		TransformListNodes(child, visitor)
 	}
 	if nodeListNode, ok := node.(*core.NodeListNode); ok {
 		newNodes := visitor(nodeListNode)
@@ -22,4 +22,12 @@ func VisitTokenNodes(node core.Node, visitor func(tokenNode core.TokenNode)) {
 	if tokenNode, ok := node.(core.TokenNode); ok {
 		visitor(tokenNode)
 	}
+}
+
+func ConcatTokenNodes(node core.Node) string {
+	result := ""
+	VisitTokenNodes(node, func(tokenNode core.TokenNode) {
+		result += tokenNode.Token.RawValue
+	})
+	return result
 }

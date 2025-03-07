@@ -5,56 +5,75 @@ package transforms
 
 import "github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
 
-func TransformPipeSyntax(node core.Node) core.Node {
-	nodeList, ok := node.(*core.NodeListNode)
-	if !ok {
-		// TODO: this should recurse into the node generally
-		return node
+type PipeNode struct {
+	BeforePipe core.Node
+	Pipes      []core.Node
+}
+
+func (n PipeNode) String() string {
+	result := "PipeNode[\n"
+	result += "BeforePipe: " + n.BeforePipe.String() + ",\n"
+	result += "Pipes: ["
+	for i, pipe := range n.Pipes {
+		if i > 0 {
+			result += ", "
+		}
+		result += pipe.String()
 	}
+	result += "]\n"
+	result += "]"
+	return result
+}
 
-	var beforePipe []core.Node
+func (n PipeNode) Children() []core.Node {
+	children := []core.Node{n.BeforePipe}
+	children = append(children, n.Pipes...)
+	return children
+}
 
-	var i int
-	for i = 0; i < len(nodeList.Nodes); i++ {
-		if tokenNode, ok := nodeList.Nodes[i].(core.TokenNode); ok {
-			if tokenNode.Token.RawValue == "|>" {
+func TransformPipeSyntax(node core.Node) {
+	TransformListNodes(node, func(nodeList *core.NodeListNode) []core.Node {
+		var beforePipe []core.Node
+
+		var i int
+		for i = 0; i < len(nodeList.Nodes); i++ {
+			if isPipeOperator(nodeList.Nodes[i]) {
 				break
 			}
+			beforePipe = append(beforePipe, nodeList.Nodes[i])
 		}
-		beforePipe = append(beforePipe, nodeList.Nodes[i])
-	}
 
-	var currentPipe []core.Node
-	var pipes []core.Node
+		var currentPipe []core.Node
+		var pipes []core.Node
 
-	appendCurrentPipe := func() {
-		if len(currentPipe) > 0 {
-			pipes = append(pipes, core.NodeListNode{Nodes: currentPipe})
-			currentPipe = nil
-		}
-	}
-
-	for ; i < len(nodeList.Nodes); i++ {
-		if tokenNode, ok := nodeList.Nodes[i].(core.TokenNode); ok {
-			if tokenNode.Token.RawValue == "|>" {
-				appendCurrentPipe()
+		appendCurrentPipe := func() {
+			if len(currentPipe) > 0 {
+				pipes = append(pipes, core.NodeListNode{Nodes: currentPipe})
+				currentPipe = nil
 			}
 		}
 
-		currentPipe = append(currentPipe, nodeList.Nodes[i])
-	}
-	appendCurrentPipe()
+		for ; i < len(nodeList.Nodes); i++ {
+			if isPipeOperator(nodeList.Nodes[i]) {
+				appendCurrentPipe()
+			}
 
-	for i, node := range beforePipe {
-		beforePipe[i] = TransformPipeSyntax(node)
-	}
+			currentPipe = append(currentPipe, nodeList.Nodes[i])
+		}
+		appendCurrentPipe()
 
-	if len(pipes) == 0 {
-		return node
-	}
+		if len(pipes) == 0 {
+			return nodeList.Nodes
+		}
 
-	return &core.PipeNode{
-		BeforePipe: core.NodeListNode{Nodes: beforePipe},
-		Pipes:      pipes,
-	}
+		return []core.Node{&PipeNode{
+			BeforePipe: core.NodeListNode{Nodes: beforePipe},
+			Pipes:      pipes,
+		}}
+	})
+}
+
+func isPipeOperator(node core.Node) bool {
+	tokenNode, ok := node.(core.TokenNode)
+	return ok && tokenNode.Token.RawValue == "|>"
 }
