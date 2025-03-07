@@ -8,6 +8,8 @@ require (
 	github.com/stretchr/testify v1.10.0
 )
 
+replace github.com/QuesmaOrg/quesma/platform => ../platform
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6 // indirect

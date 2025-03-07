@@ -1,25 +1,19 @@
 FROM golang:alpine AS builder
 
-
-WORKDIR /cmd
-
-COPY go.mod go.sum ./
-
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
+COPY platform /platform
+COPY cmd /cmd
 
 ENV GOCACHE=/root/.cache/go-build
 ARG QUESMA_BUILD_SHA
 ARG QUESMA_VERSION
 ARG QUESMA_BUILD_DATE
 
-COPY util/healthcheck util/healthcheck
+WORKDIR /cmd
 
 RUN --mount=type=cache,target="/root/.cache/go-build" \
     --mount=type=cache,target=/go/pkg/mod  \
     go build -o healthcheck ./util/healthcheck
 
-COPY . .
 
 RUN --mount=type=cache,target="/root/.cache/go-build" \
     --mount=type=cache,target=/go/pkg/mod  \

@@ -472,6 +472,20 @@ func resolveColumn(colName, colType string) *Column {
 			isNullable = true
 			arrayType = strings.TrimSuffix(strings.TrimPrefix(arrayType, "Nullable("), ")")
 		}
+		if isArrayType(arrayType) {
+			innerColumn := resolveColumn("inner", arrayType)
+			if innerColumn == nil {
+				logger.Warn().Msgf("invalid inner array type for column %s, %s", colName, colType)
+				return nil
+			}
+			return &Column{
+				Name: colName,
+				Type: CompoundType{
+					Name:     "Array",
+					BaseType: innerColumn.Type,
+				},
+			}
+		}
 		GoType := ResolveType(arrayType)
 		if GoType != nil {
 			return &Column{

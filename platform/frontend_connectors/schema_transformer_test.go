@@ -1344,3 +1344,147 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 		})
 	}
 }
+
+func Test_mapKeys(t *testing.T) {
+
+	indexConfig := map[string]config.IndexConfiguration{
+		"test":  {EnableFieldMapSyntax: true},
+		"test2": {EnableFieldMapSyntax: false},
+	}
+
+	fields := map[schema.FieldName]schema.Field{
+		"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+		"foo":        {PropertyName: "foo", InternalPropertyName: "foo", InternalPropertyType: "Map(String, String)", Type: schema.QuesmaTypeMap},
+		"sizes":      {PropertyName: "sizes", InternalPropertyName: "sizes", InternalPropertyType: "Map(String, Int64)", Type: schema.QuesmaTypeMap},
+	}
+
+	indexSchema := schema.Schema{
+		Fields: fields,
+	}
+
+	tableMap := clickhouse.NewTableMap()
+
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
+	for indexName := range indexConfig {
+		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+	}
+
+	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
+
+	tests := []struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}{
+
+		{
+			name: "match operator transformation for String (ILIKE)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("foo")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("foo.bar"),
+						model.MatchOperator,
+						model.NewLiteral("'baz'"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("foo")},
+					WhereClause: model.NewInfixExpr(
+						model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
+						"iLIKE",
+						model.NewLiteral("'%baz%'"),
+					),
+				},
+			},
+		},
+
+		{
+			name: "match operator transformation for int (=)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("foo")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("sizes.bar"),
+						model.MatchOperator,
+						model.NewLiteral("1"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("foo")},
+					WhereClause: model.NewInfixExpr(
+						model.NewFunction("arrayElement", model.NewColumnRef("sizes"), model.NewLiteral("'bar'")),
+						"=",
+						model.NewLiteral("1"),
+					),
+				},
+			},
+		},
+
+		{
+			name: "not enabled opt-in flag, we do not transform at all",
+			query: &model.Query{
+				TableName: "test2",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test2"),
+					Columns:    []model.Expr{model.NewColumnRef("foo")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("foo.bar"),
+						model.MatchOperator,
+						model.NewLiteral("'baz'"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test2",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test2"),
+					Columns:    []model.Expr{model.NewColumnRef("foo")},
+					WhereClause: model.NewInfixExpr(
+						model.NewLiteral("NULL"),
+						model.MatchOperator,
+						model.NewLiteral("'baz'"),
+					),
+				},
+			},
+		},
+	}
+
+	asString := func(query *model.Query) string {
+		return query.SelectCommand.String()
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.query.Schema = indexSchema
+			tt.query.Indexes = []string{tt.query.TableName}
+			actual, err := transform.Transform([]*model.Query{tt.query})
+			assert.NoError(t, err)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.True(t, len(actual) == 1, "len queries == 1")
+
+			expectedJson := asString(tt.expected)
+			actualJson := asString(actual[0])
+
+			assert.Equal(t, expectedJson, actualJson)
+		})
+	}
+
+}
