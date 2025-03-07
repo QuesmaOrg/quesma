@@ -26,6 +26,33 @@ const (
 	allElasticsearchIndicesPattern = "_all"
 )
 
+// PartitionStrategy represents a configurable partitioning strategy for ClickHouse tables created by Quesma
+type PartitionStrategy string
+
+const (
+	Hourly  PartitionStrategy = "hourly"
+	Daily   PartitionStrategy = "daily"
+	Monthly PartitionStrategy = "monthly"
+	Yearly  PartitionStrategy = "yearly"
+	None    PartitionStrategy = ""
+)
+
+func PartitionStrategyFromString(s string) PartitionStrategy {
+	switch s {
+	case "hourly":
+		return Hourly
+	case "daily":
+		return Daily
+	case "monthly":
+		return Monthly
+	case "yearly":
+		return Yearly
+	default:
+		logger.Warn().Msgf("Failed to parse partitioning strategy '%s'", s)
+		return None
+	}
+}
+
 type (
 	LogManager struct {
 		ctx            context.Context
@@ -55,10 +82,11 @@ type (
 		ClusterName          string // Name of the cluster if created with `CREATE TABLE ... ON CLUSTER ClusterName`
 		Engine               string // "Log", "MergeTree", etc.
 		OrderBy              string // "" if none
-		PartitionBy          string // "" if none
-		PrimaryKey           string // "" if none
-		Settings             string // "" if none
-		Ttl                  string // of type Interval, e.g. 3 MONTH, 1 YEAR
+		//PartitionBy          string // "" if none
+		PartitionStrategy PartitionStrategy // PartitionStrategy to be applied to tables created by Quesma
+		PrimaryKey        string            // "" if none
+		Settings          string            // "" if none
+		Ttl               string            // of type Interval, e.g. 3 MONTH, 1 YEAR
 		// look https://clickhouse.com/docs/en/sql-reference/data-types/special-data-types/interval
 		// "" if none
 		// TODO make sure it's unique in schema (there's no other 'others' field)
@@ -360,9 +388,9 @@ func NewDefaultCHConfig() *ChTableConfig {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
-		PartitionBy:          "",
-		PrimaryKey:           "",
-		Ttl:                  "",
+		//PartitionBy:          "",
+		PrimaryKey: "",
+		Ttl:        "",
 		Attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
@@ -381,9 +409,9 @@ func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 		TimestampDefaultsNow: false,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
-		PartitionBy:          "",
-		PrimaryKey:           "",
-		Ttl:                  "",
+		//PartitionBy:          "",
+		PrimaryKey: "",
+		Ttl:        "",
 		Attributes: []Attribute{
 			NewDefaultStringAttribute(),
 		},

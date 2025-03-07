@@ -47,14 +47,15 @@ type QuesmaConfiguration struct {
 	DisableAuth                bool
 	AutodiscoveryEnabled       bool
 
-	EnableIngest              bool // this is computed from the configuration 2.0
-	CreateCommonTable         bool
-	ClusterName               string // When creating tables Quesma will append `ON CLUSTER ClusterName` clause
-	UseCommonTableForWildcard bool   //the meaning of this is to use a common table for wildcard (default) indexes
-	DefaultIngestTarget       []string
-	DefaultQueryTarget        []string
-	DefaultIngestOptimizers   map[string]OptimizerConfiguration
-	DefaultQueryOptimizers    map[string]OptimizerConfiguration
+	DefaultPartitioningStrategy string // applied from the "*" index configuration
+	EnableIngest                bool   // this is computed from the configuration 2.0
+	CreateCommonTable           bool
+	ClusterName                 string // When creating tables Quesma will append `ON CLUSTER ClusterName` clause
+	UseCommonTableForWildcard   bool   //the meaning of this is to use a common table for wildcard (default) indexes
+	DefaultIngestTarget         []string
+	DefaultQueryTarget          []string
+	DefaultIngestOptimizers     map[string]OptimizerConfiguration
+	DefaultQueryOptimizers      map[string]OptimizerConfiguration
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
