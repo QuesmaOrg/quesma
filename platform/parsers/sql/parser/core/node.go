@@ -51,29 +51,3 @@ func TokensToNode(tokens []core.Token) Node {
 
 	return &NodeListNode{Nodes: nodes}
 }
-
-type PipeNode struct {
-	BeforePipe Node
-	Pipes      []Node
-}
-
-func (n PipeNode) String() string {
-	result := "PipeNode[\n"
-	result += "BeforePipe: " + n.BeforePipe.String() + ",\n"
-	result += "Pipes: ["
-	for i, pipe := range n.Pipes {
-		if i > 0 {
-			result += ", "
-		}
-		result += pipe.String()
-	}
-	result += "]\n"
-	result += "]"
-	return result
-}
-
-func (n PipeNode) Children() []Node {
-	children := []Node{n.BeforePipe}
-	children = append(children, n.Pipes...)
-	return children
-}

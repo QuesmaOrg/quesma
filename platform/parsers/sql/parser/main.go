@@ -9,6 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/dialect_sqlparse"
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/transforms"
+	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/transpiler"
 )
 
 func main() {
@@ -16,9 +17,10 @@ func main() {
 
 	//tokens := lexer_core.Lex(`SELECT * FROM tabela WHERE b = 9 |> JOIN tabela2 ON b = d |> WHERE b = 3 |> ORDER BY b |> WHERE d = 9 |> SELECT a, b, c |> LIMIT 100`, dialect_sqlparse.SqlparseRules)
 	node := core.TokensToNode(tokens)
-	transforms.GroupParenthesis(node)
-	node = transforms.TransformPipeSyntax(node)
 
-	transpiled := Transpile(node)
+	transforms.GroupParenthesis(node)
+	transforms.TransformPipeSyntax(node)
+
+	transpiled := transpiler.Transpile(node.(*core.NodeListNode).Nodes[0])
 	fmt.Println(PrettyPrint(transpiled))
 }

@@ -17,7 +17,7 @@ import (
 // https://github.com/andialbrecht/sqlparse/blob/a801100e9843786a9139bebb97c951603637129c/sqlparse/engine/grouping.py#L56-L57
 
 func GroupParenthesis(node core.Node) {
-	VisitListNodes(node, func(nodeListNode *core.NodeListNode) []core.Node {
+	TransformListNodes(node, func(nodeListNode *core.NodeListNode) []core.Node {
 		parser := groupParenthesisParser{nodes: nodeListNode.Nodes, currentPos: 0}
 		return parser.Parse(false)
 	})

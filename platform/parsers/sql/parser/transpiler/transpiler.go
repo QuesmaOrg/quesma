@@ -1,9 +1,10 @@
-package main
+package transpiler
 
 import (
 	"fmt"
 	lexer_core "github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
+	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/transforms"
 	"strings"
 )
 
@@ -20,7 +21,7 @@ type TranspileState struct {
 func Transpile(node core.Node) core.Node {
 	state := TranspileState{}
 
-	pipeNode, ok := node.(*core.PipeNode)
+	pipeNode, ok := node.(*transforms.PipeNode)
 	if !ok {
 		return node
 	}
