@@ -344,6 +344,9 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				if queryIndexConf.PartitioningStrategy != ingestIndexConf.PartitioningStrategy {
 					return fmt.Errorf("ingest and query processors must have the same configuration of 'partitioningStrategy' for index '%s' due to current limitations", indexName)
 				}
+				if ingestIndexConf.PartitioningStrategy != "" && ingestIndexConf.UseCommonTable { // we don't check for queryIndexConf.PartitioningStrategy per previous check
+					return fmt.Errorf("partitioning strategy cannot be set for index '%s' - common table partitioning is NOT supported", indexName)
+				}
 				allowedPartitioningStrategies := []string{"", "hourly", "daily", "monthly", "yearly"} // can't cause import cycle, but that's coming from `platform/clickhouse/clickhouse.go`
 				if !slices.Contains(allowedPartitioningStrategies, queryIndexConf.PartitioningStrategy) {
 					return fmt.Errorf("partitioning strategy '%s' is not allowed for index '%s', only %s are supported", queryIndexConf.PartitioningStrategy, indexName, allowedPartitioningStrategies)
