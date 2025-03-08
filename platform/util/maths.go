@@ -31,6 +31,6 @@ func IsInt(s string) bool {
 }
 
 // ToInt64 converts a string to int64
-func ToInt64(s string) (i int64, err error) {
+func ToInt64(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)
 }

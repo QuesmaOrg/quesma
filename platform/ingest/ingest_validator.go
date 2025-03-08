@@ -89,7 +89,6 @@ func validateNumericRange(columnType string, value interface{}) (isValid bool) {
 }
 
 func validateNumericType(columnType string, incomingValueType string, value interface{}) (isValid bool) {
-	fmt.Printf("KK %v %v %v value type: %T\n", columnType, incomingValueType, value, value)
 	if isFloatingPointType(columnType) && isNumericType(incomingValueType) {
 		return true
 	}
@@ -107,13 +106,17 @@ func validateNumericType(columnType string, incomingValueType string, value inte
 	}
 	if isIntegerType(columnType) && incomingValueType == "String" {
 		if valueAsStr, ok := value.(string); ok && util.IsInt(valueAsStr) {
-			valueAsInt, _ := util.ToInt64(valueAsStr)
-			fmt.Println("HH", valueAsInt)
+			valueAsInt, err := util.ToInt64(valueAsStr)
+			if err != nil {
+				logger.Error().Msgf("Failed to convert value to int: %v", valueAsStr)
+				return false
+			}
 			return validateNumericRange(columnType, valueAsInt)
 		} else {
 			logger.Error().Msgf("Invalid value type for column of type %s: %T, value: %v", columnType, value, value)
 		}
 	}
+
 	return false
 }
 
