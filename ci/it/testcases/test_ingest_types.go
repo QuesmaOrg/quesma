@@ -309,7 +309,7 @@ func (a *IngestTypesTestcase) testSupportedTypesInDefaultSetup(ctx context.Conte
 			resp, bytes := a.RequestToQuesma(ctx, t, "GET", "/"+indexName+"/_search", []byte(`
 { "query": { "match_all": {} } }
 `))
-			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, http.StatusOK, resp.StatusCode, "response status code: %d, response body: %s", resp.StatusCode, string(bytes))
 
 			r.querySuccess = true
 
