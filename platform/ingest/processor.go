@@ -24,6 +24,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/goccy/go-json"
+	"github.com/k0kubun/pp"
 	"slices"
 	"sort"
 	"strconv"
@@ -505,6 +506,9 @@ func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[s
 	return false, nil
 }
 
+var M = map[string]bool{}
+var MLock = sync.Mutex{}
+
 func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	data types.JSON,
 	inValidJson types.JSON,
@@ -544,6 +548,18 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	// this map is then used to generate non-schema fields string
 	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
 	nonSchemaFields, err := generateNonSchemaFields(attrsMapWithInvalidFields)
+
+	MLock.Lock()
+	defer MLock.Unlock()
+	if _, exists := M[table.Name]; !exists && table.Name == "kibana_sample_data_flights" {
+		fmt.Println("Table name: ", table.Name)
+		pp.Println("nonschema", nonSchemaFields, "attrs", attrsMapWithInvalidFields)
+		fmt.Println("Table name: ", table.Name)
+		pp.Println("attrsMap", attrsMap)
+		pp.Println("invalidJson", inValidJson)
+		pp.Println("data", data)
+		M[table.Name] = true
+	}
 
 	if err != nil {
 		return nil, nil, nil, err

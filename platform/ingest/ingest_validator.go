@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"math"
 )
 
@@ -88,11 +89,30 @@ func validateNumericRange(columnType string, value interface{}) (isValid bool) {
 }
 
 func validateNumericType(columnType string, incomingValueType string, value interface{}) (isValid bool) {
+	fmt.Printf("KK %v %v %v value type: %T\n", columnType, incomingValueType, value, value)
 	if isFloatingPointType(columnType) && isNumericType(incomingValueType) {
 		return true
 	}
 	if isIntegerType(columnType) && isIntegerType(incomingValueType) {
 		return validateNumericRange(columnType, value)
+	}
+
+	// numbers incoming as strings
+	if isFloatingPointType(columnType) && incomingValueType == "String" {
+		if valueAsStr, ok := value.(string); ok {
+			return util.IsFloat(valueAsStr)
+		} else {
+			logger.Error().Msgf("Invalid value type for column of type %s: %T, value: %v", columnType, value, value)
+		}
+	}
+	if isIntegerType(columnType) && incomingValueType == "String" {
+		if valueAsStr, ok := value.(string); ok && util.IsInt(valueAsStr) {
+			valueAsInt, _ := util.ToInt64(valueAsStr)
+			fmt.Println("HH", valueAsInt)
+			return validateNumericRange(columnType, valueAsInt)
+		} else {
+			logger.Error().Msgf("Invalid value type for column of type %s: %T, value: %v", columnType, value, value)
+		}
 	}
 	return false
 }
