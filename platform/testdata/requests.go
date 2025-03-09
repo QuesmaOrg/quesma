@@ -1133,7 +1133,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"host_name" __quesma_match '%prometheus%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name" __quesma_match '%prometheus%' LIMIT 10`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name" iLIKE '%prometheus%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [6]
@@ -1151,8 +1151,8 @@ var TestsSearch = []SearchTestCase{
 		[]string{`((("message" __quesma_match '%this%' OR "message" __quesma_match '%is%') OR "message" __quesma_match '%a%') OR "message" __quesma_match '%test%')`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ((("message" __quesma_match '%this%' OR "message" __quesma_match '%is%') ` +
-				`OR "message" __quesma_match '%a%') OR "message" __quesma_match '%test%') ` +
+			`SELECT "message" FROM ` + TableName + ` WHERE ((("message" iLIKE '%this%' OR "message" iLIKE '%is%') ` +
+				`OR "message" iLIKE '%a%') OR "message" iLIKE '%test%') ` +
 				`LIMIT 100`,
 		},
 		[]string{},
@@ -1254,7 +1254,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"exception-list-agnostic.list_id" __quesma_match '%endpoint\_event\_filters%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id" __quesma_match '%endpoint\\_event\\_filters%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id" iLIKE '%endpoint\\_event\\_filters%'`},
 		[]string{},
 	},
 	{ // [10]
@@ -1281,7 +1281,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{fullTextFieldName + ` __quesma_match '%ingest-agent-policies%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ` + fullTextFieldName + ` __quesma_match '%ingest-agent-policies%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ` + fullTextFieldName + ` iLIKE '%ingest-agent-policies%'`},
 		[]string{},
 	},
 	{ // [11]
@@ -1329,7 +1329,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"alert.actions.actionRef" iLIKE 'preconfigured:%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "alert.actions.actionRef" __quesma_match 'preconfigured:%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "alert.actions.actionRef" iLIKE 'preconfigured:%'`},
 		[]string{},
 	},
 	{ // [13]
@@ -1344,7 +1344,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"user" iLIKE 'ki%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user" __quesma_match 'ki%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user" iLIKE 'ki%'`},
 		[]string{},
 	},
 	{ // [14]
@@ -1359,7 +1359,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"user" iLIKE 'ki\%\_\\ \\\%%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user" __quesma_match 'ki\\%\\_\\\\ \\\\\\%%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user" iLIKE 'ki\\%\\_\\\\ \\\\\\%%'`},
 		[]string{},
 	},
 	{ // [15]
@@ -1416,7 +1416,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" __quesma_match '%this is a test%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" __quesma_match '%this is a test%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%this is a test%'`},
 		[]string{},
 	},
 	{ // [18]
@@ -1434,7 +1434,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" __quesma_match '%this is a test%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" __quesma_match '%this is a test%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%this is a test%'`},
 		[]string{},
 	},
 	{ // [19]
@@ -1544,7 +1544,7 @@ var TestsSearch = []SearchTestCase{
 			  "stream_namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE ("message" __quesma_match '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
+			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
 			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -1712,7 +1712,7 @@ var TestsSearch = []SearchTestCase{
 			  "stream_namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" __quesma_match '%User logged out%' AND "host_name" __quesma_match '%poseidon%')
+			WHERE (("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
@@ -1789,7 +1789,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE ("message" __quesma_match '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
+			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -1859,7 +1859,7 @@ var TestsSearch = []SearchTestCase{
 			`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))) ` +
 				`AND "namespace" IS NOT NULL)`,
-			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
+			`(("message" iLIKE '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))`,
 		},
 		model.Normal,
@@ -1870,7 +1870,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" __quesma_match '%User logged out%' AND "host_name" __quesma_match '%poseidon%')
+			WHERE (("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
@@ -1946,7 +1946,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE ("message" __quesma_match '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
+			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -2099,7 +2099,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("message" __quesma_match '%User logged out%' AND "message" __quesma_match '%User logged out%')`,
+				`WHERE ("message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%')`,
 		},
 		[]string{},
 	},
@@ -2357,7 +2357,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`"message" __quesma_match '%
 Men\'s Clothing \\ 	%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" __quesma_match '%
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%
 Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
