@@ -361,20 +361,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [18]
-		TestName:  "metrics aggregation: geo_bounds",
-		QueryType: "geo_bounds",
-		QueryRequestJson: `
-		{
-			"aggs": {
-				"viewport": {
-					"geo_bounds": {
-						"field": "geometry"
-					}
-				}
-			}
-		}`,
-	},
 	{ // [19]
 		TestName:  "metrics aggregation: geo_line",
 		QueryType: "geo_line",
