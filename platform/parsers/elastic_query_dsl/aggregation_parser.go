@@ -158,6 +158,13 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		}, true
 	}
 
+	if geoBounds, exists := queryMap["geo_bounds"]; exists {
+		return metricsAggregation{
+			AggrType: "geo_bounds",
+			Fields:   []model.Expr{cw.parseFieldField(geoBounds, "geo_bounds")},
+		}, true
+	}
+
 	return metricsAggregation{}, false
 }
 
