@@ -1131,7 +1131,7 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"host_name" __quesma_match 'prometheus'`},
+		[]string{`"host_name" __quesma_match '%prometheus%'`},
 		model.ListAllFields,
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name" __quesma_match '%prometheus%' LIMIT 10`},
 		[]string{},
@@ -1148,7 +1148,7 @@ var TestsSearch = []SearchTestCase{
 			"size": 100,
 			"track_total_hits": false
 		}`,
-		[]string{`((("message" __quesma_match 'this' OR "message" __quesma_match 'is') OR "message" __quesma_match 'a') OR "message" __quesma_match 'test')`},
+		[]string{`((("message" __quesma_match '%this%' OR "message" __quesma_match '%is%') OR "message" __quesma_match '%a%') OR "message" __quesma_match '%test%')`},
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" FROM ` + TableName + ` WHERE ((("message" __quesma_match '%this%' OR "message" __quesma_match '%is%') ` +
@@ -1414,7 +1414,7 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"message" __quesma_match 'this is a test'`},
+		[]string{`"message" __quesma_match '%this is a test%'`},
 		model.ListAllFields,
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" __quesma_match '%this is a test%'`},
 		[]string{},
@@ -1432,7 +1432,7 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"message" __quesma_match 'this is a test'`},
+		[]string{`"message" __quesma_match '%this is a test%'`},
 		model.ListAllFields,
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" __quesma_match '%this is a test%'`},
 		[]string{},
@@ -1696,9 +1696,9 @@ var TestsSearch = []SearchTestCase{
 		"track_total_hits": true
 	}`,
 		[]string{
-			`(("message" __quesma_match 'User logged out' AND "host.name" __quesma_match 'poseidon') ` +
+			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))`,
-			`((("message" __quesma_match 'User logged out' AND "host.name" __quesma_match 'poseidon') ` +
+			`((("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))) ` +
 				`AND "stream.namespace" IS NOT NULL)`,
 		},
@@ -1856,10 +1856,10 @@ var TestsSearch = []SearchTestCase{
 		"timeout": "1000ms"
 	}`,
 		[]string{
-			`(("message" iLIKE 'User logged out' AND "host.name" iLIKE 'poseidon') ` +
+			`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))) ` +
 				`AND "namespace" IS NOT NULL)`,
-			`(("message" __quesma_match 'User logged out' AND "host.name" __quesma_match 'poseidon') ` +
+			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))`,
 		},
 		model.Normal,
@@ -2094,7 +2094,7 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": false,
 			"size": 12
 		}`,
-		[]string{`("message" __quesma_match 'User logged out' AND "message" __quesma_match 'User logged out')`},
+		[]string{`("message" __quesma_match '%User logged out%' AND "message" __quesma_match '%User logged out%')`},
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" ` +
@@ -2354,8 +2354,8 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"message" __quesma_match '
-Men\'s Clothing \\ 	'`},
+		[]string{`"message" __quesma_match '%
+Men\'s Clothing \\ 	%'`},
 		model.ListAllFields,
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" __quesma_match '%
 Men\\'s Clothing \\\\ 	%' LIMIT 10`},

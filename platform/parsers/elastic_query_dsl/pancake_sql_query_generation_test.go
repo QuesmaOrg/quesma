@@ -52,9 +52,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if test.TestName == "TODO Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
 				t.Skip("works IRL, need to update test's schema. It's already WIP https://github.com/QuesmaOrg/quesma/pull/1255. Let's wait for merge.")
 			}
-			if i != 218 {
-				t.Skip()
-			}
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
