@@ -1856,10 +1856,10 @@ var TestsSearch = []SearchTestCase{
 		"timeout": "1000ms"
 	}`,
 		[]string{
-			`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
+			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))) ` +
 				`AND "namespace" IS NOT NULL)`,
-			`(("message" iLIKE '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
+			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))`,
 		},
 		model.Normal,

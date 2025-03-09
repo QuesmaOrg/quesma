@@ -558,8 +558,6 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 		return model.NewSimpleQueryInvalid()
 	}
 
-	fmt.Println("MATCH", queryMap, matchPhrase)
-
 	for fieldName, v := range queryMap {
 		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
 		// (fieldName, v) = either e.g. ("message", "this is a test")
@@ -585,7 +583,6 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					statements = append(statements, simpleStat)
 				}
 			}
-			fmt.Println("STATS", statements)
 			return model.NewSimpleQuery(model.Or(statements), true)
 		}
 
@@ -727,11 +724,9 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 	}
 
 	query := queryMap["query"].(string) // query: (Required, string)
-	pp.Println(query)
-	fmt.Println(query)
+
 	// we always call `TranslateToSQL` - Lucene parser returns "false" in case of invalid query
 	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields, cw.Schema)
-	pp.Println(whereStmtFromLucene)
 	return model.NewSimpleQuery(whereStmtFromLucene, true)
 }
 
