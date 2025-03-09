@@ -300,8 +300,8 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("FlightDelay"==true) AS "metric__0__1-bucket_col_0",
-			  countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0"
+			  countIf(("FlightDelay" __quesma_match true)) AS "metric__0__1-bucket_col_0",
+			  countIf(("Cancelled" __quesma_match true)) AS "metric__0__3-bucket_col_0"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
@@ -852,7 +852,7 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf("FlightDelay"==true) AS "metric__0-bucket_col_0"
+			SELECT countIf(("FlightDelay" __quesma_match true)) AS "metric__0-bucket_col_0"
 			FROM ` + TableName + `
 			 WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))`,
 	},
@@ -1015,7 +1015,7 @@ var AggregationTests = []AggregationTestCase{
 			  <=fromUnixTimestamp64Milli(1706881636029))) AS
 			  "filter_1__aggr__time_offset_split__count"
 			FROM __quesma_table_name
-			WHERE ("FlightDelay"==true AND (("timestamp">=fromUnixTimestamp64Milli(
+			WHERE (("FlightDelay" __quesma_match true) AND (("timestamp">=fromUnixTimestamp64Milli(
 			  1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029)) OR (
 			  "timestamp">=fromUnixTimestamp64Milli(1706276836029) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1706881636029))))`,
@@ -1609,7 +1609,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT "FlightDelayMin" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
 			FROM ` + TableName + `
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=
-              fromUnixTimestamp64Milli(1707486436029)) AND NOT ("FlightDelayMin"==0))
+              fromUnixTimestamp64Milli(1707486436029)) AND NOT (("FlightDelayMin" __quesma_match 0)))
 			GROUP BY "FlightDelayMin" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},
@@ -5326,8 +5326,8 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			    countIf("FlightDelay"==true) AS "metric__0__1-bucket_col_0",
-  				countIf("Cancelled"==true) AS "metric__0__3-bucket_col_0"
+			    countIf(("FlightDelay" __quesma_match true)) AS "metric__0__1-bucket_col_0",
+  				countIf(("Cancelled" __quesma_match true)) AS "metric__0__3-bucket_col_0"
 			FROM ` + TableName + `
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC

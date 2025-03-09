@@ -586,8 +586,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 			return model.NewSimpleQuery(model.Or(statements), true)
 		}
 
-		// so far we assume that only strings can be ORed here
-		statement := model.NewInfixExpr(model.NewColumnRef(fieldName), "==", model.NewLiteral(sprint(vUnNested)))
+		statement := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteral(sprint(vUnNested)))
 		return model.NewSimpleQuery(statement, true)
 	}
 
