@@ -2401,7 +2401,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [43]
+	{ // [44]
 		"ids, 2+ values",
 		`{
 			"query": {
@@ -2424,7 +2424,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [44]
+	{ // [45]
 		"ids with DateTime64(9) (trailing zeroes)",
 		`{
 			"query": {
@@ -2444,7 +2444,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [45]
+	{ // [46]
 		"ids with DateTime64(9) (no trailing zeroes)",
 		`{
 			"query": {
@@ -2464,7 +2464,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [46]
+	{ // [47]
 		"ids with DateTime64(0)",
 		`{
 			"query": {
@@ -2484,7 +2484,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [47]
+	{ // [48]
 		"ids with DateTime64(1)",
 		`{
 			"query": {
@@ -2504,7 +2504,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [48]
+	{ // [49]
 		"_index term",
 		`{
 			"query": { /*one comment */

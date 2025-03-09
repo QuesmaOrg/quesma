@@ -93,11 +93,9 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 		column, ok := e.Left.(model.ColumnRef)
 		if ok {
 			dbType := resolver.dbColumnType(column.ColumnName)
-			logger.Info().Msgf("Column %v (%v)", column.ColumnName, dbType)
 			if strings.HasPrefix(dbType, "Array") {
 				op := strings.TrimSpace(e.Op)
 				opUpperCase := strings.ToUpper(op)
-				logger.Info().Msgf("LOL %v", op)
 				switch {
 				case (opUpperCase == "ILIKE" || opUpperCase == "LIKE" || op == model.MatchOperator) && dbType == "Array(String)":
 

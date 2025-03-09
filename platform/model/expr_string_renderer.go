@@ -7,7 +7,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"github.com/k0kubun/pp"
 	"regexp"
 	"sort"
 	"strconv"
@@ -68,7 +67,6 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 }
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
-	pp.Println("lit", l)
 	switch val := l.Value.(type) {
 	case string:
 		switch l.EscapeType {
@@ -78,9 +76,8 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 			return util.SingleQuote(escapeStringLike(escapeStringNormal(val)) + "%")
 		case NotEscapedLikeFull:
 			withoutPercents := escapeStringLike(escapeStringNormal(val))
-			fmt.Println("withoutPercents", withoutPercents)
 			if util.IsSingleQuoted(val) {
-				return util.SingleQuote("%" + withoutPercents[1:len(withoutPercents)-1] + "%")
+				return util.SingleQuote("%" + strings.Trim(withoutPercents, "'") + "%")
 			}
 			return util.SingleQuote("%" + withoutPercents + "%")
 		case FullyEscaped:
@@ -382,7 +379,6 @@ func (v *renderer) VisitCTE(c CTE) interface{} {
 // escapeStringNormal escapes the given string so that it can be used in a SQL Clickhouse query.
 // It escapes ' and \ characters: ' -> \', \ -> \\.
 func escapeStringNormal(s string) string {
-	fmt.Println("escape in", s)
 	s = strings.ReplaceAll(s, `\`, `\\`) // \ should be escaped with no exceptions
 	if len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\'' {
 		// don't escape the first and last '

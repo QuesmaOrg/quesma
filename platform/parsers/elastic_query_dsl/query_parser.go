@@ -579,7 +579,8 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
 				} else {
-					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteralWithEscapeType("'"+subQuery+"'", model.NotEscapedLikeFull))
+					fullLiteral := model.NewLiteralWithEscapeType("'"+subQuery+"'", model.NotEscapedLikeFull)
+					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, fullLiteral)
 					statements = append(statements, simpleStat)
 				}
 			}
