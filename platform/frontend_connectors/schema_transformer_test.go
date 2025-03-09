@@ -1472,7 +1472,7 @@ func Test_mapKeys(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			actual, err := transform.Transform([]*model.Query{tt.query})
+			actual, err := transform.Transform(context.Background(), []*model.Query{tt.query})
 			assert.NoError(t, err)
 
 			if err != nil {

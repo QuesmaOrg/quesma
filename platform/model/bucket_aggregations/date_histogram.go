@@ -171,7 +171,7 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 		groupBy = model.NewInfixExpr(
 			model.NewFunction(model.ToUnixTimestampMs, query.field),
 			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-			model.NewMillisecondsLiteral(query.timestampColumn, interval.Milliseconds()),
+			model.NewMillisecondsLiteral(query.timestampColumn, time.UnixMilli(interval.Milliseconds())),
 		)
 	} else {
 		offset := model.NewInfixExpr(
@@ -183,7 +183,7 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 				),
 			),
 			"*",
-			model.NewMillisecondsLiteral(query.timestampColumn, 1000),
+			model.NewMillisecondsLiteral(query.timestampColumn, time.UnixMilli(1000)),
 		)
 
 		unixTsWithOffset := model.NewInfixExpr(
@@ -195,7 +195,7 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 		groupBy = model.NewInfixExpr(
 			model.NewParenExpr(unixTsWithOffset),
 			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-			model.NewMillisecondsLiteral(query.timestampColumn, interval.Milliseconds()),
+			model.NewMillisecondsLiteral(query.timestampColumn, time.UnixMilli(interval.Milliseconds())),
 		)
 	}
 
