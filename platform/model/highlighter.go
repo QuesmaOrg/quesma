@@ -3,7 +3,9 @@
 package model
 
 import (
+	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
+	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -44,6 +46,7 @@ func (h *Highlighter) GetSortedTokens(columnName string) []string {
 }
 
 func (h *Highlighter) ShouldHighlight(columnName string) bool {
+	fmt.Println("h.Tokens", h.Tokens)
 	_, ok := h.Tokens[columnName]
 	return ok
 }
@@ -54,6 +57,8 @@ func (h *Highlighter) SetTokensToHighlight(selectCmd SelectCommand) {
 	h.Tokens = make(map[string]Tokens)
 
 	visitor := NewBaseVisitor()
+
+	pp.Println("SELECT COMMAND", selectCmd)
 
 	visitor.OverrideVisitInfix = func(b *BaseExprVisitor, e InfixExpr) interface{} {
 		switch e.Op {
@@ -102,6 +107,8 @@ func (h *Highlighter) HighlightValue(columnName, value string) []string {
 
 	lowerValue := strings.ToLower(value)
 	length := len(lowerValue)
+
+	pp.Println("HIGHLIGHTER", columnName, value, h.GetSortedTokens(columnName))
 
 	// find all matches
 	for _, token := range h.GetSortedTokens(columnName) {

@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl/query_util"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/k0kubun/pp"
 )
 
 type JsonMap = map[string]interface{}
@@ -84,7 +85,7 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) (model.JsonMap, error) {
 	aggregations := model.JsonMap{}
-
+	pp.Println(cw.Table)
 	for i, query := range queries {
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
 			if i >= len(ResultSets) {
