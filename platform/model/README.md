@@ -18,7 +18,7 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
  Boxplot                   |          :x:           | Composite                    | :white_check_mark: | Bucket selector        |        :x:         |
  Cardinality               |   :white_check_mark:   | Date histogram               | :white_check_mark: | Bucket sort            |        :x:         |
  Extended stats            | :white_check_mark:[^1] | Date range                   | :white_check_mark: | Change point           |        :x:         |
- Geo-bounds                |          :x:           | Diversified sampler          |        :x:         | Cumulative cardinality |        :x:         |
+ Geo-bounds                |   :white_check_mark:   | Diversified sampler          |        :x:         | Cumulative cardinality |        :x:         |
  Geo-centroid              |          :x:           | Filter                       | :white_check_mark: | Cumulative sum         | :white_check_mark: |
  Geo-line                  |          :x:           | Filters                      | :white_check_mark: | Derivative             | :white_check_mark: |
  Cartesian-bounds          |          :x:           | Frequent item sets           |        :x:         | Extended stats bucket  |        :x:         |
