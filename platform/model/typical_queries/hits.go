@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/k0kubun/pp"
 	"reflect"
 	"strconv"
 	"strings"
@@ -132,7 +133,7 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 	}
 
 	for _, col := range resultRow.Cols {
-
+		fmt.Println(col)
 		// skip internal columns
 		if col.ColName == common_table.IndexNameColumn {
 			continue
@@ -143,25 +144,29 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 		}
 		columnName := col.ColName
 		hit.Fields[columnName] = toInterfaceArray(col.Value)
+		fmt.Println(col, query.highlighter.ShouldHighlight(util.FieldToColumnEncoder(columnName)))
 		// TODO using using util.FieldToColumnEncoder is a workaround
 		// we first build highlighter tokens using internal representation
 		// then we do postprocessing changing columns to public fields
 		// and then highlighter build json using public one
 		// which is incorrect
-		if query.highlighter.ShouldHighlight(util.FieldToColumnEncoder(columnName)) {
+		if true {
+			//if query.highlighter.ShouldHighlight(util.FieldToColumnEncoder(columnName)) {
 			// check if we have a string here and if so, highlight it
 			switch valueAsString := col.Value.(type) {
 			case string:
-				hit.Highlight[columnName] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), valueAsString)
+				hit.Highlight[columnName+".a"] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), valueAsString)
 			case *string:
 				if valueAsString != nil {
-					hit.Highlight[columnName] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), *valueAsString)
+					hit.Highlight[columnName+".a"] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), *valueAsString)
 				}
 			default:
+				hit.Highlight[columnName] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName)+".a", `"a": "b"`)
 				logger.WarnWithCtx(query.ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)
 			}
 		}
 	}
+	pp.Println("addAndHi", hit.Highlight)
 
 	// TODO: highlight and field checks
 	for fieldName, target := range query.table.Aliases() {
