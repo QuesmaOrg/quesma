@@ -112,11 +112,24 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			// TODO we have create columns according to the schema
 			latColumn := model.NewGeoLat(colName)
 			lonColumn := model.NewGeoLon(colName)
-			castLat := model.NewFunction("CAST", latColumn, model.NewLiteral(fmt.Sprintf("'%s'", "Float")))
-			castLon := model.NewFunction("CAST", lonColumn, model.NewLiteral(fmt.Sprintf("'%s'", "Float")))
-			result = append(result, model.NewFunction("avgOrNull", castLat))
-			result = append(result, model.NewFunction("avgOrNull", castLon))
+			result = append(result, model.NewFunction("avgOrNull", latColumn))
+			result = append(result, model.NewFunction("avgOrNull", lonColumn))
 			result = append(result, model.NewCountFunc())
+		}
+	case "geo_bounds":
+		firstExpr := getFirstExpression()
+		result = make([]model.Expr, 0, 3)
+		if col, ok := firstExpr.(model.ColumnRef); ok {
+			// TODO this is internalPropertyName and should be taken from schema
+			// instead of using util.FieldToColumnEncoder and doing encoding in-place
+			colName := util.FieldToColumnEncoder(col.ColumnName)
+			// TODO we have create columns according to the schema
+			latColumn := model.NewGeoLat(colName)
+			lonColumn := model.NewGeoLon(colName)
+			result = append(result, model.NewFunction("minOrNull", lonColumn))
+			result = append(result, model.NewFunction("argMinOrNull", latColumn, lonColumn))
+			result = append(result, model.NewFunction("minOrNull", latColumn))
+			result = append(result, model.NewFunction("argMinOrNull", lonColumn, latColumn))
 		}
 	default:
 		logger.WarnWithCtx(ctx).Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
@@ -153,6 +166,9 @@ func (cw *ClickhouseQueryTranslator) generateMetricsType(metricsAggr metricsAggr
 		return metrics_aggregations.NewPercentileRanks(cw.Ctx, metricsAggr.CutValues, metricsAggr.Keyed)
 	case "geo_centroid":
 		return metrics_aggregations.NewGeoCentroid(cw.Ctx)
+	case "geo_bounds":
+		return metrics_aggregations.NewGeoBounds(cw.Ctx)
 	}
+
 	return nil
 }

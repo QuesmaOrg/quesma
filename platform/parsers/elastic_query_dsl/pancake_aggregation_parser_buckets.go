@@ -332,10 +332,10 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 	// That's bucket (group by) formula for geotile_grid
 	// zoom/x/y
 	//	SELECT precisionZoom as zoom,
-	//	    FLOOR(((toFloat64("Location::lon") + 180.0) / 360.0) * POWER(2, zoom)) AS x_tile,
+	//	    FLOOR((("Location::lon" + 180.0) / 360.0) * POWER(2, zoom)) AS x_tile,
 	//	    FLOOR(
 	//	        (
-	//	            1 - LOG(TAN(RADIANS(toFloat64("Location::lat"))) + (1 / COS(RADIANS(toFloat64("Location::lat"))))) / PI()
+	//	            1 - LOG(TAN(RADIANS("Location::lat")) + (1 / COS(RADIANS("Location::lat")))) / PI()
 	//	        ) / 2.0 * POWER(2, zoom)
 	//	    ) AS y_tile, count()
 	//	FROM
@@ -350,15 +350,13 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 	lon := model.NewGeoLon(fieldName)
 	lat := model.NewGeoLat(fieldName)
 
-	toFloatFunLon := model.NewFunction("toFloat64", lon)
 	var infixX model.Expr
-	infixX = model.NewParenExpr(model.NewInfixExpr(toFloatFunLon, "+", model.NewLiteral(180.0)))
+	infixX = model.NewParenExpr(model.NewInfixExpr(lon, "+", model.NewLiteral(180.0)))
 	infixX = model.NewParenExpr(model.NewInfixExpr(infixX, "/", model.NewLiteral(360.0)))
 	infixX = model.NewInfixExpr(infixX, "*",
 		model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
 	xTile := model.NewFunction("FLOOR", infixX)
-	toFloatFunLat := model.NewFunction("toFloat64", lat)
-	radians := model.NewFunction("RADIANS", toFloatFunLat)
+	radians := model.NewFunction("RADIANS", lat)
 	tan := model.NewFunction("TAN", radians)
 	cos := model.NewFunction("COS", radians)
 	Log := model.NewFunction("LOG", model.NewInfixExpr(tan, "+",
