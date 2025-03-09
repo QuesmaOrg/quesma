@@ -1161,7 +1161,7 @@ func Test_applyMatchOperator(t *testing.T) {
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("message"),
 						model.MatchOperator,
-						model.NewLiteral("'needle'"),
+						model.NewLiteralWithEscapeType("'needle'", model.NotEscapedLikeFull),
 					),
 				},
 			},
@@ -1173,7 +1173,7 @@ func Test_applyMatchOperator(t *testing.T) {
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("message"),
 						"iLIKE",
-						model.NewLiteral("'%needle%'"),
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
 					),
 				},
 			},
