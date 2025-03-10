@@ -76,7 +76,7 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 				result = []model.Expr{model.NewCountFunc(getFirstExpression())}
 			default:
 				// should never happen because of parsing checks
-				logger.ErrorWithCtx(ctx).Msgf("unknown rate mode: %s", metricsAggr.mode)
+				return nil, fmt.Errorf("unknown rate mode: %s", metricsAggr.mode)
 			}
 		}
 	case "percentile_ranks":

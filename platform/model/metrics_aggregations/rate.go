@@ -81,7 +81,12 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 		// Calculating 'fix':
 		// We need to count days of every month, as it can be 28, 29, 30 or 31...
 		// So that our average is correct (in Elastic it always is)
-		someTime := time.UnixMilli(rows[0].Cols[0].Value.(int64)).Add(48 * time.Hour)
+		parentDateHistogramKey, ok := rows[0].Cols[0].Value.(int64)
+		if !ok {
+			logger.WarnWithCtx(query.ctx).Msgf("cannot extract parent date_histogram key from %v, %T", rows[0].Cols[0], rows[0].Cols[0].Value)
+			return model.JsonMap{"value": nil}
+		}
+		someTime := time.UnixMilli(parentDateHistogramKey).Add(48 * time.Hour)
 		// someTime.Day() is in [28, 31] U {1}. I want it to be >= 2, so I'm sure I'm in the right month for all timezones.
 		for someTime.Day() == 1 || someTime.Day() > 25 {
 			someTime = someTime.Add(24 * time.Hour)
