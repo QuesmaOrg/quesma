@@ -351,10 +351,10 @@ func TestPartitionBy(t *testing.T) {
 	assert.Equal(t, 2, len(legacyConf.IndexConfig))
 
 	ecommerce := legacyConf.IndexConfig["kibana_sample_data_ecommerce"]
-	assert.Equal(t, "daily", ecommerce.PartitioningStrategy)
+	assert.Equal(t, Daily, ecommerce.PartitioningStrategy)
 
 	flights := legacyConf.IndexConfig["kibana_sample_data_flights"]
-	assert.Equal(t, "", flights.PartitioningStrategy)
+	assert.Equal(t, None, flights.PartitioningStrategy)
 
-	assert.Equal(t, "hourly", legacyConf.DefaultPartitioningStrategy)
+	assert.Equal(t, Hourly, legacyConf.DefaultPartitioningStrategy)
 }

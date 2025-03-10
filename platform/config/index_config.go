@@ -24,22 +24,6 @@ const (
 	None    PartitionStrategy = ""
 )
 
-//func PartitionStrategyFromString(s string) PartitionStrategy {
-//	switch s {
-//	case "hourly":
-//		return Hourly
-//	case "daily":
-//		return Daily
-//	case "monthly":
-//		return Monthly
-//	case "yearly":
-//		return Yearly
-//	default:
-//		logger.Warn().Msgf("Failed to parse partitioning strategy '%s'", s)
-//		return None
-//	}
-//}
-
 type IndexConfiguration struct {
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
