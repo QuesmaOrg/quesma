@@ -37,11 +37,10 @@ func newIngestProcessorEmpty() *IngestProcessor {
 }
 
 var hasOthersConfig = &clickhouse.ChTableConfig{
-	HasTimestamp:         false,
-	TimestampDefaultsNow: false,
-	Engine:               "MergeTree",
-	OrderBy:              "(timestamp)",
-	//PartitionBy:                           "",
+	HasTimestamp:                          false,
+	TimestampDefaultsNow:                  false,
+	Engine:                                "MergeTree",
+	OrderBy:                               "(timestamp)",
 	PrimaryKey:                            "",
 	Ttl:                                   "",
 	Attributes:                            []clickhouse.Attribute{},
@@ -128,11 +127,10 @@ func TestInsertNonSchemaFields_2(t *testing.T) {
 
 func TestAddTimestamp(t *testing.T) {
 	tableConfig := &clickhouse.ChTableConfig{
-		HasTimestamp:         true,
-		TimestampDefaultsNow: true,
-		Engine:               "MergeTree",
-		OrderBy:              "(@timestamp)",
-		//PartitionBy:                           "",
+		HasTimestamp:                          true,
+		TimestampDefaultsNow:                  true,
+		Engine:                                "MergeTree",
+		OrderBy:                               "(@timestamp)",
 		PrimaryKey:                            "",
 		Ttl:                                   "",
 		Attributes:                            []clickhouse.Attribute{},
@@ -541,9 +539,8 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(@timestamp)",
-		//PartitionBy:          "",
-		PrimaryKey: "",
-		Ttl:        "",
+		PrimaryKey:           "",
+		Ttl:                  "",
 		Attributes: []clickhouse.Attribute{
 			clickhouse.NewDefaultInt64Attribute(),
 			clickhouse.NewDefaultFloat64Attribute(),
@@ -576,9 +573,8 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(@timestamp)",
-		//PartitionBy:          "",
-		PrimaryKey: "",
-		Ttl:        "",
+		PrimaryKey:           "",
+		Ttl:                  "",
 		Attributes: []clickhouse.Attribute{
 			clickhouse.NewDefaultStringAttribute(),
 		},
@@ -657,9 +653,8 @@ func TestCreateTableString_1(t *testing.T) {
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
 			OrderBy:              "(@timestamp)",
-			//PartitionBy:          "",
-			PrimaryKey: "",
-			Ttl:        "",
+			PrimaryKey:           "",
+			Ttl:                  "",
 			Attributes: []clickhouse.Attribute{
 				clickhouse.NewDefaultInt64Attribute(),
 				clickhouse.NewDefaultStringAttribute(),
@@ -742,9 +737,8 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
 			OrderBy:              "(@timestamp)",
-			//PartitionBy:          "",
-			PrimaryKey: "",
-			Ttl:        "",
+			PrimaryKey:           "",
+			Ttl:                  "",
 			Attributes: []clickhouse.Attribute{
 				clickhouse.NewDefaultInt64Attribute(),
 			},

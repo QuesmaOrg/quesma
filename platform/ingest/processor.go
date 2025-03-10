@@ -1013,11 +1013,10 @@ func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.Backend
 
 func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {
 	return &chLib.ChTableConfig{
-		HasTimestamp:         true,
-		TimestampDefaultsNow: true,
-		Engine:               "MergeTree",
-		OrderBy:              "(" + `"@timestamp"` + ")",
-		//PartitionBy:                           "",
+		HasTimestamp:                          true,
+		TimestampDefaultsNow:                  true,
+		Engine:                                "MergeTree",
+		OrderBy:                               "(" + `"@timestamp"` + ")",
 		ClusterName:                           clusterName,
 		PrimaryKey:                            "",
 		Ttl:                                   "",
@@ -1034,9 +1033,8 @@ func NewDefaultCHConfig() *chLib.ChTableConfig {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
-		//PartitionBy:          "",
-		PrimaryKey: "",
-		Ttl:        "",
+		PrimaryKey:           "",
+		Ttl:                  "",
 		Attributes: []chLib.Attribute{
 			chLib.NewDefaultInt64Attribute(),
 			chLib.NewDefaultFloat64Attribute(),
