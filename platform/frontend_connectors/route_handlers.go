@@ -126,9 +126,7 @@ func HandleFieldCaps(ctx context.Context, indexPattern string, allowNoIndices, i
 			return nil, err
 		}
 	}
-
 	return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
-
 }
 
 func HandlePutIndex(index string, reqBody types.JSON, sr schema.Registry) (*quesma_api.Result, error) {
