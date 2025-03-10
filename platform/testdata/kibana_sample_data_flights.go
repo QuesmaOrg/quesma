@@ -222,7 +222,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			  minOrNull("FlightDelayMin") AS "metric__minAgg_col_0"
 			FROM __quesma_table_name
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND NOT (("FlightDelayMin" __quesma_match 0)))`,
+			  fromUnixTimestamp64Milli(1740835408853)) AND NOT ("FlightDelayMin" __quesma_match 0))`,
 	},
 	{ // [2]
 		TestName: "Delays & Cancellations (request 1/2)",
@@ -800,8 +800,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			  count(*) AS "aggr__1__2__count"
 			FROM __quesma_table_name
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%' AND
-			  "Cancelled" ILIKE '%true%'))
+			  fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%' AND
+			  "Cancelled" __quesma_match '%true%'))
 			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0"
 			ORDER BY "aggr__1__2__key_0" ASC`,
@@ -813,8 +813,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					count(*) AS "aggr__1__2__count"
 				  FROM __quesma_table_name
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
-					AND "Cancelled" ILIKE '%true%'))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
+					AND "Cancelled" __quesma_match '%true%'))
 				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
 					"aggr__1__2__key_0"
@@ -832,8 +832,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
-					AND "Cancelled" ILIKE '%true%')))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
+					AND "Cancelled" __quesma_match '%true%')))
 				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 				  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
 				FROM "quesma_top_hits_join"
@@ -847,8 +847,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					count(*) AS "aggr__1__2__count"
 				  FROM __quesma_table_name
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
-					AND "Cancelled" ILIKE '%true%'))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
+					AND "Cancelled" __quesma_match '%true%'))
 				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
 					"aggr__1__2__key_0"
@@ -866,8 +866,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
-					AND "Cancelled" ILIKE '%true%')))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
+					AND "Cancelled" __quesma_match '%true%')))
 				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 				  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
 				FROM "quesma_top_hits_join"
@@ -881,8 +881,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					count(*) AS "aggr__1__2__count"
 				  FROM __quesma_table_name
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
-					AND "Cancelled" ILIKE '%true%'))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
+					AND "Cancelled" __quesma_match '%true%'))
 				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
 					"aggr__1__2__key_0"
@@ -900,8 +900,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
-					AND "Cancelled" ILIKE '%true%')))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
+					AND "Cancelled" __quesma_match '%true%')))
 				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 				  "top_metrics__1__2__6_col_0", "top_metrics__1__2__6_col_1", "top_hits_rank"
 				FROM "quesma_top_hits_join"
@@ -915,8 +915,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					count(*) AS "aggr__1__2__count"
 				  FROM __quesma_table_name
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
-					AND "Cancelled" ILIKE '%true%'))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
+					AND "Cancelled" __quesma_match '%true%'))
 				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
 					"aggr__1__2__key_0"
@@ -934,8 +934,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" ILIKE '%true%'
-					AND "Cancelled" ILIKE '%true%')))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
+					AND "Cancelled" __quesma_match '%true%')))
 				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 				  "top_metrics__1__2__7_col_0", "top_metrics__1__2__7_col_1", "top_hits_rank"
 				FROM "quesma_top_hits_join"
@@ -1053,7 +1053,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 		},
 		// TODO Sprawdz boola
 		ExpectedPancakeSQL: `
-			SELECT countIf(("FlightDelay" __quesma_match true)) AS "metric__0-bucket_col_0"
+			SELECT countIf("FlightDelay" __quesma_match true) AS "metric__0-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))`,
@@ -1167,7 +1167,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf(("Cancelled" __quesma_match true)) AS "metric__0-bucket_col_0"
+			SELECT countIf("Cancelled" __quesma_match true) AS "metric__0-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))`,
@@ -1331,7 +1331,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			  <=fromUnixTimestamp64Milli(1740230608853))) AS
 			  "filter_1__aggr__time_offset_split__count"
 			FROM __quesma_table_name
-			WHERE (("Cancelled" __quesma_match true) AND (("timestamp">=fromUnixTimestamp64Milli(
+			WHERE ("Cancelled" __quesma_match true AND (("timestamp">=fromUnixTimestamp64Milli(
 			  1740230608853) AND "timestamp"<=fromUnixTimestamp64Milli(1740835408853)) OR (
 			  "timestamp">=fromUnixTimestamp64Milli(1739625808853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740230608853))))`,
@@ -1638,8 +1638,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count",
-			  countIf("FlightDelay" ILIKE '%true%') AS "metric__0__1-bucket_col_0",
-			  countIf("__quesma_fulltext_field_name" ILIKE '%') AS "metric__0__2-bucket_col_0"
+			  countIf("FlightDelay" __quesma_match '%true%') AS "metric__0__1-bucket_col_0",
+			  countIf("__quesma_fulltext_field_name" __quesma_match '%') AS "metric__0__2-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))
@@ -1843,8 +1843,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf(("FlightDelay" __quesma_match true)) AS "metric__0__1-bucket_col_0",
-			  countIf(("Cancelled" __quesma_match true)) AS "metric__0__3-bucket_col_0"
+			  countIf("FlightDelay" __quesma_match true) AS "metric__0__1-bucket_col_0",
+			  countIf("Cancelled" __quesma_match true) AS "metric__0__3-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853))
@@ -2310,8 +2310,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			  "FlightDelayType" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND NOT (("FlightDelayType"
-			  __quesma_match 'No Delay')))
+			  fromUnixTimestamp64Milli(1740835408853)) AND NOT ("FlightDelayType"
+			  __quesma_match '%No Delay%'))
 			GROUP BY "FlightDelayType" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC
 			LIMIT 3`,
@@ -2639,7 +2639,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			SELECT "FlightDelayMin" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND NOT (("FlightDelayMin" __quesma_match 0)))
+			  fromUnixTimestamp64Milli(1740835408853)) AND NOT ("FlightDelayMin" __quesma_match 0))
 			GROUP BY "FlightDelayMin" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},

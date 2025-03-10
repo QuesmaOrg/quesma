@@ -341,6 +341,19 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				if queryIndexConf.UseCommonTable != ingestIndexConf.UseCommonTable {
 					return fmt.Errorf("ingest and query processors must have the same configuration of 'useCommonTable' for index '%s' due to current limitations", indexName)
 				}
+				if queryIndexConf.PartitioningStrategy != ingestIndexConf.PartitioningStrategy {
+					return fmt.Errorf("ingest and query processors must have the same configuration of 'partitioningStrategy' for index '%s' due to current limitations", indexName)
+				}
+				if ingestIndexConf.PartitioningStrategy != "" && ingestIndexConf.UseCommonTable {
+					return fmt.Errorf("partitioning strategy cannot be set for index '%s' - common table partitioning is NOT supported", indexName)
+				}
+				if queryIndexConf.PartitioningStrategy != "" && queryIndexConf.UseCommonTable {
+					return fmt.Errorf("partitioning strategy cannot be set for index '%s' - common table partitioning is NOT supported", indexName)
+				}
+				allowedPartitioningStrategies := []PartitionStrategy{None, Hourly, Daily, Monthly, Yearly}
+				if !slices.Contains(allowedPartitioningStrategies, queryIndexConf.PartitioningStrategy) {
+					return fmt.Errorf("partitioning strategy '%s' is not allowed for index '%s', only %v are supported", queryIndexConf.PartitioningStrategy, indexName, allowedPartitioningStrategies)
+				}
 				if queryIndexConf.SchemaOverrides == nil || ingestIndexConf.SchemaOverrides == nil {
 					if queryIndexConf.SchemaOverrides != ingestIndexConf.SchemaOverrides {
 						return fmt.Errorf("ingest and query processors must have the same configuration of 'schemaOverrides' for index '%s' due to current limitations", indexName)
@@ -842,6 +855,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 		}
 		if defaultQueryConfig, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
 			conf.DefaultQueryOptimizers = defaultQueryConfig.Optimizers
+			conf.DefaultPartitioningStrategy = queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].PartitioningStrategy
 		} else {
 			conf.DefaultQueryOptimizers = nil
 		}
