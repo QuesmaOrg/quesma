@@ -1,0 +1,15 @@
+{
+  "_comment": "This is the stock rules.json file (https://github.com/elastic/go-licence-detector/blob/master/assets/rules.json) but with added Unlicense",
+  "allowlist": [
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "Public Domain",
+    "CC0-1.0",
+    
+    "Unlicense"
+  ]
+}

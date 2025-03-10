@@ -28,11 +28,8 @@ func NewIngestTestcase() *IngestTestcase {
 
 func (a *IngestTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *IngestTestcase) RunTests(ctx context.Context, t *testing.T) error {
@@ -44,6 +41,7 @@ func (a *IngestTestcase) RunTests(ctx context.Context, t *testing.T) error {
 	t.Run("test ignored fields", func(t *testing.T) { a.testIgnoredFields(ctx, t) })
 	t.Run("test nested fields", func(t *testing.T) { a.testNestedFields(ctx, t) })
 	t.Run("test field encodings (mappings bug)", func(t *testing.T) { a.testFieldEncodingsMappingsBug(ctx, t) })
+	t.Run("test incomplete types", func(t *testing.T) { a.testIncompleteTypes(ctx, t) })
 	return nil
 }
 
@@ -65,8 +63,8 @@ var (
 		"destairportid":       "Nullable(String)",
 		"destcityname":        "Nullable(String)",
 		"destcountry":         "Nullable(String)",
-		"destlocation_lat":    "Nullable(String)",
-		"destlocation_lon":    "Nullable(String)",
+		"destlocation_lat":    "Nullable(Float64)",
+		"destlocation_lon":    "Nullable(Float64)",
 		"destregion":          "Nullable(String)",
 		"destweather":         "Nullable(String)",
 		"distancekilometers":  "Nullable(Float64)",
@@ -81,8 +79,8 @@ var (
 		"originairportid":     "Nullable(String)",
 		"origincityname":      "Nullable(String)",
 		"origincountry":       "Nullable(String)",
-		"originlocation_lat":  "Nullable(String)",
-		"originlocation_lon":  "Nullable(String)",
+		"originlocation_lat":  "Nullable(Float64)",
+		"originlocation_lon":  "Nullable(Float64)",
 		"originregion":        "Nullable(String)",
 		"originweather":       "Nullable(String)",
 		"timestamp":           "DateTime64(3)",
@@ -199,8 +197,8 @@ var (
 		"geoip_city_name":               "Nullable(String)",
 		"geoip_continent_name":          "Nullable(String)",
 		"geoip_country_iso_code":        "Nullable(String)",
-		"geoip_location_lat":            "Nullable(String)",
-		"geoip_location_lon":            "Nullable(String)",
+		"geoip_location_lat":            "Nullable(Float64)",
+		"geoip_location_lon":            "Nullable(Float64)",
 		"geoip_region_name":             "Nullable(String)",
 		"manufacturer":                  "Array(String)",
 		"order_date":                    "DateTime64(3)",
@@ -468,9 +466,6 @@ func (a *IngestTestcase) testKibanaSampleFlightsIngestWithMappingToClickHouse(ct
 	// Because of the mappings, some types have changed (compared to ingest with schema inferred solely from JSON)
 	expectedCols["timestamp"] = "Nullable(DateTime64(3))"
 
-	expectedCols["destlocation_lat"] = "Nullable(String)"
-	expectedCols["destlocation_lon"] = "Nullable(String)"
-
 	expectedCols["flighttimehour"] = "Nullable(String)"
 
 	assert.Equal(t, expectedCols, cols)
@@ -647,4 +642,161 @@ func (a *IngestTestcase) testFieldEncodingsMappingsBug(ctx context.Context, t *t
 
 	assert.Equal(t, "quesmaMetadataV1:fieldName=Field1", comments["field1"])
 	assert.Equal(t, "quesmaMetadataV1:fieldName=Field2", comments["field2"])
+}
+
+// Test "incomplete" types (e.g. null, empty array, empty object) for which Quesma can't infer a ClickHouse type.
+func (a *IngestTestcase) testIncompleteTypes(ctx context.Context, t *testing.T) {
+	doc := []byte(`
+{
+    "field1": "abc",
+    "field2": null,
+
+    "field3": ["def", "ghi"],
+    "field4": [],
+    "field5": [[]],
+
+    "field6": {"ijk": "klm"},
+    "field7": {},
+    "field8": {"cde": {}},
+
+    "field9": [[{"nop": "qrs"}]],
+    "field10": [[{}]]
+}
+`)
+	resp, body := a.RequestToQuesma(ctx, t, "POST", "/incomplete_types_test/_doc", doc)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.NotContains(t, string(body), "error")
+
+	cols, err := a.FetchClickHouseColumns(ctx, "incomplete_types_test")
+	assert.NoError(t, err, "error fetching clickhouse columns")
+
+	expectedCols := map[string]string{
+		"@timestamp":          "DateTime64(3)",
+		"attributes_metadata": "Map(String, String)",
+		"attributes_values":   "Map(String, String)",
+
+		"field1": "Nullable(String)",
+		// field2 is null; null can be a Nullable(String), Nullable(Int64), ...
+
+		"field3": "Array(String)",
+		// field4 is an empty array; an empty array can be a Array(String), Array(Int64), ...
+		// field5 is an array of empty array; it could be an Array(Array(String)), Array(Array(Int64)), ...
+
+		"field6_ijk": "Nullable(String)",
+		// field7 is an empty object; it could be a Tuple(field1 String), Tuple(field1 Int64, field2 String), ...
+		// field8 is an object with an empty object; it could be a Tuple(cde Tuple(subfield Int64)), Tuple(cde Tuple(subfield String)), ...
+
+		"field9": "Array(Array(Tuple(nop Nullable(String))))",
+		// field10 is an array of arrays of empty objects; it could be an Array(Array(Tuple(subfield Int64))), Array(Array(Tuple(subfield String))), ...
+	}
+	assert.Equal(t, expectedCols, cols)
+
+	// Insert a similar document again (now that the table is already created)
+	doc2 := []byte(`
+{
+    "field1": "QUESMA_DOC2_1",
+    "field2": null,
+
+    "field3": ["QUESMA_DOC2_2", "QUESMA_DOC2_3"],
+    "field4": [],
+    "field5": [[]],
+
+    "field6": {"ijk": "QUESMA_DOC2_4"},
+    "field7": {},
+    "field8": {"cde": {}},
+
+    "field9": [[{"nop": "QUESMA_DOC2_5"}]],
+    "field10": [[{}]]
+}
+`)
+	resp, body = a.RequestToQuesma(ctx, t, "POST", "/incomplete_types_test/_doc", doc2)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.NotContains(t, string(body), "error")
+
+	cols, err = a.FetchClickHouseColumns(ctx, "incomplete_types_test")
+	assert.NoError(t, err, "error fetching clickhouse columns")
+	assert.Equal(t, expectedCols, cols)
+
+	// Insert a document with all fields with complete types, testing ALTER TABLE ADD COLUMN behavior.
+	doc3 := []byte(`
+{
+    "field1": "QUESMA_DOC3_1",
+    "field2": "QUESMA_DOC3_2",
+
+    "field3": ["QUESMA_DOC3_3", "QUESMA_DOC3_4"],
+    "field4": ["QUESMA_DOC3_5"],
+    "field5": [["QUESMA_DOC3_6"]],
+
+    "field6": {"ijk": "QUESMA_DOC3_7"},
+    "field7": {"klm": "QUESMA_DOC3_8"},
+    "field8": {"cde": {"efg":"QUESMA_DOC3_9"}},
+
+    "field9": [[{"nop": "QUESMA_DOC3_10"}]],
+    "field10": [[{"asd": "QUESMA_DOC3_11"}]]
+}
+`)
+	resp, body = a.RequestToQuesma(ctx, t, "POST", "/incomplete_types_test/_doc", doc3)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.NotContains(t, string(body), "error")
+
+	expectedCols = map[string]string{
+		"@timestamp":          "DateTime64(3)",
+		"attributes_metadata": "Map(String, String)",
+		"attributes_values":   "Map(String, String)",
+
+		"field1": "Nullable(String)",
+		"field2": "Nullable(String)",
+
+		"field3": "Array(String)",
+		"field4": "Array(String)",
+		"field5": "Array(Array(String))",
+
+		"field6_ijk":     "Nullable(String)",
+		"field7_klm":     "Nullable(String)",
+		"field8_cde_efg": "Nullable(String)",
+
+		"field9":  "Array(Array(Tuple(nop Nullable(String))))",
+		"field10": "Array(Array(Tuple(asd Nullable(String))))",
+	}
+	cols, err = a.FetchClickHouseColumns(ctx, "incomplete_types_test")
+	assert.NoError(t, err, "error fetching clickhouse columns")
+	assert.Equal(t, expectedCols, cols)
+
+	// Verify that DOC2 and DOC3 were correctly inserted.
+	rows, err := a.ExecuteClickHouseQuery(ctx, "SELECT toString(field1), toString(field2), toString(field3), toString(field4), toString(field5), toString(field6_ijk), toString(field7_klm), toString(field8_cde_efg), toString(field9), toString(field10) FROM incomplete_types_test WHERE field1 IN ('QUESMA_DOC2_1', 'QUESMA_DOC3_1') ORDER BY field1")
+	assert.NoError(t, err)
+	defer rows.Close()
+
+	var results []struct {
+		cols []interface{}
+	}
+	for rows.Next() {
+		r := make([]interface{}, 10)
+		valPtrs := make([]interface{}, 10)
+		for i := range r {
+			valPtrs[i] = &r[i]
+		}
+		err = rows.Scan(valPtrs...)
+		assert.NoError(t, err)
+		results = append(results, struct{ cols []interface{} }{cols: r})
+	}
+	assert.Equal(t, 2, len(results))
+
+	assert.Contains(t, *results[0].cols[0].(*string), "QUESMA_DOC2_1")
+	assert.Contains(t, results[0].cols[2].(string), "QUESMA_DOC2_2")
+	assert.Contains(t, results[0].cols[2].(string), "QUESMA_DOC2_3")
+	assert.Contains(t, *results[0].cols[5].(*string), "QUESMA_DOC2_4")
+	assert.Contains(t, results[0].cols[8].(string), "QUESMA_DOC2_5")
+
+	assert.Contains(t, *results[1].cols[0].(*string), "QUESMA_DOC3_1")
+	assert.Contains(t, *results[1].cols[1].(*string), "QUESMA_DOC3_2")
+	assert.Contains(t, results[1].cols[2].(string), "QUESMA_DOC3_3")
+	assert.Contains(t, results[1].cols[2].(string), "QUESMA_DOC3_4")
+	assert.Contains(t, results[1].cols[3].(string), "QUESMA_DOC3_5")
+	assert.Contains(t, results[1].cols[4].(string), "QUESMA_DOC3_6")
+	assert.Contains(t, *results[1].cols[5].(*string), "QUESMA_DOC3_7")
+	assert.Contains(t, *results[1].cols[6].(*string), "QUESMA_DOC3_8")
+	assert.Contains(t, *results[1].cols[7].(*string), "QUESMA_DOC3_9")
+	assert.Contains(t, results[1].cols[8].(string), "QUESMA_DOC3_10")
+	assert.Contains(t, results[1].cols[9].(string), "QUESMA_DOC3_11")
 }

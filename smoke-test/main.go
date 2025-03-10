@@ -315,9 +315,9 @@ func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool, t
 		resp, err := http.Get(url)
 		if err == nil {
 			defer resp.Body.Close()
+			body, readErr := io.ReadAll(resp.Body)
 			if resp.StatusCode == 200 {
-				body, err := io.ReadAll(resp.Body)
-				if err == nil {
+				if readErr == nil {
 					var response map[string]int
 					_ = json.Unmarshal(body, &response)
 					var foo = response["count"]
@@ -330,7 +330,7 @@ func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool, t
 					}
 				}
 			} else {
-				fmt.Printf("%s response: %+v\n", serviceName, resp)
+				fmt.Printf("%s response: %+v body: %s readError: %+v\n", serviceName, resp, body, readErr)
 			}
 		}
 		return false

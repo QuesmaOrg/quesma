@@ -25,11 +25,8 @@ func NewWildcardDisabledTestcase() *WildcardDisabledTestcase {
 
 func (a *WildcardDisabledTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *WildcardDisabledTestcase) RunTests(ctx context.Context, t *testing.T) error {
@@ -38,6 +35,7 @@ func (a *WildcardDisabledTestcase) RunTests(ctx context.Context, t *testing.T) e
 	t.Run("test ingest is disabled", func(t *testing.T) { a.testIngestIsDisabled(ctx, t) })
 	t.Run("test explicit index query enabled", func(t *testing.T) { a.testExplicitIndexQueryIsEnabled(ctx, t) })
 	t.Run("test explicit index ingest enabled", func(t *testing.T) { a.testExplicitIndexIngestIsEnabled(ctx, t) })
+	t.Run("test internal endpoints", func(t *testing.T) { a.testInternalEndpoints(ctx, t) })
 	return nil
 }
 
@@ -101,4 +99,15 @@ func (a *WildcardDisabledTestcase) testExplicitIndexIngestIsEnabled(ctx context.
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
 	assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
+}
+
+func (a *WildcardDisabledTestcase) testInternalEndpoints(ctx context.Context, t *testing.T) {
+	for _, internalPath := range InternalPaths {
+		t.Run(internalPath, func(t *testing.T) {
+			resp, _ := a.RequestToQuesma(ctx, t, "GET", internalPath, nil)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Quesma-Source"))
+			assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
+		})
+	}
 }

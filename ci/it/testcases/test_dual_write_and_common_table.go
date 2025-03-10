@@ -26,11 +26,8 @@ func NewDualWriteAndCommonTableTestcase() *DualWriteAndCommonTableTestcase {
 
 func (a *DualWriteAndCommonTableTestcase) SetupContainers(ctx context.Context) error {
 	containers, err := setupAllContainersWithCh(ctx, a.ConfigTemplate)
-	if err != nil {
-		return err
-	}
 	a.Containers = containers
-	return nil
+	return err
 }
 
 func (a *DualWriteAndCommonTableTestcase) RunTests(ctx context.Context, t *testing.T) error {
@@ -75,6 +72,8 @@ func (a *DualWriteAndCommonTableTestcase) testIngestToCommonTableWorks(ctx conte
 			case "__quesma_index_name":
 				if v, ok := col.(string); ok {
 					quesmaIndexName = v
+				} else if v, ok := col.(*string); ok {
+					quesmaIndexName = *v
 				}
 			case "name":
 				if v, ok := col.(*string); ok {

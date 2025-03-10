@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+# Quesma main service:
+# -> ClusterIP, because it's for cluster internal traffic use
+# -> It exposes frontend connector (8080)
+metadata:
+  name: {{ include "quesma.fullname" . }}
+  labels:
+    {{- include "quesma.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "quesma.selectorLabels" . | nindent 4 }}
