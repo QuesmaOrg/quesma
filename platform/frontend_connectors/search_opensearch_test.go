@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/testdata"
+	transformations_delete "github.com/QuesmaOrg/quesma/platform/transformations-delete"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
@@ -54,6 +55,9 @@ func TestSearchOpensearch(t *testing.T) {
 			assert.NoError(t, parseErr)
 			plan, err := cw.ParseQuery(body)
 			queries := plan.Queries
+			for j, query := range queries {
+				queries[j], _ = transformations_delete.ApplyNecessaryTransformations(context.Background(), query, &table, s.Tables[tableName])
+			}
 			assert.NoError(t, err, "no ParseQuery error")
 			assert.True(t, len(queries) > 0, "len queries > 0")
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)

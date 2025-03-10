@@ -80,7 +80,7 @@ var OpensearchSearchTests = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		WantedSql: []string{
-			`("-@timestamp">=__quesma_from_unix_timestamp_ms(1712236698149) AND "-@timestamp"<=__quesma_from_unix_timestamp_ms(1712237598149))`,
+			`("-@timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "-@timestamp"<=fromUnixTimestamp64Milli(1712237598149))`,
 		},
 		WantedQueryType: model.ListAllFields,
 		WantedQueries: []string{
@@ -171,7 +171,7 @@ var OpensearchSearchTests = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		WantedSql: []string{
-			`("-@timestamp">=__quesma_from_unix_timestamp_ms(1712236698149) AND "-@timestamp"<=__quesma_from_unix_timestamp_ms(1712237598149))`,
+			`("-@timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "-@timestamp"<=fromUnixTimestamp64Milli(1712237598149))`,
 		},
 		WantedQueryType: model.Normal,
 		WantedQueries: []string{
