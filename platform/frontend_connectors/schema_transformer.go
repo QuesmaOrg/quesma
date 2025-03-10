@@ -1279,7 +1279,8 @@ func (s *SchemaCheckPass) Transform(ctx context.Context, queries []*model.Query)
 
 		queries[k] = query
 
-		pp.Println("KK 1", query)
+		pp.Println("KK 1", query.SelectCommand)
+		fmt.Println("KK 2", model.AsString(query.SelectCommand))
 	}
 	return queries, nil
 }
