@@ -701,13 +701,7 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 }
 
-func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
-	if !ok {
-		return nil, fmt.Errorf("table %s not found", query.TableName)
-	}
-	_, hasAttributesValuesColumn := table.Cols[clickhouse.AttributesValuesColumn]
-
+func (s *SchemaCheckPass) applyFieldMapSyntax(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
@@ -730,6 +724,32 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 				}
 			}
 		}
+		return e
+	}
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+
+	return query, nil
+}
+
+func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	_, hasAttributesValuesColumn := table.Cols[clickhouse.AttributesValuesColumn]
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		// we don't want to resolve our well know technical fields
+		if e.ColumnName == model.FullTextFieldNamePlaceHolder || e.ColumnName == common_table.IndexNameColumn {
+			return e
+		}
 
 		// This is workaround.
 		// Our query parse resolves columns sometimes. Here we detect it and skip the resolution.
@@ -742,9 +762,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			return model.NewColumnRefWithTable(resolvedField.InternalPropertyName.AsString(), e.TableAlias)
 		} else {
 			// here we didn't find a column by field name,
-			// we try some other options
-
-			// 2. maybe we should use attributes
+			// maybe we should use attributes
 
 			if hasAttributesValuesColumn {
 				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
@@ -991,6 +1009,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		// because WildcardExpansion expands the wildcard to all fields
 		// and columns are expanded as PublicFieldName, so we need to encode them
 		// or in other words use internal field names
+		{TransformationName: "FieldMapSyntaxTransformation", Transformation: s.applyFieldMapSyntax},
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
