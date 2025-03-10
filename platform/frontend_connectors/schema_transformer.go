@@ -1278,6 +1278,8 @@ func (s *SchemaCheckPass) Transform(ctx context.Context, queries []*model.Query)
 		}
 
 		queries[k] = query
+
+		pp.Println("KK 1", query)
 	}
 	return queries, nil
 }
