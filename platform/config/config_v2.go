@@ -344,7 +344,10 @@ func (c *QuesmaNewConfiguration) validatePipelines() error {
 				if queryIndexConf.PartitioningStrategy != ingestIndexConf.PartitioningStrategy {
 					return fmt.Errorf("ingest and query processors must have the same configuration of 'partitioningStrategy' for index '%s' due to current limitations", indexName)
 				}
-				if ingestIndexConf.PartitioningStrategy != "" && ingestIndexConf.UseCommonTable { // we don't check for queryIndexConf.PartitioningStrategy per previous check
+				if ingestIndexConf.PartitioningStrategy != "" && ingestIndexConf.UseCommonTable {
+					return fmt.Errorf("partitioning strategy cannot be set for index '%s' - common table partitioning is NOT supported", indexName)
+				}
+				if queryIndexConf.PartitioningStrategy != "" && queryIndexConf.UseCommonTable {
 					return fmt.Errorf("partitioning strategy cannot be set for index '%s' - common table partitioning is NOT supported", indexName)
 				}
 				allowedPartitioningStrategies := []PartitionStrategy{None, Hourly, Daily, Monthly, Yearly}
