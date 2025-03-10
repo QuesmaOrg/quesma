@@ -185,6 +185,7 @@ func (cw *ClickhouseQueryTranslator) generateMetricsType(metricsAggr metricsAggr
 		rate, err := metrics_aggregations.NewRate(cw.Ctx, metricsAggr.unit, isFieldPresent)
 		if err != nil {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("error creating rate aggregation: %s", err)
+			return nil
 		}
 		return rate
 	}
