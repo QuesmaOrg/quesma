@@ -113,9 +113,9 @@ func CheckParamsGeotileGrid(ctx context.Context, paramsRaw any) error {
 	}
 
 	// log if you see them
-	for _, paramToLog := range logIfYouSeeThemParams {
-		if _, exists := params[paramToLog]; exists {
-			logger.WarnWithCtx(ctx).Msgf("we didn't expect %s in Geotile Grid params %v", paramToLog, params)
+	for _, warnParam := range logIfYouSeeThemParams {
+		if _, exists := params[warnParam]; exists {
+			logger.WarnWithCtxAndThrottling(ctx, "geotile_grid", warnParam, "we didn't expect %s in Geotile Grid params %v", warnParam, params)
 		}
 	}
 
