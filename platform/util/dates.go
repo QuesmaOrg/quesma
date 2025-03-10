@@ -61,3 +61,7 @@ func FindTimestampPrecision(timestamp string) (precision int, success bool) {
 		return precision, true
 	}
 }
+
+func Day() time.Duration {
+	return 24 * time.Hour
+}

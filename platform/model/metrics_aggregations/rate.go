@@ -15,11 +15,11 @@ import (
 
 type (
 	Rate struct {
-		ctx                context.Context
-		unit               RateUnit
-		multiplier         float64
-		parentIntervalInMs int64
-		fieldPresent       bool
+		ctx            context.Context
+		unit           RateUnit
+		multiplier     float64
+		parentInterval time.Duration
+		fieldPresent   bool
 	}
 	RateUnit int
 	RateMode string
@@ -72,8 +72,9 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 	}
 
 	fix := 1.0 // e.g. 90/88 if there are 88 days in 3 months, but our calculations are based on 90 days
-	thirtyDaysInMs := int64(30 * 24 * 60 * 60 * 1000)
-	needToCountDaysNr := query.parentIntervalInMs%thirtyDaysInMs == 0 &&
+	thirtyDays := 30 * util.Day()
+
+	needToCountDaysNr := query.parentInterval.Milliseconds()%thirtyDays.Milliseconds() == 0 &&
 		(query.unit == second || query.unit == minute || query.unit == hour || query.unit == day || query.unit == week)
 	weHaveParentDateHistogramKey := len(rows[0].Cols) == 2
 	if needToCountDaysNr && weHaveParentDateHistogramKey {
@@ -87,7 +88,7 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 		}
 
 		actualDays := 0
-		currentDays := query.parentIntervalInMs / thirtyDaysInMs * 30 // e.g. 90 for 3 months date_histogram
+		currentDays := query.parentInterval.Milliseconds() / thirtyDays.Milliseconds() * 30 // e.g. 90 for 3 months date_histogram
 		currentDaysConst := currentDays
 		for currentDays > 0 {
 			actualDays += util.DaysInMonth(someTime)
@@ -101,34 +102,34 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 }
 
 func (query *Rate) CalcAndSetMultiplier(parentIntervalInMs int64) {
-	query.parentIntervalInMs = parentIntervalInMs
+	query.parentInterval = time.Duration(parentIntervalInMs) * time.Millisecond
 	if parentIntervalInMs == 0 {
 		logger.ErrorWithCtx(query.ctx).Msgf("parent interval is 0, cannot calculate rate multiplier")
 		return
 	}
 
-	rateInMs := query.unit.ToMilliseconds(query.ctx)
+	rate := query.unit.ToDuration(query.ctx)
 	// unit month/quarter/year is special, only compatible with month/quarter/year calendar intervals
 	if query.unit == month || query.unit == quarter || query.unit == year {
-		oneMonthInMs := int64(30 * 24 * 60 * 60 * 1000)
-		if parentIntervalInMs < oneMonthInMs {
-			logger.WarnWithCtx(query.ctx).Msgf("parent interval (%d ms) is not compatible with rate unit %s", parentIntervalInMs, query.unit)
+		oneMonth := 30 * util.Day()
+		if parentIntervalInMs < oneMonth.Milliseconds() {
+			logger.WarnWithCtx(query.ctx).Msgf("parent interval (%d ms) is not compatible with rate unit %s", parentIntervalInMs, query.unit.String(query.ctx))
 			return
 		}
 		if query.unit == year {
-			rateInMs = 360 * 24 * 60 * 60 * 1000 // round to 360 days, so year/month = 12, year/quarter = 3, as should be
+			rate = 360 * util.Day() // round to 360 days, so year/month = 12, year/quarter = 3, as should be
 		}
 	}
 
-	if rateInMs%parentIntervalInMs == 0 {
-		query.multiplier = float64(rateInMs / parentIntervalInMs)
+	if rate.Milliseconds()%parentIntervalInMs == 0 {
+		query.multiplier = float64(rate.Milliseconds() / parentIntervalInMs)
 	} else {
-		query.multiplier = float64(rateInMs) / float64(parentIntervalInMs)
+		query.multiplier = float64(rate.Milliseconds()) / float64(parentIntervalInMs)
 	}
 }
 
 func (query *Rate) String() string {
-	return fmt.Sprintf("rate(unit: %s)", query.unit)
+	return fmt.Sprintf("rate(unit: %s)", query.unit.String(query.ctx))
 }
 
 func (query *Rate) FieldPresent() bool {
@@ -159,7 +160,7 @@ func newRateUnit(ctx context.Context, unit string) (RateUnit, error) {
 	}
 }
 
-func (u RateUnit) String() string {
+func (u RateUnit) String(ctx context.Context) string {
 	switch u {
 	case second:
 		return "second"
@@ -179,30 +180,31 @@ func (u RateUnit) String() string {
 		return "year"
 	default:
 		// theoretically unreachable
-		return "invalid, but not invalidRateUnit"
+		logger.WarnWithCtxAndThrottling(ctx, "rate", "unit", "invalid rate unit: %d", u)
+		return "invalid"
 	}
 }
 
-func (u RateUnit) ToMilliseconds(ctx context.Context) int64 {
+func (u RateUnit) ToDuration(ctx context.Context) time.Duration {
 	switch u {
 	case second:
-		return 1000
+		return time.Second
 	case minute:
-		return 60 * 1000
+		return time.Minute
 	case hour:
-		return 60 * 60 * 1000
+		return time.Hour
 	case day:
-		return 24 * 60 * 60 * 1000
+		return util.Day()
 	case week:
-		return 7 * 24 * 60 * 60 * 1000
+		return 7 * util.Day()
 	case month:
-		return 30 * 24 * 60 * 60 * 1000
+		return 30 * util.Day()
 	case quarter:
-		return 3 * 30 * 24 * 60 * 60 * 1000
+		return 90 * util.Day()
 	case year:
-		return 365 * 24 * 60 * 60 * 1000
+		return 365 * util.Day()
 	default:
-		logger.ErrorWithCtx(ctx).Msgf("invalid rate unit: %s", u)
+		logger.ErrorWithCtx(ctx).Msgf("invalid rate unit: %s", u.String(ctx))
 		return 0
 	}
 }
