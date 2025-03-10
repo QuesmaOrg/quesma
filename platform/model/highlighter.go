@@ -54,10 +54,9 @@ func (h *Highlighter) SetTokensToHighlight(selectCmd SelectCommand) {
 	h.Tokens = make(map[string]Tokens)
 
 	visitor := NewBaseVisitor()
-
 	visitor.OverrideVisitInfix = func(b *BaseExprVisitor, e InfixExpr) interface{} {
 		switch e.Op {
-		case "iLIKE", "LIKE", "IN", "=", MatchOperator:
+		case "iLIKE", "ILIKE", "LIKE", "IN", "=", MatchOperator:
 			lhs, isColumnRef := e.Left.(ColumnRef)
 			rhs, isLiteral := e.Right.(LiteralExpr)
 			if isLiteral && isColumnRef { // we only highlight in this case
