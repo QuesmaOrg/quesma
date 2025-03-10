@@ -21,6 +21,7 @@ func main() {
 	transforms.GroupParenthesis(node)
 	transforms.TransformPipeSyntax(node)
 
-	transpiled := transpiler.Transpile(node.(*core.NodeListNode).Nodes[0])
-	fmt.Println(PrettyPrint(transpiled))
+	transpiler.Transpile(node)
+
+	fmt.Println(transforms.ConcatTokenNodes(node))
 }
