@@ -41,7 +41,6 @@ var hasOthersConfig = &clickhouse.ChTableConfig{
 	TimestampDefaultsNow:                  false,
 	Engine:                                "MergeTree",
 	OrderBy:                               "(timestamp)",
-	PartitionBy:                           "",
 	PrimaryKey:                            "",
 	Ttl:                                   "",
 	Attributes:                            []clickhouse.Attribute{},
@@ -132,7 +131,6 @@ func TestAddTimestamp(t *testing.T) {
 		TimestampDefaultsNow:                  true,
 		Engine:                                "MergeTree",
 		OrderBy:                               "(@timestamp)",
-		PartitionBy:                           "",
 		PrimaryKey:                            "",
 		Ttl:                                   "",
 		Attributes:                            []clickhouse.Attribute{},
@@ -541,7 +539,6 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(@timestamp)",
-		PartitionBy:          "",
 		PrimaryKey:           "",
 		Ttl:                  "",
 		Attributes: []clickhouse.Attribute{
@@ -576,7 +573,6 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(@timestamp)",
-		PartitionBy:          "",
 		PrimaryKey:           "",
 		Ttl:                  "",
 		Attributes: []clickhouse.Attribute{
@@ -657,7 +653,6 @@ func TestCreateTableString_1(t *testing.T) {
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
 			OrderBy:              "(@timestamp)",
-			PartitionBy:          "",
 			PrimaryKey:           "",
 			Ttl:                  "",
 			Attributes: []clickhouse.Attribute{
@@ -742,7 +737,6 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
 			OrderBy:              "(@timestamp)",
-			PartitionBy:          "",
 			PrimaryKey:           "",
 			Ttl:                  "",
 			Attributes: []clickhouse.Attribute{

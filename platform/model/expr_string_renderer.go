@@ -76,8 +76,15 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 		case NotEscapedLikePrefix:
 			return util.SingleQuote(escapeStringLike(escapeStringNormal(val)) + "%")
 		case NotEscapedLikeFull:
-			return util.SingleQuote("%" + escapeStringLike(escapeStringNormal(val)) + "%")
+			withoutPercents := escapeStringLike(escapeStringNormal(val))
+			if util.IsSingleQuoted(val) {
+				withoutPercents = strings.Trim(withoutPercents, "'")
+			}
+			return util.SingleQuote(util.SurroundWithPercents(withoutPercents))
 		case FullyEscaped:
+			if util.IsSingleQuoted(val) {
+				return val
+			}
 			return util.SingleQuote(val)
 		default:
 			logger.WarnWithThrottling("unknown_literal", "VisitLiteral %s", val)
@@ -121,9 +128,9 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 
 	// This might look like a strange heuristics to but is aligned with the way we are currently generating the statement
 	// I think in the future every infix op should be in braces.
-	if strings.HasPrefix(e.Op, "_") || e.Op == "AND" || e.Op == "OR" {
+	if (strings.HasPrefix(e.Op, "_") && e.Op != MatchOperator) || e.Op == "AND" || e.Op == "OR" { // LIKE is without (), so I propose MatchOperator as well
 		return fmt.Sprintf("(%v %v %v)", lhs, e.Op, rhs)
-	} else if strings.Contains(e.Op, "LIKE") || e.Op == "IS" || e.Op == "IN" || e.Op == "NOT IN" || e.Op == "REGEXP" || strings.Contains(e.Op, "UNION") {
+	} else if strings.Contains(e.Op, "LIKE") || e.Op == MatchOperator || e.Op == "IS" || e.Op == "IN" || e.Op == "NOT IN" || e.Op == "REGEXP" || strings.Contains(e.Op, "UNION") {
 		return fmt.Sprintf("%v %v %v", lhs, e.Op, rhs)
 	} else {
 		return fmt.Sprintf("%v%v%v", lhs, e.Op, rhs)
