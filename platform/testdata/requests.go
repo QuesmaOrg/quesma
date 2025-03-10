@@ -855,8 +855,8 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			  maxOrNull("@timestamp") AS "metric__latest_timestamp_col_0",
 			  count(*) AS "metric____quesma_total_count_col_0"
 			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND
-			  "host_name" iLIKE '%poseidon%')`,
+			WHERE (("message" iLIKE '%posei%' AND "message" ILIKE '%User logged out%') AND
+			  "host_name" ILIKE '%poseidon%')`,
 		},
 		true,
 	},
@@ -1133,7 +1133,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"host_name" __quesma_match '%prometheus%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name" iLIKE '%prometheus%' LIMIT 10`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name" ILIKE '%prometheus%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [6]
@@ -1151,8 +1151,8 @@ var TestsSearch = []SearchTestCase{
 		[]string{`((("message" __quesma_match '%this%' OR "message" __quesma_match '%is%') OR "message" __quesma_match '%a%') OR "message" __quesma_match '%test%')`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ((("message" iLIKE '%this%' OR "message" iLIKE '%is%') ` +
-				`OR "message" iLIKE '%a%') OR "message" iLIKE '%test%') ` +
+			`SELECT "message" FROM ` + TableName + ` WHERE ((("message" ILIKE '%this%' OR "message" ILIKE '%is%') ` +
+				`OR "message" ILIKE '%a%') OR "message" ILIKE '%test%') ` +
 				`LIMIT 100`,
 		},
 		[]string{},
@@ -1254,7 +1254,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"exception-list-agnostic.list_id" __quesma_match '%endpoint\_event\_filters%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id" iLIKE '%endpoint\\_event\\_filters%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id" ILIKE '%endpoint\\_event\\_filters%'`},
 		[]string{},
 	},
 	{ // [10]
@@ -1281,7 +1281,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{fullTextFieldName + ` __quesma_match '%ingest-agent-policies%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ` + fullTextFieldName + ` iLIKE '%ingest-agent-policies%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ` + fullTextFieldName + ` ILIKE '%ingest-agent-policies%'`},
 		[]string{},
 	},
 	{ // [11]
@@ -1379,7 +1379,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" __quesma_match '%% logged%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%% logged%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%% logged%'`},
 		[]string{},
 	},
 	{ // [16]
@@ -1416,7 +1416,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" __quesma_match '%this is a test%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%this is a test%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%this is a test%'`},
 		[]string{},
 	},
 	{ // [18]
@@ -1434,7 +1434,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" __quesma_match '%this is a test%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%this is a test%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%this is a test%'`},
 		[]string{},
 	},
 	{ // [19]
@@ -1712,7 +1712,7 @@ var TestsSearch = []SearchTestCase{
 			  "stream_namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
+			WHERE (("message" ILIKE '%User logged out%' AND "host_name" ILIKE '%poseidon%')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
@@ -1870,7 +1870,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
+			WHERE (("message" ILIKE '%User logged out%' AND "host_name" ILIKE '%poseidon%')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
@@ -2099,7 +2099,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%')`,
+				`WHERE ("message" ILIKE '%User logged out%' AND "message" ILIKE '%User logged out%')`,
 		},
 		[]string{},
 	},
@@ -2357,7 +2357,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`"message" __quesma_match '%
 Men\'s Clothing \\ 	%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%
 Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},

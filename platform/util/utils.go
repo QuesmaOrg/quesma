@@ -770,6 +770,16 @@ func SingleQuoteIfString(value any) any {
 	return value
 }
 
+// SurroundWithPercents is a simple helper function: str -> %str%
+func SurroundWithPercents(value string) string {
+	return "%" + value + "%"
+}
+
+// IsSurroundedWithPercents checks if a string has % at the beginning and end
+func IsSurroundedWithPercents(value string) bool {
+	return len(value) >= 1 && value[0] == '%' && value[len(value)-1] == '%'
+}
+
 type sqlMockMismatchSql struct {
 	expected string
 	actual   string

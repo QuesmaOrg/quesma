@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"slices"
 	"strconv"
 	"strings"
@@ -48,11 +49,11 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 		if alreadyQuoted(v.term) {
 			termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
 		}
-		if len(termAsStringToClickhouse) > 0 && (termAsStringToClickhouse[0] != '%' || termAsStringToClickhouse[len(termAsStringToClickhouse)-1] != '%') {
-			termAsStringToClickhouse = fmt.Sprintf("%%%s%%", termAsStringToClickhouse)
+		if !util.IsSurroundedWithPercents(termAsStringToClickhouse) {
+			termAsStringToClickhouse = util.SurroundWithPercents(termAsStringToClickhouse)
 		}
-		if len(termAsStringToClickhouse) > 0 && (termAsStringToClickhouse[0] != '\'' || termAsStringToClickhouse[len(termAsStringToClickhouse)-1] != '\'') {
-			termAsStringToClickhouse = fmt.Sprintf("'%s'", termAsStringToClickhouse)
+		if !util.IsSingleQuoted(termAsStringToClickhouse) {
+			termAsStringToClickhouse = util.SingleQuote(termAsStringToClickhouse)
 		}
 
 		fullLiteral := model.NewLiteralWithEscapeType(termAsStringToClickhouse, model.FullyEscaped)

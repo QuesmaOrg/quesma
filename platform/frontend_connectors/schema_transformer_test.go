@@ -1172,7 +1172,7 @@ func Test_applyMatchOperator(t *testing.T) {
 					Columns:    []model.Expr{model.NewColumnRef("message")},
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("message"),
-						"iLIKE",
+						"ILIKE",
 						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
 					),
 				},

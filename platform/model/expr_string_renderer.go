@@ -77,9 +77,9 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 		case NotEscapedLikeFull:
 			withoutPercents := escapeStringLike(escapeStringNormal(val))
 			if util.IsSingleQuoted(val) {
-				return util.SingleQuote("%" + strings.Trim(withoutPercents, "'") + "%")
+				withoutPercents = strings.Trim(withoutPercents, "'")
 			}
-			return util.SingleQuote("%" + withoutPercents + "%")
+			return util.SingleQuote(util.SurroundWithPercents(withoutPercents))
 		case FullyEscaped:
 			if util.IsSingleQuoted(val) {
 				return val
