@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-for gomod in **/go.mod ; do
+find . -type f -name go.mod | while read -r gomod; do
   pushd "$(dirname "$gomod")" 1>&2
   echo "Processing $gomod" 1>&2
 

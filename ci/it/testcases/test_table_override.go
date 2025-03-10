@@ -6,6 +6,7 @@ package testcases
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"maps"
 	"net/http"
 	"testing"
 )
@@ -40,7 +41,12 @@ func (a *OverrideTestcase) testKibanaSampleFlightsIngestToClickHouse(ctx context
 
 	cols, err := a.FetchClickHouseColumns(ctx, "kibana_sample_data_flights_ext")
 	assert.NoError(t, err, "error fetching clickhouse columns")
-	assert.Equal(t, expectedColsKibanaSampleFlights, cols)
+	expectedCols := maps.Clone(expectedColsKibanaSampleFlights)
+	for _, k := range []string{"destlocation_lat", "destlocation_lon", "originlocation_lat", "originlocation_lon"} {
+		expectedCols[k] = "Nullable(String)"
+	}
+
+	assert.Equal(t, expectedCols, cols)
 }
 
 func (a *OverrideTestcase) testKibanaSampleFlightsSearch(ctx context.Context, t *testing.T) {
