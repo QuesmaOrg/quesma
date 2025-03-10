@@ -5,8 +5,7 @@ package elastic_query_dsl
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
-	"github.com/QuesmaOrg/quesma/platform/logger"
+	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"strconv"
@@ -22,7 +21,7 @@ func NewDateManager(ctx context.Context) DateManager {
 }
 
 var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-01-02", "2006-01-02T15",
-	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
+	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05.123Z07:00", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
 
 // parseStrictDateOptionalTimeOrEpochMillis parses date, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
@@ -66,30 +65,36 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 // ParseDateUsualFormat parses date expression, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
 // It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
-func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType clickhouse.DateTimeType) (
-	resultExpr model.Expr, parsingSucceeded bool) {
-	if utcTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
-		switch datetimeType {
-		case clickhouse.DateTime64:
-			threeDigitsOfPrecisionSuffice := utcTs.UnixNano()%1_000_000 == 0
-			if threeDigitsOfPrecisionSuffice {
-				return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(utcTs.UnixMilli())), true
-			} else {
-				return model.NewFunction(
-					"toDateTime64",
-					model.NewInfixExpr(
-						model.NewLiteral(utcTs.UnixNano()),
-						"/",
-						model.NewLiteral(1_000_000_000),
-					),
-					model.NewLiteral(9),
-				), true
-			}
-		case clickhouse.DateTime:
-			return model.NewFunction("fromUnixTimestamp", model.NewLiteral(utcTs.Unix())), true
-		default:
-			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
-		}
+func (dm DateManager) ParseDateUsualFormat(exprFromRequest any) (funcName string, resultExpr model.Expr) {
+	if unixTsInMs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
+		fmt.Println("KK koniec parsowania daty", unixTsInMs, "exprFromRequest", exprFromRequest)
+		return model.FromUnixTimestampMs, model.NewLiteral(unixTsInMs)
 	}
-	return nil, false
+	return "", nil
+
+	/*
+		if utcTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
+			switch datetimeType {
+			case clickhouse.DateTime64:
+				threeDigitsOfPrecisionSuffice := utcTs.UnixNano()%1_000_000 == 0
+				if threeDigitsOfPrecisionSuffice {
+					return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(utcTs.UnixMilli())), true
+				} else {
+					return model.NewFunction(
+						"toDateTime64",
+						model.NewInfixExpr(
+							model.NewLiteral(utcTs.UnixNano()),
+							"/",
+							model.NewLiteral(1_000_000_000),
+						),
+						model.NewLiteral(9),
+					), true
+				}
+			case clickhouse.DateTime:
+				return model.NewFunction("fromUnixTimestamp", model.NewLiteral(utcTs.Unix())), true
+			default:
+				logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
+			}
+		}
+	*/
 }

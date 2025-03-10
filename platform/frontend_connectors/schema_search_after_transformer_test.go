@@ -3,6 +3,7 @@
 package frontend_connectors
 
 import (
+	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
@@ -156,7 +157,7 @@ func Test_applySearchAfterParameter(t *testing.T) {
 				tc.transformedQueryExpected.SearchAfter = tc.searchAfter
 
 				transformer := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, strategy)
-				actual, err := transformer.applySearchAfterParameter(Schema, tc.query)
+				actual, err := transformer.applySearchAfterParameter(context.Background(), Schema, tc.query)
 				assert.Equal(t, tc.errorExpected, err != nil, "Expected error: %v, got: %v", tc.errorExpected, err)
 				if err == nil {
 					assert.Equal(t,

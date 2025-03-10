@@ -3,6 +3,7 @@
 package frontend_connectors
 
 import (
+	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
@@ -160,7 +161,7 @@ func (s searchAfterStrategyBasicAndFast) transform(query *model.Query, searchAft
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applySearchAfterParameter(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applySearchAfterParameter(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 	searchAfterParsed, err := s.searchAfterStrategy.validateAndParse(query, indexSchema)
 	if err != nil {
 		return nil, err

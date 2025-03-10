@@ -5,6 +5,7 @@ package model
 import (
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // Expr is a generic representation of an expression which is a part of the SQL query.
@@ -96,6 +97,14 @@ type (
 		Value      any
 		EscapeType EscapeType // only meaningful if Value is string
 	}
+	TimeLiteral struct {
+		Value          time.Time
+		TimestampField ColumnRef
+	}
+	DurationLiteral struct {
+		Value          time.Duration
+		TimestampField ColumnRef
+	}
 	EscapeType string
 )
 
@@ -147,6 +156,14 @@ var NewWildcardExpr = NewLiteral("*")
 
 func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value, EscapeType: NormalNotEscaped}
+}
+
+func NewTimeLiteral(value time.Time, timestampField ColumnRef) LiteralExpr {
+	return NewLiteral(TimeLiteral{Value: value, TimestampField: timestampField})
+}
+
+func NewDurationLiteral(value time.Duration, timestampField ColumnRef) LiteralExpr {
+	return NewLiteral(DurationLiteral{Value: value, TimestampField: timestampField})
 }
 
 // NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
