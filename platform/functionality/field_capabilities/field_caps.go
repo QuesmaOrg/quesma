@@ -142,6 +142,8 @@ func asElasticType(t schema.QuesmaType) string {
 		return elasticsearch_field_types.FieldTypeGeoPoint
 	case schema.QuesmaTypeInteger.Name:
 		return elasticsearch_field_types.FieldTypeInteger
+	case schema.QuesmaTypeMap.Name:
+		return elasticsearch_field_types.FieldTypeObject
 	default:
 		return elasticsearch_field_types.FieldTypeText
 	}
