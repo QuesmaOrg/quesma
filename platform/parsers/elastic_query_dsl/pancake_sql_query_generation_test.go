@@ -63,8 +63,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("works IRL, need to update test's schema. It's already WIP https://github.com/QuesmaOrg/quesma/pull/1255. Let's wait for merge.")
 			}
 
-			if i != 202 {
-				t.Skip()
+			if i != 217 {
+				// t.Skip()
 			}
 
 			if filters(test.TestName) {

@@ -21,6 +21,7 @@ import (
 	"github.com/k0kubun/pp"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -745,7 +746,7 @@ func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) model.Simple
 	return model.NewSimpleQueryInvalid()
 }
 
-func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (model.Expr, error) {
+func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string, timestampField model.ColumnRef) (model.Expr, error) {
 	expr = strings.ReplaceAll(expr, "'", "")
 
 	exp, err := ParseDateMathExpression(expr)
@@ -761,6 +762,14 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (model
 	sql, err := builder.RenderExpr(exp)
 	if err != nil {
 		return nil, err
+	}
+
+	pp.Println("sql: ", sql)
+
+	if literal, ok := sql.(model.LiteralExpr); ok {
+		if ts, ok := literal.Value.(time.Time); ok {
+			return model.NewTimeLiteral(ts, timestampField), nil
+		}
 	}
 
 	return sql, nil
@@ -811,15 +820,15 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			switch fieldType {
 			case clickhouse.DateTime, clickhouse.DateTime64:
 				// TODO add support for "time_zone" parameter in ParseDateUsualFormat
-				funcName, finalValue = dateManager.ParseDateUsualFormat(value)                       // stage 1
-				if !areWeDoneParsing() && (op == "gte" || op == "lte" || op == "gt" || op == "lt") { // stage 2
-					parsed, err := cw.parseDateMathExpression(value)
+				funcName, finalValue = dateManager.ParseDateUsualFormat(value, model.NewColumnRef(fieldName)) // stage 1
+				if !areWeDoneParsing() && (op == "gte" || op == "lte" || op == "gt" || op == "lt") {          // stage 2
+					parsed, err := cw.parseDateMathExpression(value, model.NewColumnRef(fieldName))
 					if err == nil {
 						finalValue = parsed
 					}
 				}
 				if !areWeDoneParsing() && isQuoted { // stage 3
-					funcName, finalValue = dateManager.ParseDateUsualFormat(value[1 : len(value)-1])
+					funcName, finalValue = dateManager.ParseDateUsualFormat(value[1:len(value)-1], model.NewColumnRef(fieldName))
 				}
 			case clickhouse.Invalid:
 				if isQuoted {

@@ -13,6 +13,11 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *panc
 	if field == nil {
 		return fmt.Errorf("no field specified for date range aggregation, params: %v", params)
 	}
+	colRef, ok := field.(model.ColumnRef)
+	if !ok {
+		return fmt.Errorf("field is not a column reference, but %T, field: %v", field, field)
+	}
+
 	format := cw.parseStringField(params, "format", "")
 	ranges, err := cw.parseArrayField(params, "ranges")
 	if err != nil {
@@ -30,7 +35,7 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *panc
 		const defaultIntervalBound = bucket_aggregations.UnboundedIntervalString
 		var intervalBegin model.Expr
 		if from := cw.parseStringField(rangeMap, "from", defaultIntervalBound); from != defaultIntervalBound {
-			intervalBegin, err = cw.parseDateTimeInClickhouseMathLanguage(field, from)
+			intervalBegin, err = cw.parseDateTimeInClickhouseMathLanguage(colRef, from)
 			if err != nil {
 				return err
 			}
@@ -39,7 +44,7 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *panc
 
 		var intervalEnd model.Expr
 		if to := cw.parseStringField(rangeMap, "to", defaultIntervalBound); to != defaultIntervalBound {
-			intervalEnd, err = cw.parseDateTimeInClickhouseMathLanguage(field, to)
+			intervalEnd, err = cw.parseDateTimeInClickhouseMathLanguage(colRef, to)
 			if err != nil {
 				return err
 			}
@@ -55,15 +60,15 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *panc
 // parseDateTimeInClickhouseMathLanguage parses dateTime from Clickhouse's format
 // It's described here: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-daterange-aggregation.html
 // Maybe not 100% of it is implemented, not sure.
-func (cw *ClickhouseQueryTranslator) parseDateTimeInClickhouseMathLanguage(field model.Expr, dateTime string) (model.Expr, error) {
+func (cw *ClickhouseQueryTranslator) parseDateTimeInClickhouseMathLanguage(field model.ColumnRef, dateTime string) (model.Expr, error) {
 	// So far we've seen only either:
 	// 1. 2024-01-01 format TODO update
 	dateManager := NewDateManager(cw.Ctx)
-	if funcName, expr := dateManager.ParseDateUsualFormat(dateTime); expr != nil {
+	if funcName, expr := dateManager.ParseDateUsualFormat(dateTime, field); expr != nil {
 		return model.NewFunction(funcName, expr), nil
 	}
 	// 2. expressions like now() or now()-1d
-	res, err := cw.parseDateMathExpression(dateTime)
+	res, err := cw.parseDateMathExpression(dateTime, field)
 	if err != nil {
 		return nil, err
 	}

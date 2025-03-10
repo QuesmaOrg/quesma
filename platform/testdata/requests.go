@@ -1667,8 +1667,8 @@ var TestsSearch = []SearchTestCase{
 		"track_total_hits": true
 	}`,
 		[]string{
-			`(("message" __quesma_match '%User logged out%') AND ("host.name" __quesma_match '%poseidon%'))`,
-			`"message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%' ` +
+			`("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%')`,
+			`("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND "stream.namespace" IS NOT NULL`,
 		},
 		model.Normal,
@@ -1801,7 +1801,7 @@ var TestsSearch = []SearchTestCase{
 		"terminate_after": 100000,
 		"timeout": "1000ms"
 	}`,
-		[]string{`(("message" __quesma_match '%User logged out%') AND ("host.name" __quesma_match '%poseidon%'))`},
+		[]string{`("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%')`},
 		model.Normal,
 		[]string{},
 		[]string{

@@ -198,8 +198,6 @@ type DateMathExpressionAsLiteral struct {
 
 func (b *DateMathExpressionAsLiteral) RenderExpr(expression *DateMathExpression) (model.Expr, error) {
 
-	const format = "2006-01-02 15:04:05"
-
 	result := b.now
 
 	for _, interval := range expression.intervals {
@@ -256,5 +254,5 @@ func (b *DateMathExpressionAsLiteral) RenderExpr(expression *DateMathExpression)
 		return nil, fmt.Errorf("unsupported rounding unit: %s", expression.rounding)
 	}
 
-	return model.NewLiteralSingleQuoteString(result.Format(format)), nil
+	return model.NewLiteral(model.TimeLiteral{Value: result}), nil
 }

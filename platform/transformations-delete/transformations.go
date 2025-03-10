@@ -17,6 +17,14 @@ import (
 
 func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, table *clickhouse.Table, indexSchema schema.Schema) (*model.Query, error) {
 
+	type scopeType = int
+	const (
+		datetime scopeType = iota
+		datetime64
+		none
+	)
+	scope := none
+
 	visitor := model.NewBaseVisitor()
 
 	// we look for: (timestamp_field OP fromUnixTimestamp)
@@ -99,58 +107,101 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 		return visitChildren() // unreachable
 	}
 
-	// we look for: toUnixTimestamp(timestamp_field)
+	// we look for: toUnixTimestamp(timestamp_field) or fromUnixTimestamp(TimeLiteral)
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
 		visitChildren := func() model.FunctionExpr {
 			return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
 		}
 
-		fmt.Println("KK f start 1", e)
-		if e.Name != model.ToUnixTimestampMs {
+		scopeBefore := scope
+		defer func() { scope = scopeBefore }()
+
+		toUnix := func() interface{} {
+			if len(e.Args) != 1 {
+				logger.WarnWithCtx(ctx).Msgf("invalid number of arguments for %s function", e.Name)
+				return visitChildren()
+			}
+			colRef, ok := e.Args[0].(model.ColumnRef)
+			fmt.Printf("KK colref %v ok %v\n", colRef, ok)
+			if !ok {
+				if f, ok := e.Args[0].(model.FunctionExpr); ok && strings.ToLower(f.Name) == "coalesce" && len(f.Args) > 1 {
+					colRef, ok = f.Args[0].(model.ColumnRef)
+					if !ok {
+						logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't column reference, but %T", e.Name, f.Args[0], f.Args[0])
+						return visitChildren()
+					}
+				}
+			}
+			fmt.Println("KK f start 2", e, colRef)
+			field, ok := indexSchema.ResolveField(colRef.ColumnName)
+			fmt.Println("KK f start 2.5", field, ok)
+			if !ok {
+				logger.WarnWithCtx(ctx).Msgf("field %s not found in schema for table %s", colRef.ColumnName, query.TableName)
+				return visitChildren()
+			}
+			col, ok := table.Cols[field.InternalPropertyName.AsString()]
+			if !ok {
+				logger.WarnWithCtx(ctx).Msgf("field %s not found in table %s", field.InternalPropertyName.AsString(), query.TableName)
+				return visitChildren()
+			}
+			isDatetime := col.IsDatetime()
+			isDateTime64 := col.IsDatetime64()
+			fmt.Println("KK f start 3", e, isDatetime, isDateTime64)
+			if !isDatetime && !isDateTime64 {
+				return visitChildren()
+			}
+
+			var clickhouseFunc string
+			if isDateTime64 {
+				scope = datetime64
+				clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetime64Function
+			} else if isDatetime {
+				scope = datetime
+				clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetimeFunction
+			}
+			return model.NewFunction(clickhouseFunc, b.VisitChildren(e.Args)...)
+		}
+
+		fromUnix := func() interface{} {
+			if len(e.Args) != 1 {
+				logger.WarnWithCtx(ctx).Msgf("invalid number of arguments for %s function", e.Name)
+				return visitChildren()
+			}
+
+			var clickhouseFunc string
+			switch scope {
+			case datetime:
+				clickhouseFunc = model.ClickhouseFromUnixTimestampMsToDatetimeFunction
+			default:
+				clickhouseFunc = model.ClickhouseFromUnixTimestampMsToDatetime64Function
+			}
+
+			return model.NewFunction(clickhouseFunc, b.VisitChildren(e.Args)...)
+		}
+
+		switch e.Name {
+		case model.ToUnixTimestampMs:
+			fmt.Println("KK f START ToUnix", e)
+			return toUnix()
+		case model.FromUnixTimestampMs:
+			fmt.Println("KK f START FromUnix", e)
+			return fromUnix()
+		default:
 			fmt.Println("wtf, name:", e.Name)
 			return visitChildren()
 		}
-		if len(e.Args) != 1 {
-			logger.WarnWithCtx(ctx).Msgf("invalid number of arguments for %s function", e.Name)
-			return visitChildren()
-		}
-		colRef, ok := e.Args[0].(model.ColumnRef)
-		if !ok {
-			return visitChildren()
-		}
-		fmt.Println("KK f start 2", e, colRef)
-		field, ok := indexSchema.ResolveField(colRef.ColumnName)
-		fmt.Println("KK f start 2.5", field, ok)
-		if !ok {
-			logger.WarnWithCtx(ctx).Msgf("field %s not found in schema for table %s", colRef.ColumnName, query.TableName)
-			return visitChildren()
-		}
-		col, ok := table.Cols[field.InternalPropertyName.AsString()]
-		if !ok {
-			logger.WarnWithCtx(ctx).Msgf("field %s not found in table %s", field.InternalPropertyName.AsString(), query.TableName)
-			return visitChildren()
-		}
-		isDatetime := col.IsDatetime()
-		isDateTime64 := col.IsDatetime64()
-		fmt.Println("KK f start 3", e, isDatetime, isDateTime64)
-		if !isDatetime && !isDateTime64 {
-			return visitChildren()
-		}
-
-		var clickhouseFunc string
-		if isDateTime64 {
-			clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetime64Function
-		} else if isDatetime {
-			clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetimeFunction
-		}
-		return model.NewFunction(clickhouseFunc, colRef)
 	}
 
 	// we look for: DurationLiteral/TimeLiteral
 	visitor.OverrideVisitLiteral = func(b *model.BaseExprVisitor, l model.LiteralExpr) interface{} {
 		pp.Println("visitor literal", l)
 		if timeL, ok := l.Value.(model.TimeLiteral); ok {
-			return model.NewLiteral(timeL.Value.UnixMilli())
+			switch scope {
+			case datetime:
+				return model.NewLiteral(timeL.Value.Unix())
+			default:
+				return model.NewLiteral(timeL.Value.UnixMilli())
+			}
 		}
 
 		msLiteral, ok := l.Value.(model.DurationLiteral)
