@@ -254,5 +254,5 @@ func (b *DateMathExpressionAsLiteral) RenderExpr(expression *DateMathExpression)
 		return nil, fmt.Errorf("unsupported rounding unit: %s", expression.rounding)
 	}
 
-	return model.NewLiteral(model.TimeLiteral{Value: result}), nil
+	return model.NewFunction(model.FromUnixTimestampMs, model.NewLiteral(model.TimeLiteral{Value: result})), nil
 }

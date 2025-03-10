@@ -111,7 +111,7 @@ func Test_DateMathExpressionAsLiteral(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, model.NewLiteral(model.TimeLiteral{Value: test.expected}), resultExpr)
+			assert.Equal(t, model.NewFunction(model.FromUnixTimestampMs, model.NewLiteral(model.TimeLiteral{Value: test.expected})), resultExpr)
 		})
 	}
 }

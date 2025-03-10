@@ -819,10 +819,10 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 				// TODO add support for "time_zone" parameter in ParseDateUsualFormat
 				funcName, finalValue = dateManager.ParseDateUsualFormat(value, model.NewColumnRef(fieldName)) // stage 1
 				if !areWeDoneParsing() && (op == "gte" || op == "lte" || op == "gt" || op == "lt") {          // stage 2
-					funcName = ""
 					parsed, err := cw.parseDateMathExpression(value, model.NewColumnRef(fieldName))
-					fmt.Println("QQQ parsed: ", parsed, funcName)
+					fmt.Println("QQQ parsed: ", parsed, funcName, cw.DateMathRenderer)
 					if err == nil {
+						funcName = "" // date math expressions don't need function name
 						finalValue = parsed
 					}
 				}
