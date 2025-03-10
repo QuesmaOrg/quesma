@@ -855,8 +855,8 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			  maxOrNull("@timestamp") AS "metric__latest_timestamp_col_0",
 			  count(*) AS "metric____quesma_total_count_col_0"
 			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND
-			  "host_name" iLIKE '%poseidon%')`,
+			WHERE (("message" iLIKE '%posei%' AND "message" ILIKE '%User logged out%') AND
+			  "host_name" ILIKE '%poseidon%')`,
 		},
 		true,
 	},
@@ -1131,9 +1131,9 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`("host_name" __quesma_match 'prometheus')`},
+		[]string{`"host_name" __quesma_match '%prometheus%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name" iLIKE '%prometheus%' LIMIT 10`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name" ILIKE '%prometheus%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [6]
@@ -1148,11 +1148,11 @@ var TestsSearch = []SearchTestCase{
 			"size": 100,
 			"track_total_hits": false
 		}`,
-		[]string{`(((("message" __quesma_match 'this') OR ("message" __quesma_match 'is')) OR ("message" __quesma_match 'a')) OR ("message" __quesma_match 'test'))`},
+		[]string{`((("message" __quesma_match '%this%' OR "message" __quesma_match '%is%') OR "message" __quesma_match '%a%') OR "message" __quesma_match '%test%')`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ((("message" iLIKE '%this%' OR "message" iLIKE '%is%') ` +
-				`OR "message" iLIKE '%a%') OR "message" iLIKE '%test%') ` +
+			`SELECT "message" FROM ` + TableName + ` WHERE ((("message" ILIKE '%this%' OR "message" ILIKE '%is%') ` +
+				`OR "message" ILIKE '%a%') OR "message" ILIKE '%test%') ` +
 				`LIMIT 100`,
 		},
 		[]string{},
@@ -1252,7 +1252,7 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"exception-list-agnostic.list_id" ILIKE '%endpoint\_event\_filters%'`},
+		[]string{`"exception-list-agnostic.list_id" __quesma_match '%endpoint\_event\_filters%'`},
 		model.ListAllFields,
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id" ILIKE '%endpoint\\_event\\_filters%'`},
 		[]string{},
@@ -1279,7 +1279,7 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{fullTextFieldName + ` ILIKE '%ingest-agent-policies%'`},
+		[]string{fullTextFieldName + ` __quesma_match '%ingest-agent-policies%'`},
 		model.ListAllFields,
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ` + fullTextFieldName + ` ILIKE '%ingest-agent-policies%'`},
 		[]string{},
@@ -1362,7 +1362,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user" iLIKE 'ki\\%\\_\\\\ \\\\\\%%'`},
 		[]string{},
 	},
-	{ // [14]
+	{ // [15]
 		"Query string, wildcards don't work properly",
 		`
 		{
@@ -1377,12 +1377,12 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": false,
 			"size": 1
 		}`,
-		[]string{`"message" ILIKE '%% logged%'`},
+		[]string{`"message" __quesma_match '%% logged%'`},
 		model.ListAllFields,
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%% logged%'`},
 		[]string{},
 	},
-	{ // [15]
+	{ // [16]
 		"Empty bool",
 		`
 		{
@@ -1404,7 +1404,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [16]
+	{ // [17]
 		"Simplest 'match_phrase'",
 		`{
 			"query": {
@@ -1414,12 +1414,12 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`("message" __quesma_match 'this is a test')`},
+		[]string{`"message" __quesma_match '%this is a test%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%this is a test%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%this is a test%'`},
 		[]string{},
 	},
-	{ // [17]
+	{ // [18]
 		"More nested 'match_phrase'",
 		`{
 			"query": {
@@ -1432,12 +1432,12 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`("message" __quesma_match 'this is a test')`},
+		[]string{`"message" __quesma_match '%this is a test%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%this is a test%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%this is a test%'`},
 		[]string{},
 	},
-	{ // [18]
+	{ // [19]
 		"Simple nested",
 		`
 		{
@@ -1470,7 +1470,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "references.type"='tag'`},
 		[]string{},
 	},
-	{ // [19]
+	{ // [20]
 		"random simple test",
 		`
 		{
@@ -1550,7 +1550,7 @@ var TestsSearch = []SearchTestCase{
 			LIMIT 11`,
 		},
 	},
-	{ // [20]
+	{ // [21]
 		"termWithCompoundValue",
 		`
 		{
@@ -1635,7 +1635,7 @@ var TestsSearch = []SearchTestCase{
 			LIMIT 11`,
 		},
 	},
-	{ // [21]
+	{ // [22]
 		"count(*) as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count(*)
 		`{
 		"aggs": {
@@ -1696,9 +1696,9 @@ var TestsSearch = []SearchTestCase{
 		"track_total_hits": true
 	}`,
 		[]string{
-			`((("message" __quesma_match 'User logged out') AND ("host.name" __quesma_match 'poseidon')) ` +
+			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))`,
-			`(((("message" __quesma_match 'User logged out') AND ("host.name" __quesma_match 'poseidon')) ` +
+			`((("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))) ` +
 				`AND "stream.namespace" IS NOT NULL)`,
 		},
@@ -1712,14 +1712,14 @@ var TestsSearch = []SearchTestCase{
 			  "stream_namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
+			WHERE (("message" ILIKE '%User logged out%' AND "host_name" ILIKE '%poseidon%')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 		},
 	},
-	{ // [22]
+	{ // [23]
 		"count(*) as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count(*)
 		`{
 			"aggs": {
@@ -1795,7 +1795,7 @@ var TestsSearch = []SearchTestCase{
 			LIMIT 11`,
 		},
 	},
-	{ // [23]
+	{ // [24]
 		"count(*) as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count(*)
 		`{
 		"aggs": {
@@ -1856,10 +1856,10 @@ var TestsSearch = []SearchTestCase{
 		"timeout": "1000ms"
 	}`,
 		[]string{
-			`(((("message" __quesma_match 'User logged out') AND ("host.name" __quesma_match 'poseidon')) ` +
+			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))) ` +
 				`AND "namespace" IS NOT NULL)`,
-			`((("message" __quesma_match 'User logged out') AND ("host.name" __quesma_match 'poseidon')) ` +
+			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
 				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))`,
 		},
 		model.Normal,
@@ -1870,14 +1870,14 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%User logged out%' AND "host_name" iLIKE '%poseidon%')
+			WHERE (("message" ILIKE '%User logged out%' AND "host_name" ILIKE '%poseidon%')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
 		},
 	},
-	{ // [24]
+	{ // [25]
 		"count(*) as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count(*)
 		`{
 			"aggs": {
@@ -1952,7 +1952,7 @@ var TestsSearch = []SearchTestCase{
 			LIMIT 11`,
 		},
 	},
-	{ // [25]
+	{ // [26]
 		"_search, only one so far with fields, we're not sure if SELECT * is correct, or should be SELECT @timestamp",
 		`{
 			"_source": {
@@ -1994,7 +1994,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [26]
+	{ // [27]
 		"Empty must",
 		`
 		{
@@ -2013,7 +2013,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [27]
+	{ // [28]
 		"Empty must not",
 		`
 		{
@@ -2031,7 +2031,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [28]
+	{ // [29]
 		"Empty should",
 		`
 		{
@@ -2047,7 +2047,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT "message" FROM ` + TableName},
 		[]string{},
 	},
-	{ // [29]
+	{ // [30]
 		"Empty all bools",
 		`
 		{
@@ -2069,7 +2069,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [30]
+	{ // [31]
 		"Some bools empty, some not",
 		`
 		{
@@ -2094,16 +2094,16 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": false,
 			"size": 12
 		}`,
-		[]string{`(("message" __quesma_match 'User logged out') AND ("message" __quesma_match 'User logged out'))`},
+		[]string{`("message" __quesma_match '%User logged out%' AND "message" __quesma_match '%User logged out%')`},
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%')`,
+				`WHERE ("message" ILIKE '%User logged out%' AND "message" ILIKE '%User logged out%')`,
 		},
 		[]string{},
 	},
-	{ // [31]
+	{ // [32]
 		"Match all (empty query)",
 		`{}`,
 		[]string{""},
@@ -2114,7 +2114,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [32]
+	{ // [33]
 		"Constant score query",
 		`{
 			"query": {
@@ -2132,7 +2132,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user.id"='kimchy'`},
 		[]string{},
 	},
-	{ // [33] this is a snowflake case as `_id` is a special field in ES and in clickhouse we compute
+	{ // [34] this is a snowflake case as `_id` is a special field in ES and in clickhouse we compute
 		"Match phrase using _id field",
 		`{
 			  "query": {
@@ -2165,7 +2165,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3)) LIMIT 10`},
 		[]string{},
 	},
-	{ // [34] Comments in queries
+	{ // [35] Comments in queries
 		"Comments in filter",
 		`{
 			"query": { /*one comment */
@@ -2182,7 +2182,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user.id"='kimchy'`},
 		[]string{},
 	},
-	{ // [35] terms with range
+	{ // [36] terms with range
 		"Terms with range",
 		`{
 		  "size": 1,
@@ -2223,7 +2223,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [36]
+	{ // [37]
 		"Simple regexp (can be simply transformed to one LIKE)",
 		`{
 			"query": {
@@ -2251,7 +2251,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [37]
+	{ // [38]
 		"Simple regexp (can be simply transformed to one LIKE), with _, which needs to be escaped",
 		`{
 			"query": {
@@ -2281,7 +2281,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [38]
+	{ // [39]
 		"Complex regexp 1 (can't be transformed to LIKE)",
 		`{
 			"query": {
@@ -2309,7 +2309,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [39]
+	{ // [40]
 		"Complex regexp 2 (can't be transformed to LIKE)",
 		`{
 			"query": {
@@ -2337,7 +2337,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{},
 	},
-	{ // [40]
+	{ // [41]
 		`Escaping of ', \, \t and \n`,
 		`	
 		{
@@ -2354,14 +2354,14 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`("message" __quesma_match '
-Men\'s Clothing \\ 	')`},
+		[]string{`"message" __quesma_match '%
+Men\'s Clothing \\ 	%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" iLIKE '%
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%
 Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
-	{ // [41]
+	{ // [42]
 		"ids, 0 values",
 		`{
 			"query": {
@@ -2381,7 +2381,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [42]
+	{ // [43]
 		"ids, 1 value",
 		`{
 			"query": {
@@ -2401,7 +2401,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [43]
+	{ // [44]
 		"ids, 2+ values",
 		`{
 			"query": {
@@ -2424,7 +2424,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [44]
+	{ // [45]
 		"ids with DateTime64(9) (trailing zeroes)",
 		`{
 			"query": {
@@ -2444,7 +2444,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [45]
+	{ // [46]
 		"ids with DateTime64(9) (no trailing zeroes)",
 		`{
 			"query": {
@@ -2464,7 +2464,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [46]
+	{ // [47]
 		"ids with DateTime64(0)",
 		`{
 			"query": {
@@ -2484,7 +2484,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [47]
+	{ // [48]
 		"ids with DateTime64(1)",
 		`{
 			"query": {
@@ -2504,7 +2504,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [48]
+	{ // [49]
 		"_index term",
 		`{
 			"query": { /*one comment */

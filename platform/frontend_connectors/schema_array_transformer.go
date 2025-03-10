@@ -94,11 +94,14 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 		if ok {
 			dbType := resolver.dbColumnType(column.ColumnName)
 			if strings.HasPrefix(dbType, "Array") {
-				op := strings.ToUpper(e.Op)
-				op = strings.TrimSpace(op)
+				op := strings.TrimSpace(e.Op)
+				opUpperCase := strings.ToUpper(op)
 				switch {
-				case (op == "ILIKE" || op == "LIKE") && dbType == "Array(String)":
+				case (opUpperCase == "ILIKE" || opUpperCase == "LIKE" || op == model.MatchOperator) && dbType == "Array(String)":
 
+					if op == model.MatchOperator {
+						op = "ILIKE"
+					}
 					variableName := "x"
 					lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
 					return model.NewFunction("arrayExists", lambda, e.Left)
