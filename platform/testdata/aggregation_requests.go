@@ -309,8 +309,8 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf(("FlightDelay" __quesma_match true)) AS "metric__0__1-bucket_col_0",
-			  countIf(("Cancelled" __quesma_match true)) AS "metric__0__3-bucket_col_0"
+			  countIf("FlightDelay" __quesma_match true) AS "metric__0__1-bucket_col_0",
+			  countIf("Cancelled" __quesma_match true) AS "metric__0__3-bucket_col_0"
 			FROM ` + TableName + `
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
@@ -861,7 +861,7 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf(("FlightDelay" __quesma_match true)) AS "metric__0-bucket_col_0"
+			SELECT countIf("FlightDelay" __quesma_match true) AS "metric__0-bucket_col_0"
 			FROM ` + TableName + `
 			 WHERE ("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))`,
 	},
@@ -1024,7 +1024,7 @@ var AggregationTests = []AggregationTestCase{
 			  <=fromUnixTimestamp64Milli(1706881636029))) AS
 			  "filter_1__aggr__time_offset_split__count"
 			FROM __quesma_table_name
-			WHERE (("FlightDelay" __quesma_match true) AND (("timestamp">=fromUnixTimestamp64Milli(
+			WHERE ("FlightDelay" __quesma_match true AND (("timestamp">=fromUnixTimestamp64Milli(
 			  1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029)) OR (
 			  "timestamp">=fromUnixTimestamp64Milli(1706276836029) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1706881636029))))`,
@@ -1618,7 +1618,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT "FlightDelayMin" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
 			FROM ` + TableName + `
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=
-              fromUnixTimestamp64Milli(1707486436029)) AND NOT (("FlightDelayMin" __quesma_match 0)))
+              fromUnixTimestamp64Milli(1707486436029)) AND NOT ("FlightDelayMin" __quesma_match 0))
 			GROUP BY "FlightDelayMin" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},
@@ -1840,7 +1840,7 @@ var AggregationTests = []AggregationTestCase{
 				  "@timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE (("host.name" __quesma_match 'prometheus') AND ("@timestamp">=
+				WHERE ("host.name" __quesma_match '%prometheus%' AND ("@timestamp">=
 				  fromUnixTimestamp64Milli(1706891809940) AND "@timestamp"<=
 				  fromUnixTimestamp64Milli(1707496609940)))
 				GROUP BY "severity" AS "aggr__0__key_0",
@@ -2845,8 +2845,8 @@ var AggregationTests = []AggregationTestCase{
 			  "@timestamp") AS "metric__earliest_timestamp_col_0", maxOrNull("@timestamp")
 			  AS "metric__latest_timestamp_col_0"
 			FROM ` + TableName + `
-			WHERE ((` + fullTextFieldName + ` iLIKE '%posei%' AND ("message" __quesma_match 'User logged out')) AND
-			  ("host.name" __quesma_match 'poseidon'))`,
+			WHERE ((` + fullTextFieldName + ` iLIKE '%posei%' AND "message" __quesma_match '%User logged out%') AND
+			  "host.name" __quesma_match '%poseidon%')`,
 	},
 	{ // [15]
 		TestName: "date_histogram: regression test",
@@ -3270,9 +3270,9 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000) AS
 			  "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("products.product_name" ILIKE '%watch%') AS
+			  countIf("products.product_name" __quesma_match '%watch%') AS
 			  "aggr__0__1-bucket__count",
-			  sumOrNullIf("taxful_total_price", "products.product_name" ILIKE '%watch%') AS
+			  sumOrNullIf("taxful_total_price", "products.product_name" __quesma_match '%watch%') AS
 			  "metric__0__1-bucket__1-metric_col_0"
 			FROM ` + TableName + `
 			WHERE ("order_date">=fromUnixTimestamp64Milli(1708627654149) AND "order_date"<=fromUnixTimestamp64Milli(1709232454149))
@@ -5336,8 +5336,8 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
 			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			    countIf(("FlightDelay" __quesma_match true)) AS "metric__0__1-bucket_col_0",
-  				countIf(("Cancelled" __quesma_match true)) AS "metric__0__3-bucket_col_0"
+			    countIf("FlightDelay" __quesma_match true) AS "metric__0__1-bucket_col_0",
+  				countIf("Cancelled" __quesma_match true) AS "metric__0__3-bucket_col_0"
 			FROM ` + TableName + `
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC
@@ -6298,7 +6298,7 @@ var AggregationTests = []AggregationTestCase{
 				  "aggr__0__1__parent_count", "message" AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE ("message" IS NOT NULL AND NOT (("message" __quesma_match 'US')))
+				WHERE ("message" IS NOT NULL AND NOT ("message" __quesma_match '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0"))
 			WHERE ("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4)
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
@@ -6414,7 +6414,7 @@ var AggregationTests = []AggregationTestCase{
 				  "aggr__0__1__2__parent_count", "message" AS "aggr__0__1__2__key_0",
 				  count(*) AS "aggr__0__1__2__count"
 				FROM __quesma_table_name
-				WHERE ("message" IS NOT NULL AND NOT (("message" __quesma_match 'US')))
+				WHERE ("message" IS NOT NULL AND NOT ("message" __quesma_match '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0",
 				  "message" AS "aggr__0__1__2__key_0"))
 			WHERE (("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4) AND
@@ -6506,7 +6506,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
-				WHERE ("message" IS NOT NULL AND NOT (("message" __quesma_match 'US')))
+				WHERE ("message" IS NOT NULL AND NOT ("message" __quesma_match '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0",
 				  "FlightDelayMin" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=9
@@ -6617,7 +6617,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
-				WHERE ("message" IS NOT NULL AND NOT (("message" __quesma_match 'US')))
+				WHERE ("message" IS NOT NULL AND NOT ("message" __quesma_match '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0",
 				  "FlightDelayMin" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=11
@@ -6714,7 +6714,7 @@ var AggregationTests = []AggregationTestCase{
 				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
 				  "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE ("message" IS NOT NULL AND NOT (("message" __quesma_match 'US')))
+				WHERE ("message" IS NOT NULL AND NOT ("message" __quesma_match '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0",
 				  "FlightDelayMin" AS "aggr__0__1__key_0"))
 			WHERE "aggr__0__order_1_rank"<=11
@@ -6930,7 +6930,7 @@ var AggregationTests = []AggregationTestCase{
 			  count(*) AS "aggr__2__count",
   			  sumOrNull("total") AS "metric__2__1_col_0"
 			FROM ` + TableName + `
-			WHERE NOT ((("abc">=0 AND "abc"<600) OR ("type" __quesma_match 'def')))
+			WHERE NOT ((("abc">=0 AND "abc"<600) OR "type" __quesma_match '%def%'))
 			GROUP BY "name" AS "aggr__2__key_0"
 			ORDER BY "metric__2__1_col_0" DESC, "aggr__2__key_0" ASC
 			LIMIT 11`,
