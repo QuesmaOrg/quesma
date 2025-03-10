@@ -441,29 +441,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [24]
-		TestName:  "metrics aggregation: rate",
-		QueryType: "rate",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"by_date": {
-					"date_histogram": {
-						"field": "date",
-						"calendar_interval": "month"  
-					},
-					"aggs": {
-						"my_rate": {
-							"rate": {
-								"unit": "year"  
-							}
-						}
-					}
-				}
-			}
-		}`,
-	},
 	{ // [25]
 		TestName:  "metrics aggregation: scripted_metric",
 		QueryType: "scripted_metric",

@@ -40,6 +40,23 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 	return
 }
 
+// selectMetricRowsMultipleNames: exactly like selectMetricRows above, but for multiple metric names.
+func (p *pancakeJSONRenderer) selectMetricRowsMultipleNames(metricNames []string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	if len(rows) > 0 {
+		newRow := model.QueryResultRow{Index: rows[0].Index}
+		for _, col := range rows[0].Cols {
+			for _, name := range metricNames {
+				if strings.HasPrefix(col.ColName, name) {
+					newRow.Cols = append(newRow.Cols, col)
+					break
+				}
+			}
+		}
+		return []model.QueryResultRow{newRow}
+	}
+	return
+}
+
 // selectTopHitsRows: select columns for top_hits/top_metrics and rename them to original column names.
 // There is refactoring opportunity once we move completely to pancakes and remove re-name logic from this method.
 func (p *pancakeJSONRenderer) selectTopHitsRows(topAggr *pancakeModelMetricAggregation, rows []model.QueryResultRow) (result []model.QueryResultRow) {
@@ -246,12 +263,33 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 	}
 
 	layer := remainingLayers[0]
-
+	fmt.Println("kk model:", rows)
 	for _, metric := range layer.currentMetricAggregations {
 		var metricRows []model.QueryResultRow
 		switch metric.queryType.(type) {
 		case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
 			metricRows = p.selectTopHitsRows(metric, rows)
+		case *metrics_aggregations.Rate:
+			// Special, as we need to select also parent date_histogram's values.
+
+			// 2 lines below: e.g. metric__2__year -> aggr__2
+			parentHistogramColName := fmt.Sprintf("aggr%s", strings.TrimPrefix(metric.internalName, "metric"))
+			parentHistogramColName = strings.TrimSuffix(parentHistogramColName, metric.name)
+
+			var (
+				parentHistogramKey = fmt.Sprintf("%skey_0", parentHistogramColName)
+				metricValue        string
+			)
+			rate, _ := metric.queryType.(*metrics_aggregations.Rate)
+			if rate.FieldPresent() {
+				// if we have field, we use it
+				metricValue = metric.InternalNamePrefix()
+			} else {
+				// else: our value is date_histogram's count
+				metricValue = fmt.Sprintf("%scount", parentHistogramColName)
+			}
+			metricRows = p.selectMetricRowsMultipleNames([]string{parentHistogramKey, metricValue}, rows)
+
 		default:
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}

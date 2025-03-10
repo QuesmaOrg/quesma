@@ -12,6 +12,8 @@ func ParseInterval(fixedInterval string) (time.Duration, error) {
 	var unit time.Duration
 
 	switch fixedInterval {
+	case "second":
+		return time.Second, nil
 	case "minute":
 		return time.Minute, nil
 	case "hour":
