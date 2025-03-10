@@ -406,7 +406,7 @@ func (a *pancakeTransformer) transformRate(layers []*pancakeModelLayer) {
 			continue
 		}
 		if dateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.DateHistogram); ok {
-			dhInterval, ok := dateHistogram.IntervalInMilliseconds()
+			dhInterval, ok := dateHistogram.Interval()
 			if !ok {
 				continue
 			}

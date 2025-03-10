@@ -225,9 +225,9 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
 }
 
-func (query *DateHistogram) IntervalInMilliseconds() (int64, bool) {
+func (query *DateHistogram) Interval() (interval time.Duration, ok bool) {
 	if duration, err := util.ParseInterval(query.interval); err == nil {
-		return duration.Milliseconds(), true
+		return duration, true
 	} else {
 		logger.WarnWithCtx(query.ctx).Msg(err.Error())
 		return 0, false

@@ -71,12 +71,14 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 		return model.JsonMap{"value": nil}
 	}
 
-	fix := 1.0 // e.g. 90/88 if there are 88 days in 3 months, but our calculations are based on 90 days
-	thirtyDays := 30 * util.Day()
+	var (
+		fix               = 1.0 // e.g. 90/88 if there are 88 days in 3 months, but our calculations are based on 90 days
+		thirtyDays        = 30 * util.Day()
+		needToCountDaysNr = query.parentInterval.Milliseconds()%thirtyDays.Milliseconds() == 0 &&
+			(query.unit == second || query.unit == minute || query.unit == hour || query.unit == day || query.unit == week)
+		weHaveParentDateHistogramKey = len(rows[0].Cols) == 2
+	)
 
-	needToCountDaysNr := query.parentInterval.Milliseconds()%thirtyDays.Milliseconds() == 0 &&
-		(query.unit == second || query.unit == minute || query.unit == hour || query.unit == day || query.unit == week)
-	weHaveParentDateHistogramKey := len(rows[0].Cols) == 2
 	if needToCountDaysNr && weHaveParentDateHistogramKey {
 		// Calculating 'fix':
 		// We need to count days of every month, as it can be 28, 29, 30 or 31...
@@ -86,6 +88,7 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 			logger.WarnWithCtx(query.ctx).Msgf("cannot extract parent date_histogram key from %v, %T", rows[0].Cols[0], rows[0].Cols[0].Value)
 			return model.JsonMap{"value": nil}
 		}
+
 		someTime := time.UnixMilli(parentDateHistogramKey).Add(48 * time.Hour)
 		// someTime.Day() is in [28, 31] U {1}. I want it to be >= 2, so I'm sure I'm in the right month for all timezones.
 		for someTime.Day() == 1 || someTime.Day() > 25 {
@@ -106,9 +109,9 @@ func (query *Rate) TranslateSqlResponseToJson(rows []model.QueryResultRow) model
 	return model.JsonMap{"value": fix * parentVal * query.multiplier}
 }
 
-func (query *Rate) CalcAndSetMultiplier(parentIntervalInMs int64) {
-	query.parentInterval = time.Duration(parentIntervalInMs) * time.Millisecond
-	if parentIntervalInMs == 0 {
+func (query *Rate) CalcAndSetMultiplier(parentInterval time.Duration) {
+	query.parentInterval = parentInterval
+	if parentInterval.Milliseconds() == 0 {
 		logger.ErrorWithCtx(query.ctx).Msgf("parent interval is 0, cannot calculate rate multiplier")
 		return
 	}
@@ -117,8 +120,8 @@ func (query *Rate) CalcAndSetMultiplier(parentIntervalInMs int64) {
 	// unit month/quarter/year is special, only compatible with month/quarter/year calendar intervals
 	if query.unit == month || query.unit == quarter || query.unit == year {
 		oneMonth := 30 * util.Day()
-		if parentIntervalInMs < oneMonth.Milliseconds() {
-			logger.WarnWithCtx(query.ctx).Msgf("parent interval (%d ms) is not compatible with rate unit %s", parentIntervalInMs, query.unit.String(query.ctx))
+		if parentInterval < oneMonth {
+			logger.WarnWithCtx(query.ctx).Msgf("parent interval (%d ms) is not compatible with rate unit %s", parentInterval, query.unit.String(query.ctx))
 			return
 		}
 		if query.unit == year {
@@ -126,10 +129,10 @@ func (query *Rate) CalcAndSetMultiplier(parentIntervalInMs int64) {
 		}
 	}
 
-	if rate.Milliseconds()%parentIntervalInMs == 0 {
-		query.multiplier = float64(rate.Milliseconds() / parentIntervalInMs)
+	if rate.Milliseconds()%parentInterval.Milliseconds() == 0 {
+		query.multiplier = float64(rate.Milliseconds() / parentInterval.Milliseconds())
 	} else {
-		query.multiplier = float64(rate.Milliseconds()) / float64(parentIntervalInMs)
+		query.multiplier = float64(rate.Milliseconds()) / float64(parentInterval.Milliseconds())
 	}
 }
 
