@@ -525,6 +525,7 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 	var hasWildcard bool
 
 	for _, selectColumn := range query.SelectCommand.Columns {
+
 		if selectColumn == model.NewWildcardExpr {
 			hasWildcard = true
 		} else {
@@ -592,6 +593,7 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		// full text field should be used only in where clause
+
 		if e.ColumnName == model.FullTextFieldNamePlaceHolder {
 			err = fmt.Errorf("full text field name placeholder found in query")
 		}
