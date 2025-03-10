@@ -21,7 +21,6 @@ import (
 	"github.com/k0kubun/pp"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 )
 
@@ -764,11 +763,9 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string, timest
 		return nil, err
 	}
 
-	pp.Println("sql: ", sql)
-
 	if literal, ok := sql.(model.LiteralExpr); ok {
-		if ts, ok := literal.Value.(time.Time); ok {
-			return model.NewTimeLiteral(ts, timestampField), nil
+		if ts, ok := literal.Value.(model.TimeLiteral); ok {
+			return model.NewTimeLiteral(ts.Value, timestampField), nil
 		}
 	}
 

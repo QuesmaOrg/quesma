@@ -5,7 +5,6 @@ package elastic_query_dsl
 
 import (
 	"context"
-	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"strconv"
@@ -67,10 +66,9 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 // It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
 func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, field model.ColumnRef) (funcName string, resultExpr model.Expr) {
 	if unixTsInMs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
-		fmt.Println("KK koniec parsowania daty", unixTsInMs, "exprFromRequest", exprFromRequest)
 		return model.FromUnixTimestampMs, model.NewTimeLiteral(unixTsInMs, field)
 	}
-	return "", nil
+	return model.FromUnixTimestampMs, nil // todo usunac te funkcje jak zawsze zwracam to samo? xD
 
 	/*
 		if utcTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
