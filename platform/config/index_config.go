@@ -13,6 +13,33 @@ const (
 	ClickhouseTarget    = "clickhouse"
 )
 
+// PartitionStrategy represents a configurable partitioning strategy for ClickHouse tables created by Quesma
+type PartitionStrategy string
+
+const (
+	Hourly  PartitionStrategy = "hourly"
+	Daily   PartitionStrategy = "daily"
+	Monthly PartitionStrategy = "monthly"
+	Yearly  PartitionStrategy = "yearly"
+	None    PartitionStrategy = ""
+)
+
+//func PartitionStrategyFromString(s string) PartitionStrategy {
+//	switch s {
+//	case "hourly":
+//		return Hourly
+//	case "daily":
+//		return Daily
+//	case "monthly":
+//		return Monthly
+//	case "yearly":
+//		return Yearly
+//	default:
+//		logger.Warn().Msgf("Failed to parse partitioning strategy '%s'", s)
+//		return None
+//	}
+//}
+
 type IndexConfiguration struct {
 	SchemaOverrides *SchemaConfiguration              `koanf:"schemaOverrides"`
 	Optimizers      map[string]OptimizerConfiguration `koanf:"optimizers"`
@@ -21,8 +48,8 @@ type IndexConfiguration struct {
 	Target          any                               `koanf:"target"`
 
 	// PartitioningStrategy adds PARTITION BY clause to the table creation query
-	PartitioningStrategy string `koanf:"partitioningStrategy"` // Experimental feature
-	EnableFieldMapSyntax bool   `koanf:"enableFieldMapSyntax"` // Experimental feature
+	PartitioningStrategy PartitionStrategy `koanf:"partitioningStrategy"` // Experimental feature
+	EnableFieldMapSyntax bool              `koanf:"enableFieldMapSyntax"` // Experimental feature
 
 	// Computed based on the overall configuration
 	QueryTarget  []string

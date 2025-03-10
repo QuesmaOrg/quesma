@@ -643,9 +643,9 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if table == nil {
 		tableConfig = NewOnlySchemaFieldsCHConfig(ip.cfg.ClusterName)
 		if indexConfig, ok := ip.cfg.IndexConfig[tableName]; ok {
-			tableConfig.PartitionStrategy = chLib.PartitionStrategyFromString(indexConfig.PartitioningStrategy)
+			tableConfig.PartitionStrategy = indexConfig.PartitioningStrategy
 		} else if strategy := ip.cfg.DefaultPartitioningStrategy; strategy != "" {
-			tableConfig.PartitionStrategy = chLib.PartitionStrategyFromString(strategy)
+			tableConfig.PartitionStrategy = strategy
 		}
 		columnsFromJson := JsonToColumns(transformedJsons[0], tableConfig)
 

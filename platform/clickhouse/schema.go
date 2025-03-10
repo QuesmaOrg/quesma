@@ -4,6 +4,7 @@ package clickhouse
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"math"
@@ -343,8 +344,8 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 	if config.OrderBy != "" {
 		s += "ORDER BY " + config.OrderBy + "\n"
 	}
-	if config.PartitionStrategy != "" {
-		s += "PARTITION BY " + getPartitioningFunc(config.PartitionStrategy) + "(" + strconv.Quote(timestampFieldName) + ")" + "\n"
+	if partitioningFunc := getPartitioningFunc(config.PartitionStrategy); config.PartitionStrategy != "" && partitioningFunc != "" {
+		s += "PARTITION BY " + partitioningFunc + "(" + strconv.Quote(timestampFieldName) + ")" + "\n"
 	}
 	if config.PrimaryKey != "" {
 		s += "PRIMARY KEY " + config.PrimaryKey + "\n"
@@ -359,17 +360,20 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 	return s
 }
 
-func getPartitioningFunc(strategy PartitionStrategy) string {
+func getPartitioningFunc(strategy config.PartitionStrategy) string {
 	switch strategy {
-	case Hourly:
+	case config.Hourly:
 		return "toStartOfHour"
-	case Daily:
+	case config.Daily:
 		return "toYYYYMMDD"
-	case Monthly:
+	case config.Monthly:
 		return "toYYYYMM"
-	case Yearly:
+	case config.Yearly:
 		return "toYYYY"
+	case config.None:
+		return ""
 	default:
+		logger.Error().Msgf("Unknown partitioning strategy '%v'", strategy)
 		return ""
 	}
 }
