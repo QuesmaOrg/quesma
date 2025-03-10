@@ -325,21 +325,30 @@ func (cw *ClickhouseQueryTranslator) parseMultiTerms(aggregation *pancakeAggrega
 }
 
 func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggregationTreeNode, params QueryMap) error {
-	const defaultPrecisionZoom = 7.0
-	precisionZoom := cw.parseFloatField(params, "precision", defaultPrecisionZoom)
+	if err := bucket_aggregations.CheckParamsGeotileGrid(cw.Ctx, params); err != nil {
+		return err
+	}
+
+	const (
+		defaultPrecisionZoom = 7.0
+		defaultSize          = 10000
+	)
+	precisionZoom := int(cw.parseFloatField(params, "precision", defaultPrecisionZoom))
 	field := cw.parseFieldField(params, "geotile_grid")
+	size := cw.parseIntField(params, "size", defaultSize)
 
 	// That's bucket (group by) formula for geotile_grid
 	// zoom/x/y
-	//	SELECT precisionZoom as zoom,
+	//	SELECT
 	//	    FLOOR((("Location::lon" + 180.0) / 360.0) * POWER(2, zoom)) AS x_tile,
 	//	    FLOOR(
 	//	        (
 	//	            1 - LOG(TAN(RADIANS("Location::lat")) + (1 / COS(RADIANS("Location::lat")))) / PI()
 	//	        ) / 2.0 * POWER(2, zoom)
-	//	    ) AS y_tile, count()
+	//	    ) AS y_tile,
+	//	    count()
 	//	FROM
-	//	     kibana_sample_data_flights Group by zoom, x_tile, y_tile
+	//	     kibana_sample_data_flights Group by x_tile, y_tile
 
 	zoomLiteral := model.NewLiteral(precisionZoom)
 
@@ -371,10 +380,12 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 		model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
 	yTile := model.NewFunction("FLOOR", FloorContent)
 
-	aggregation.queryType = bucket_aggregations.NewGeoTileGrid(cw.Ctx)
-	aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewLiteral(fmt.Sprintf("CAST(%f AS Float32)", precisionZoom)))
+	aggregation.queryType = bucket_aggregations.NewGeoTileGrid(cw.Ctx, precisionZoom)
 	aggregation.selectedColumns = append(aggregation.selectedColumns, xTile)
 	aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
+	// It's not explicitly stated in the Elastic documentation, but Geotile Grid is always ordered by count desc
+	aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExpr(model.NewCountFunc(), model.DescOrder))
+	aggregation.limit = size
 	return nil
 }
 

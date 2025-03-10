@@ -1865,9 +1865,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__gridSplit__key_0", float64(6)),
-				model.NewQueryResultCol("aggr__gridSplit__key_1", float64(16)),
-				model.NewQueryResultCol("aggr__gridSplit__key_2", float64(25)),
+				model.NewQueryResultCol("aggr__gridSplit__key_0", float64(16)),
+				model.NewQueryResultCol("aggr__gridSplit__key_1", float64(25)),
 				model.NewQueryResultCol("aggr__gridSplit__count", int64(84)),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_0", float64(34.328916899227934)),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_1", float64(-87.03988024233175)),
@@ -1875,9 +1874,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__gridSplit__sum_of_bytes_col_0", float64(487212.0)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__gridSplit__key_0", float64(6)),
-				model.NewQueryResultCol("aggr__gridSplit__key_1", float64(17)),
-				model.NewQueryResultCol("aggr__gridSplit__key_2", float64(25)),
+				model.NewQueryResultCol("aggr__gridSplit__key_0", float64(17)),
+				model.NewQueryResultCol("aggr__gridSplit__key_1", float64(25)),
 				model.NewQueryResultCol("aggr__gridSplit__count", int64(78)),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_0", float64(34.233657193835825)),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_1", float64(-81.91807738970965)),
@@ -1886,12 +1884,11 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT CAST(6.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((__quesma_geo_lon("geo.coordinates")+180)/360)*POWER(2, 6))
-			  AS "aggr__gridSplit__key_1",
+			SELECT FLOOR(((__quesma_geo_lon("geo.coordinates")+180)/360)*POWER(2, 6))
+			  AS "aggr__gridSplit__key_0",
 			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geo.coordinates")))+(1/COS(RADIANS(
 			  __quesma_geo_lat("geo.coordinates")))))/PI())/2*POWER(2, 6))
-			  AS "aggr__gridSplit__key_2", count(*) AS "aggr__gridSplit__count",
+			  AS "aggr__gridSplit__key_1", count(*) AS "aggr__gridSplit__count",
 			  avgOrNull(__quesma_geo_lat("geo_coordinates")) AS
 			  "metric__gridSplit__gridCentroid_col_0",
 			  avgOrNull(__quesma_geo_lon("geo_coordinates")) AS
@@ -1901,11 +1898,13 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			FROM __quesma_table_name
 			WHERE ("geo.coordinates" IS NOT NULL AND ("timestamp">=fromUnixTimestamp64Milli(
 			  1740178800000) AND "timestamp"<=fromUnixTimestamp64Milli(1740831278103)))
-			GROUP BY CAST(6.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((__quesma_geo_lon("geo.coordinates")+180)/360)*POWER(2, 6))
-			  AS "aggr__gridSplit__key_1",
+			GROUP BY FLOOR(((__quesma_geo_lon("geo.coordinates")+180)/360)*POWER(2, 6))
+			  AS "aggr__gridSplit__key_0",
 			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geo.coordinates")))+(1/COS(
-			  RADIANS(__quesma_geo_lat("geo.coordinates")))))/PI())/2*POWER(2, 6)) AS "aggr__gridSplit__key_2"`,
+			  RADIANS(__quesma_geo_lat("geo.coordinates")))))/PI())/2*POWER(2, 6)) AS "aggr__gridSplit__key_1"
+			ORDER BY "aggr__gridSplit__count" DESC, "aggr__gridSplit__key_0" ASC,
+  			  "aggr__gridSplit__key_1" ASC
+			LIMIT 65535`,
 	},
 	{ // [9]
 		TestName: "Total Requests and Bytes (2/2 request)",
