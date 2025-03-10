@@ -54,17 +54,14 @@ func (h *Highlighter) SetTokensToHighlight(selectCmd SelectCommand) {
 	h.Tokens = make(map[string]Tokens)
 
 	visitor := NewBaseVisitor()
-	// pp.Println(selectCmd)
 	visitor.OverrideVisitInfix = func(b *BaseExprVisitor, e InfixExpr) interface{} {
 		switch e.Op {
 		case "iLIKE", "ILIKE", "LIKE", "IN", "=", MatchOperator:
-			// pp.Println("ilike", e)
 			lhs, isColumnRef := e.Left.(ColumnRef)
 			rhs, isLiteral := e.Right.(LiteralExpr)
 			if isLiteral && isColumnRef { // we only highlight in this case
 				switch literalAsString := rhs.Value.(type) {
 				case string:
-					// pp.Println(literalAsString, selectCmd)
 					literalAsString = strings.TrimPrefix(literalAsString, "'")
 					literalAsString = strings.TrimPrefix(literalAsString, "%")
 					literalAsString = strings.TrimSuffix(literalAsString, "'")
@@ -72,7 +69,6 @@ func (h *Highlighter) SetTokensToHighlight(selectCmd SelectCommand) {
 					if h.Tokens[lhs.ColumnName] == nil {
 						h.Tokens[lhs.ColumnName] = make(Tokens)
 					}
-					// fmt.Println("highlighting", lhs.ColumnName, literalAsString)
 					h.Tokens[lhs.ColumnName][strings.ToLower(literalAsString)] = struct{}{}
 				default:
 					logger.Info().Msgf("Value is of an unexpected type: %T\n", literalAsString)
@@ -83,7 +79,6 @@ func (h *Highlighter) SetTokensToHighlight(selectCmd SelectCommand) {
 	}
 
 	selectCmd.Accept(visitor)
-	// pp.Println("h.tokens", h.Tokens)
 
 }
 
@@ -154,6 +149,5 @@ func (h *Highlighter) HighlightValue(columnName, value string) []string {
 		highlights = append(highlights, h.PreTags[0]+value[m.start:m.end]+h.PostTags[0])
 	}
 
-	// fmt.Println("high", highlights, "value", value)
 	return highlights
 }
