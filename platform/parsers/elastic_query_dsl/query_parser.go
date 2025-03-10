@@ -579,15 +579,15 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
 				} else {
-					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteral("'"+subQuery+"'"))
+					fullLiteral := model.NewLiteralWithEscapeType("'"+subQuery+"'", model.NotEscapedLikeFull)
+					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, fullLiteral)
 					statements = append(statements, simpleStat)
 				}
 			}
 			return model.NewSimpleQuery(model.Or(statements), true)
 		}
 
-		// so far we assume that only strings can be ORed here
-		statement := model.NewInfixExpr(model.NewColumnRef(fieldName), "==", model.NewLiteral(sprint(vUnNested)))
+		statement := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteral(sprint(vUnNested)))
 		return model.NewSimpleQuery(statement, true)
 	}
 

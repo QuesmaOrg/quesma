@@ -687,9 +687,9 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			SELECT toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count",
-			  countIf("products.product_name" ILIKE '%trouser%') AS
+			  countIf("products.product_name" __quesma_match '%trouser%') AS
 			  "aggr__0__1-bucket__count",
-			  sumOrNullIf("taxful_total_price", "products.product_name" ILIKE '%trouser%')
+			  sumOrNullIf("taxful_total_price", "products.product_name" __quesma_match '%trouser%')
 			  AS "metric__0__1-bucket__1-metric_col_0"
 			FROM __quesma_table_name
 			WHERE ("order_date">=fromUnixTimestamp64Milli(1739979776601) AND "order_date"<=
@@ -858,11 +858,11 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			SELECT toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count",
-			  countIf(("products.product_name" ILIKE '%%cocktail%' OR
-			  "__quesma_fulltext_field_name" ILIKE '%dress%%')) AS
+			  countIf(("products.product_name" __quesma_match '%%cocktail%' OR
+			  "__quesma_fulltext_field_name" __quesma_match '%dress%%')) AS
 			  "aggr__0__1-bucket__count",
-			  sumOrNullIf("taxful_total_price", ("products.product_name" ILIKE '%%cocktail%'
-			  OR "__quesma_fulltext_field_name" ILIKE '%dress%%')) AS
+			  sumOrNullIf("taxful_total_price", ("products.product_name" __quesma_match '%%cocktail%'
+			  OR "__quesma_fulltext_field_name" __quesma_match '%dress%%')) AS
 			  "metric__0__1-bucket__1-metric_col_0"
 			FROM __quesma_table_name
 			WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
@@ -2818,5 +2818,119 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			GROUP BY "geoip.country_iso_code" AS "aggr__join__key_0"
 			ORDER BY "aggr__join__count" DESC, "aggr__join__key_0" ASC
 			LIMIT 65536`,
+	},
+	{ // [15]
+		TestName: "weird",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"fitToBounds": {
+					"geo_bounds": {
+						"field": "OriginLocation"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-03-02T14:16:32.069Z",
+									"lte": "2025-03-09T14:16:32.069Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1740838900680,
+			"expiration_time_in_millis": 1740838960672,
+			"id": "FnBCYVZTQWtUVEgtVGNiUzFabnFqbVEdUEQ3d19oVkxSMEthNU02NjIwRGpkZzo3MTY5NTM=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"fitToBounds": {
+						"bounds": {
+							"top_left": {
+								"lat": 68.15180202014744,
+								"lon": -122.59799961000681
+							},
+							"bottom_right": {
+								"lat": -37.67330203671008,
+								"lon": 153.11700434423983
+							}
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null
+				},
+				"timed_out": false,
+				"took": 8
+			},
+			"start_time_in_millis": 1740838900672
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("metric__fitToBounds_col_0", -122.59799961000681),
+				model.NewQueryResultCol("metric__fitToBounds_col_1", 68.15180202014744),
+				model.NewQueryResultCol("metric__fitToBounds_col_2", -37.67330203671008),
+				model.NewQueryResultCol("metric__fitToBounds_col_3", 153.11700434423983),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT minOrNull(__quesma_geo_lon("originlocation")) AS
+			  "metric__fitToBounds_col_0",
+			  argMinOrNull(__quesma_geo_lat("originlocation"), __quesma_geo_lon(
+			  "originlocation")) AS "metric__fitToBounds_col_1",
+			  minOrNull(__quesma_geo_lat("originlocation")) AS "metric__fitToBounds_col_2",
+			  argMinOrNull(__quesma_geo_lon("originlocation"), __quesma_geo_lat(
+			  "originlocation")) AS "metric__fitToBounds_col_3"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740924992069) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1741529792069))`,
 	},
 }
