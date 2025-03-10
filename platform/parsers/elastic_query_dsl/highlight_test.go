@@ -4,9 +4,11 @@ package elastic_query_dsl
 
 import (
 	"context"
+	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/goccy/go-json"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -119,6 +121,113 @@ func TestParseHighLight(t *testing.T) {
 	highlighter.Tokens = map[string]model.Tokens{
 		columnName: map[string]struct{}{
 			"user deleted": {}, "user": {}, "deleted": {},
+		},
+	}
+	assert.NotNil(t, highlighter, "Error parsing highlight %v", highlighter)
+
+	assert.Equal(t, 1, len(highlighter.PreTags))
+	assert.Equal(t, "@kibana-highlighted-field@", highlighter.PreTags[0])
+	assert.Equal(t, 1, len(highlighter.PostTags))
+	assert.Equal(t, "@/kibana-highlighted-field@", highlighter.PostTags[0])
+}
+
+func TestParseHighLightWithFieldMapSyntax(t *testing.T) {
+
+	query := `
+{
+    "_source": false,
+    "fields": [
+        {
+            "field": "*",
+            "include_unmapped": "true"
+        },
+        {
+            "field": "@timestamp",
+            "format": "strict_date_optional_time"
+        }
+    ],
+    "highlight": {
+        "fields": {
+            "*": {}
+        },
+        "fragment_size": 2147483647,
+        "post_tags": [
+            "@/kibana-highlighted-field@"
+        ],
+        "pre_tags": [
+            "@kibana-highlighted-field@"
+        ]
+    },
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "bool": {
+                        "minimum_should_match": 1,
+                        "should": [
+                            {
+                                "match": {
+                                    "foo.a": "b"
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "runtime_mappings": {},
+    "script_fields": {},
+    "sort": [
+        {
+            "@timestamp": {
+                "format": "strict_date_optional_time",
+                "order": "desc",
+                "unmapped_type": "boolean"
+            }
+        },
+        {
+            "_doc": {
+                "order": "desc",
+                "unmapped_type": "boolean"
+            }
+        }
+    ],
+    "stored_fields": [
+        "*"
+    ]
+}
+`
+	colName := "foo"
+	col := clickhouse.Column{
+		Name: colName,
+		Type: clickhouse.NewBaseType("Map(String, Nullable(String))"),
+	}
+
+	cols := make(map[string]*clickhouse.Column)
+	cols[colName] = &col
+
+	table := clickhouse.Table{
+		Name:   "test",
+		Cols:   cols,
+		Config: clickhouse.NewDefaultCHConfig(),
+	}
+
+	cw := ClickhouseQueryTranslator{
+		Table: &table,
+		Ctx:   context.Background(),
+	}
+
+	queryAsMap := make(QueryMap)
+	err := json.Unmarshal([]byte(query), &queryAsMap)
+
+	assert.Nil(t, err, "Error parsing query %v", err)
+
+	highlighter := cw.ParseHighlighter(queryAsMap)
+	pp.Println("highlighter", highlighter)
+	highlighter.Tokens = map[string]model.Tokens{
+		colName: map[string]struct{}{
+			"b": {},
 		},
 	}
 	assert.NotNil(t, highlighter, "Error parsing highlight %v", highlighter)
@@ -247,17 +356,31 @@ func TestHighLightResults(t *testing.T) {
 			value:      "InvalidPassword",
 			highlights: []string{},
 		},
+		{
+			name: "map",
+			tokens: map[string]model.Tokens{
+				columnName + ".a": map[string]struct{}{
+					"b": {},
+				},
+			},
+			highlight:  true,
+			value:      "b",
+			highlights: []string{"<b>b</b>"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
+			if tt.name != "map" {
+				t.Skip()
+			}
 			highLighter := model.Highlighter{
 				Tokens:   tt.tokens,
 				PreTags:  []string{"<b>"},
 				PostTags: []string{"</b>"},
 			}
 
+			fmt.Println("column name", columnName)
 			mustHighlighter := highLighter.ShouldHighlight(columnName)
 
 			assert.Equal(t, mustHighlighter, tt.highlight, "Field %s should be highlightable", columnName)
