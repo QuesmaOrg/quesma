@@ -4563,8 +4563,8 @@ var AggregationTests2 = []AggregationTestCase{
 			FROM __quesma_table_name
 			GROUP BY FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8))
 			  AS "aggr__my_buckets__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation"))))+(1/COS(RADIANS(
-			  __quesma_geo_lat("OriginLocation"))))))/PI())/2*POWER(2, 8))
+			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
+			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8))
 			  AS "aggr__my_buckets__key_1"
 			ORDER BY "aggr__my_buckets__count" DESC, "aggr__my_buckets__key_0" ASC,
   			  "aggr__my_buckets__key_1" ASC
