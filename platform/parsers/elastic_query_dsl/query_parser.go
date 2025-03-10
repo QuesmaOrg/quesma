@@ -343,7 +343,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 			return model.NewSimpleQueryInvalid()
 		} else {
 			tsWithoutTZ := strings.TrimSuffix(string(idAsStr), " +0000 UTC")
-			ids[i] = fmt.Sprintf("'%s'", tsWithoutTZ)
+			ids[i] = util.SingleQuote(tsWithoutTZ)
 		}
 	}
 
@@ -494,7 +494,7 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQu
 				return model.NewSimpleQuery(model.TrueExpr, true)
 			}
 			fieldName := ResolveField(cw.Ctx, k, cw.Schema)
-			whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), "=", model.NewLiteral(sprint(v)))
+			whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteral(sprint(v)))
 			return model.NewSimpleQuery(whereClause, true)
 		}
 	}
@@ -521,7 +521,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			return model.NewSimpleQueryInvalid()
 		}
 		if len(vAsArray) == 1 {
-			simpleStatement := model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(vAsArray[0])))
+			simpleStatement := model.NewInfixExpr(model.NewColumnRef(k), model.MatchOperator, model.NewLiteral(sprint(vAsArray[0])))
 			return model.NewSimpleQuery(simpleStatement, true)
 		}
 		values := make([]model.Expr, len(vAsArray))
@@ -579,7 +579,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
 				} else {
-					fullLiteral := model.NewLiteralWithEscapeType("'"+subQuery+"'", model.NotEscapedLikeFull)
+					fullLiteral := model.NewLiteralWithEscapeType(util.SingleQuote(subQuery), model.NotEscapedLikeFull)
 					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, fullLiteral)
 					statements = append(statements, simpleStat)
 				}
@@ -639,13 +639,12 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 		subQueries = strings.Split(queryAsString, " ")
 	}
 
-	sqls := make([]model.Expr, len(fields)*len(subQueries))
-	i := 0
+	sqls := make([]model.Expr, 0, len(fields)*len(subQueries))
 	for _, field := range fields {
 		for _, subQ := range subQueries {
-			simpleStat := model.NewInfixExpr(model.NewColumnRef(field), "iLIKE", model.NewLiteral("'%"+subQ+"%'"))
-			sqls[i] = simpleStat
-			i++
+			escaped := util.SingleQuote(util.SurroundWithPercents(subQ))
+			asLiteral := model.NewLiteralWithEscapeType(escaped, model.FullyEscaped)
+			sqls = append(sqls, model.NewInfixExpr(model.NewColumnRef(field), model.MatchOperator, asLiteral))
 		}
 	}
 	return model.NewSimpleQuery(model.Or(sqls), true)
@@ -662,12 +661,12 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
 		switch vCasted := v.(type) {
 		case string:
-			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteralWithEscapeType(vCasted, model.NotEscapedLikePrefix))
-			return model.NewSimpleQuery(simpleStat, true)
+			expr := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteralWithEscapeType(vCasted, model.NotEscapedLikePrefix))
+			return model.NewSimpleQuery(expr, true)
 		case QueryMap:
 			token := vCasted["value"].(string)
-			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteralWithEscapeType(token, model.NotEscapedLikePrefix))
-			return model.NewSimpleQuery(simpleStat, true)
+			expr := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteralWithEscapeType(token, model.NotEscapedLikePrefix))
+			return model.NewSimpleQuery(expr, true)
 		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported prefix type: %T, value: %v", v, v)
 			return model.NewSimpleQueryInvalid()
@@ -693,8 +692,9 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.Simp
 		if vAsMap, ok := v.(QueryMap); ok {
 			if value, ok := vAsMap["value"]; ok {
 				if valueAsString, ok := value.(string); ok {
-					whereStatement := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+strings.ReplaceAll(valueAsString, "*", "%")+"'"))
-					return model.NewSimpleQuery(whereStatement, true)
+					fitForClickhouse := strings.ReplaceAll(valueAsString, "*", "%")
+					expr := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, model.NewLiteralWithEscapeType(util.SingleQuote(fitForClickhouse), model.FullyEscaped))
+					return model.NewSimpleQuery(expr, true)
 				} else {
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid value type: %T, value: %v", value, value)
 					return model.NewSimpleQueryInvalid()
@@ -805,7 +805,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			// Numbers use just 3rd
 
 			var finalValue model.Expr
-			doneParsing, isQuoted := false, len(value) > 2 && value[0] == '\'' && value[len(value)-1] == '\''
+			doneParsing, isQuoted := false, len(value) > 2 && util.IsSingleQuoted(value)
 			switch fieldType {
 			case clickhouse.DateTime, clickhouse.DateTime64:
 				// TODO add support for "time_zone" parameter in ParseDateUsualFormat
@@ -874,7 +874,6 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 // - The length of the field value exceeded an ignore_above setting in the mapping
 // - The field value was malformed and ignore_malformed was defined in the mapping
 func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.SimpleQuery {
-	//sql := model.NewSimpleStatement("")
 	var sql model.Expr
 	for _, v := range queryMap {
 		fieldName, ok := v.(string)
@@ -949,7 +948,7 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 func sprint(i interface{}) string {
 	switch i.(type) {
 	case string:
-		return fmt.Sprintf("'%v'", i)
+		return util.SingleQuote(i.(string))
 	case QueryMap:
 		iface := i
 		mapType := iface.(QueryMap)
