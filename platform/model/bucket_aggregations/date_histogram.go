@@ -54,9 +54,9 @@ func NewDateHistogram(ctx context.Context, field model.Expr, timestampColumn mod
 
 	defaultFormat := format != "epoch_millis"
 
-	return &DateHistogram{ctx: ctx, field: field, interval: interval, timezone: timezone, wantedTimezone: wantedTimezone,
-		minDocCount: minDocCount, extendedBoundsMin: extendedBoundsMin, extendedBoundsMax: extendedBoundsMax,
-		intervalType: intervalType, defaultFormat: defaultFormat}
+	return &DateHistogram{ctx: ctx, field: field, timestampColumn: timestampColumn, interval: interval, timezone: timezone,
+		wantedTimezone: wantedTimezone, minDocCount: minDocCount, extendedBoundsMin: extendedBoundsMin,
+		extendedBoundsMax: extendedBoundsMax, intervalType: intervalType, defaultFormat: defaultFormat}
 }
 
 func (typ DateHistogramIntervalType) String(ctx context.Context) string {
@@ -165,13 +165,15 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 		return model.InvalidExpr
 	}
 
+	fmt.Println("DH, timestampColumn", query.timestampColumn)
+
 	var groupBy model.InfixExpr
 	// If no timezone, or timezone is default (UTC)
 	if query.timezone == "" {
 		groupBy = model.NewInfixExpr(
 			model.NewFunction(model.ToUnixTimestampMs, query.field),
 			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-			model.NewMillisecondsLiteral(query.timestampColumn, time.UnixMilli(interval.Milliseconds())),
+			model.NewDurationLiteral(interval, query.timestampColumn),
 		)
 	} else {
 		offset := model.NewInfixExpr(
@@ -183,7 +185,7 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 				),
 			),
 			"*",
-			model.NewMillisecondsLiteral(query.timestampColumn, time.UnixMilli(1000)),
+			model.NewDurationLiteral(time.Second, query.timestampColumn),
 		)
 
 		unixTsWithOffset := model.NewInfixExpr(
@@ -195,7 +197,7 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 		groupBy = model.NewInfixExpr(
 			model.NewParenExpr(unixTsWithOffset),
 			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-			model.NewMillisecondsLiteral(query.timestampColumn, time.UnixMilli(interval.Milliseconds())),
+			model.NewDurationLiteral(interval, query.timestampColumn),
 		)
 	}
 

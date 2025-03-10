@@ -190,8 +190,7 @@ func TestSearchCommonTable(t *testing.T) {
 					`countIf("@timestamp">=fromUnixTimestamp64Milli(1713052800000)) AS "range_2__aggr__2__count" ` +
 					`FROM quesma_common_table ` +
 					`WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2')
--- optimizations: pancake(half)
-`,
+-- optimizations: pancake(half)`,
 				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
 			},
 			// we need to return some rows, otherwise pancakes will fail

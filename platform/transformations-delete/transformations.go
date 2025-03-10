@@ -10,6 +10,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/k0kubun/pp"
 	"slices"
 	"strings"
 )
@@ -46,13 +47,14 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 		fmt.Println("KK start 3", e, col, ok)
 		isDatetime := col.IsDatetime()
 		isDateTime64 := col.IsDatetime64()
+		fmt.Println("KK start 4", isDatetime, isDateTime64)
 		if !isDatetime && !isDateTime64 {
 			return visitChildren()
 		}
 
 		// check if operator is ok
 		op := strings.TrimSpace(e.Op)
-		fmt.Println(e, op)
+		fmt.Println("KK start 5", op)
 		if !slices.Contains([]string{"=", "!=", ">", "<", ">=", "<=", "/"}, op) {
 			return visitChildren()
 		}
@@ -60,6 +62,7 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 		// check if right side is a function we want
 		tsFunc, ok := e.Right.(model.FunctionExpr)
 		if !ok {
+			fmt.Println("koniec")
 			return visitChildren()
 		}
 		if tsFunc.Name != model.FromUnixTimestampMs && tsFunc.Name != model.ToUnixTimestampMs {
@@ -72,11 +75,12 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 		}
 
 		arg := tsFunc.Args[0].Accept(b).(model.Expr)
+		pp.Println("KK 74 ARG", tsFunc.Args[0], arg)
 		if isDateTime64 {
 			clickhouseFunc := model.ClickhouseFromUnixTimestampMsToDatetime64Function
 			return model.NewInfixExpr(colRef, e.Op, model.NewFunction(clickhouseFunc, arg))
 		} else if isDatetime {
-			//fmt.Println("KK ", arg)
+			fmt.Println("KK 79l", arg)
 			tsAny, isLiteral := arg.(model.LiteralExpr)
 			if !isLiteral {
 				logger.WarnWithCtx(ctx).Msgf("invalid argument for %s function: %v. isn't literal, but %T", tsFunc.Name, arg, arg)
@@ -142,9 +146,14 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 		return model.NewFunction(clickhouseFunc, colRef)
 	}
 
-	// we look for: MillisecondsLiteral
+	// we look for: DurationLiteral/TimeLiteral
 	visitor.OverrideVisitLiteral = func(b *model.BaseExprVisitor, l model.LiteralExpr) interface{} {
-		msLiteral, ok := l.Value.(model.MillisecondsLiteral)
+		pp.Println("visitor literal", l)
+		if timeL, ok := l.Value.(model.TimeLiteral); ok {
+			return model.NewLiteral(timeL.Value.UnixMilli())
+		}
+
+		msLiteral, ok := l.Value.(model.DurationLiteral)
 		if !ok {
 			return l.Clone()
 		}
@@ -167,14 +176,9 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 		fmt.Println("2LOL", msLiteral, col.IsDatetime())
 
 		if col.IsDatetime() {
-			ts, isNumber := util.ExtractNumeric64Maybe(msLiteral.Value)
-			if !isNumber {
-				logger.WarnWithCtx(ctx).Msgf("invalid argument for a timestamp: %v. isn't integer, but %T", msLiteral.Value, msLiteral.Value)
-				return model.NewLiteral(msLiteral.Value)
-			}
-			return model.NewLiteral(int64(ts / 1000))
+			return model.NewLiteral(msLiteral.Value.Milliseconds() / 1000)
 		}
-		return model.NewLiteral(msLiteral.Value)
+		return model.NewLiteral(msLiteral.Value.Milliseconds())
 	}
 
 	expr := query.SelectCommand.Accept(visitor)

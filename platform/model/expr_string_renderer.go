@@ -90,7 +90,9 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 			logger.WarnWithThrottling("unknown_literal", "VisitLiteral %s", val)
 			return escapeStringNormal(val) // like normal
 		}
-	case MillisecondsLiteral:
+	case DurationLiteral:
+		return fmt.Sprintf("%v", val.Value)
+	case TimeLiteral:
 		return fmt.Sprintf("%v", val.Value)
 	default:
 		return fmt.Sprintf("%v", val)

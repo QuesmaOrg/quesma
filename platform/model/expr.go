@@ -97,6 +97,14 @@ type (
 		Value      any
 		EscapeType EscapeType // only meaningful if Value is string
 	}
+	TimeLiteral struct {
+		Value          time.Time
+		TimestampField ColumnRef
+	}
+	DurationLiteral struct {
+		Value          time.Duration
+		TimestampField ColumnRef
+	}
 	EscapeType string
 )
 
@@ -150,13 +158,12 @@ func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value, EscapeType: NormalNotEscaped}
 }
 
-type MillisecondsLiteral struct {
-	TimestampField ColumnRef
-	Value          time.Time // timestamp
+func NewTimeLiteral(value time.Time, timestampField ColumnRef) LiteralExpr {
+	return NewLiteral(TimeLiteral{Value: value, TimestampField: timestampField})
 }
 
-func NewMillisecondsLiteral(timestampField ColumnRef, value time.Time) LiteralExpr {
-	return NewLiteral(MillisecondsLiteral{TimestampField: timestampField, Value: value})
+func NewDurationLiteral(value time.Duration, timestampField ColumnRef) LiteralExpr {
+	return NewLiteral(DurationLiteral{Value: value, TimestampField: timestampField})
 }
 
 // NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
