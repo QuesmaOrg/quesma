@@ -52,13 +52,13 @@ type (
 		// TODO make sure it's unique in schema (there's no other 'timestamp' field)
 		// I (Krzysiek) can write it quickly, but don't want to waste time for it right now.
 		TimestampDefaultsNow bool
-		ClusterName          string // Name of the cluster if created with `CREATE TABLE ... ON CLUSTER ClusterName`
-		Engine               string // "Log", "MergeTree", etc.
-		OrderBy              string // "" if none
-		PartitionBy          string // "" if none
-		PrimaryKey           string // "" if none
-		Settings             string // "" if none
-		Ttl                  string // of type Interval, e.g. 3 MONTH, 1 YEAR
+		ClusterName          string                   // Name of the cluster if created with `CREATE TABLE ... ON CLUSTER ClusterName`
+		Engine               string                   // "Log", "MergeTree", etc.
+		OrderBy              string                   // "" if none
+		PartitionStrategy    config.PartitionStrategy // PartitionStrategy to be applied to tables created by Quesma
+		PrimaryKey           string                   // "" if none
+		Settings             string                   // "" if none
+		Ttl                  string                   // of type Interval, e.g. 3 MONTH, 1 YEAR
 		// look https://clickhouse.com/docs/en/sql-reference/data-types/special-data-types/interval
 		// "" if none
 		// TODO make sure it's unique in schema (there's no other 'others' field)
@@ -360,7 +360,6 @@ func NewDefaultCHConfig() *ChTableConfig {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
-		PartitionBy:          "",
 		PrimaryKey:           "",
 		Ttl:                  "",
 		Attributes: []Attribute{
@@ -381,7 +380,6 @@ func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 		TimestampDefaultsNow: false,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
-		PartitionBy:          "",
 		PrimaryKey:           "",
 		Ttl:                  "",
 		Attributes: []Attribute{

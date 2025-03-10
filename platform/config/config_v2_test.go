@@ -339,3 +339,22 @@ func TestIngestOptimizers(t *testing.T) {
 	_, ok = legacyConf.DefaultIngestOptimizers["query_only"]
 	assert.False(t, ok)
 }
+
+func TestPartitionBy(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/partition_by.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+
+	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+
+	ecommerce := legacyConf.IndexConfig["kibana_sample_data_ecommerce"]
+	assert.Equal(t, Daily, ecommerce.PartitioningStrategy)
+
+	flights := legacyConf.IndexConfig["kibana_sample_data_flights"]
+	assert.Equal(t, None, flights.PartitioningStrategy)
+
+	assert.Equal(t, Hourly, legacyConf.DefaultPartitioningStrategy)
+}

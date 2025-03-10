@@ -403,7 +403,6 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(timestamp)",
-		PartitionBy:          "",
 		PrimaryKey:           "",
 		Ttl:                  "",
 		Attributes: []Attribute{
@@ -438,7 +437,6 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(timestamp)",
-		PartitionBy:          "",
 		PrimaryKey:           "",
 		Ttl:                  "",
 		Attributes: []Attribute{
@@ -519,7 +517,6 @@ func TestCreateTableString_1(t *testing.T) {
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
 			OrderBy:              "(@timestamp)",
-			PartitionBy:          "",
 			PrimaryKey:           "",
 			Ttl:                  "",
 			Attributes: []Attribute{
@@ -606,7 +603,6 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
 			OrderBy:              "(@timestamp)",
-			PartitionBy:          "",
 			PrimaryKey:           "",
 			Ttl:                  "",
 			Attributes: []Attribute{
