@@ -1,3 +1,6 @@
+---
+description: Compatibility Report
+---
 # Compatibility Report
 
 Quesma can help validate your migration by sending queries to both Elasticsearch and ClickHouse simultaneously and comparing the results. This allows you to verify that queries return equivalent results from both systems before fully switching over.

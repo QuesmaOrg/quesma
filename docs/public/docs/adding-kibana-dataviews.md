@@ -1,3 +1,6 @@
+---
+description: Data Views creation guide
+---
 # Data Views creation guide
 
 This guide will help you create Data Views for Hydrolix/ClickHouse tables in Kibana.

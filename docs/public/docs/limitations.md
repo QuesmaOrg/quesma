@@ -1,3 +1,6 @@
+---
+description: Known limitations or unsupported functionalities
+---
 # Known limitations or unsupported functionalities
 
 Quesma is designed for analytical text queries such as in observability or security.
@@ -24,6 +27,7 @@ Quesma supports only ElasticSearch/Kibana 8.0 or above.
 
 ### ClickHouse limitations
 * When using a cluster deployment of ClickHouse, the tables automatically created by Quesma (during [Ingest](/ingest.md)) will use the `MergeTree` engine. If you wish to use the `ReplicatedMergeTree` engine instead, you will have to create the tables manually with  `ReplicatedMergeTree` engine before ingesting data to Quesma.
+  * Remember to configure `clusterName` in backend connector configuration to make sure that the tables are created on all nodes of the cluster. 
   * *Note: On ClickHouse Cloud, the tables automatically created by Quesma will use the `ReplicatedMergeTree` engine (ClickHouse Cloud default engine).* 
 
 ## Functional limitations
@@ -33,8 +37,8 @@ Currently supported:
 - most popular [Query DSL](https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html),
   including: `boolean`, `match`, `match phrase`, `multi-match`, `query string`, `nested`, `match all`, `exists`, `prefix`, `range`, `term`, `terms`, `wildcard`
 - most popular [Aggregations](https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations.html),
-  including: `avg`, `cardinality`, `max`, `min`, `percentile ranks`, `percentiles`, `stats`, `sum`, `top hits`, `top metrics`, `value counts`,
-  `date histogram`, `date range`, `filter`, `filters`, `histogram`, `range`, `singificant terms`, `terms`, `ip prefix`, `ip range`
+  including: `avg`, `cardinality`, `max`, `min`, `percentile ranks`, `percentiles`, `stats`, `sum`, `top hits`, `top metrics`, `value count`,
+  `date histogram`, `date range`, `filter`, `filters`, `histogram`, `range`, `singificant terms`, `terms`, `ip prefix`, `ip range`, `geo_bounds`, `geohash_grid`
 
 Which as a result allows you to run Kibana/OSD queries and dashboards on data residing in ClickHouse/Hydrolix.
 
