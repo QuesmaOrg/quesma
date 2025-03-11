@@ -1,18 +1,37 @@
-name: Build Quesma container image for internal uses (nigthly repository)
+name: Release Quesma
+# Builds Quesma Docker image using specific git tag
+# and creates a GitHub release draft
 
 on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch: # Handy for testing
+  workflow_dispatch:
+    inputs:
+      VERSION:
+        description: 'Version number - needs to be a valid semver, relevant tag should be present in the repository'
+        required: true
+
+permissions:
+  contents: write  # To be able to create a release via GitHub API
 
 jobs:
-  build-quesma-docker-image:
+  build-quesma-docker-image: # based on nightly-docker-build-and-push.yml, but heavily modified
     strategy:
       matrix:
-        module: [ "quesma" ]
+        module: [ "cmd" ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Validate input - needs to match semver
+        run: |
+            echo "Validating input: ${{ github.event.inputs.VERSION }}"
+            if ! echo "${{ github.event.inputs.VERSION }}" | grep -qE '^([0-9]+)\.([0-9]+)\.([0-9]+)(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?(\+([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'; then
+              echo "ERROR: VERSION does not conform to SemVer (Semantic Versioning)"
+              exit 1
+            fi
+        shell: bash
+
+      - name: Checkout the correct revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.VERSION }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -21,7 +40,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: ${{ matrix.module }}/go.sum
-          go-version: '1.22'
+          go-version: '1.24'
 
       - name: Login to GCR (only for build running on `main` branch)
         uses: docker/login-action@v3
@@ -30,12 +49,52 @@ jobs:
           username: _json_key
           password: ${{ secrets.GCR_SERVICE_ACCOUNT_PRIVATE_KEY }}
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Set the build date
+        run: echo QUESMA_BUILD_DATE=$(git --no-pager log -1 --date=format:'%Y-%m-%d' --format="%ad")  >> $GITHUB_ENV
+
       - name: Build and export
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.module }}/.
-          tags: europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.sha }}
-          # Pushes to GCR only for `main` branch builds
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION }}
+            europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:latest
+            quesma/quesma:${{ github.event.inputs.VERSION }}
+            quesma/quesma:latest
+          push: true
+          build-args: |
+            QUESMA_BUILD_SHA=${{ github.sha }}
+            QUESMA_VERSION=${{ github.event.inputs.VERSION }}
+            QUESMA_BUILD_DATE=${{ env.QUESMA_BUILD_DATE }}
+          platforms: linux/amd64,linux/arm64
         env:
-          DOCKER_BUILD_NO_SUMMARY: true
+          DOCKER_BUILD_SUMMARY: false
+
+      - name: Create GitHub release (draft)
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provided by GitHub Actions, doesn't exist in repo secrets
+        with:
+          tag_name: ${{ github.event.inputs.VERSION }}
+          release_name: ${{ github.event.inputs.VERSION }}
+          body: |
+            ### Quesma ${{ github.event.inputs.VERSION }}
+            
+            Quesma version `${{ github.event.inputs.VERSION }}` has been released! :confetti_ball: 
+  
+            Check it out at https://hub.docker.com/r/quesma/quesma! You can get the Docker image with:
+            ```bash
+            docker pull quesma/quesma:${{ github.event.inputs.VERSION }}
+            ```
+            
+            **Release Notes:**
+            - This is a minor bugfix release.
+
+            All tags URL: https://hub.docker.com/r/quesma/quesma/tags
+          draft: true
+          prerelease: false

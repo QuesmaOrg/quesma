@@ -1,0 +1,27 @@
+{{- define "depInfo" -}}
+{{- range $i, $dep := . }}
+{{ "-" | line }}
+#### Module  : {{ $dep.Name }}
+Version : {{ $dep.Version }}
+Time    : {{ $dep.VersionTime }}
+Licence : {{ $dep.LicenceType }}
+
+{{ $dep | licenceText }}
+{{ end }}
+{{- end -}}
+
+## Copyright 2023-{{ currentYear }} Quesma Inc
+
+This product includes software developed by The Apache Software
+Foundation (http://www.apache.org/).
+
+### Third party libraries used by Quesma
+
+{{ template "depInfo" .Direct }}
+
+{{ if .Indirect }}
+{{ "=" | line }}
+Indirect dependencies
+
+{{ template "depInfo" .Indirect }}
+{{ end }}

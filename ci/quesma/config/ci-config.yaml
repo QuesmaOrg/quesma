@@ -1,0 +1,83 @@
+installationId: "just-Quesma-smoke-test-instance"
+frontendConnectors:
+  - name: elasticsearch-API-for-kibana
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+      disableAuth: true
+  - name: elasticsearch-API-for-filebeat
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: my-minimal-elasticsearch
+    type: elasticsearch
+    config:
+      url: "http://elasticsearch:9200"
+  - name: my-clickhouse-data-source
+    type: clickhouse-os
+    config:
+      url: "clickhouse://clickhouse:9000"
+processors:
+  - name: p1
+    type: quesma-v1-processor-query
+    config:
+      indexes:
+        kibana_sample_data_ecommerce:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_flights:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_logs:
+          target:
+            - my-clickhouse-data-source
+        logs-generic-default:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              "message":
+                type: text
+        windows_logs:
+          target:
+            - my-clickhouse-data-source
+        "*":
+          target:
+            - my-minimal-elasticsearch
+  - name: p2
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        kibana_sample_data_ecommerce:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_flights:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_logs:
+          target:
+            - my-clickhouse-data-source
+        logs-generic-default:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              "message":
+                type: text
+        windows_logs:   # Used for EQL e2e tests
+          target:
+            - my-clickhouse-data-source
+        "*":
+          target:
+            - my-minimal-elasticsearch
+
+pipelines:
+  - name: p-query
+    frontendConnectors: [ elasticsearch-API-for-kibana ]
+    processors: [ p1 ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]
+  - name: p-ingest
+    frontendConnectors: [ elasticsearch-API-for-filebeat ]
+    processors: [ p2 ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]

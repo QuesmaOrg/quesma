@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="/static/asset/htmx-1.9.10.min.js"></script>
+    <title>Quesma Management Console</title>
+    <style>
+        body {
+            font-family: Courier;
+            font-size: 1.175em;
+        }
+
+        h1 {
+            padding-left: 10px;
+            padding: 5px;
+            top: 0%;
+        }
+
+        h2 {
+            padding-left: 10px;
+            padding-top: 0px;
+            margin-top: 0px;
+        }
+
+        h3 {
+            padding-left: 10px;
+            padding-top: 0px;
+            margin-top: 0px;
+            margin-bottom: 2px;
+        }
+
+        textarea {
+            width: 100%;
+            background-color: rgb(0, 0, 0);
+            color: white;
+        }
+
+        .btn {
+            font-family: Courier;
+            font-size: 15px;
+        }
+
+        .input {
+            font-family: Courier;
+            font-size: 12px;
+        }
+
+        .topnav {
+            left: 0;
+            top: 0;
+            margin-top: 0;
+            position: absolute;
+            width: 100%;
+            height: 36px;
+            background-color: rgb(0, 0, 0);
+            color: white;
+            white-space: nowrap;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .topnav .topnav-menu {
+            display: flex;
+        }
+
+        .topnav h3 {
+            margin: 4px 0 0 0;
+        }
+
+        .topnav h3, .topnav a, .topnav label {
+            font-size: 1.2em;
+        }
+
+        .topnav img {
+            height: 1.8em;
+            padding: 0 10px;
+        }
+
+        .topnav ul {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .topnav ul li {
+            display: inline-block; /* You can also use 'display: inline;' */
+            margin-right: 10px; /* Spacing between menu items */
+        }
+
+        .topnav ul li a {
+            text-decoration: none;
+            padding: 10px 15px;
+            color: black;
+            background-color: rgb(221, 226, 235);
+        }
+
+        .topnav ul li a:hover, .topnav ul li.active a {
+            background-color: rgb(181, 186, 195);
+        }
+
+        .autorefresh-box {
+            background-color: grey;
+            padding: 0 10px;
+        }
+
+        .group-divider {
+            border-top: 2px solid black;
+        }
+
+        .table {
+            font-size: 0.875em;
+            width: 10000px;
+            margin-bottom: 0;
+            max-width: none;
+        }
+
+        .left, .right, .bottom_left, .bottom_right {
+            height: 50%;
+            position: absolute;
+            overflow-x: auto;
+            overflow-y: auto;
+            width: 40%;
+            white-space: nowrap;
+        }
+
+        .left, .bottom_left {
+            width: 39.75%;
+            left: 0;
+        }
+
+        .left, .right {
+            font-size: 0.975em;
+            z-index: 1;
+            top: 0;
+        }
+
+        .left {
+            background-color: rgb(221, 226, 235);
+            color: black;
+        }
+
+        .right {
+            left: 40%;
+            background-color: rgb(0, 0, 0);
+            color: white;
+        }
+
+        .bottom_left {
+            top: 50%;
+            background-color: rgb(0, 0, 0);
+            color: white;
+        }
+
+        .bottom_right {
+            left: 40%;
+            top: 50%;
+            background-color: rgb(221, 226, 235);
+            color: black;
+        }
+
+        main {
+            height: calc(100vh - 36px);
+            position: absolute;
+            top: 36px;
+            left: 0;
+            width: 80%;
+            overflow-y: auto;
+        }
+
+        #queries {
+            width: 100%;
+        }
+
+        .center {
+            font-size: 0.975em;
+            position: fixed;
+            z-index: 1;
+            overflow-y: auto;
+            right: 20%;
+            background-color: rgb(0, 0, 0);
+            color: white;
+        }
+
+        .request-body {
+            background-color: rgb(221, 226, 235);
+            color: black;
+        }
+
+        #request-body {
+            width: 100%;
+            background-color: rgb(221, 226, 235);
+        }
+
+        .debug-body a,
+        .query-body-translated a {
+            text-decoration: none;
+        }
+
+        .left .debug-body a,
+        .bottom_right .debug-body a {
+            color: black;
+            display: block;
+        }
+
+        .right .debug-body a,
+        .bottom_left .debug-body a,
+        #request-info .query-body-translated a {
+            color: white;
+            display: block;
+        }
+
+        .left .debug-body a:hover,
+        .bottom_right .debug-body a:hover {
+            background-color: rgb(181, 186, 195)
+        }
+
+        .right .debug-body a:hover,
+        .bottom_left .debug-body a:hover,
+        #request-info .query-body-translated a:hover {
+            background-color: rgb(40, 40, 40);
+        }
+
+        .debug-body a:hover {
+            text-decoration: none;
+        }
+
+        .debug-warn-log, #queries-stats .debug-warn-log, #unsupported-queries-stats .debug-warn-log {
+            color: yellow;
+        }
+
+        .debug-error-log, #queries-stats .debug-error-log, #unsupported-queries-stats .debug-error-log {
+            color: red;
+        }
+
+        .unsupported-requests a {
+            color: #5165ff;
+        }
+
+        .unsupported-requests table {
+            height: 100%; /* important so that links occupy full height */
+            border-collapse: collapse;
+        }
+
+        .unsupported-requests td {
+            border: 2px solid #ccd2ff;
+            position: relative;
+        }
+
+        .unsupported-requests tr:hover,
+        .unsupported-requests tr:focus-within {
+            background: rgb(40, 40, 40);
+            outline: none;
+        }
+
+        .unsupported-requests td > a:first-child {
+            height: 100%; /* important so that links occupy full height */
+            align-items: center; /* important with links occupying full height, for text to stay centered */
+            display: flex;
+            padding: 5px;
+            text-decoration: none;
+            color: inherit;
+            z-index: 0;
+
+            &:focus {
+                outline: 0;
+            }
+        }
+        .login-screen { font-family: Courier, sans-serif; background-color: #2c2c2c; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+
+        .login-form {
+            background-color: #3c3c3c;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            font-family: Courier, sans-serif;
+        }
+
+        .login-form h2 {
+            margin-bottom: 20px;
+            color: #fff;
+            font-family: Courier, sans-serif;
+        }
+
+        .login-form label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ccc;
+            font-family: Courier, sans-serif;
+        }
+
+        .login-form input[type="text"],
+        .login-form input[type="password"] {
+            width: calc(100% - 10px);
+            padding: 8px;
+            margin-bottom: 10px;
+            margin-right: 10px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background-color: #555;
+            color: #fff;
+            font-family: Courier, sans-serif;
+        }
+
+        .login-form input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #444;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: Courier, sans-serif;
+        }
+
+        .login-form input[type="submit"]:hover {
+            background-color: #333;
+        }
+
+        .title-bar {
+            background-color: #333;
+            color: white;
+            top: 0%;
+            margin-top: 0;
+            padding-top: 0px;
+            text-align: left;
+        }
+
+        .menu {
+            font-size: 0.975em;
+            height: 100%;
+            position: fixed;
+            z-index: 1;
+            top: 36px;
+            overflow-y: auto;
+            right: 0%;
+            width: 19.75%;
+            overflow-x: auto;
+            background-color: rgb(0, 0, 0);
+            color: white;
+            overflow-wrap: break-word;
+        }
+
+        .menu a,
+        .menu a:visited {
+            color: white;
+        }
+
+        #statistics th,
+        #statistics td {
+            padding: 0 3px;
+            border: 1px solid black;
+            font-family: Courier;
+            font-size: small;
+        }
+
+        #statistics table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 98%;
+            word-wrap: break-word;
+        }
+
+        #statistics .key {
+            width: 32%;
+        }
+
+        #statistics .key-count,
+        #statistics .value-count {
+            width: 6%;
+            text-align: center;
+        }
+
+        #statistics .value-percentage {
+            width: 8%;
+            text-align: right;
+        }
+
+        #statistics .value {
+            width: 34%;
+        }
+
+        #statistics .types {
+            width: 12%;
+        }
+
+        #dashboard .component {
+            border: 1px solid black;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            position: absolute;
+        }
+
+        #dashboard-main {
+            width: 100%;
+        }
+
+        #dashboard-main #svg-container {
+            z-index: -1;
+            position: absolute;
+            width: 60%;
+            left: 20%;
+            height: 60%;
+            top: 20%;
+        }
+
+        #dashboard-main svg path {
+            stroke-dasharray: 20px;
+            animation: dash 20s linear;
+            animation-iteration-count: infinite;
+            animation-play-state: running;
+        }
+
+        #dashboard-main.paused svg path {
+            animation-play-state: paused;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 1000;
+            }
+        }
+
+        #dashboard-main .traffic-element {
+            font-size: 1.3vw;
+            position: absolute;
+        }
+
+        #dashboard-main .red {
+            fill: red;
+            color: red;
+        }
+
+        #dashboard-main .green {
+            fill: green;
+            color: green;
+        }
+
+        #dashboard-main #dashboard .status {
+            padding: 0 5px;
+        }
+
+        #dashboard-kibana, #dashboard-ingest, #dashboard-elasticsearch, #dashboard-clickhouse {
+            width: 19%;
+            height: 40%;
+            top: 9%;
+            background-color: rgb(221, 226, 235);
+        }
+
+        #dashboard-kibana, #dashboard-ingest {
+            left: 1%;
+        }
+
+        #dashboard-elasticsearch, #dashboard-clickhouse {
+            left: 80%;
+        }
+
+        #dashboard-ingest, #dashboard-elasticsearch {
+            top: 51%;
+        }
+
+        #dashboard-traffic {
+            top: 1%;
+            left: 21%;
+            width: 58%;
+            height: 98%;
+        }
+
+        #dashboard-quesma {
+            top: 1%;
+        }
+
+        #dashboard-quesma, #dashboard-errors {
+            height: 20%;
+            width: 90%;
+            align-items: flex-start !important;
+            justify-content: start !important;
+            box-sizing: border-box;
+            padding: calc(20vh / 11);
+            line-height: calc(20vh / 11);
+            font-size: calc(20vh / 11);
+        }
+
+        #dashboard-quesma h3, #dashboard-errors h3 {
+            padding-left: 0;
+            font-size: calc(20vh / 10);
+        }
+
+        #dashboard-errors {
+            top: 79%;
+        }
+
+        #tables table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 98%;
+            word-wrap: break-word;
+        }
+
+        #tables .tableName {
+            font-size: larger;
+            font-weight: bold;
+        }
+
+        #tables th,
+        #tables td {
+            padding: 0 3px;
+            border: 1px solid black;
+            font-family: Courier;
+            font-size: small;
+        }
+
+        #tables .columnName {
+            width: 50%;
+        }
+
+        #tables .columnType {
+            width: 50%;
+        }
+
+        #tables .columnAttribute  {
+            font-style: italic;
+        }
+
+        #tables .columnWarning {
+            background-color: yellow;
+        }
+
+        #tables .columnWarningText {
+            color: red;
+            font-weight: bold;
+        }
+
+        #tables .create-table-query {
+            padding: 1em;
+        }
+
+        #tables tr:hover {
+            background-color: #dddddd;
+        }
+
+        #table_resolver textarea {
+            font-size: larger;
+            background-color: #eee;
+            width: 80em;
+            color: black;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            margin: 1em;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #table_resolver table {
+            border-collapse: collapse;
+            table-layout: fixed;
+        //width: 98%;
+            word-wrap: break-word;
+            font-size: small;
+        }
+
+        #ab_testing_dashboard table {
+            border-collapse: collapse;
+            table-layout: fixed;
+        //width: 98%;
+            word-wrap: break-word;
+            font-size: small;
+        }
+
+        #ab_testing_dashboard table th {
+            border: solid 1px black;
+        }
+
+        #ab_testing_dashboard table td {
+            border: solid 1px black;
+            overflow-x: auto;
+            vertical-align: top;
+        }
+
+        /* Tooltip container */
+        .tooltip {
+            position: relative;
+            cursor: pointer;
+            color: #0056b3; /* Optional: make it look like a link */
+            text-decoration: none;
+            font-size: small;
+            /* Optional: underline to indicate it's interactive */
+        }
+
+        /* Tooltip text */
+        .tooltip::after {
+            content: attr(data-tooltip); /* Get tooltip text from data attribute */
+            position: absolute;
+            top: 125%; /* Position below the span */
+            left: 50%;
+            transform: translateX(-20%);
+            background-color: #eee;
+            color: black;
+            padding: 1em;
+            border-radius: 5px;
+            width: 40em;
+            max-width: 50em; /* Set maximum width */
+            white-space: wrap; /* Allow text to wrap */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s;
+            z-index: 10;
+            pointer-events: none;
+            text-align: left; /* Center-align text for readability */
+        }
+
+        /* Show the tooltip on hover */
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+
+        #quesma_all_logs table {
+            border-collapse: collapse;
+            table-layout: fixed;
+        //width: 98%;
+            word-wrap: break-word;
+            font-size: small;
+        }
+
+
+        #quesma_all_logs table tr th {
+            /* Rotate the text */
+            writing-mode: vertical-lr; /* Vertical text */
+            transform: rotate(180deg); /* Rotate the text to flip */
+            height: 300px; /* Adjust the height to fit the rotated text */
+        }
+
+        #quesma_all_logs table th, td {
+            border: 1px solid #000; /* Adds a solid black border to both header and data cells */
+            padding: 10px;
+        }
+
+        #schemas table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 98%;
+            word-wrap: break-word;
+        }
+
+        #schemas .tableName {
+            font-size: larger;
+            font-weight: bold;
+        }
+
+        #schemas th,
+        #schemas td {
+            text-align: left;
+            padding: 0 3px;
+            border: 1px solid black;
+            font-family: Courier;
+            font-size: small;
+        }
+
+        #schemas .columnName {
+            margin: auto;
+            width: 50%;
+        }
+
+        #schemas .columnType {
+            margin: auto;
+            width: 50%;
+        }
+
+        #schemas .columnAttribute  {
+            font-style: italic;
+        }
+
+        #schemas .columnWarning {
+            background-color: yellow;
+        }
+
+        #schemas .columnWarningText {
+            color: red;
+            font-weight: bold;
+        }
+
+        #schemas .create-table-query {
+            padding: 1em;
+        }
+
+        #schemas tr:hover {
+            background-color: #dddddd;
+        }
+
+        #request-info {
+            color: white;
+        }
+
+        #request-info .title {
+            margin-top: 0;
+            background-color: #333;
+            color: white;
+            padding: 0 5px;
+        }
+
+        #request-info pre {
+            padding: 0 5px;
+        }
+
+        #request-info > div {
+            position: absolute;
+            width: 50%;
+            overflow-x: auto;
+        }
+
+        #request-info .debug-body {
+            left: 50.5%;
+            width: 49.5%;
+            min-height: 100%;
+        }
+
+        #request-info .elastic-response, #request-info .quesma-response, #request-info .query-body, #request-info .query-body-translated {
+            overflow: auto;
+            max-height: 50vh;
+        }
+
+        #request-info .elastic-response, #request-info .query-body-translated, #request-info .debug-body {
+            background-color: rgb(0, 0, 0);
+            color: white;
+        }
+
+        #request-info .query-body, #request-info .quesma-response {
+            background-color: rgb(221, 226, 235);
+            color: black;
+        }
+
+        #request-info table, #errors table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 100%;
+            word-wrap: break-word;
+            margin-bottom: 1em;
+        }
+
+        #request-info th, #request-info td, #errors table th, #errors table td {
+            border: 1px solid rgb(221, 226, 235);
+            font-family: Courier;
+            font-size: small;
+            padding: 0 3px;
+        }
+
+        #request-info .time {
+            width: 15%;
+        }
+
+        #request-info .message {
+            width: 65%;
+            white-space: pre-wrap;
+        }
+
+        #request-info .fields {
+            width: 25%;
+            white-space: pre-wrap;
+        }
+
+        #errors {
+            background-color: black;
+            color: white;
+        }
+
+        #errors a {
+            color: white;
+        }
+
+        #errors .time {
+            width: 10%;
+        }
+
+        #errors .request-id {
+            width: 15%;
+        }
+
+        #errors .message {
+            width: 75%;
+        }
+
+    </style>
+</head>
+<body>

@@ -1,1 +1,0 @@
-This is container which cleans up your Dockerized local Quesma setup - logs, mounted volume data, etc.

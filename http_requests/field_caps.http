@@ -1,4 +1,4 @@
-POST http://localhost:8080/kibana_sample_data_flights/_field_caps
+POST http://localhost:9200/kibana_sample_data_flights/_field_caps
 Content-Type: application/json
 
 {

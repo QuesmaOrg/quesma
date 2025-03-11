@@ -1,0 +1,57 @@
+frontendConnectors:
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+  - name: elastic-query
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: e
+    type: elasticsearch
+    config:
+      url: "http://{{ .elasticsearch_host }}:{{ .elasticsearch_port }}"
+      user: elastic
+      password: quesmaquesma
+  - name: c
+    type: clickhouse-os
+    config:
+      url: clickhouse://{{ .clickhouse_host }}:{{ .clickhouse_port }}
+logging:
+  path: "logs"
+  level: "info"
+  disableFileLogging: false
+  enableSQLTracing: true
+processors:
+  - name: QP
+    type: quesma-v1-processor-query
+    config:
+      indexes:
+        ab_testing_logs:
+          target: [ c ]
+        test_index:
+          target: [ c, e ]
+        "*":
+          target: [ e ]
+
+  - name: IP
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        ab_testing_logs:
+            target: [ c ]
+        test_index:
+          target: [ c, e ]
+        "*":
+          target: [ e ]
+
+pipelines:
+  - name: my-elasticsearch-proxy-read
+    frontendConnectors: [ elastic-query ]
+    processors: [ QP ]
+    backendConnectors: [ e, c ]
+  - name: my-elasticsearch-proxy-write
+    frontendConnectors: [ elastic-ingest ]
+    processors: [ IP ]
+    backendConnectors: [ e, c ]

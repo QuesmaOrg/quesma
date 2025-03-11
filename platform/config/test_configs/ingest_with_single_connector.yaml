@@ -1,0 +1,65 @@
+# Similar to quesma_adding_two_hydrolix_tables.yaml,
+# but the ingest processor has only a single backend connector.
+
+logging:
+  level: info
+frontendConnectors:
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+  - name: elastic-query
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: my-minimal-elasticsearch
+    type: elasticsearch
+    config:
+      url: "http://elasticsearch:9200"
+      user: elastic
+      password: quesmaquesma
+  - name: my-hydrolix-instance
+    type: hydrolix
+    config:
+      url: "clickhouse://localhost:9000"
+      user: "u"
+      password: "p"
+      database: "d"
+ingestStatistics: true
+processors:
+  - name: my-query-processor
+    type: quesma-v1-processor-query
+    config:
+      indexes:
+        siem:
+          target:
+            - my-hydrolix-instance
+        logs:
+          target:
+            - my-hydrolix-instance
+        "*":
+          target:
+            - my-minimal-elasticsearch
+  - name: my-ingest-processor
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        siem:
+          target:
+            - my-minimal-elasticsearch
+        logs:
+          target:
+            - my-minimal-elasticsearch
+        "*":
+          target:
+            - my-minimal-elasticsearch
+pipelines:
+  - name: my-elasticsearch-proxy-read
+    frontendConnectors: [ elastic-query ]
+    processors: [ my-query-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-hydrolix-instance ]
+  - name: my-elasticsearch-proxy-write
+    frontendConnectors: [ elastic-ingest ]
+    processors: [ my-ingest-processor ]
+    backendConnectors: [ my-minimal-elasticsearch ] # my-hydrolix-instance is not needed here, as we don't ingest to it

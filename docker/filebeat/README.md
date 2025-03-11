@@ -1,1 +1,0 @@
-This is filebeat container which ingests Quesma logs to Elasticsearch.

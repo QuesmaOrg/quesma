@@ -1,0 +1,82 @@
+name: Generate NOTICE.MD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/go.mod'
+      - '**/go.sum'
+      - '**/NOTICE.MD'
+      - '.github/notice-generator/**'
+  workflow_dispatch:
+
+jobs:
+  generate-notice-file:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          cache-dependency-path: '**/go.sum'
+          go-version: '1.24'
+
+      - name: Install go-licence-detector
+        run: go install go.elastic.co/go-licence-detector@v0.7.0
+
+      - name: Generate NOTICE.MD
+        shell: bash # to get 'set -o pipefail'
+        run: |
+          rm NOTICE.MD
+          .github/notice-generator/collect-go-dependencies.sh | sort | uniq | go-licence-detector -includeIndirect -noticeTemplate=.github/notice-generator/go-licence-detector/NOTICE.MD.tmpl -noticeOut=NOTICE.MD -overrides=.github/notice-generator/go-licence-detector/overrides.ndjson -rules=.github/notice-generator/go-licence-detector/rules.json
+          .github/notice-generator/collect-manual-notices.sh >> NOTICE.MD
+
+      - name: Print NOTICE.MD
+        run: cat NOTICE.MD
+
+      - name: Check if NOTICE.MD changed
+        id: notice-file-changed
+        shell: bash # to get 'set -o pipefail'
+        run: |
+          git fetch origin
+          if git ls-tree --name-only origin/main | grep -q '^NOTICE.MD$'; then
+            if git diff --exit-code origin/main -- NOTICE.MD; then
+              echo "changed=false" >> $GITHUB_OUTPUT
+            else
+              echo "changed=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Close existing PRs
+        if: steps.notice-file-changed.outputs.changed == 'true'
+        run: |
+          open_prs=$(gh pr list --label notice.md --state open --json number --jq '.[].number')
+          for pr in $open_prs; do
+            gh pr close $pr
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Issue a Pull Request
+        if: steps.notice-file-changed.outputs.changed == 'true'
+        run: |
+          BRANCH_NAME="notice/$(date +%Y%m%d%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+          git config --local user.email "quesma-bot@quesma.com"
+          git config --local user.name "Quesma[bot]"
+          git add NOTICE.MD
+          git commit -m "Update NOTICE.MD"
+          git push origin HEAD
+          gh pr create -l notice.md -l automation --title "Update NOTICE.MD" --body "There's been a change in Quesma dependencies" --base main --head "$BRANCH_NAME"
+        env:
+          GH_TOKEN: ${{ secrets.NOTICE_MD_UPDATER_GH_TOKEN }}
+          
+        

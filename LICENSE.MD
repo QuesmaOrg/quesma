@@ -1,4 +1,6 @@
-Source code in this repository is covered under the [Elastic License 2.0](https://github.com/elastic/elasticsearch/blob/ae39525e9f1f83bd4318cf8341b7d59534e5a5e3/licenses/ELASTIC-LICENSE-2.0.txt), as noted in the applicable header.
+Copyright (c) 2024 Quesma, Inc. All rights reserved.
+
+The source code in this repository is covered under the [Elastic License 2.0](https://github.com/elastic/elasticsearch/blob/ae39525e9f1f83bd4318cf8341b7d59534e5a5e3/licenses/ELASTIC-LICENSE-2.0.txt), as noted in the applicable header.
 
 ----
 
@@ -95,3 +97,21 @@ these terms.
 **use** means anything you do with the software requiring one of your licenses.
 
 **trademark** means trademarks, service marks, and similar rights.
+
+
+
+----
+
+PRIVACY NOTICE
+
+We strive to provide the best user experience and build the best product on the market. Part of this effort is related to constant improvement of our product without asking for our users' time.
+
+Quesma database gateway collects telemetry data and uses phone home type of communication to:
+*check license validity
+*collect environment information like component versions and runtime stats
+*provide us with information about health and performance
+*report errors and crashes
+
+At the current life stage of the product, collecting the aforementioned information is mandatory for anyone who wants to use it, and there is no opt-out possibility. Please reach out to us if that is a problem for you.
+
+The data transmitted contains no Personally Identifiable Information (PII) of any end users and is strictly related to the health and performance of Quesma instances. This data is stored in a secured environment belonging to Quesma and is not shared with any third parties. Check our documentation for an example data record.

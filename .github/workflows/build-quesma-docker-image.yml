@@ -1,0 +1,100 @@
+# Reusable workflow that builds Quesma Docker image and either:
+# - pushes it to Docker Hub
+# - or exports it to .tar artifact
+
+name: Docker image build
+on:
+  workflow_call: # Can be reused from another workflow
+    inputs:
+      VERSION:
+        description: 'Version number to tag the image with (optional)'
+        default: nightly
+        required: false
+        type: string
+      PUSH:
+        description: 'Whether to push the image to the registry (optional)' # if not, we will export it to .tar artifact
+        default: false
+        required: false
+        type: boolean
+      REF:
+        description: 'The branch, tag or SHA to checkout. By default it will use the default branch'
+        default: ''
+        required: false
+        type: string
+    secrets:
+      DOCKER_USER:
+        required: false
+      DOCKER_PAT:
+        required: false
+
+jobs:
+  build-quesma-docker-image:
+    strategy:
+      matrix:
+        module: [ "cmd" ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.REF }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+          go-version: '1.24'
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        if: ${{ inputs.PUSH }}
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Set the build date
+        run: echo QUESMA_BUILD_DATE=$(git --no-pager log -1 --date=format:'%Y-%m-%d' --format="%ad")  >> $GITHUB_ENV
+
+      # If we don't push the image, we build it only for the host architecture and export it to .tar file
+      # This step is similar to "Build and push", but avoids building arm64 image, which takes
+      # a lot of time on GitHub Actions.
+      - name: Build and export
+        uses: docker/build-push-action@v6
+        if: ${{ !inputs.PUSH }}
+        with:
+          tags: |
+            quesma/quesma:${{ inputs.VERSION }}
+            quesma/quesma:nightly
+          push: false
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+        env:
+          DOCKER_BUILD_SUMMARY: false
+
+      # If we push the image, we build it for both amd64 and arm64 and don't export it
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        if: ${{ inputs.PUSH }}
+        with:
+          tags: |
+            quesma/quesma:${{ inputs.VERSION }}
+            quesma/quesma:nightly
+          push: true
+          build-args: |
+            QUESMA_BUILD_SHA=${{ github.sha }}
+            QUESMA_VERSION=${{ inputs.VERSION }}
+            QUESMA_BUILD_DATE=${{ env.QUESMA_BUILD_DATE }}
+          platforms: linux/amd64,linux/arm64
+        env:
+          DOCKER_BUILD_SUMMARY: false
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        if: ${{ !inputs.PUSH }}
+        with:
+          name: "quesma-nightly" # this is just a name for artifact stored in github, not in dockerhub
+          path: /tmp/image.tar
+          retention-days: 1

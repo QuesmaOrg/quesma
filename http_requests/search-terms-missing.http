@@ -1,0 +1,14 @@
+GET http://localhost:8080/windows_logs/_search
+Content-Type: application/json
+
+
+{
+  "aggs": {
+    "tags": {
+      "terms": {
+        "field": "registry::key",
+        "missing": "n/a"
+      }
+    }
+  }
+}

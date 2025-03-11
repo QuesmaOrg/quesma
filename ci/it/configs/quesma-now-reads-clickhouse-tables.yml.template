@@ -1,0 +1,42 @@
+frontendConnectors:
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+  - name: elastic-query
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: my-minimal-elasticsearch
+    type: elasticsearch
+    config:
+      url: "http://{{ .elasticsearch_host }}:{{ .elasticsearch_port }}"
+      user: elastic
+      password: quesmaquesma
+  - name: my-clickhouse-instance
+    type: clickhouse-os
+    config:
+      url: clickhouse://{{ .clickhouse_host }}:{{ .clickhouse_port }}
+logging:
+  path: "logs"
+  level: "info"
+  disableFileLogging: false
+  enableSQLTracing: true
+processors:
+  - name: my-query-processor
+    type: quesma-v1-processor-query
+    config:
+      indexes:
+        test_table:
+          target:
+            - my-clickhouse-instance
+        "*":
+          target:
+            - my-minimal-elasticsearch
+pipelines:
+  - name: my-elasticsearch-proxy-read
+    frontendConnectors: [ elastic-query ]
+    processors: [ my-query-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-instance ]
+
