@@ -4,6 +4,7 @@ package frontend_connectors
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
@@ -28,7 +29,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
-	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"net/http"
 	"strings"
@@ -42,6 +42,8 @@ const (
 
 	maxParallelQueries = 25 // maximum of parallel queries we can, this is arbitrary value and should be adjusted
 )
+
+var defaultSearchAfterStrategy = model.Bulletproof
 
 type QueryRunner struct {
 	executionCtx         context.Context
@@ -97,20 +99,18 @@ func NewQueryRunner(lm clickhouse.LogManagerIFace,
 
 	ctx, cancel := context.WithCancel(context.Background())
 	transformationPipeline := model.NewTransformationPipeline()
-	transformationPipeline.AddTransformer(NewSchemaCheckPass(cfg, tableDiscovery, defaultSearchAfterStrategy))
+	transformationPipeline.AddTransformer(NewSchemaCheckPass(cfg, tableDiscovery))
 	return &QueryRunner{logManager: lm, cfg: cfg, debugInfoCollector: qmc,
 		executionCtx: ctx, cancel: cancel,
 		AsyncRequestStorage:    async_search_storage.NewAsyncSearchStorageInMemory(),
 		AsyncQueriesContexts:   async_search_storage.NewAsyncQueryContextStorageInMemory(),
-		transformationPipeline: TransformationPipeline{
-		transformers: []model.QueryTransformer{NewSchemaCheckPass(cfg, tableDiscovery)},
-	},
+		transformationPipeline: *transformationPipeline,
 		schemaRegistry:         schemaRegistry,
 		ABResultsSender:        abResultsRepository,
 		tableResolver:          resolver,
 		tableDiscovery:         tableDiscovery,
 		maxParallelQueries:     maxParallelQueries,
-		SearchAfterStrategy: searchAfterStrategy,
+		SearchAfterStrategy:    searchAfterStrategy,
 	}
 }
 
@@ -145,8 +145,7 @@ func NewQueryRunnerDefaultForTests(db quesma_api.BackendConnector, cfg *config.Q
 
 	go managementConsole.RunOnlyChannelProcessor()
 
-<<<<<<< HEAD:quesma/quesma/search.go
-	return NewQueryRunner(lm, cfg, nil, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery, model.DefaultSearchAfterStrategy)
+	return NewQueryRunner(lm, cfg, nil, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery, model.DefaultSearchAfterStrategy)
 }
 
 func NewQueryRunnerDefaultForTestsWithSearchAfter(db quesma_api.BackendConnector, cfg *config.QuesmaConfiguration,
@@ -168,7 +167,7 @@ func NewQueryRunnerDefaultForTestsWithSearchAfter(db quesma_api.BackendConnector
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tables
 
-	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
+	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 
 	go managementConsole.RunOnlyChannelProcessor()
 

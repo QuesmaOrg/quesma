@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
+	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
 	"github.com/QuesmaOrg/quesma/platform/types"
@@ -405,7 +406,7 @@ func TestSearchCommonTable(t *testing.T) {
 				mock.ExpectQuery(query).WillReturnRows(rows)
 			}
 
-			queryRunner := NewQueryRunner(lm, quesmaConfig, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery, model.DefaultSearchAfterStrategy))
+			queryRunner := NewQueryRunner(lm, quesmaConfig, managementConsole, &schemaRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery, model.DefaultSearchAfterStrategy)
 			queryRunner.maxParallelQueries = 0
 
 			_, err = queryRunner.HandleSearch(ctx, tt.IndexPattern, types.MustJSON(tt.QueryJson))

@@ -24,6 +24,6 @@ type IQueryTranslator interface {
 	MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp
 }
 
-func NewQueryTranslator(ctx context.Context, schema schema.Schema, table *clickhouse.Table, logManager clickhouse.LogManagerIFace, dateMathRenderer string, indexes []string) (queryTranslator IQueryTranslator) {
-	return &elastic_query_dsl.ClickhouseQueryTranslator{Ctx: ctx, DateMathRenderer: dateMathRenderer, Indexes: indexes, Schema: schema, Table: table}
+func NewQueryTranslator(ctx context.Context, schema schema.Schema, table *clickhouse.Table, logManager clickhouse.LogManagerIFace, dateMathRenderer string, saStrategy model.SearchAfterStrategy, indexes []string) (queryTranslator IQueryTranslator) {
+	return &elastic_query_dsl.ClickhouseQueryTranslator{Ctx: ctx, DateMathRenderer: dateMathRenderer, SearchAfterStrategy: saStrategy, Indexes: indexes, Schema: schema, Table: table}
 }

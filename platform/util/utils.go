@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/k0kubun/pp"
 	"io"

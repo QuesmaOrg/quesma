@@ -177,7 +177,8 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), Schema: s.Tables["test"], SearchAfterStrategy: SearchAfterStrategyFactory(model.DefaultSearchAfterStrategy)}
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), Schema: s.Tables["test"]}
+	
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
 			hitQuery := query_util.BuildHitsQuery(

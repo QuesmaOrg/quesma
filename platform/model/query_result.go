@@ -4,12 +4,12 @@ package model
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"github.com/goccy/go-json"
 	"reflect"
 	"slices"
 	"strings"
