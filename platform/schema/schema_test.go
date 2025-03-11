@@ -24,28 +24,28 @@ func TestSchema_ResolveField(t *testing.T) {
 		{
 			name:          "should resolve field",
 			fieldName:     "message",
-			schema:        NewSchema(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: QuesmaTypeText}}, false, ""),
+			schema:        NewSchema(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: QuesmaTypeText}}, false, "", nil),
 			resolvedField: Field{PropertyName: "message", InternalPropertyName: "message", Type: QuesmaTypeText},
 			exists:        true,
 		},
 		{
 			name:          "should not resolve field",
 			fieldName:     "foo",
-			schema:        NewSchema(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: QuesmaTypeText}}, false, ""),
+			schema:        NewSchema(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: QuesmaTypeText}}, false, "", nil),
 			resolvedField: Field{},
 			exists:        false,
 		},
 		{
 			name:          "should resolve aliased field",
 			fieldName:     "message_alias",
-			schema:        NewSchemaWithAliases(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: QuesmaTypeText}}, map[FieldName]FieldName{"message_alias": "message"}, false, ""),
+			schema:        NewSchemaWithAliases(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: QuesmaTypeText}}, map[FieldName]FieldName{"message_alias": "message"}, false, "", nil),
 			resolvedField: Field{PropertyName: "message", InternalPropertyName: "message", Type: QuesmaTypeText},
 			exists:        true,
 		},
 		{
 			name:          "should not resolve aliased field",
 			fieldName:     "message_alias",
-			schema:        NewSchemaWithAliases(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: QuesmaTypeText}}, map[FieldName]FieldName{"message_alias": "foo"}, false, ""),
+			schema:        NewSchemaWithAliases(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: QuesmaTypeText}}, map[FieldName]FieldName{"message_alias": "foo"}, false, "", nil),
 			resolvedField: Field{},
 			exists:        false,
 		},
@@ -73,21 +73,21 @@ func TestSchema_ResolveFieldByInternalName(t *testing.T) {
 	}{
 		{
 			testName:  "empty schema",
-			schema:    NewSchemaWithAliases(map[FieldName]Field{}, map[FieldName]FieldName{}, false, ""),
+			schema:    NewSchemaWithAliases(map[FieldName]Field{}, map[FieldName]FieldName{}, false, "", nil),
 			fieldName: "message",
 			want:      Field{},
 			found:     false,
 		},
 		{
 			testName:  "schema with fields with internal separators, lookup by property name",
-			schema:    NewSchema(map[FieldName]Field{"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo::bar", Type: QuesmaTypeText}}, false, ""),
+			schema:    NewSchema(map[FieldName]Field{"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo::bar", Type: QuesmaTypeText}}, false, "", nil),
 			fieldName: "foo.bar",
 			want:      Field{},
 			found:     false,
 		},
 		{
 			testName:  "schema with fields with internal separators, lookup by internal name",
-			schema:    NewSchema(map[FieldName]Field{"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo::bar", Type: QuesmaTypeText}}, false, ""),
+			schema:    NewSchema(map[FieldName]Field{"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo::bar", Type: QuesmaTypeText}}, false, "", nil),
 			fieldName: "foo::bar",
 			want:      Field{PropertyName: "foo.bar", InternalPropertyName: "foo::bar", Type: QuesmaTypeText},
 			found:     true,
@@ -95,7 +95,7 @@ func TestSchema_ResolveFieldByInternalName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			s := NewSchemaWithAliases(tt.schema.Fields, tt.schema.Aliases, false, "")
+			s := NewSchemaWithAliases(tt.schema.Fields, tt.schema.Aliases, false, "", nil)
 			got, found := s.ResolveFieldByInternalName(tt.fieldName)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ResolveFieldByInternalName() got = %v, want %v", got, tt.want)

@@ -18,6 +18,7 @@ type (
 	Schema struct {
 		Fields             map[FieldName]Field
 		Aliases            map[FieldName]FieldName
+		primaryKey         *FieldName // nil if no primary key. Only used in handling of search_after query parameter.
 		ExistsInDataSource bool
 
 		// DatabaseName is the name of the database/schema in the data source,
@@ -37,18 +38,23 @@ type (
 	FieldName string
 )
 
-func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]FieldName, existsInDataSource bool, databaseName string) Schema {
-
+func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]FieldName, existsInDataSource bool, databaseName string, primaryKey *FieldName) Schema {
 	return Schema{
 		Fields:             fields,
 		Aliases:            aliases,
 		ExistsInDataSource: existsInDataSource,
 		DatabaseName:       databaseName,
+		primaryKey:         primaryKey,
 	}
 }
 
-func NewSchema(fields map[FieldName]Field, existsInDataSource bool, databaseName string) Schema {
-	return NewSchemaWithAliases(fields, map[FieldName]FieldName{}, existsInDataSource, databaseName)
+func NewSchema(fields map[FieldName]Field, existsInDataSource bool, databaseName string, primaryKey *FieldName) Schema {
+	return NewSchemaWithAliases(fields, map[FieldName]FieldName{}, existsInDataSource, databaseName, primaryKey)
+}
+
+func NewPrimaryKey(fieldName string) *FieldName {
+	pk := FieldName(fieldName)
+	return &pk
 }
 
 func (f FieldName) AsString() string {
@@ -80,4 +86,8 @@ func (s Schema) ResolveField(fieldName string) (Field, bool) {
 	}
 	field, exists := s.Fields[FieldName(fieldName)]
 	return field, exists
+}
+
+func (s Schema) GetPrimaryKey() *FieldName {
+	return s.primaryKey
 }

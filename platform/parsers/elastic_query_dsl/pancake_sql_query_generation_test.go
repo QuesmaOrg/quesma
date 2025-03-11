@@ -218,7 +218,7 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 		map[schema.FieldName]schema.Field{
 			"host.name":   {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.QuesmaTypeObject},
 			"bytes_gauge": {PropertyName: "bytes_gauge", InternalPropertyName: "bytes_gauge", Type: schema.QuesmaTypeInteger},
-		}, true, "",
+		}, true, "", nil,
 	)
 
 	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}

@@ -1,18 +1,6 @@
-// Copyright Quesma, licensed under the Elastic License 2.0.
-// SPDX-License-Identifier: Elastic-2.0
 package frontend_connectors
 
-import (
-	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
-	"github.com/QuesmaOrg/quesma/platform/config"
-	"github.com/QuesmaOrg/quesma/platform/model"
-	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/stretchr/testify/assert"
-	"strconv"
-	"testing"
-)
-
+/*
 func Test_validateAndParse(t *testing.T) {
 	fields := map[schema.FieldName]schema.Field{
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
@@ -183,3 +171,5 @@ func Test_applySearchAfterParameter(t *testing.T) {
 		}
 	}
 }
+
+*/

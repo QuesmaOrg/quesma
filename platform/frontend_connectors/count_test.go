@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/logger"
+	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
 	"github.com/QuesmaOrg/quesma/platform/ui"
@@ -55,7 +56,7 @@ func TestCountEndpoint(t *testing.T) {
 	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 	go managementConsole.RunOnlyChannelProcessor()
 
-	queryRunner := NewQueryRunner(lm, &DefaultConfig, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery)
+	queryRunner := NewQueryRunner(lm, &DefaultConfig, managementConsole, staticRegistry, ab_testing.NewEmptySender(), resolver, tableDiscovery, model.DefaultSearchAfterStrategy)
 
 	testcases := []struct {
 		index       string
