@@ -54,12 +54,15 @@ func TestSearchOpensearch(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
 			plan, err := cw.ParseQuery(body)
+			assert.NoError(t, err, "no ParseQuery error")
+
 			queries := plan.Queries
 			for j, query := range queries {
-				queries[j], _ = transformations_delete.ApplyNecessaryTransformations(context.Background(), query, &table, s.Tables[tableName])
+				queries[j], err = transformations_delete.ApplyNecessaryTransformations(context.Background(), query, &table, s.Tables[tableName])
+				assert.NoError(t, err)
 			}
-			assert.NoError(t, err, "no ParseQuery error")
 			assert.True(t, len(queries) > 0, "len queries > 0")
+
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
 			assert.Contains(t, tt.WantedSql, whereClause, "contains wanted sql")
 
