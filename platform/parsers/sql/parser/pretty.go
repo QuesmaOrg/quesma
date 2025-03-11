@@ -5,7 +5,7 @@ package main
 
 import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
-	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/transforms"
+	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/pipe_syntax"
 )
 
 // PrettyPrint provides a formatted view of the Node tree.
@@ -42,7 +42,7 @@ func prettyPrintNode(node core.Node, indent int) string {
 		return s
 
 	// For PipeNode (both pointer and non-pointer versions), show BeforePipe and Pipes fields.
-	case transforms.PipeNode:
+	case pipe_syntax.PipeNode:
 		s := pad(indent) + "PipeNode {\n"
 		s += pad(indent+1) + "BeforePipe:\n" + prettyPrintNode(n.BeforePipe, indent+2) + "\n"
 		s += pad(indent+1) + "Pipes: [\n"
@@ -52,7 +52,7 @@ func prettyPrintNode(node core.Node, indent int) string {
 		s += pad(indent+1) + "]\n"
 		s += pad(indent) + "}"
 		return s
-	case *transforms.PipeNode:
+	case *pipe_syntax.PipeNode:
 		s := pad(indent) + "PipeNode {\n"
 		s += pad(indent+1) + "BeforePipe:\n" + prettyPrintNode(n.BeforePipe, indent+2) + "\n"
 		s += pad(indent+1) + "Pipes: [\n"

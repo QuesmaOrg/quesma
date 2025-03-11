@@ -1,10 +1,9 @@
-package transpiler
+package pipe_syntax
 
 import (
 	"fmt"
 	lexer_core "github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
-	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/transforms"
 	"slices"
 	"strings"
 )
@@ -21,7 +20,7 @@ type TranspileState struct {
 }
 
 func Transpile(node core.Node) {
-	transformPipeNodes(node, func(pipeNode *transforms.PipeNode) core.Node {
+	TransformPipeNodes(node, func(pipeNode *PipeNode) core.Node {
 		state := TranspileState{}
 
 		if pipeNodeList, ok := pipeNode.BeforePipe.(core.NodeListNode); ok {
@@ -77,17 +76,17 @@ func Transpile(node core.Node) {
 					if selectNode, ok := state.selectNode.(core.NodeListNode); ok {
 						selectNode.Nodes = append(selectNode.Nodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
 						selectNode.Nodes = append(selectNode.Nodes, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
-						selectNode.Nodes = append(selectNode.Nodes, selectNodes...)
+						selectNode.Nodes = append(selectNode.Nodes, groupby...)
 						selectNode.Nodes = append(selectNode.Nodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
 						selectNode.Nodes = append(selectNode.Nodes, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
-						selectNode.Nodes = append(selectNode.Nodes, groupby...)
+						selectNode.Nodes = append(selectNode.Nodes, selectNodes...)
 						state.selectNode = selectNode
 					} else {
 						var allNodes []core.Node
-						allNodes = slices.Clone(selectNodes)
+						allNodes = slices.Clone(groupby)
 						allNodes = append(allNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
 						allNodes = append(allNodes, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
-						allNodes = append(allNodes, groupby...)
+						allNodes = append(allNodes, selectNodes...)
 						state.selectNode = core.NodeListNode{Nodes: allNodes}
 					}
 				case "ORDER BY":
@@ -102,6 +101,26 @@ func Transpile(node core.Node) {
 					}
 					state.selectNode = core.NodeListNode{Nodes: pipeNodeList.Nodes[3:]}
 					state.lastPriority = 7
+				case "EXTEND":
+					if state.lastPriority >= 8 {
+						state = TranspileState{from: renderState(state, true)}
+					}
+					if state.selectNode != nil {
+						var allNodes []core.Node
+						allNodes = slices.Clone(state.selectNode.(core.NodeListNode).Nodes)
+						allNodes = append(allNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
+						allNodes = append(allNodes, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
+						allNodes = append(allNodes, pipeNodeList.Nodes[3:]...)
+						state.selectNode = core.NodeListNode{Nodes: allNodes}
+					} else {
+						var allNodes []core.Node
+						allNodes = []core.Node{core.TokenNode{Token: lexer_core.Token{RawValue: "*"}}}
+						allNodes = append(allNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
+						allNodes = append(allNodes, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
+						allNodes = append(allNodes, pipeNodeList.Nodes[3:]...)
+						state.selectNode = core.NodeListNode{Nodes: allNodes}
+					}
+					state.lastPriority = 8
 				case "LIMIT":
 					if state.lastPriority >= 10 {
 						state = TranspileState{from: renderState(state, true)}
@@ -187,17 +206,4 @@ func renderState(state TranspileState, parens bool) core.Node {
 		nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
 	}
 	return &core.NodeListNode{Nodes: nodes}
-}
-
-func transformPipeNodes(node core.Node, visitor func(pipeNode *transforms.PipeNode) core.Node) {
-	for _, child := range node.Children() {
-		transformPipeNodes(child, visitor)
-	}
-	if nodeListNode, ok := node.(*core.NodeListNode); ok {
-		for i, child := range nodeListNode.Nodes {
-			if pipeNode, ok := child.(*transforms.PipeNode); ok {
-				nodeListNode.Nodes[i] = visitor(pipeNode)
-			}
-		}
-	}
 }

@@ -1,9 +1,12 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
 
-package transforms
+package pipe_syntax
 
-import "github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
+import (
+	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
+	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/transforms"
+)
 
 type PipeNode struct {
 	BeforePipe core.Node
@@ -31,8 +34,8 @@ func (n PipeNode) Children() []core.Node {
 	return children
 }
 
-func TransformPipeSyntax(node core.Node) {
-	TransformListNodes(node, func(nodeList *core.NodeListNode) []core.Node {
+func GroupPipeSyntax(node core.Node) {
+	transforms.TransformListNodes(node, func(nodeList *core.NodeListNode) []core.Node {
 		var beforePipe []core.Node
 
 		var i int
