@@ -1,3 +1,6 @@
+---
+description: Adding ClickHouse/Hydrolix tables to existing Kibana/Elasticsearch ecosystem
+---
 # Adding ClickHouse/Hydrolix tables to existing Kibana/Elasticsearch ecosystem
 
 ::: warning
@@ -69,33 +72,45 @@ K[Kibana/OSD] --> Q((Quesma))
         config:
           indexes:  # the list below is just an example, 
             siem:   # make sure to replace them with your actual table or index names
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             logs:
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             index1:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index2:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index3:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             '*':       # DO NOT remove, always required
-              target: [ elasticsearch-instance ]     
+              target:
+                - elasticsearch-instance     
       - name: ingest-processor
         type: quesma-v1-processor-ingest
         config:
           indexes:  # the list below is just an example, 
             siem:   # make sure to replace them with your actual table or index names
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             logs:
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             index1:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index2:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index3:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             '*':       # DO NOT remove, always required
-              target: [ elasticsearch-instance ]              
+              target:
+                - elasticsearch-instance              
     pipelines:
       - name: elasticsearch-proxy-read
         frontendConnectors: [ elastic-query ]

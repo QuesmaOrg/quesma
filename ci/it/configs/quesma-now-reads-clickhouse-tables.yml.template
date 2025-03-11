@@ -18,16 +18,22 @@ backendConnectors:
     type: clickhouse-os
     config:
       url: clickhouse://{{ .clickhouse_host }}:{{ .clickhouse_port }}
-ingestStatistics: true
+logging:
+  path: "logs"
+  level: "info"
+  disableFileLogging: false
+  enableSQLTracing: true
 processors:
   - name: my-query-processor
     type: quesma-v1-processor-query
     config:
       indexes:
         test_table:
-          target: [ my-clickhouse-instance]
+          target:
+            - my-clickhouse-instance
         "*":
-          target: [my-minimal-elasticsearch]
+          target:
+            - my-minimal-elasticsearch
 pipelines:
   - name: my-elasticsearch-proxy-read
     frontendConnectors: [ elastic-query ]

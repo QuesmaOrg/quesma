@@ -1,0 +1,162 @@
+# TEST CONFIGURATION
+licenseKey: "cdd749a3-e777-11ee-bcf8-0242ac150004"
+frontendConnectors:
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+  - name: elastic-query
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: my-minimal-elasticsearch
+    type: elasticsearch
+    config:
+      url: "http://localhost:9200"
+  - name: my-clickhouse-data-source
+    type: clickhouse-os
+    config:
+      url: "clickhouse://localhost:9000"
+ingestStatistics: true
+internalTelemetryUrl: "https://api.quesma.com/phone-home"
+logging:
+  remoteUrl: "https://api.quesma.com/phone-home"
+  path: "logs"
+  level: "info"
+processors:
+  - name: my-query-processor
+    type: quesma-v1-processor-query
+    config:
+      indexes:
+        example-elastic-index:
+          target:
+            - my-minimal-elasticsearch
+        example-index:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_ecommerce:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_flights:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              timestamp:
+                type: alias
+                targetColumnName: "@timestamp"
+        kafka-example-topic:
+          target:
+            - my-clickhouse-data-source
+        logs-generic-default:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+              "host.name":
+                type: text
+        device-logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        phone_home_logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        windows_logs:
+          target:
+            - my-clickhouse-data-source
+        phone_home_data:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        "*":
+          target:
+            - my-minimal-elasticsearch
+  - name: my-ingest-processor
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        example-elastic-index:
+          target:
+            - my-minimal-elasticsearch
+        example-index:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_ecommerce:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_flights:
+          target:
+            - my-clickhouse-data-source
+        kibana_sample_data_logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              timestamp:
+                type: alias
+                targetColumnName: "@timestamp"
+        kafka-example-topic:
+          target:
+            - my-clickhouse-data-source
+        logs-generic-default:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+              "host.name":
+                type: text
+        device-logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        phone_home_logs:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        windows_logs:
+          target:
+            - my-clickhouse-data-source
+        phone_home_data:
+          target:
+            - my-clickhouse-data-source
+          schemaOverrides:
+            fields:
+              message:
+                type: text
+        "*":
+          target:
+            - my-minimal-elasticsearch
+pipelines:
+  - name: my-pipeline-elasticsearch-query-clickhouse
+    frontendConnectors: [ elastic-query ]
+    processors: [ my-query-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]
+  - name: my-pipeline-elasticsearch-ingest-to-clickhouse
+    frontendConnectors: [ elastic-ingest ]
+    processors: [ my-ingest-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]

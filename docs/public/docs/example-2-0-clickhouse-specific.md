@@ -1,3 +1,6 @@
+---
+description: Query ClickHouse/Hydrolix tables as Elasticsearch indices
+---
 # Query ClickHouse/Hydrolix tables as Elasticsearch indices
 
 ::: warning
@@ -72,21 +75,27 @@ flowchart LR
         config:
           indexes:      # `siem` and `logs` are just examples, 
             siem:       # make sure to replace them with your actual table names in your ClickHouse instance
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             logs:
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             '*':        # DO NOT remove, always required
-              target: [ minimal-elasticsearch ]
+              target:
+                - minimal-elasticsearch
       - name: ingest-processor
         type: quesma-v1-processor-ingest
         config:
           indexes:      # `siem` and `logs` are just examples, 
             siem:       # make sure to replace them with your actual table or index names in your ClickHouse instance
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             logs:
-              target: [ clickhouse-instance ]
+              target:
+                - clickhouse-instance
             '*':        # DO NOT remove, always required
-              target: [ minimal-elasticsearch ]  
+              target:
+                - minimal-elasticsearch
     pipelines:
       - name: elasticsearch-proxy-read
         frontendConnectors: [ elastic-query ]

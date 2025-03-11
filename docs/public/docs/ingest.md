@@ -1,3 +1,6 @@
+---
+description: Ingest
+---
 # Ingest
 
 Quesma supports the standard Elastic/OpenSearch API endpoints for ingest. Similar to Elastic/OpenSearch, the ingest process is very flexible, allowing you to ingest data without manually specifying the schema or without having to create Elastic index or ClickHouse tables prior to inserting data. Quesma can also act as a transparent proxy, allowing you to ingest data into your existing Elastic/OpenSearch cluster.
@@ -23,9 +26,11 @@ processors:
     config:
       indexes:
         my_index:
-          target: [ backend-clickhouse ]
+          target:
+            - backend-clickhouse
         "*": # Always required
-          target: [ backend-elasticsearch ]
+          target:
+            - backend-elasticsearch
 ```
 
 This way, Quesma will know that the data of that index should be ingested to ClickHouse.
@@ -71,7 +76,8 @@ You can also specify the explicit mappings in the Quesma configuration file with
 
 ```yaml
 my_index:
-  target: [ backend-clickhouse ]
+  target:
+    - backend-clickhouse
   schemaOverrides:
     fields:
       "products.manufacturer":
@@ -108,7 +114,8 @@ indexes:
       - backend-clickhouse:
           useCommonTable: true
   "*":
-    target: [ backend-elastic ]
+    target:
+      - backend-elastic
   ...        
 ```
 

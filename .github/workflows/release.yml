@@ -16,7 +16,7 @@ jobs:
   build-quesma-docker-image: # based on nightly-docker-build-and-push.yml, but heavily modified
     strategy:
       matrix:
-        module: [ "quesma" ]
+        module: [ "cmd" ]
     runs-on: ubuntu-latest
     steps:
       - name: Validate input - needs to match semver
@@ -40,7 +40,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache-dependency-path: ${{ matrix.module }}/go.sum
-          go-version: '1.23'
+          go-version: '1.24'
 
       - name: Login to GCR (only for build running on `main` branch)
         uses: docker/login-action@v3
@@ -61,7 +61,6 @@ jobs:
       - name: Build and export
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.module }}/.
           tags: |
             europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION }}
             europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:latest
@@ -92,6 +91,9 @@ jobs:
             ```bash
             docker pull quesma/quesma:${{ github.event.inputs.VERSION }}
             ```
+            
+            **Release Notes:**
+            - This is a minor bugfix release.
 
             All tags URL: https://hub.docker.com/r/quesma/quesma/tags
           draft: true

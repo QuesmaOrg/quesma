@@ -1,3 +1,6 @@
+---
+description: Known limitations or unsupported functionalities
+---
 # Known limitations or unsupported functionalities
 
 Quesma is designed for analytical text queries such as in observability or security.
@@ -24,6 +27,7 @@ Quesma supports only ElasticSearch/Kibana 8.0 or above.
 
 ### ClickHouse limitations
 * When using a cluster deployment of ClickHouse, the tables automatically created by Quesma (during [Ingest](/ingest.md)) will use the `MergeTree` engine. If you wish to use the `ReplicatedMergeTree` engine instead, you will have to create the tables manually with  `ReplicatedMergeTree` engine before ingesting data to Quesma.
+  * Remember to configure `clusterName` in backend connector configuration to make sure that the tables are created on all nodes of the cluster. 
   * *Note: On ClickHouse Cloud, the tables automatically created by Quesma will use the `ReplicatedMergeTree` engine (ClickHouse Cloud default engine).* 
 
 ## Functional limitations
@@ -33,8 +37,8 @@ Currently supported:
 - most popular [Query DSL](https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html),
   including: `boolean`, `match`, `match phrase`, `multi-match`, `query string`, `nested`, `match all`, `exists`, `prefix`, `range`, `term`, `terms`, `wildcard`
 - most popular [Aggregations](https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations.html),
-  including: `avg`, `cardinality`, `max`, `min`, `percentile ranks`, `percentiles`, `stats`, `sum`, `top hits`, `top metrics`, `value counts`,
-  `date histogram`, `date range`, `filter`, `filters`, `histogram`, `range`, `singificant terms`, `terms`
+  including: `avg`, `cardinality`, `max`, `min`, `percentile ranks`, `percentiles`, `stats`, `sum`, `top hits`, `top metrics`, `value count`,
+  `date histogram`, `date range`, `filter`, `filters`, `histogram`, `range`, `singificant terms`, `terms`, `ip prefix`, `ip range`, `geo_bounds`, `geohash_grid`
 
 Which as a result allows you to run Kibana/OSD queries and dashboards on data residing in ClickHouse/Hydrolix.
 
@@ -52,8 +56,8 @@ Currently not supported future roadmap items:
   refer to the `List of supported endpoints` section for more details.
 * JSON are not pretty printed in the response.
 * The schema support is limited.
-  * Elasticsearch types: date, text, keyword, boolean, byte, short, integer, long, unsigned_long, float, double
-  * Clickhouse types: DateTime, DateTime64, String, Boolean, UInt8, UInt16, UInt32, UInt64, Int8, Int16, Int32, Int64, Float32, Float64
+  * Elasticsearch types: `date`, `text`, `keyword`, `boolean`, `byte`, `short`, `integer`, `long`, `unsigned_long`, `float`, `half_float`, `double`, `ip`, `geo_point`, `point`
+  * Clickhouse types: `Date`, `DateTime`, `DateTime64`, `String`, `FixedString`, `LowCardinality(String)`, `Bool`, `UInt8`, `UInt16`, `UInt32`, `UInt64`, `Int8`, `Int16`, `Int32`, `Int64`, `Float32`, `Float64`, `Array` (of types listed in this list).
 * Some advanced query parameters are ignored.
 * No support for SQL, EQL (Event Query Language), PPL, or ES/QL.
 * Better secret support.
@@ -71,7 +75,6 @@ Currently not supported future roadmap items:
 
 - Some schema-related endpoints (such as `PUT /:index`) don't support dual-writes: the request is only handled by the ClickHouse/Hydrolix connector and not forwarded to Elastic. A workaround for this problem is to send the request manually directly to Elastic. The status of the bug is tracked on [Quesma's GitHub Issues page](https://github.com/QuesmaOrg/quesma/issues/986).
 - The `_count` endpoint does not support tables in non-default [databases](https://clickhouse.com/docs/en/sql-reference/statements/create/database). The status of the bug is tracked on [Quesma's GitHub Issues page](https://github.com/QuesmaOrg/quesma/issues/985).
-- `@timestamp` column supports only `DateTime64(3)` type (e.g. `DateTime` type is not supported for that column). The status of the bug is tracked on [Quesma's GitHub Issues page](https://github.com/QuesmaOrg/quesma/issues/988).
 
 ## List of supported endpoints
 
@@ -80,24 +83,29 @@ Upon a query, Quesma will forward the request to the appropriate data source (El
 The following endpoints are supported:
 
 * Search:
-  * `POST /_search`
   * `POST /:index/_search`
   * `POST /:index/_async_search`
+  * `GET /_async_search/status/:id`
+  * `GET /_async_search/:id`, `DELETE /_async_search/:id`
   * `GET  /:index/_count`
+  * `POST /:index/_terms_enum`
+  * `GET /:index/_eql/search`, `POST /:index/_eql/search`
 * Schema:
   * `GET  /:index`
-  * `GET  /:index/_mapping`
+  * `GET  /:index/_mapping`, `PUT /:index/_mapping`
   * `PUT /:index`
   * `POST /:index/_field_caps`
   * `POST /:index/_terms_enum`
   * `POST /:index`
-  * `POST /:index/_mapping`
+  * `GET /:index/_field_caps`, `POST /:index/_field_caps`
+  * `GET /_resolve/index/:index`
 * Ingest:
-  * `POST /_bulk`
+  * `POST /_bulk`, `PUT /_bulk`
   * `POST /:index/_bulk`
   * `POST /:index/_doc`
 * Administrative:
   * `GET  /_cluster/health`
+  * `POST /:index/_refresh`
 
 
 **Warning:** Quesma does not support path parameters in URLs listed above.

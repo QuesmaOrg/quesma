@@ -24,41 +24,53 @@ processors:
     config:
       indexes:
         kibana_sample_data_ecommerce:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_flights:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         logs-generic-default:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               "message":
                 type: text
         windows_logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
   - name: p2
     type: quesma-v1-processor-ingest
     config:
       indexes:
         kibana_sample_data_ecommerce:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_flights:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         kibana_sample_data_logs:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         logs-generic-default:
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
           schemaOverrides:
             fields:
               "message":
                 type: text
         windows_logs:   # Used for EQL e2e tests
-          target: [ my-clickhouse-data-source ]
+          target:
+            - my-clickhouse-data-source
         "*":
-          target: [ my-minimal-elasticsearch ]
+          target:
+            - my-minimal-elasticsearch
 
 pipelines:
   - name: p-query

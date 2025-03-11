@@ -1,3 +1,6 @@
+---
+description: Adding ClickHouse/Hydrolix tables to existing Kibana/Elasticsearch ecosystem
+---
 # Adding Hydrolix tables to existing Kibana/Elasticsearch ecosystem
 
 In this scenario, user already has data in Elasticsearch/OpenSearch indices - let's assume `index1`, `index2` and `index3`.
@@ -60,29 +63,39 @@ flowchart LR
         config:
           indexes:  # the list below is just an example, 
             siem:   # make sure to replace them with your actual table or index names
-              target: [ hydrolix-instance ]
+              target:
+                - hydrolix-instance
             logs:
-              target: [ hydrolix-instance ]
+              target:
+                - hydrolix-instance
             index1:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index2:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index3:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             '*':       # DO NOT remove, always required
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
       - name: ingest-processor
         type: quesma-v1-processor-ingest
         config:
           indexes:    # the list below is just an example, 
             index1:   # make sure to replace them with your actual table or index names
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index2:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             index3:
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
             '*':       # DO NOT remove, always required
-              target: [ elasticsearch-instance ]
+              target:
+                - elasticsearch-instance
     pipelines:
       - name: elasticsearch-proxy-read
         frontendConnectors: [ elastic-query ]
