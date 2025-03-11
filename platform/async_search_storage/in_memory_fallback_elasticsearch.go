@@ -3,7 +3,7 @@
 package async_search_storage
 
 import (
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/platform/config"
 	"time"
 )
 

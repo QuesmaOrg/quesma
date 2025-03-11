@@ -3,10 +3,8 @@
 package async_search_storage
 
 import (
-	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
-	"github.com/QuesmaOrg/quesma/platform/recovery"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"math"
 	"strings"

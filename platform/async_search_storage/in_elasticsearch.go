@@ -5,9 +5,9 @@ package async_search_storage
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/quesma/logger"
-	"github.com/QuesmaOrg/quesma/quesma/persistence"
-	"github.com/QuesmaOrg/quesma/quesma/quesma/config"
+	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/logger"
+	"github.com/QuesmaOrg/quesma/platform/persistence"
 
 	"time"
 )
