@@ -4710,7 +4710,6 @@ var AggregationTests2 = []AggregationTestCase{
 			LIMIT 4`,
 	},
 	{ // [70]
-<<<<<<< Updated upstream
 		TestName: "simplest terms with exclude (array of values)",
 		QueryRequestJson: `
 		{
@@ -5195,44 +5194,11 @@ var AggregationTests2 = []AggregationTestCase{
 						"field": "Carrier",
 						"size": 2
 					}
-=======
-		TestName: "auto_date_histogram, buckets>1, simplest case: we take bounds from query part",
-		QueryRequestJson: `
-		{
-			"_source": {
-				"excludes": []
-			},
-			"aggs": {
-				"2": {
-					"auto_date_histogram": {
-						"field": "@timestamp",
-						"buckets": 5
-					}
-				}
-			},
-			"query": {
-				"bool": {
-					"filter": [
-						{
-							"range": {
-								"@timestamp": {
-									"format": "strict_date_optional_time",
-									"gte": "2024-11-20T19:46:30.033Z",
-									"lte": "2024-12-05T19:46:30.033Z"
-								}
-							}
-						}
-					],
-					"must": [],
-					"must_not": [],
-					"should": []
->>>>>>> Stashed changes
 				}
 			},
 			"size": 0,
 			"track_total_hits": true
 		}`,
-<<<<<<< Updated upstream
 		// I omit "took", "timed_out", "_shards", and "hits" from the response for brevity (they can also be easily unit-tested)
 		ExpectedResponse: `
 		{
@@ -5377,47 +5343,11 @@ var AggregationTests2 = []AggregationTestCase{
 							"doc_count": 2
 						}
 					]
-=======
-		ExpectedResponse: `
-		{
-			"took": 3,
-			"timed_out": false,
-			"_shards": {
-				"total": 1,
-				"successful": 1,
-				"skipped": 0,
-				"failed": 0
-			},
-			"hits": {
-				"total": {
-					"value": 2781,
-					"relation": "eq"
-				},
-				"max_score": null,
-				"hits": []
-			},
-			"aggregations": {
-				"2": {
-					"buckets": [
-						{
-							"key_as_string": "2024-11-24T00:00:00.000Z",
-							"key": 1732406400000,
-							"doc_count": 1635
-						},
-						{
-							"key_as_string": "2024-12-01T00:00:00.000Z",
-							"key": 1733011200000,
-							"doc_count": 1146
-						}
-					],
-					"interval": "7d"
->>>>>>> Stashed changes
 				}
 			}
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-<<<<<<< Updated upstream
 				model.NewQueryResultCol("aggr__terms__parent_count", int64(50000)),
 				model.NewQueryResultCol("aggr__terms__key_0", nil),
 				model.NewQueryResultCol("aggr__terms__count", int64(12000)),
@@ -5511,7 +5441,81 @@ var AggregationTests2 = []AggregationTestCase{
 			  "aggr__terms__key_0"
 			ORDER BY "aggr__terms__count" DESC, "aggr__terms__key_0" ASC
 			LIMIT 1`,
-=======
+	},
+	{ // [79]
+		TestName: "auto_date_histogram, buckets>1, simplest case: we take bounds from query part",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"auto_date_histogram": {
+						"field": "@timestamp",
+						"buckets": 5
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"@timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-11-20T19:46:30.033Z",
+									"lte": "2024-12-05T19:46:30.033Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 3,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2781,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"key_as_string": "2024-11-24T00:00:00.000Z",
+							"key": 1732406400000,
+							"doc_count": 1635
+						},
+						{
+							"key_as_string": "2024-12-01T00:00:00.000Z",
+							"key": 1733011200000,
+							"doc_count": 1146
+						}
+					],
+					"interval": "7d"
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__my_buckets__key_0", int64(1734220800000/86400000)),
 				model.NewQueryResultCol("aggr__my_buckets__key_1", false),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(177)),
@@ -5548,6 +5552,5 @@ var AggregationTests2 = []AggregationTestCase{
 			ORDER BY "aggr__my_buckets__count" DESC, "aggr__my_buckets__key_0" ASC,
 			  "aggr__my_buckets__key_1" ASC
 			LIMIT 4`,
->>>>>>> Stashed changes
 	},
 }
