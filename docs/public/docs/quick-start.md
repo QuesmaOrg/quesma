@@ -1,3 +1,6 @@
+---
+description: Quick start demo
+---
 # Quick start demo
 
 The easiest way to get started is to try out the example `docker-compose` setup, which can be found in `/examples/kibana-sample-data.` It features Kibana connecting to Elasticsearch and Clickhouse through Quesma:
