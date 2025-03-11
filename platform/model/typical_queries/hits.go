@@ -157,6 +157,16 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 				if valueAsString != nil {
 					hit.Highlight[columnName] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), *valueAsString)
 				}
+			case []string:
+				for _, v := range valueAsString {
+					hit.Highlight[columnName] = append(hit.Highlight[columnName], query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), v)...)
+				}
+			case []*string:
+				for _, v := range valueAsString {
+					if v != nil {
+						hit.Highlight[columnName] = append(hit.Highlight[columnName], query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), *v)...)
+					}
+				}
 			default:
 				logger.WarnWithCtx(query.ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)
 			}
