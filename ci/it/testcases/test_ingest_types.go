@@ -61,9 +61,9 @@ type Response struct {
 
 func ParseResponse(t *testing.T, body []byte) map[string]any {
 	var response Response
-	err := json.Unmarshal([]byte(body), &response)
+	err := json.Unmarshal(body, &response)
 	if err != nil {
-		log.Fatalf("Error parsing JSON: %v", err)
+		log.Fatalf("Error parsing JSON: %v. Full contents of the JSON: %s", err, string(body))
 	}
 
 	// Extract and print the `fields` tree
@@ -309,7 +309,7 @@ func (a *IngestTypesTestcase) testSupportedTypesInDefaultSetup(ctx context.Conte
 			resp, bytes := a.RequestToQuesma(ctx, t, "GET", "/"+indexName+"/_search", []byte(`
 { "query": { "match_all": {} } }
 `))
-			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, http.StatusOK, resp.StatusCode, "response status code: %d, response body: %s", resp.StatusCode, string(bytes))
 
 			r.querySuccess = true
 

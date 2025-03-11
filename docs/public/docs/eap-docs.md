@@ -1,3 +1,6 @@
+---
+description: What is Quesma?
+---
 # What is Quesma?
 
 Quesma is an actively developed database gateway. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.

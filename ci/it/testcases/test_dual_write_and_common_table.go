@@ -72,6 +72,8 @@ func (a *DualWriteAndCommonTableTestcase) testIngestToCommonTableWorks(ctx conte
 			case "__quesma_index_name":
 				if v, ok := col.(string); ok {
 					quesmaIndexName = v
+				} else if v, ok := col.(*string); ok {
+					quesmaIndexName = *v
 				}
 			case "name":
 				if v, ok := col.(*string); ok {
