@@ -28,11 +28,6 @@ func matchedAgainstPattern(indexRegistry table_resolver.TableResolver) quesma_ap
 func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipelineName string) quesma_api.RequestMatcher {
 	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
 		indexName := req.Params["index"]
-
-		if strings.HasPrefix(indexName, ".") { // Skip internal indices
-			return quesma_api.MatchResult{Matched: false}
-		}
-
 		decision := indexRegistry.Resolve(pipelineName, indexName)
 		if decision.Err != nil {
 			return quesma_api.MatchResult{Matched: false, Decision: decision}
