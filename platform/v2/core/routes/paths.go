@@ -17,7 +17,7 @@ const (
 	IndexMappingPath          = "/:index/_mapping"
 	FieldCapsPath             = "/:index/_field_caps"
 	TermsEnumPath             = "/:index/_terms_enum"
-	IndexPatternPitPath       = "/:indexPattern/_pit"
+	IndexPatternPitPath       = "/:index/_pit"
 	PitPath                   = "/_pit"
 	EQLSearch                 = "/:index/_eql/search"
 	ResolveIndexPath          = "/_resolve/index/:index"

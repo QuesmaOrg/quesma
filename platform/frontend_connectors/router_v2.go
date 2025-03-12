@@ -133,8 +133,8 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		return HandleResolveIndex(ctx, req.Params["index"], sr, cfg.Elasticsearch)
 	})
 
-	router.Register(routes.IndexPatternPitPath, and(method("POST"), isNotTargetingInternalIndex(), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
-		indexPattern := req.Params["indexPattern"]
+	router.Register(routes.IndexPatternPitPath, and(method("POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		indexPattern := req.Params["index"]
 		logger.Debug().Msgf("Quesma-managed PIT request, targeting indexPattern=%s", indexPattern)
 		return HandlePitStore(indexPattern)
 	})

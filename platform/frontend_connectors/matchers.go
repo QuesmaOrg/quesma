@@ -21,16 +21,17 @@ func matchedAgainstAsyncId() quesma_api.RequestMatcher {
 	})
 }
 
-// Query path only (looks at QueryTarget)
 func matchedAgainstPattern(indexRegistry table_resolver.TableResolver) quesma_api.RequestMatcher {
 	return matchAgainstTableResolver(indexRegistry, quesma_api.QueryPipeline)
 }
 
-// check whether exact index name is enabled
 func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipelineName string) quesma_api.RequestMatcher {
 	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
-
 		indexName := req.Params["index"]
+
+		if strings.HasPrefix(indexName, ".") { // Skip internal indices
+			return quesma_api.MatchResult{Matched: false}
+		}
 
 		decision := indexRegistry.Resolve(pipelineName, indexName)
 		if decision.Err != nil {
@@ -42,17 +43,6 @@ func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipel
 			}
 		}
 		return quesma_api.MatchResult{Matched: false, Decision: decision}
-	})
-}
-
-func isNotTargetingInternalIndex() quesma_api.RequestMatcher {
-	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
-		indexPattern := req.Params["indexPattern"]
-		if strings.HasPrefix(indexPattern, ".") {
-			return quesma_api.MatchResult{Matched: false}
-		} else {
-			return quesma_api.MatchResult{Matched: true}
-		}
 	})
 }
 
