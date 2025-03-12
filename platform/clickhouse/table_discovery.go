@@ -656,10 +656,12 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 					// Add virtual column for each key in the map
 					// with origin set to mapping
 					virtualColName := colName + "." + key
-					valueType, _ := extractMapValueType(columnMeta.colType)
-					outputTable[table][virtualColName] = columnMetadata{
-						colType: valueType,
-						origin:  schema.FieldSourceMapping,
+					valueType, err := extractMapValueType(columnMeta.colType)
+					if err == nil {
+						outputTable[table][virtualColName] = columnMetadata{
+							colType: valueType,
+							origin:  schema.FieldSourceMapping,
+						}
 					}
 				}
 				rows.Close() // Close after processing
