@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -1053,19 +1054,39 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	var err error
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
-		lhs, ok := e.Left.(model.ColumnRef)
-		rhs, ok2 := e.Right.(model.LiteralExpr)
+		var (
+			lhs model.Expr
+		)
+		col, okLeft := e.Left.(model.ColumnRef)
+		rhs, okRight := e.Right.(model.LiteralExpr)
 
-		if ok && ok2 && e.Op == model.MatchOperator {
-			field, found := indexSchema.ResolveFieldByInternalName(lhs.ColumnName)
+		if !okLeft {
+			pp.Println("transf match operator left:", e.Left)
+			if f1, ok := e.Left.(model.FunctionExpr); ok && len(f1.Args) == 1 {
+				if f2, ok := f1.Args[0].(model.FunctionExpr); ok && len(f2.Args) == 1 {
+					if c, ok := f2.Args[0].(model.ColumnRef); ok {
+						lhs = f1
+						col = c
+						okLeft = true
+					}
+				}
+			}
+			fmt.Println("lhs znaleziony?", lhs, okLeft, okRight, e.Op, e.Op == model.MatchOperator)
+			if lhs == nil {
+				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+			}
+		}
+
+		if okLeft && okRight && e.Op == model.MatchOperator {
+			field, found := indexSchema.ResolveFieldByInternalName(col.ColumnName)
 			if !found {
-				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhs.ColumnName, query.TableName)
+				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", col.ColumnName, query.TableName)
 			}
 
 			rhsValue := rhs.Value.(string)
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
-
+			fmt.Println("field", field, field.Type.String())
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
 				rhsValue = strings.Trim(rhsValue, "%")
