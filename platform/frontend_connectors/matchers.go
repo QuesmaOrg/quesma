@@ -84,7 +84,7 @@ func matchPitId(getPitFn func(*quesma_api.Request) string) quesma_api.RequestMat
 	})
 }
 
-func hasQuesmaPitInPayload() quesma_api.RequestMatcher {
+func isSearchRequestWithQuesmaPit() quesma_api.RequestMatcher {
 	return matchPitId(func(req *quesma_api.Request) string {
 		return getPitIdFromRequest(req, false)
 	})

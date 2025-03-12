@@ -147,7 +147,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		return HandleIndexCount(ctx, req.Params["index"], queryRunner)
 	})
 
-	router.Register(routes.GlobalSearchPath, and(method("GET", "POST"), hasQuesmaPitInPayload()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(routes.GlobalSearchPath, and(method("GET", "POST"), isSearchRequestWithQuesmaPit()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 		pitId := getPitIdFromRequest(req, false)
 		indexPattern := strings.TrimPrefix(pitId, quesmaPitPrefix)
 
