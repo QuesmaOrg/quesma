@@ -658,6 +658,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(testdata.AggregationTests, "agg_req")
 	add(testdata.AggregationTests2, "agg_req_2")
 	add(testdata.AggregationTestsWithDates, "dates")
+	add(testdata.AggregationTestsWithGeographicalCoordinates, "geo")
 	add(testdata.GrafanaAggregationTests, "grafana")
 	add(testdata.KibanaSampleDataEcommerce, "kibana-sample-data-ecommerce")
 	add(testdata.KibanaSampleDataFlights, "kibana-sample-data-flights")
