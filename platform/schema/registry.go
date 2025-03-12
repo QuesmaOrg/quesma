@@ -65,7 +65,7 @@ type (
 		Name    string
 		Type    string // FIXME: change to schema.Type
 		Comment string
-		Origin  FieldSource
+		Origin  FieldSource // TODO this field is just added to have way to forward information to the schema registry and should be considered as a technical debt
 	}
 )
 

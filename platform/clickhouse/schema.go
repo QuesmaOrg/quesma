@@ -61,7 +61,7 @@ type (
 		Modifiers string
 		Codec     Codec // TODO currently not used, it's part of Modifiers
 		Comment   string
-		Origin    schema.FieldSource
+		Origin    schema.FieldSource // TODO this field is just added to have way to forward information to the schema registry and should be considered as a technical debt
 	}
 	DateTimeType int
 )

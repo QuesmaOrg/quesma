@@ -68,7 +68,7 @@ type columnMetadata struct {
 	// we use it as persistent storage and load it
 	// in the case when we don't control ingest
 	comment string
-	origin  schema.FieldSource
+	origin  schema.FieldSource // TODO this field is just added to have way to forward information to the schema registry and should be considered as a technical debt
 }
 
 func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.BackendConnector, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
