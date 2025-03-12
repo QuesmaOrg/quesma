@@ -628,14 +628,11 @@ func extractMapValueType(mapType string) (string, error) {
 
 func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[string]columnMetadata) map[string]map[string]columnMetadata {
 	outputTable := make(map[string]map[string]columnMetadata)
-
 	for table, columns := range inputTable {
 		for colName, columnMeta := range columns {
 			if strings.HasPrefix(columnMeta.colType, "Map(String") {
-				fmt.Println("Map(String) found in table:", table, "column:", colName)
-
 				// Query ClickHouse for map keys in the given column
-				rows, err := td.dbConnPool.Query(context.Background(), "SELECT arrayJoin(mapKeys("+colName+")) FROM "+table)
+				rows, err := td.dbConnPool.Query(context.Background(), fmt.Sprintf("SELECT arrayJoin(mapKeys(%s)) FROM %s", colName, table))
 				if err != nil {
 					fmt.Println("Error querying map keys:", err)
 					continue
@@ -653,8 +650,11 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 						fmt.Println("Error scanning key:", err)
 						continue
 					}
+					// Update origin for incoming map column
 					columnMeta.origin = schema.FieldSourceIngest
 					outputTable[table][colName] = columnMeta
+					// Add virtual column for each key in the map
+					// with origin set to mapping
 					virtualColName := colName + "." + key
 					valueType, _ := extractMapValueType(columnMeta.colType)
 					outputTable[table][virtualColName] = columnMetadata{
