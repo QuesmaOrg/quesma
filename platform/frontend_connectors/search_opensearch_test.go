@@ -5,6 +5,8 @@ package frontend_connectors
 import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/k0kubun/pp"
+
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/model"
@@ -172,7 +174,7 @@ func TestHighlighter(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
 			"message_____": {Name: "message_____", Type: clickhouse.NewBaseType("String")},
-			"host_name":    {Name: "host_name", Type: clickhouse.NewBaseType("String")},
+			"host.name":    {Name: "host.name", Type: clickhouse.NewBaseType("String")},
 			"_timestamp":   {Name: "_timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 		Created: true,
@@ -211,12 +213,15 @@ func TestHighlighter(t *testing.T) {
 	}
 
 	responseAsMap, err := util.JsonToMap(string(response))
+	pp.Println(responseAsMap["hits"])
 	assert.NoError(t, err)
 
 	getIthHighlight := func(i int) model.JsonMap {
 		hits := responseAsMap["hits"].(model.JsonMap)["hits"]
 		return hits.([]interface{})[i].(model.JsonMap)["highlight"].(model.JsonMap)
 	}
+
+	//fmt.Println(responseAsMap["hits"].(model.JsonMap)["hits"])
 
 	assert.Equal(t, model.JsonMap{"host.name": []any{}}, getIthHighlight(0)) // no highlight
 	assert.Equal(t, model.JsonMap{
