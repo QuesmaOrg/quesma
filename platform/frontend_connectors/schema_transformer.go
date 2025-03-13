@@ -1072,16 +1072,20 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	var err error
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
-		var (
-			lhs model.Expr
-		)
 		col, okLeft := e.Left.(model.ColumnRef)
 		rhs, okRight := e.Right.(model.LiteralExpr)
 
-		if !okLeft {
+		var lhs model.Expr
+		if okLeft {
+			lhs = col
+		} else {
 			pp.Println("transf match operator left:", e.Left)
-			if f1, ok := e.Left.(model.FunctionExpr); ok && len(f1.Args) == 1 {
-				if f2, ok := f1.Args[0].(model.FunctionExpr); ok && len(f2.Args) == 1 {
+			if f1, ok := e.Left.(model.FunctionExpr); ok && len(f1.Args) >= 1 {
+				if c, ok := f1.Args[0].(model.ColumnRef); ok {
+					lhs = f1
+					col = c
+					okLeft = true
+				} else if f2, ok := f1.Args[0].(model.FunctionExpr); ok && len(f2.Args) == 1 {
 					if c, ok := f2.Args[0].(model.ColumnRef); ok {
 						lhs = f1
 						col = c
@@ -1104,7 +1108,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			rhsValue := rhs.Value.(string)
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
-			fmt.Println("field", field, field.Type.String())
+			fmt.Println("field", field, field.Type.String(), lhs, rhs.EscapeType)
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
 				rhsValue = strings.Trim(rhsValue, "%")
