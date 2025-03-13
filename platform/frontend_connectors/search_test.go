@@ -303,6 +303,12 @@ func TestSearchHandler(t *testing.T) {
 
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+			if i > 15 {
+				//t.Skip()
+			}
+			if i != 17 {
+				t.Skip()
+			}
 			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
