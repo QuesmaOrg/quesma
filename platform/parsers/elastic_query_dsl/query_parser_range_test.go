@@ -30,7 +30,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
-		`("timestamp">=__quesma_from_unix_timestamp_ms(2024-02-02 13:47:16.029 +0000 UTC) AND "timestamp"<=__quesma_from_unix_timestamp_ms(2024-02-09 13:47:16.029 +0000 UTC))`,
+		`("timestamp">=__quesma_from_unix_timestamp_ms(1706881636029) AND "timestamp"<=__quesma_from_unix_timestamp_ms(1707486436029))`,
 	},
 	{
 		"parseDateTimeBestEffort",
@@ -44,7 +44,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime )
 		ENGINE = Memory`,
-		`("timestamp">=__quesma_from_unix_timestamp_ms(2024-02-02 13:47:16.029 +0000 UTC) AND "timestamp"<=__quesma_from_unix_timestamp_ms(2024-02-09 13:47:16.029 +0000 UTC))`,
+		`("timestamp">=__quesma_from_unix_timestamp_ms(1706881636029) AND "timestamp"<=__quesma_from_unix_timestamp_ms(1707486436029))`,
 	},
 	{
 		"numeric range",
@@ -70,7 +70,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
-		`("timestamp">=__quesma_from_unix_timestamp_ms(2024-02-02 13:47:16 +0000 UTC) AND "timestamp"<=__quesma_from_unix_timestamp_ms(2024-02-09 13:47:16 +0000 UTC))`,
+		`("timestamp">=__quesma_from_unix_timestamp_ms(1706881636000) AND "timestamp"<=__quesma_from_unix_timestamp_ms(1707486436000))`,
 	},
 }
 

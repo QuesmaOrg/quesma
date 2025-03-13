@@ -881,7 +881,7 @@ func InitSqlMockWithPrettySqlAndPrint(t *testing.T, matchExpectationsInOrder boo
 
 						for j := range min(len(actualPretty), len(expectedPretty)) {
 							if actualPretty[j] != expectedPretty[j] {
-								fmt.Printf("First diff in line %d at index %d (actual: %c, expected: %c)\n", i, j, actualPretty[j], expectedPretty[j])
+								fmt.Printf("First diff in line %d at index %d (actual: %v, expected: %v)\n", i, j, actualPretty[j], expectedPretty[j])
 								break
 							}
 						}

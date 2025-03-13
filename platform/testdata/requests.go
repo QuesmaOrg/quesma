@@ -1053,7 +1053,7 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		[]string{
-			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=__quesma_from_unix_timestamp_ms(1705487298815) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1705488198815)))`,
+			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705487298815) AND "@timestamp"<=fromUnixTimestamp64Milli(1705488198815)))`,
 		},
 		model.ListAllFields,
 		[]string{
@@ -2083,9 +2083,7 @@ var TestsSearch = []SearchTestCase{
 			  },
 			  "track_total_hits": false
 			}`,
-		[]string{
-			`("@timestamp">=__quesma_from_unix_timestamp_ms(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3))`,
-		},
+		[]string{`("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3))`},
 		model.ListAllFields,
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
@@ -2138,9 +2136,8 @@ var TestsSearch = []SearchTestCase{
 		  },
 		  "track_total_hits": false
 		}`,
-		[]string{`("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') AND ("@timestamp">=__quesma_from_unix_timestamp_ms(1715817600000) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1715990399000)))`},
+		[]string{`("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000)))`},
 		model.ListAllFields,
-		//[]model.Query{withLimit(justSimplestWhere(`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59')))`), 1)},
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
