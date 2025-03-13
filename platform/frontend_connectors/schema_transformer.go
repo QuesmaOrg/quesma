@@ -932,7 +932,7 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyFieldMapSyntax(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) applyFieldMapSyntax(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {

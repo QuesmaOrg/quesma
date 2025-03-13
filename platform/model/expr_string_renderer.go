@@ -93,7 +93,7 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	case DurationLiteral:
 		return fmt.Sprintf("%v", val.Value)
 	case TimeLiteral:
-		return fmt.Sprintf("%v", val.Value)
+		return fmt.Sprintf("%v", val.Value.UnixMilli())
 	default:
 		return fmt.Sprintf("%v", val)
 	}

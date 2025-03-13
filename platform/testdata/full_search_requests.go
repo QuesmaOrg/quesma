@@ -436,15 +436,15 @@ var FullSearchRequests = []FullSearchTestCase{
 				"aggr__2__3__order_1_rank"
 			  FROM (
 				SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-				  toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-				  "@timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__2__key_0",
+				  toInt64((__quesma_to_unix_timestamp_ms("@timestamp")+timeZoneOffset(toTimezone(
+				  "@timestamp", 'Europe/Warsaw'))*1s) / 12h0m0s) AS "aggr__2__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
 				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
 				  "aggr__2__3__parent_count", NULL AS "aggr__2__3__key_0",
 				  count(*) AS "aggr__2__3__count"
 				FROM __quesma_table_name
-				GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
-				  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
+				GROUP BY toInt64((__quesma_to_unix_timestamp_ms("@timestamp")+timeZoneOffset(
+				  toTimezone("@timestamp", 'Europe/Warsaw'))*1s) / 12h0m0s) AS
 				  "aggr__2__key_0", NULL AS "aggr__2__3__key_0"))
 			WHERE "aggr__2__3__order_1_rank"<=6
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,

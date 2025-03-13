@@ -187,7 +187,7 @@ func TestSearchCommonTable(t *testing.T) {
 			WantedSql: []string{
 				`SELECT countIf("@timestamp"<now()) AS "range_0__aggr__2__count", ` +
 					`countIf(("@timestamp">=toStartOfDay(subDate(now(),INTERVAL 3 week)) AND "@timestamp"<now())) AS "range_1__aggr__2__count", ` +
-					`countIf("@timestamp">=fromUnixTimestamp64Milli(1713052800000)) AS "range_2__aggr__2__count" ` +
+					`countIf("@timestamp">=__quesma_from_unix_timestamp_ms(1713052800000)) AS "range_2__aggr__2__count" ` +
 					`FROM quesma_common_table ` +
 					`WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2')
 -- optimizations: pancake(half)`,

@@ -852,6 +852,42 @@ func InitSqlMockWithPrettySqlAndPrint(t *testing.T, matchExpectationsInOrder boo
 				fmt.Printf("%s\n", mismatch.expected)
 				pp.Printf("---- %s Actual pretty:\n", t.Name())
 				fmt.Printf("%s\n", mismatch.actual)
+
+				actualPretty := strings.Split(SqlPrettyPrint([]byte(mismatch.actual)), "\n")
+				expectedPretty := strings.Split(SqlPrettyPrint([]byte(mismatch.expected)), "\n")
+
+				for i, aLine := range actualPretty {
+					if i >= len(expectedPretty) {
+						fmt.Println("Actual is longer than expected")
+						break
+					}
+					eLine := expectedPretty[i]
+					if aLine != eLine {
+						if i > 0 {
+							fmt.Println("         ", actualPretty[i-1])
+						}
+						fmt.Println("  actual:", aLine)
+						if i+1 < len(actualPretty) {
+							fmt.Println("         ", actualPretty[i+1])
+						}
+						fmt.Println()
+						if i > 0 {
+							fmt.Println("         ", expectedPretty[i-1])
+						}
+						fmt.Println("expected:", eLine)
+						if i+1 < len(expectedPretty) {
+							fmt.Println("         ", expectedPretty[i+1])
+						}
+
+						for j := range min(len(actualPretty), len(expectedPretty)) {
+							if actualPretty[j] != expectedPretty[j] {
+								fmt.Printf("First diff in line %d at index %d (actual: %c, expected: %c)\n", i, j, actualPretty[j], expectedPretty[j])
+								break
+							}
+						}
+						break
+					}
+				}
 			}
 		}
 	})
