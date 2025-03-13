@@ -588,42 +588,38 @@ func TestHandlingDateTimeFields(t *testing.T) {
 	}
 	expectedSelectStatement := map[string]string{
 		dateTimeTimestampField: `
-			SELECT toInt64(__quesma_to_unix_timestamp_ms("timestamp") / 1m0s) AS
-			  "aggr__0__key_0", count(*) AS "aggr__0__count"
+			SELECT toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0",
+			  count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
-			WHERE ((("timestamp64">=__quesma_from_unix_timestamp_ms(1706542596491) AND
-			  "timestamp64"<=__quesma_from_unix_timestamp_ms(1706551896491)) AND (
-			  "timestamp">=__quesma_from_unix_timestamp_ms(1706542596491) AND "timestamp"<=
-			  __quesma_from_unix_timestamp_ms(1706551896491))) AND NOT (("@timestamp">=
-			  __quesma_from_unix_timestamp_ms(1706542596491) AND "@timestamp"<=
-			  __quesma_from_unix_timestamp_ms(1706551896491))))
-			GROUP BY toInt64(__quesma_to_unix_timestamp_ms("timestamp") / 1m0s) AS
-			  "aggr__0__key_0"
+			WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
+			  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
+			  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
+			GROUP BY toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 		dateTime64TimestampField: `
-			SELECT toInt64(__quesma_to_unix_timestamp_ms("timestamp64") / 1m0s) AS
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
 			  "aggr__0__key_0", count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
-			WHERE ((("timestamp64">=__quesma_from_unix_timestamp_ms(1706542596491) AND
-			  "timestamp64"<=__quesma_from_unix_timestamp_ms(1706551896491)) AND (
-			  "timestamp">=__quesma_from_unix_timestamp_ms(1706542596491) AND "timestamp"<=
-			  __quesma_from_unix_timestamp_ms(1706551896491))) AND NOT (("@timestamp">=
-			  __quesma_from_unix_timestamp_ms(1706542596491) AND "@timestamp"<=
-			  __quesma_from_unix_timestamp_ms(1706551896491))))
-			GROUP BY toInt64(__quesma_to_unix_timestamp_ms("timestamp64") / 1m0s) AS
+			WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
+			  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
+			  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 		dateTime64OurTimestampField: `
-			SELECT toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 1m0s) AS
-			  "aggr__0__key_0", count(*) AS "aggr__0__count"
+			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS "aggr__0__key_0"
+			  , count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
-			WHERE ((("timestamp64">=__quesma_from_unix_timestamp_ms(1706542596491) AND
-			  "timestamp64"<=__quesma_from_unix_timestamp_ms(1706551896491)) AND (
-			  "timestamp">=__quesma_from_unix_timestamp_ms(1706542596491) AND "timestamp"<=
-			  __quesma_from_unix_timestamp_ms(1706551896491))) AND NOT (("@timestamp">=
-			  __quesma_from_unix_timestamp_ms(1706542596491) AND "@timestamp"<=
-			  __quesma_from_unix_timestamp_ms(1706551896491))))
-			GROUP BY toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 1m0s) AS
+			WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
+			  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
+			  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	}
@@ -863,6 +859,10 @@ func TestSearchTrackTotalCount(t *testing.T) {
 	for i, tt := range testdata.FullSearchRequests {
 		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
+				fmt.Println("test i", i)
+				if i != 6 {
+					//t.Skip()
+				}
 				test(handlerName, tt)
 			})
 		}

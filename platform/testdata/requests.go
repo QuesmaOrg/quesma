@@ -156,8 +156,8 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			FROM (
 			  SELECT "host_name"
 			  FROM __quesma_table_name
-			  WHERE (("@timestamp">=__quesma_from_unix_timestamp_ms(1706009236820) AND
-			    "@timestamp"<=__quesma_from_unix_timestamp_ms(1706010136820)) AND "message" iLIKE '%user%')
+			  WHERE (("@timestamp">=fromUnixTimestamp64Milli(1706009236820) AND
+			    "@timestamp"<=fromUnixTimestamp64Milli(1706010136820)) AND "message" iLIKE '%user%')
 			  LIMIT 20000)
 			GROUP BY "host_name" AS "aggr__sample__top_values__key_0"
 			ORDER BY "aggr__sample__top_values__count" DESC,
@@ -306,13 +306,13 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		[]string{
 			`SELECT "message"
 			FROM __quesma_table_name
-			WHERE ((("@timestamp">=__quesma_from_unix_timestamp_ms(1706020999481) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1706021899481)) 
+			WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)) 
 			  AND "message" iLIKE '%user%') AND "message" IS NOT NULL)
 			ORDER BY "@timestamp" DESC
 			LIMIT 100`,
 			`SELECT count(*) AS "column_0"
 			FROM __quesma_table_name
-			WHERE ((("@timestamp">=__quesma_from_unix_timestamp_ms(1706020999481) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1706021899481)) 
+			WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)) 
 			  AND "message" iLIKE '%user%') AND "message" IS NOT NULL)`,
 		},
 		false,
@@ -557,7 +557,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		[]string{`
 			SELECT "@timestamp", "event_dataset", "host_name", "message", "properties_isreg"
 			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=__quesma_from_unix_timestamp_ms(1706020999481) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1706021899481)))
+			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)))
 			ORDER BY "@timestamp" DESC
 			LIMIT 500`,
 		},
@@ -694,15 +694,15 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		model.HitsCountInfo{Type: model.ListByField, RequestedFields: []string{"@timestamp"}, Size: 100},
 		[]string{
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 30s) AS "aggr__0__key_0",
+			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=__quesma_from_unix_timestamp_ms(1706020999481) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1706021899481)))
-			GROUP BY toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 30s) AS "aggr__0__key_0"
+			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)))
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 			`SELECT "@timestamp"
 			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=__quesma_from_unix_timestamp_ms(1706020999481) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1706021899481)))
+			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)))
 			LIMIT 100`,
 		},
 		true,
@@ -758,12 +758,12 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				  COALESCE("event_dataset", 'unknown') AS "aggr__stats__key_0",
 				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
 				  "aggr__stats__count",
-				  toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 1m0s) AS
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count"
 				FROM __quesma_table_name
-				WHERE ("@timestamp">__quesma_from_unix_timestamp_ms(1706194439033) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1706195339033))
+				WHERE ("@timestamp">fromUnixTimestamp64Milli(1706194439033) AND "@timestamp"<=fromUnixTimestamp64Milli(1706195339033))
 				GROUP BY COALESCE("event_dataset", 'unknown') AS "aggr__stats__key_0",
-				  toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 1m0s) AS
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0"))
 			WHERE "aggr__stats__order_1_rank"<=4
 			ORDER BY "aggr__stats__order_1_rank" ASC,
@@ -941,10 +941,10 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		[]string{`
 			SELECT "properties_isreg"
 			FROM __quesma_table_name
-			WHERE ((("@timestamp">=__quesma_from_unix_timestamp_ms(1710171234276) AND
-			  "@timestamp"<=__quesma_from_unix_timestamp_ms(1710172134276)) AND
-			  ("@timestamp">=__quesma_from_unix_timestamp_ms(1710171234276) AND
-			  "@timestamp"<=__quesma_from_unix_timestamp_ms(1710172134276))) AND "properties_isreg" IS NOT NULL)
+			WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1710171234276) AND
+			  "@timestamp"<=fromUnixTimestamp64Milli(1710172134276)) AND
+			  ("@timestamp">=fromUnixTimestamp64Milli(1710171234276) AND
+			  "@timestamp"<=fromUnixTimestamp64Milli(1710172134276))) AND "properties_isreg" IS NOT NULL)
 			LIMIT 100`,
 		},
 		false,
@@ -1058,7 +1058,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" FROM ` + TableName + ` WHERE ("message" iLIKE '%user%' ` +
-				`AND ("@timestamp">=__quesma_from_unix_timestamp_ms(1705487298815) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1705488198815))) ` +
+				`AND ("@timestamp">=fromUnixTimestamp64Milli(1705487298815) AND "@timestamp"<=fromUnixTimestamp64Milli(1705488198815))) ` +
 				`LIMIT 10`,
 			`SELECT count(*) AS "column_0" FROM ` + TableName,
 		},
@@ -2087,7 +2087,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ("@timestamp">=__quesma_from_unix_timestamp_ms(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3)) LIMIT 10`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3)) LIMIT 10`},
 		[]string{},
 	},
 	{ // [35] Comments in queries
@@ -2142,7 +2142,7 @@ var TestsSearch = []SearchTestCase{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE ("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') ` +
-				`AND ("@timestamp">=__quesma_from_unix_timestamp_ms(1715817600000) AND "@timestamp"<=__quesma_from_unix_timestamp_ms(1715990399000))) ` +
+				`AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000))) ` +
 				`LIMIT 1`,
 		},
 		[]string{},
@@ -2558,10 +2558,10 @@ var TestSearchFilter = []SearchTestCase{
 		model.Normal,
 		[]string{},
 		[]string{`
-			SELECT toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 30s) AS "aggr__0__key_0",
+			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
-			GROUP BY toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 30s) AS
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 		},
@@ -2616,11 +2616,11 @@ var TestSearchFilter = []SearchTestCase{
 		[]string{},
 		[]string{
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 30s) AS "aggr__0__key_0",
+			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
 			WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)
-			GROUP BY toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 30s) AS
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 		},
@@ -2677,12 +2677,12 @@ var TestSearchFilter = []SearchTestCase{
 		[]string{},
 		[]string{`
 			SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 30s) AS "aggr__0__key_0"
-			  , count(*) AS "aggr__0__count"
+			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
+			  count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=__quesma_from_unix_timestamp_ms(1727858503270) AND
-			  "@timestamp"<=__quesma_from_unix_timestamp_ms(1727859403270))
-			GROUP BY toInt64(__quesma_to_unix_timestamp_ms("@timestamp") / 30s) AS
+			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1727858503270) AND
+			  "@timestamp"<=fromUnixTimestamp64Milli(1727859403270))
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 			  "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 		},

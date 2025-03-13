@@ -86,16 +86,16 @@ var OpensearchSearchTests = []SearchTestCase{
 		WantedQueries: []string{
 			`SELECT "__bytes", "__timestamp", "message_____"
 			FROM __quesma_table_name
-			WHERE ("__timestamp">=__quesma_from_unix_timestamp_ms(1712236698149) AND "__timestamp"<=__quesma_from_unix_timestamp_ms(1712237598149))
+			WHERE ("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))
 			ORDER BY "__timestamp" DESC LIMIT 500`,
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64((__quesma_to_unix_timestamp_ms("__timestamp")+timeZoneOffset(toTimezone(
-			  "__timestamp", 'Europe/Warsaw'))*1s) / 30s) AS "aggr__2__key_0",
+			  toInt64((toUnixTimestamp64Milli("__timestamp")+timeZoneOffset(toTimezone(
+			  "__timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			WHERE ("__timestamp">=__quesma_from_unix_timestamp_ms(1712236698149) AND "__timestamp"<=__quesma_from_unix_timestamp_ms(1712237598149))
-			GROUP BY toInt64((__quesma_to_unix_timestamp_ms("__timestamp")+timeZoneOffset(
-			  toTimezone("__timestamp", 'Europe/Warsaw'))*1s) / 30s) AS "aggr__2__key_0"
+			WHERE ("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))
+			GROUP BY toInt64((toUnixTimestamp64Milli("__timestamp")+timeZoneOffset(
+			  toTimezone("__timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 		},
 	},
@@ -176,11 +176,11 @@ var OpensearchSearchTests = []SearchTestCase{
 		WantedQueryType: model.Normal,
 		WantedQueries: []string{
 			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64(__quesma_to_unix_timestamp_ms("__timestamp") / 30s) AS "aggr__2__key_0",
+			  toInt64(toUnixTimestamp64Milli("__timestamp") / 30000) AS "aggr__2__key_0",
        		  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			WHERE ("__timestamp">=__quesma_from_unix_timestamp_ms(1712236698149) AND "__timestamp"<=__quesma_from_unix_timestamp_ms(1712237598149))
-			GROUP BY toInt64(__quesma_to_unix_timestamp_ms("__timestamp") / 30s) AS "aggr__2__key_0"
+			WHERE ("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))
+			GROUP BY toInt64(toUnixTimestamp64Milli("__timestamp") / 30000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 		},
 	},
