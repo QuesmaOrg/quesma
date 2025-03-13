@@ -929,6 +929,11 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 		return model.NewLiteral(msLiteral.Value.Milliseconds())
 	}
 
+	expr := query.SelectCommand.Accept(visitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+
 	return query, nil
 }
 
@@ -1292,8 +1297,8 @@ func (s *SchemaCheckPass) Transform(ctx context.Context, queries []*model.Query)
 
 		queries[k] = query
 
-		pp.Println("KK 1", query.SelectCommand)
-		fmt.Println("KK 2", model.AsString(query.SelectCommand))
+		//pp.Println("KK 1", query.SelectCommand)
+		//fmt.Println("KK 2", model.AsString(query.SelectCommand))
 	}
 	return queries, nil
 }
