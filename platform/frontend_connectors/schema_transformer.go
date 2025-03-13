@@ -596,8 +596,8 @@ func (s *SchemaCheckPass) applyFullTextField(ctx context.Context, indexSchema sc
 	var err error
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
 		// full text field should be used only in where clause
+
 		if e.ColumnName == model.FullTextFieldNamePlaceHolder {
 			err = fmt.Errorf("full text field name placeholder found in query")
 		}
@@ -929,6 +929,35 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 		return model.NewLiteral(msLiteral.Value.Milliseconds())
 	}
 
+	return query, nil
+}
+
+func (s *SchemaCheckPass) applyFieldMapSyntax(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		// we don't want to resolve our well know technical fields
+		if e.ColumnName == model.FullTextFieldNamePlaceHolder || e.ColumnName == common_table.IndexNameColumn {
+			return e
+		}
+		// 1. we check if the field name point to the map
+		if s.isFieldMapSyntaxEnabled(query) {
+			elements := strings.Split(e.ColumnName, ".")
+			if len(elements) > 1 {
+				if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
+					// check if we have map type, especially  Map(String, any) here
+					if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
+						(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
+							strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
+						return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
+					}
+				}
+			}
+		}
+		return e
+	}
+
 	expr := query.SelectCommand.Accept(visitor)
 
 	if _, ok := expr.(*model.SelectCommand); ok {
@@ -965,24 +994,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(ctx context.Context, indexSchema sc
 			return model.NewColumnRefWithTable(resolvedField.InternalPropertyName.AsString(), e.TableAlias)
 		} else {
 			// here we didn't find a column by field name,
-			// we try some other options
-
-			// 1. we check if the field name point to the map
-			if s.isFieldMapSyntaxEnabled(query) {
-				elements := strings.Split(e.ColumnName, ".")
-				if len(elements) > 1 {
-					if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
-						// check if we have map type, especially  Map(String, any) here
-						if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
-							(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
-								strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
-							return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
-						}
-					}
-				}
-			}
-
-			// 2. maybe we should use attributes
+			// maybe we should use attributes
 
 			if hasAttributesValuesColumn {
 				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
@@ -1230,6 +1242,7 @@ func (s *SchemaCheckPass) Transform(ctx context.Context, queries []*model.Query)
 		// because WildcardExpansion expands the wildcard to all fields
 		// and columns are expanded as PublicFieldName, so we need to encode them
 		// or in other words use internal field names
+		{TransformationName: "FieldMapSyntaxTransformation", Transformation: s.applyFieldMapSyntax},
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},

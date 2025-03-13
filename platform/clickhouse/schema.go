@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
+	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"math"
 	"reflect"
@@ -60,6 +61,7 @@ type (
 		Modifiers string
 		Codec     Codec // TODO currently not used, it's part of Modifiers
 		Comment   string
+		Origin    schema.FieldSource // TODO this field is just added to have way to forward information to the schema registry and should be considered as a technical debt
 	}
 	DateTimeType int
 )

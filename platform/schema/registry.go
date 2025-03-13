@@ -65,6 +65,7 @@ type (
 		Name    string
 		Type    string // FIXME: change to schema.Type
 		Comment string
+		Origin  FieldSource // TODO this field is just added to have way to forward information to the schema registry and should be considered as a technical debt
 	}
 )
 
@@ -327,7 +328,7 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 			}
 			if existing, exists := fields[propertyName]; !exists {
 				if quesmaType, resolved := s.dataSourceTypeAdapter.Convert(column.Type); resolved {
-					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), InternalPropertyType: column.Type, Type: quesmaType}
+					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), InternalPropertyType: column.Type, Type: quesmaType, Origin: column.Origin}
 				} else {
 					logger.Debug().Msgf("type %s not supported, falling back to keyword", column.Type)
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), InternalPropertyType: column.Type, Type: QuesmaTypeKeyword}
