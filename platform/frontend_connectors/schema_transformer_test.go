@@ -1416,7 +1416,7 @@ func Test_mapKeys(t *testing.T) {
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("sizes.bar"),
 						model.MatchOperator,
-						model.NewLiteral("1"),
+						model.NewLiteralWithEscapeType("1", model.FullyEscaped),
 					),
 				},
 			},
