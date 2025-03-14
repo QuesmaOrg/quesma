@@ -11,7 +11,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -1068,7 +1067,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
-	pp.Println(indexSchema)
+
 	var err error
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
@@ -1088,9 +1087,15 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 		}
 
 		if okLeft && okRight && e.Op == model.MatchOperator {
+			// only strings can be ILIKEd, everything else is a simple =
+			if _, ok := rhs.Value.(string); !ok {
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
+			}
+
 			var colIsAttributes bool
 			field, found := indexSchema.ResolveFieldByInternalName(col.ColumnName)
 			if !found {
+				// indexSchema won't find attributes columns, that's why this check
 				if clickhouse.IsColumnAttributes(col.ColumnName) {
 					colIsAttributes = true
 				} else {
@@ -1098,11 +1103,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				}
 			}
 
-			if _, ok := rhs.Value.(string); !ok {
-				return model.NewInfixExpr(lhs, "=", rhs.Clone())
-			}
-
-			rhsValue := rhs.Value.(string)
+			rhsValue := rhs.Value.(string) // checked above
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
 
@@ -1114,15 +1115,16 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
 			}
 
-			fmt.Println("Field type: ", field.Type.String(), lhsIsArrayAccess, colIsAttributes, field.IsMapWithStringValues(), col.ColumnName)
+			// handling case when e.Left is an array access
 			if lhsIsArrayAccess {
-				if colIsAttributes || field.IsMapWithStringValues() { // attributes has always string values
+				if colIsAttributes || field.IsMapWithStringValues() { // attributes always have string values, so ilike
 					return ilike()
 				} else {
 					return equal()
 				}
 			}
 
+			// handling case when e.Left is a simple column ref
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
 				return equal()

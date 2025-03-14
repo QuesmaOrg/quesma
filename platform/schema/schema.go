@@ -51,9 +51,14 @@ func NewSchema(fields map[FieldName]Field, existsInDataSource bool, databaseName
 	return NewSchemaWithAliases(fields, map[FieldName]FieldName{}, existsInDataSource, databaseName)
 }
 
+// IsMapWithStringValues returns true if the field is a map with string values,
+// e.g. Map(T, String), or Map(T, Nullable(String))
 func (f Field) IsMapWithStringValues() bool {
-	return strings.HasPrefix(f.InternalPropertyType, "Map") &&
-		strings.HasSuffix(strings.TrimSuffix(f.InternalPropertyType, ")"), "String")
+	typename := strings.ToLower(f.InternalPropertyType)
+	return typename == "map(string, string)" ||
+		typename == "map(string,string)" ||
+		typename == "map(string, nullable(string))" ||
+		typename == "map(string,nullable(string))"
 }
 
 func (f FieldName) AsString() string {
@@ -69,6 +74,7 @@ func (t IndexName) AsString() string {
 }
 
 func (s Schema) ResolveFieldByInternalName(fieldName string) (Field, bool) {
+
 	for _, field := range s.Fields {
 		if field.InternalPropertyName.AsString() == fieldName {
 			return field, true
