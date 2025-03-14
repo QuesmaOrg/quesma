@@ -646,7 +646,7 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 				// Query ClickHouse for map keys in the given column
 				rows, err := td.dbConnPool.Query(context.Background(), fmt.Sprintf("SELECT arrayJoin(mapKeys(%s)) FROM %s", colName, table))
 				if err != nil {
-					logger.Debug().Msgf("Error querying map keys for table, column: %s, %s, %v", table, colName, err)
+					logger.Error().Msgf("Error querying map keys for table, column: %s, %s, %v", table, colName, err)
 					continue
 				}
 				foundKeys := false
@@ -654,7 +654,7 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 					foundKeys = true
 					var key string
 					if err := rows.Scan(&key); err != nil {
-						logger.Debug().Msgf("Error scanning key for table, column: %s, %s, %v", table, colName, err)
+						logger.Error().Msgf("Error scanning key for table, column: %s, %s, %v", table, colName, err)
 						continue
 					}
 					// Add virtual column for each key in the map
@@ -663,7 +663,7 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 					var valueType string
 					valueType, err = extractMapValueType(columnMeta.colType)
 					if err != nil {
-						logger.Debug().Msgf("Error extracting value type for table, column: %s, %s, %v", table, colName, err)
+						logger.Error().Msgf("Error extracting value type for table, column: %s, %s, %v", table, colName, err)
 						continue
 					} else {
 						outputTable[table][mapKeyCol] = columnMetadata{
@@ -677,11 +677,11 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 					logger.Debug().Msgf("No map keys found for table, column: %s, %s", table, colName)
 				}
 				if err := rows.Err(); err != nil {
-					logger.Warn().Msgf("Error iterating map keys for %s.%s: %v", table, colName, err)
+					logger.Error().Msgf("Error iterating map keys for %s.%s: %v", table, colName, err)
 				}
 				err = rows.Close() // Close after processing
 				if err != nil {
-					logger.Debug().Msgf("Error closing rows for table, column: %s, %s, %v", table, colName, err)
+					logger.Error().Msgf("Error closing rows for table, column: %s, %s, %v", table, colName, err)
 				}
 			} else {
 				// Copy other columns as-is
