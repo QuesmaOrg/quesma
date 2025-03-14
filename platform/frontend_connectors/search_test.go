@@ -859,10 +859,6 @@ func TestSearchTrackTotalCount(t *testing.T) {
 	for i, tt := range testdata.FullSearchRequests {
 		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
-				fmt.Println("test i", i)
-				if i != 6 {
-					//t.Skip()
-				}
 				test(handlerName, tt)
 			})
 		}

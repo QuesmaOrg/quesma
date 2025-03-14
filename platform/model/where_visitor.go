@@ -19,19 +19,11 @@ func FindTimestampLowerBound(field ColumnRef, whereClause Expr) (lowerBoundTs ti
 		if columnRef, ok := e.Left.(ColumnRef); ok && columnRef == field && e.Op == ">=" || e.Op == ">" {
 			if fun, ok := e.Right.(FunctionExpr); ok && fun.Name == FromUnixTimestampMs && len(fun.Args) == 1 {
 				if rhs, ok := fun.Args[0].(LiteralExpr); ok {
-					var tim time.Time
-					switch v := rhs.Value.(type) {
-					case time.Time:
-						tim = v
-					case TimeLiteral:
-						tim = v.Value
-					default:
-						return nil
-					}
-
-					if !found || tim.Before(lowerBoundTs) {
-						lowerBoundTs = tim
-						found = true
+					if timestamp, ok := rhs.Value.(TimeLiteral); ok {
+						if !found || timestamp.Value.Before(lowerBoundTs) {
+							lowerBoundTs = timestamp.Value
+							found = true
+						}
 					}
 				}
 			}

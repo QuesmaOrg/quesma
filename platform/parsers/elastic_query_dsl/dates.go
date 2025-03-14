@@ -64,11 +64,11 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 // ParseDateUsualFormat parses date expression, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
 // It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
-func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, field model.ColumnRef) (funcName string, resultExpr model.Expr) {
+func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, field model.ColumnRef) (resultExpr model.Expr) {
 	if unixTsInMs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
-		return model.FromUnixTimestampMs, model.NewTimeLiteral(unixTsInMs, field)
+		return model.NewFunction(model.FromUnixTimestampMs, model.NewTimeLiteral(unixTsInMs, field))
 	}
-	return model.FromUnixTimestampMs, nil // todo usunac te funkcje jak zawsze zwracam to samo? xD
+	return nil
 
 	/*
 		if utcTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
-	"github.com/k0kubun/pp"
 	"time"
 )
 
@@ -86,7 +85,6 @@ func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 	}
 	for intervalIdx, columnIdx := 0, startIteration; intervalIdx < len(query.intervals); intervalIdx++ {
 		responseForInterval, nextColumnIdx := query.responseForInterval(&rows[0], intervalIdx, columnIdx)
-		fmt.Println("responseForInterval", responseForInterval)
 		response = append(response, responseForInterval)
 		columnIdx = nextColumnIdx
 	}
@@ -96,7 +94,7 @@ func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow) m
 }
 
 func (query DateRange) String() string {
-	return "date_range, intervals: " + fmt.Sprintf("%v", query.intervals)
+	return fmt.Sprintf("date_range, intervals: %v", query.intervals)
 }
 
 func (query DateRange) responseForInterval(row *model.QueryResultRow, intervalIdx, columnIdx int) (
@@ -185,7 +183,6 @@ func (query DateRange) CombinatorTranslateSqlResponseToJson(subGroup CombinatorG
 
 	// TODO: we need translate relative to real time
 	interval := query.intervals[subGroup.idx]
-	pp.Println(interval, model.AsString(interval.begin), model.AsString(interval.end))
 	if interval.begin != UnboundedInterval {
 		response["from"] = model.AsString(interval.begin)
 		response["from_as_string"] = interval.begin

@@ -623,13 +623,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 		return responseBody, errors.New(string(responseBody))
 	}
-	for _, query := range plan.Queries {
-		fmt.Println("PRE", query.SelectCommand.String())
-	}
 	err = q.transformQueries(ctx, plan)
-	for _, query := range plan.Queries {
-		fmt.Println("POST", query.SelectCommand.String())
-	}
 	if err != nil {
 		return responseBody, err
 	}

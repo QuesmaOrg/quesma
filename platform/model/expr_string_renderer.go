@@ -67,7 +67,6 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 }
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
-	fmt.Println("VisitLiteral", l)
 	switch val := l.Value.(type) {
 	case string:
 		switch l.EscapeType {
