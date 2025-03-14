@@ -649,22 +649,12 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 					logger.Debug().Msgf("Error querying map keys for table, column: %s, %s, %v", table, colName, err)
 					continue
 				}
-
-				// Process returned keys and add them as virtual columns
-				rowsNext := rows.Next()
-				if !rowsNext {
-					logger.Debug().Msgf("No keys found for table, column: %s, %s", table, colName)
-					err = rows.Close()
-					if err != nil {
-						logger.Debug().Msgf("Error closing rows for table, column: %s, %s, %v", table, colName, err)
-					}
-					continue
-				}
-				for rowsNext {
+				foundKeys := false
+				for rows.Next() {
+					foundKeys = true
 					var key string
 					if err := rows.Scan(&key); err != nil {
 						logger.Debug().Msgf("Error scanning key for table, column: %s, %s, %v", table, colName, err)
-						rowsNext = rows.Next()
 						continue
 					}
 					// Add virtual column for each key in the map
@@ -674,7 +664,6 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 					valueType, err = extractMapValueType(columnMeta.colType)
 					if err != nil {
 						logger.Debug().Msgf("Error extracting value type for table, column: %s, %s, %v", table, colName, err)
-						rowsNext = rows.Next()
 						continue
 					} else {
 						outputTable[table][mapKeyCol] = columnMetadata{
@@ -683,7 +672,12 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 						}
 						logger.Debug().Msgf("Added map key column: %s.%s", table, mapKeyCol)
 					}
-					rowsNext = rows.Next()
+				}
+				if !foundKeys {
+					logger.Debug().Msgf("No map keys found for table, column: %s, %s", table, colName)
+				}
+				if err := rows.Err(); err != nil {
+					logger.Warn().Msgf("Error iterating map keys for %s.%s: %v", table, colName, err)
 				}
 				err = rows.Close() // Close after processing
 				if err != nil {
