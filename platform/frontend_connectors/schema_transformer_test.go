@@ -1179,6 +1179,33 @@ func Test_applyMatchOperator(t *testing.T) {
 			},
 		},
 		{
+			name: "match operator transformation for attributes map (ILIKE)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef("message"), model.NewLiteral("'warsaw'")),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("'needle'", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef("message"), model.NewLiteral("'warsaw'")),
+						"ILIKE",
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
+					),
+				},
+			},
+		},
+		{
 			name: "match operator transformation for Int64 (=)",
 			query: &model.Query{
 				TableName: "test",
