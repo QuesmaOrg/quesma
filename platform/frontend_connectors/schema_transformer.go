@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -1071,18 +1072,33 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	var err error
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
-		lhs, ok := e.Left.(model.ColumnRef)
-		rhs, ok2 := e.Right.(model.LiteralExpr)
+		lhs := e.Left
+		col, okLeft := e.Left.(model.ColumnRef)
+		rhs, okRight := e.Right.(model.LiteralExpr)
 
-		if ok && ok2 && e.Op == model.MatchOperator {
-			field, found := indexSchema.ResolveFieldByInternalName(lhs.ColumnName)
+		fmt.Println("q", e)
+		pp.Println("w", col)
+		if !okLeft {
+			pp.Println("`w`", lhs)
+			if arrayAccess, ok := lhs.(model.ArrayAccess); ok {
+				col = arrayAccess.ColumnRef
+				okLeft = true
+			}
+		}
+
+		fmt.Println(okLeft, okRight, e.Op, col, rhs)
+
+		if okLeft && okRight && e.Op == model.MatchOperator {
+			field, found := indexSchema.ResolveFieldByInternalName(col.ColumnName)
 			if !found {
-				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhs.ColumnName, query.TableName)
+				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", col.ColumnName, query.TableName)
 			}
 
 			rhsValue := rhs.Value.(string)
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
+
+			pp.Println("field", field)
 
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
