@@ -54,11 +54,11 @@ func NewSchema(fields map[FieldName]Field, existsInDataSource bool, databaseName
 // IsMapWithStringValues returns true if the field is a map with string values,
 // e.g. Map(T, String), or Map(T, Nullable(String))
 func (f Field) IsMapWithStringValues() bool {
-	typename := strings.ToLower(f.InternalPropertyType)
-	return typename == "map(string, string)" ||
-		typename == "map(string,string)" ||
-		typename == "map(string, nullable(string))" ||
-		typename == "map(string,nullable(string))"
+	typename := f.InternalPropertyType
+	return typename == "Map(String, String)" ||
+		typename == "Map(String,String)" ||
+		typename == "Map(String, Nullable(String))" ||
+		typename == "Map(String,Nullable(String))"
 }
 
 func (f FieldName) AsString() string {
