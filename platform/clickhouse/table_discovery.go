@@ -664,6 +664,7 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 					var key string
 					if err := rows.Scan(&key); err != nil {
 						logger.Debug().Msgf("Error scanning key for table, column: %s, %s, %v", table, colName, err)
+						rowsNext = rows.Next()
 						continue
 					}
 					// Add virtual column for each key in the map
@@ -673,6 +674,7 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 					valueType, err = extractMapValueType(columnMeta.colType)
 					if err != nil {
 						logger.Debug().Msgf("Error extracting value type for table, column: %s, %s, %v", table, colName, err)
+						rowsNext = rows.Next()
 						continue
 					} else {
 						outputTable[table][mapKeyCol] = columnMetadata{
