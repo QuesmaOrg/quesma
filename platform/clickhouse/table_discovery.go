@@ -644,7 +644,7 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 				}
 
 				// Query ClickHouse for map keys in the given column
-				rows, err := td.dbConnPool.Query(context.Background(), fmt.Sprintf("SELECT arrayJoin(mapKeys(%s)) FROM %s", colName, table))
+				rows, err := td.dbConnPool.Query(context.Background(), fmt.Sprintf("SELECT DISTINCT arrayJoin(mapKeys(%s)) FROM %s", colName, table))
 				if err != nil {
 					logger.Error().Msgf("Error querying map keys for table, column: %s, %s, %v", table, colName, err)
 					continue
