@@ -369,6 +369,7 @@ func validateLog(log logJson) error {
 }
 
 func ensureSomeHits(jsonBody map[string]interface{}) bool {
+	fmt.Println("ensureSomeHits async response", jsonBody)
 	hits := parseHits(jsonBody)
 
 	if len(hits) == 0 {

@@ -745,22 +745,28 @@ func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) model.Simple
 	return model.NewSimpleQueryInvalid()
 }
 
-func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (string, error) {
+func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string, timestampField model.ColumnRef) (model.Expr, error) {
 	expr = strings.ReplaceAll(expr, "'", "")
 
 	exp, err := ParseDateMathExpression(expr)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	builder := DateMathExpressionRendererFactory(cw.DateMathRenderer)
 	if builder == nil {
-		return "", fmt.Errorf("no date math expression renderer found: %s", cw.DateMathRenderer)
+		return nil, fmt.Errorf("no date math expression renderer found: %s", cw.DateMathRenderer)
 	}
 
-	sql, err := builder.RenderSQL(exp)
+	sql, err := builder.RenderExpr(exp)
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+
+	if literal, ok := sql.(model.LiteralExpr); ok {
+		if ts, ok := literal.Value.(model.TimeLiteral); ok {
+			return model.NewTimeLiteral(ts.Value, timestampField), nil
+		}
 	}
 
 	return sql, nil
@@ -781,8 +787,6 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 	const dateInSchemaExpected = true
 
 	for fieldName, v := range queryMap {
-		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
-
 		fieldType := cw.Table.GetDateTimeType(cw.Ctx, ResolveField(cw.Ctx, fieldName, cw.Schema), dateInSchemaExpected)
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
@@ -804,21 +808,25 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			// Dates use 1-3 and finish as soon as any succeeds
 			// Numbers use just 3rd
 
+			var funcName string
 			var finalValue model.Expr
-			doneParsing, isQuoted := false, len(value) > 2 && value[0] == '\'' && value[len(value)-1] == '\''
+			areWeDoneParsing := func() bool {
+				return finalValue != nil
+			}
+			isQuoted := len(value) > 2 && value[0] == '\'' && value[len(value)-1] == '\''
 			switch fieldType {
 			case clickhouse.DateTime, clickhouse.DateTime64:
 				// TODO add support for "time_zone" parameter in ParseDateUsualFormat
-				finalValue, doneParsing = dateManager.ParseDateUsualFormat(value, fieldType)  // stage 1
-				if !doneParsing && (op == "gte" || op == "lte" || op == "gt" || op == "lt") { // stage 2
-					parsed, err := cw.parseDateMathExpression(value)
+				finalValue = dateManager.ParseDateUsualFormat(value, model.NewColumnRef(fieldName))  // stage 1
+				if !areWeDoneParsing() && (op == "gte" || op == "lte" || op == "gt" || op == "lt") { // stage 2
+					parsed, err := cw.parseDateMathExpression(value, model.NewColumnRef(fieldName))
+					fmt.Println("QQQ parsed: ", parsed, funcName, cw.DateMathRenderer)
 					if err == nil {
-						doneParsing = true
-						finalValue = model.NewLiteral(parsed)
+						finalValue = parsed
 					}
 				}
-				if !doneParsing && isQuoted { // stage 3
-					finalValue, doneParsing = dateManager.ParseDateUsualFormat(value[1:len(value)-1], fieldType)
+				if !areWeDoneParsing() && isQuoted { // stage 3
+					finalValue = dateManager.ParseDateUsualFormat(value[1:len(value)-1], model.NewColumnRef(fieldName))
 				}
 			case clickhouse.Invalid:
 				if isQuoted {
@@ -830,16 +838,21 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 					}
 					if isNumber {
 						finalValue = model.NewLiteral(unquoted)
-						doneParsing = true
 					}
 				}
 			default:
 				logger.ErrorWithCtx(cw.Ctx).Msgf("invalid DateTime type for field: %s, parsed dateTime value: %s", fieldName, value)
 			}
 
-			if !doneParsing {
+			if !areWeDoneParsing() {
 				finalValue = defaultValue
 			}
+			fmt.Println("finalValue1: ", finalValue)
+
+			if funcName != "" {
+				finalValue = model.NewFunction(funcName, finalValue)
+			}
+			fmt.Println("finalValue2: ", finalValue)
 
 			field := model.NewColumnRef(fieldName)
 			switch op {

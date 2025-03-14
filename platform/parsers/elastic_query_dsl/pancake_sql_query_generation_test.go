@@ -6,9 +6,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	transformations_delete "github.com/QuesmaOrg/quesma/platform/transformations-delete"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/k0kubun/pp"
@@ -22,12 +24,13 @@ const TableName = model.SingleTableNamePlaceHolder
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	// logger.InitSimpleLoggerForTestsWarnLevel()
+	logger.InitSimpleLoggerForTestsWarnLevel()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":                     {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"timestamp":                      {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"order_date":                     {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
+			"reqTimeSec":                     {Name: "reqTimeSec", Type: clickhouse.NewBaseType("DateTime64")},
 			"message":                        {Name: "message", Type: clickhouse.NewBaseType("String")},
 			"bytes_gauge":                    {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
 			"customer_birth_date":            {Name: "customer_birth_date", Type: clickhouse.NewBaseType("DateTime")},
@@ -38,7 +41,14 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	}
 
 	currentSchema := schema.Schema{
-		Fields:             nil,
+		Fields: map[schema.FieldName]schema.Field{
+			"@timestamp":                     {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+			"timestamp":                      {PropertyName: "timestamp", InternalPropertyName: "timestamp", Type: schema.QuesmaTypeDate},
+			"order_date":                     {PropertyName: "order_date", InternalPropertyName: "order_date", Type: schema.QuesmaTypeDate},
+			"reqTimeSec":                     {PropertyName: "reqTimeSec", InternalPropertyName: "reqTimeSec", Type: schema.QuesmaTypeDate},
+			"customer_birth_date":            {PropertyName: "customer_birth_date", InternalPropertyName: "customer_birth_date", Type: schema.QuesmaTypeDate},
+			"customer_birth_date_datetime64": {PropertyName: "customer_birth_date_datetime64", InternalPropertyName: "customer_birth_date_datetime64", Type: schema.QuesmaTypeDate},
+		},
 		Aliases:            nil,
 		ExistsInDataSource: false,
 		DatabaseName:       "",
@@ -51,6 +61,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			// sample_ecommerce
 			if test.TestName == "TODO Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
 				t.Skip("works IRL, need to update test's schema. It's already WIP https://github.com/QuesmaOrg/quesma/pull/1255. Let's wait for merge.")
+			}
+
+			if i != 217 {
+				// t.Skip()
 			}
 
 			if filters(test.TestName) {
@@ -78,6 +92,9 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			assert.NoError(t, err)
 
 			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
+			for j, pancake := range pancakeSqls {
+				pancakeSqls[j], _ = transformations_delete.ApplyNecessaryTransformations(context.Background(), pancake, &table, currentSchema)
+			}
 			assert.NoError(t, err)
 			assert.True(t, len(pancakeSqls) >= 1, "pancakeSqls should have at least one query")
 			if len(pancakeSqls) < 1 {
