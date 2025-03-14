@@ -51,6 +51,11 @@ func NewSchema(fields map[FieldName]Field, existsInDataSource bool, databaseName
 	return NewSchemaWithAliases(fields, map[FieldName]FieldName{}, existsInDataSource, databaseName)
 }
 
+func (f Field) IsMapWithStringValues() bool {
+	return strings.HasPrefix(f.InternalPropertyType, "Map") &&
+		strings.HasSuffix(strings.TrimSuffix(f.InternalPropertyType, ")"), "String")
+}
+
 func (f FieldName) AsString() string {
 	return string(f)
 }
@@ -64,7 +69,6 @@ func (t IndexName) AsString() string {
 }
 
 func (s Schema) ResolveFieldByInternalName(fieldName string) (Field, bool) {
-
 	for _, field := range s.Fields {
 		if field.InternalPropertyName.AsString() == fieldName {
 			return field, true

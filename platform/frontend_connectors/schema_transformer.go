@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -1067,37 +1068,66 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
-
+	pp.Println(indexSchema)
 	var err error
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
-		lhs := e.Left
-		rhs, okRight := e.Right.(model.LiteralExpr)
-		col, okLeft := e.Left.(model.ColumnRef)
+		var (
+			lhs              = e.Left
+			rhs, okRight     = e.Right.(model.LiteralExpr)
+			col, okLeft      = e.Left.(model.ColumnRef)
+			lhsIsArrayAccess bool
+		)
 
 		if !okLeft {
 			if arrayAccess, ok := lhs.(model.ArrayAccess); ok {
-				col = arrayAccess.ColumnRef
+				lhsIsArrayAccess = true
 				okLeft = true
+				col = arrayAccess.ColumnRef
 			}
 		}
 
 		if okLeft && okRight && e.Op == model.MatchOperator {
+			var colIsAttributes bool
 			field, found := indexSchema.ResolveFieldByInternalName(col.ColumnName)
 			if !found {
-				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", col.ColumnName, query.TableName)
+				if clickhouse.IsColumnAttributes(col.ColumnName) {
+					colIsAttributes = true
+				} else {
+					logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", col.ColumnName, query.TableName)
+				}
+			}
+
+			if _, ok := rhs.Value.(string); !ok {
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
 			}
 
 			rhsValue := rhs.Value.(string)
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
 
-			switch field.Type.String() {
-			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+			ilike := func() model.Expr {
+				return model.NewInfixExpr(lhs, "ILIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))
+			}
+			equal := func() model.Expr {
 				rhsValue = strings.Trim(rhsValue, "%")
 				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
+			}
+
+			fmt.Println("Field type: ", field.Type.String(), lhsIsArrayAccess, colIsAttributes, field.IsMapWithStringValues(), col.ColumnName)
+			if lhsIsArrayAccess {
+				if colIsAttributes || field.IsMapWithStringValues() { // attributes has always string values
+					return ilike()
+				} else {
+					return equal()
+				}
+			}
+
+			switch field.Type.String() {
+			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+				return equal()
 			default:
-				return model.NewInfixExpr(lhs, "ILIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))
+				return ilike()
 			}
 		}
 
