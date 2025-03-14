@@ -23,7 +23,7 @@ const (
 
 	// ClickHouse type of AttributesValuesColumn, AttributesMetadataColumn
 	// Important: If we ever introduce attributes with values of no-String type,
-	// consider changing SchemaCheckPass.applyMatchOperator as well.
+	// consider updating SchemaCheckPass.applyMatchOperator as well.
 	attributesColumnType     = "Map(String, String)"
 	AttributesValuesColumn   = "attributes_values"
 	AttributesMetadataColumn = "attributes_metadata"

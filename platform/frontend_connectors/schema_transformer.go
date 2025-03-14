@@ -1087,8 +1087,8 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 		}
 
 		if okLeft && okRight && e.Op == model.MatchOperator {
-			// only strings can be ILIKEd, everything else is a simple =
 			if _, ok := rhs.Value.(string); !ok {
+				// only strings can be ILIKEd, everything else is a simple =
 				return model.NewInfixExpr(lhs, "=", rhs.Clone())
 			}
 
@@ -1125,6 +1125,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			}
 
 			// handling case when e.Left is a simple column ref
+			// TODO: improve? we seem to be `ilike'ing` too much
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
 				return equal()
