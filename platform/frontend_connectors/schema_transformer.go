@@ -1068,8 +1068,6 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 	visitor := model.NewBaseVisitor()
 
-	var err error
-
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		var (
 			lhs              = e.Left
@@ -1174,14 +1172,13 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			}
 		}
 
+		if e.Op == model.MatchOperator {
+			logger.Error().Msgf("Match operator is not supported for column %v", col)
+		}
 		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
-
-	if err != nil {
-		return nil, err
-	}
 
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
