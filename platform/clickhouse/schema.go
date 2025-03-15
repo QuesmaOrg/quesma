@@ -21,7 +21,10 @@ const (
 	DeprecatedAttributesValueColumn = "attributes_string_value"
 	DeprecatedAttributesValueType   = "attributes_string_type"
 
-	attributesColumnType     = "Map(String, String)" // ClickHouse type of AttributesValuesColumn, AttributesMetadataColumn
+	// ClickHouse type of AttributesValuesColumn, AttributesMetadataColumn
+	// Important: If we ever introduce attributes with values of no-String type,
+	// consider updating SchemaCheckPass.applyMatchOperator as well.
+	attributesColumnType     = "Map(String, String)"
 	AttributesValuesColumn   = "attributes_values"
 	AttributesMetadataColumn = "attributes_metadata"
 
@@ -426,4 +429,8 @@ func NewDefaultBoolAttribute() Attribute {
 
 func (dt DateTimeType) String() string {
 	return []string{"DateTime64", "DateTime", "Invalid"}[dt]
+}
+
+func IsColumnAttributes(colName string) bool {
+	return colName == AttributesValuesColumn || colName == AttributesMetadataColumn
 }

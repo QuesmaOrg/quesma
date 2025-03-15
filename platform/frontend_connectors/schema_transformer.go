@@ -1069,52 +1069,83 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 	visitor := model.NewBaseVisitor()
 
-	var err error
-
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
-		col, okLeft := e.Left.(model.ColumnRef)
-		rhs, okRight := e.Right.(model.LiteralExpr)
+		var (
+			lhs                                       = e.Left
+			rhs, okRight                              = e.Right.(model.LiteralExpr)
+			lhsCol                                    model.ColumnRef
+			okLeft, lhsIsArrayAccess, colIsAttributes bool
+		)
 
-		var lhs model.Expr
-		if okLeft {
-			lhs = col
-		} else {
-			pp.Println("transf match operator left:", e.Left)
-			if f1, ok := e.Left.(model.FunctionExpr); ok && len(f1.Args) >= 1 {
-				if c, ok := f1.Args[0].(model.ColumnRef); ok {
-					lhs = f1
-					col = c
+		switch lhsT := lhs.(type) {
+		case model.ColumnRef:
+			lhsCol = lhsT
+			okLeft = true
+		case model.FunctionExpr:
+			if len(lhsT.Args) >= 1 {
+				if col, ok := lhsT.Args[0].(model.ColumnRef); ok {
+					lhsCol = col
 					okLeft = true
-				} else if f2, ok := f1.Args[0].(model.FunctionExpr); ok && len(f2.Args) == 1 {
-					if c, ok := f2.Args[0].(model.ColumnRef); ok {
-						lhs = f1
-						col = c
+				} else if f2, ok := lhsT.Args[0].(model.FunctionExpr); ok && len(f2.Args) == 1 {
+					if col, ok := f2.Args[0].(model.ColumnRef); ok {
+						lhsCol = col
 						okLeft = true
 					}
 				}
 			}
-			fmt.Println("lhs znaleziony?", lhs, okLeft, okRight, e.Op, e.Op == model.MatchOperator)
-			if lhs == nil {
-				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
-			}
+		case model.ArrayAccess:
+			lhsIsArrayAccess = true
+			okLeft = true
+			lhsCol = lhsT.ColumnRef
+		default:
+			return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+		}
+
+		rhsValue, ok := rhs.Value.(string)
+		if !ok {
+			// only strings can be ILIKEd, everything else is a simple =
+			return model.NewInfixExpr(lhs, "=", rhs.Clone())
 		}
 
 		if okLeft && okRight && e.Op == model.MatchOperator {
-			field, found := indexSchema.ResolveFieldByInternalName(col.ColumnName)
+			field, found := indexSchema.ResolveFieldByInternalName(lhsCol.ColumnName)
 			if !found {
-				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", col.ColumnName, query.TableName)
+				// indexSchema won't find attributes columns, that's why this check
+				if clickhouse.IsColumnAttributes(lhsCol.ColumnName) {
+					colIsAttributes = true
+				} else {
+					logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsCol.ColumnName, query.TableName)
+				}
 			}
 
-			rhsValue := rhs.Value.(string)
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
 			fmt.Println("field", field, field.Type.String(), lhs, rhs.EscapeType)
-			switch field.Type.String() {
-			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+
+			ilike := func() model.Expr {
+				return model.NewInfixExpr(lhs, "ILIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))
+			}
+			equal := func() model.Expr {
 				rhsValue = strings.Trim(rhsValue, "%")
 				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
+			}
+
+			// handling case when e.Left is an array access
+			if lhsIsArrayAccess {
+				if colIsAttributes || field.IsMapWithStringValues() { // attributes always have string values, so ilike
+					return ilike()
+				} else {
+					return equal()
+				}
+			}
+
+			// handling case when e.Left is a simple column ref
+			// TODO: improve? we seem to be `ilike'ing` too much
+			switch field.Type.String() {
+			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+				return equal()
 			default:
-				return model.NewInfixExpr(lhs, "ILIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))
+				return ilike()
 			}
 		}
 
@@ -1158,14 +1189,13 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			}
 		}
 
+		if e.Op == model.MatchOperator {
+			logger.Error().Msgf("Match operator is not supported for column %v", col)
+		}
 		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
-
-	if err != nil {
-		return nil, err
-	}
 
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
