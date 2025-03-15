@@ -11,7 +11,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -1190,7 +1189,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 		}
 
 		if e.Op == model.MatchOperator {
-			logger.Error().Msgf("Match operator is not supported for column %v", col)
+			logger.Error().Msgf("Match operator is not supported for column %v (expr: %v)", lhsCol, e)
 		}
 		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 	}
