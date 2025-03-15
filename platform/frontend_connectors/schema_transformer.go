@@ -1076,6 +1076,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			okLeft, lhsIsArrayAccess, colIsAttributes bool
 		)
 
+		// try to extract column from lhs
 		switch lhsT := lhs.(type) {
 		case model.ColumnRef:
 			lhsCol = lhsT
@@ -1102,19 +1103,15 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 		rhsValue, ok := rhs.Value.(string)
 		if !ok {
-			// only strings can be ILIKEd, everything else is a simple =
-			return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+			if e.Op == model.MatchOperator {
+				// only strings can be ILIKEd, everything else is a simple =
+				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), "=", e.Right.Accept(b).(model.Expr))
+			} else {
+				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+			}
 		}
 
 		if okLeft && okRight && e.Op == model.MatchOperator {
-			ilike := func() model.Expr {
-				return model.NewInfixExpr(lhs, "ILIKE", rhs.Clone())
-			}
-			equal := func() model.Expr {
-				rhsValue = strings.Trim(rhsValue, "%")
-				return model.NewInfixExpr(lhs, "=", rhs.Clone())
-			}
-
 			field, found := indexSchema.ResolveFieldByInternalName(lhsCol.ColumnName)
 			if !found {
 				// indexSchema won't find attributes columns, that's why this check
@@ -1128,7 +1125,14 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
-			fmt.Println("field", field, field.Type.String(), lhs, rhs.EscapeType)
+
+			ilike := func() model.Expr {
+				return model.NewInfixExpr(lhs, "ILIKE", rhs.Clone())
+			}
+			equal := func() model.Expr {
+				rhsValue = strings.Trim(rhsValue, "%")
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
+			}
 
 			// handling case when e.Left is an array access
 			if lhsIsArrayAccess {
