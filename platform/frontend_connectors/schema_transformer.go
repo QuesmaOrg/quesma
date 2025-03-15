@@ -1103,10 +1103,18 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 		rhsValue, ok := rhs.Value.(string)
 		if !ok {
 			// only strings can be ILIKEd, everything else is a simple =
-			return model.NewInfixExpr(lhs, "=", rhs.Clone())
+			return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 		}
 
 		if okLeft && okRight && e.Op == model.MatchOperator {
+			ilike := func() model.Expr {
+				return model.NewInfixExpr(lhs, "ILIKE", rhs.Clone())
+			}
+			equal := func() model.Expr {
+				rhsValue = strings.Trim(rhsValue, "%")
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
+			}
+
 			field, found := indexSchema.ResolveFieldByInternalName(lhsCol.ColumnName)
 			if !found {
 				// indexSchema won't find attributes columns, that's why this check
@@ -1114,20 +1122,13 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 					colIsAttributes = true
 				} else {
 					logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsCol.ColumnName, query.TableName)
+					goto experimental
 				}
 			}
 
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
 			fmt.Println("field", field, field.Type.String(), lhs, rhs.EscapeType)
-
-			ilike := func() model.Expr {
-				return model.NewInfixExpr(lhs, "ILIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))
-			}
-			equal := func() model.Expr {
-				rhsValue = strings.Trim(rhsValue, "%")
-				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
-			}
 
 			// handling case when e.Left is an array access
 			if lhsIsArrayAccess {
@@ -1148,6 +1149,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			}
 		}
 
+	experimental:
 		if s.isFieldMapSyntaxEnabled(query) {
 			// special case where left side is arrayElement,
 			// arrayElement comes from applyFieldEncoding function
