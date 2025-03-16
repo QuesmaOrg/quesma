@@ -429,39 +429,7 @@ func AssertSqlEqual(t *testing.T, expected, actual string) {
 		fmt.Printf("%s\n", SqlPrettyPrint([]byte(actual)))
 		actualLines := strings.Split(actual, "\n")
 		expectedLines := strings.Split(expected, "\n")
-		pp.Println("-- First diff: ")
-		for i, aLine := range actualLines {
-			if i >= len(expectedLines) {
-				fmt.Println("Actual is longer than expected")
-				break
-			}
-			eLine := expectedLines[i]
-			if aLine != eLine {
-				if i > 0 {
-					fmt.Println("         ", actualLines[i-1])
-				}
-				fmt.Println("  actual:", aLine)
-				if i+1 < len(actualLines) {
-					fmt.Println("         ", actualLines[i+1])
-				}
-				fmt.Println()
-				if i > 0 {
-					fmt.Println("         ", expectedLines[i-1])
-				}
-				fmt.Println("expected:", eLine)
-				if i+1 < len(expectedLines) {
-					fmt.Println("         ", expectedLines[i+1])
-				}
-
-				for j := range min(len(aLine), len(eLine)) {
-					if aLine[j] != eLine[j] {
-						fmt.Printf("First diff in line %d at index %d (actual: %c, expected: %c)\n", i, j, aLine[j], eLine[j])
-						break
-					}
-				}
-				break
-			}
-		}
+		pp.Printf("-- First diff: \n%s\n", firstDiff(expectedLines, actualLines))
 		t.Errorf("Expected: %s\n\nactual: %s", expected, actual)
 	}
 }
@@ -855,39 +823,7 @@ func InitSqlMockWithPrettySqlAndPrint(t *testing.T, matchExpectationsInOrder boo
 
 				actualPretty := strings.Split(SqlPrettyPrint([]byte(mismatch.actual)), "\n")
 				expectedPretty := strings.Split(SqlPrettyPrint([]byte(mismatch.expected)), "\n")
-
-				for i, aLine := range actualPretty {
-					if i >= len(expectedPretty) {
-						fmt.Println("Actual is longer than expected")
-						break
-					}
-					eLine := expectedPretty[i]
-					if aLine != eLine {
-						if i > 0 {
-							fmt.Println("         ", actualPretty[i-1])
-						}
-						fmt.Println("  actual:", aLine)
-						if i+1 < len(actualPretty) {
-							fmt.Println("         ", actualPretty[i+1])
-						}
-						fmt.Println()
-						if i > 0 {
-							fmt.Println("         ", expectedPretty[i-1])
-						}
-						fmt.Println("expected:", eLine)
-						if i+1 < len(expectedPretty) {
-							fmt.Println("         ", expectedPretty[i+1])
-						}
-
-						for j := range min(len(actualPretty), len(expectedPretty)) {
-							if actualPretty[j] != expectedPretty[j] {
-								fmt.Printf("First diff in line %d at index %d (actual: %v, expected: %v)\n", i, j, actualPretty[j], expectedPretty[j])
-								break
-							}
-						}
-						break
-					}
-				}
+				pp.Printf("-- First diff: \n%s\n", firstDiff(expectedPretty, actualPretty))
 			}
 		}
 	})
@@ -1074,4 +1010,42 @@ func ReadResponseBody(resp *http.Response) ([]byte, error) {
 	}
 	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
 	return respBody, nil
+}
+
+func firstDiff(expectedLines, actualLines []string) string {
+	var diff strings.Builder
+	for i, aLine := range actualLines {
+		if i >= len(expectedLines) {
+			fmt.Println("Actual is longer than expected")
+			break
+		}
+		eLine := expectedLines[i]
+		if aLine != eLine {
+			if i > 0 {
+				diff.WriteString(fmt.Sprintf("\t\t%s", actualLines[i-1]))
+			}
+			diff.WriteString(fmt.Sprintf("  actual: %s", aLine))
+			if i+1 < len(actualLines) {
+				diff.WriteString(fmt.Sprintf("\t\t%s", actualLines[i+1]))
+			}
+			diff.WriteString("\n")
+			if i > 0 {
+				diff.WriteString(fmt.Sprintf("\t\t%s", expectedLines[i-1]))
+			}
+			diff.WriteString(fmt.Sprintf("  expected: %s", eLine))
+			if i+1 < len(expectedLines) {
+				diff.WriteString(fmt.Sprintf("\t\t%s", expectedLines[i+1]))
+			}
+
+			for j := range min(len(aLine), len(eLine)) {
+				if aLine[j] != eLine[j] {
+					diff.WriteString(fmt.Sprintf("First diff in line %d at index %d (actual: %c, expected: %c)\n", i, j, aLine[j], eLine[j]))
+					break
+				}
+			}
+			break
+		}
+	}
+
+	return diff.String()
 }

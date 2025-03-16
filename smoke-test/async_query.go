@@ -303,6 +303,7 @@ func parseHits(jsonBody map[string]interface{}) []interface{} {
 	}
 	// If unable to parse hits, print the JSON body and panic
 	body, _ := json.MarshalIndent(jsonBody, " ", " ")
+	fmt.Println("async body", string(body))
 	panic("Can't parse response: hits: hits")
 }
 
@@ -368,7 +369,6 @@ func validateLog(log logJson) error {
 }
 
 func ensureSomeHits(jsonBody map[string]interface{}) bool {
-	fmt.Println("ensureSomeHits async response", jsonBody)
 	hits := parseHits(jsonBody)
 
 	if len(hits) == 0 {

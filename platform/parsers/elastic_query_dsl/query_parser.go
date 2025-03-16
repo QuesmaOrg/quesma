@@ -808,7 +808,6 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			// Dates use 1-3 and finish as soon as any succeeds
 			// Numbers use just 3rd
 
-			var funcName string
 			var finalValue model.Expr
 			areWeDoneParsing := func() bool {
 				return finalValue != nil
@@ -820,7 +819,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 				finalValue = dateManager.ParseDateUsualFormat(value, model.NewColumnRef(fieldName))  // stage 1
 				if !areWeDoneParsing() && (op == "gte" || op == "lte" || op == "gt" || op == "lt") { // stage 2
 					parsed, err := cw.parseDateMathExpression(value, model.NewColumnRef(fieldName))
-					fmt.Println("QQQ parsed: ", parsed, funcName, cw.DateMathRenderer)
+					fmt.Println("QQQ parsed: ", parsed, cw.DateMathRenderer)
 					if err == nil {
 						finalValue = parsed
 					}
@@ -849,9 +848,6 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			}
 			fmt.Println("finalValue1: ", finalValue)
 
-			if funcName != "" {
-				finalValue = model.NewFunction(funcName, finalValue)
-			}
 			fmt.Println("finalValue2: ", finalValue)
 
 			field := model.NewColumnRef(fieldName)
