@@ -1142,8 +1142,10 @@ func TestFullTextFields(t *testing.T) {
 func Test_applyMatchOperator(t *testing.T) {
 	schemaTable := schema.Table{
 		Columns: map[string]schema.Column{
-			"message": {Name: "message", Type: "String"},
-			"count":   {Name: "count", Type: "Int64"},
+			"message":     {Name: "message", Type: "String"},
+			"map_str_str": {Name: "map_str_str", Type: "Map(String, String)"},
+			"map_str_int": {Name: "map_str_int", Type: "Map(String, Int)"},
+			"count":       {Name: "count", Type: "Int64"},
 		},
 	}
 
@@ -1202,6 +1204,114 @@ func Test_applyMatchOperator(t *testing.T) {
 						model.NewColumnRef("count"),
 						"=",
 						model.NewLiteral("123"),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for map(string, string) (ILIKE)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef("map_str_str"), model.NewLiteral("'warsaw'")),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("'needle'", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef("map_str_str"), model.NewLiteral("'warsaw'")),
+						"ILIKE",
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for map(string, int) (=)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef("map_str_int"), model.NewLiteral("'warsaw'")),
+						model.MatchOperator,
+						model.NewLiteral(50),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef("map_str_int"), model.NewLiteral("'warsaw'")),
+						"=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for Attributes map (1/2)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral("'warsaw'")),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral("'warsaw'")),
+						"ILIKE",
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for Attributes map (2/2)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesMetadataColumn), model.NewLiteral("'warsaw'")),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesMetadataColumn), model.NewLiteral("'warsaw'")),
+						"ILIKE",
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
 					),
 				},
 			},
