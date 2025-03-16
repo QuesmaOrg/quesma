@@ -115,8 +115,8 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 	if missingRaw, exists := params["missing"]; exists {
 		if missing, ok := missingRaw.(string); ok {
 			dateManager := NewDateManager(cw.Ctx)
-			if funcName, missingExpr := dateManager.ParseDateUsualFormat(missing, colRef); missingExpr != nil {
-				field = model.NewFunction("COALESCE", field, model.NewFunction(funcName, missingExpr))
+			if missingExpr := dateManager.ParseDateUsualFormat(missing, colRef); missingExpr != nil {
+				field = model.NewFunction("COALESCE", field, missingExpr)
 				weAddedMissing = true
 			} else {
 				logger.ErrorWithCtx(cw.Ctx).Msgf("unknown format of missing in date_histogram: %v. Skipping it.", missing)
@@ -142,7 +142,8 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 	interval, intervalType := cw.extractInterval(params)
 	// TODO  GetDateTimeTypeFromExpr can be moved and it should take cw.Schema as an argument
 
-	dateHistogram := bucket_aggregations.NewDateHistogram(cw.Ctx, field, colRef, interval, timezone, format, minDocCount, ebMin, ebMax, intervalType)
+	dateHistogram := bucket_aggregations.NewDateHistogram(cw.Ctx,
+		field, colRef, interval, timezone, format, minDocCount, ebMin, ebMax, intervalType)
 	aggregation.queryType = dateHistogram
 
 	columnSql := dateHistogram.GenerateSQL()
