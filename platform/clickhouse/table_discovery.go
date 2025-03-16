@@ -631,40 +631,58 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 	for table, columns := range inputTable {
 		for colName, columnMeta := range columns {
 			if strings.HasPrefix(columnMeta.colType, "Map(String") {
-				// Query ClickHouse for map keys in the given column
-				rows, err := td.dbConnPool.Query(context.Background(), fmt.Sprintf("SELECT arrayJoin(mapKeys(%s)) FROM %s", colName, table))
-				if err != nil {
-					fmt.Println("Error querying map keys:", err)
-					continue
-				}
-
+				logger.Debug().Msgf("Discovered map column: %s.%s", table, colName)
 				// Ensure the table exists in outputTable
 				if _, ok := outputTable[table]; !ok {
 					outputTable[table] = make(map[string]columnMetadata)
 				}
-
-				// Process returned keys and add them as virtual columns
-				for rows.Next() {
-					var key string
-					if err := rows.Scan(&key); err != nil {
-						fmt.Println("Error scanning key:", err)
-						continue
-					}
+				if _, ok := outputTable[table][colName]; !ok {
 					// Update origin for incoming map column
 					columnMeta.origin = schema.FieldSourceIngest
 					outputTable[table][colName] = columnMeta
+					logger.Debug().Msgf("Added column: %s.%s", table, colName)
+				}
+
+				// Query ClickHouse for map keys in the given column
+				rows, err := td.dbConnPool.Query(context.Background(), fmt.Sprintf("SELECT DISTINCT arrayJoin(mapKeys(%s)) FROM %s", colName, table))
+				if err != nil {
+					logger.Error().Msgf("Error querying map keys for table, column: %s, %s, %v", table, colName, err)
+					continue
+				}
+				foundKeys := false
+				for rows.Next() {
+					foundKeys = true
+					var key string
+					if err := rows.Scan(&key); err != nil {
+						logger.Error().Msgf("Error scanning key for table, column: %s, %s, %v", table, colName, err)
+						continue
+					}
 					// Add virtual column for each key in the map
 					// with origin set to mapping
-					virtualColName := colName + "." + key
-					valueType, err := extractMapValueType(columnMeta.colType)
-					if err == nil {
-						outputTable[table][virtualColName] = columnMetadata{
+					mapKeyCol := colName + "." + key
+					var valueType string
+					valueType, err = extractMapValueType(columnMeta.colType)
+					if err != nil {
+						logger.Error().Msgf("Error extracting value type for table, column: %s, %s, %v", table, colName, err)
+						continue
+					} else {
+						outputTable[table][mapKeyCol] = columnMetadata{
 							colType: valueType,
 							origin:  schema.FieldSourceMapping,
 						}
+						logger.Debug().Msgf("Added map key column: %s.%s", table, mapKeyCol)
 					}
 				}
-				rows.Close() // Close after processing
+				if !foundKeys {
+					logger.Debug().Msgf("No map keys found for table, column: %s, %s", table, colName)
+				}
+				if err := rows.Err(); err != nil {
+					logger.Error().Msgf("Error iterating map keys for %s.%s: %v", table, colName, err)
+				}
+				err = rows.Close() // Close after processing
+				if err != nil {
+					logger.Error().Msgf("Error closing rows for table, column: %s, %s, %v", table, colName, err)
+				}
 			} else {
 				// Copy other columns as-is
 				if _, ok := outputTable[table]; !ok {
