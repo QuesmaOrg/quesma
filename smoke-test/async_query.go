@@ -303,7 +303,6 @@ func parseHits(jsonBody map[string]interface{}) []interface{} {
 	}
 	// If unable to parse hits, print the JSON body and panic
 	body, _ := json.MarshalIndent(jsonBody, " ", " ")
-	fmt.Println("async body", string(body))
 	panic("Can't parse response: hits: hits")
 }
 
