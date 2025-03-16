@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -1032,7 +1033,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 	for k, query := range queries {
 		var err error
-
+		pp.Println("PRE", query.SelectCommand)
 		if !s.cfg.Logging.EnableSQLTracing {
 			query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, "n/a")
 		}
@@ -1050,13 +1051,13 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 				return nil, err
 			}
 
-			if s.cfg.Logging.EnableSQLTracing {
-				if query.SelectCommand.String() != inputQuery {
-					query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
-					logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
-					logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
-				}
+			//if s.cfg.Logging.EnableSQLTracing {
+			if query.SelectCommand.String() != inputQuery {
+				query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
+				logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
+				logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
 			}
+			//}
 		}
 
 		queries[k] = query

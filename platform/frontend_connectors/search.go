@@ -29,6 +29,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/goccy/go-json"
+	"github.com/k0kubun/pp"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -457,6 +458,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery) ([]byte, error) {
 
 	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, indexPattern)
+	pp.Println("decision handleSearchCommon", decision)
 
 	if decision.Err != nil {
 
@@ -531,6 +533,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	var currentSchema schema.Schema
 	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
 
+	pp.Println("resolvedIndexes", resolvedIndexes, clickhouseConnector.IsCommonTable)
+
 	if !clickhouseConnector.IsCommonTable {
 		if len(resolvedIndexes) < 1 {
 			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
@@ -556,6 +560,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		var virtualOnlyTables []string
 		for _, indexName := range resolvedIndexes {
 			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))
+			pp.Println("TABLE", table)
 			if table == nil {
 				continue
 			}
@@ -564,6 +569,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 		}
 		resolvedIndexes = virtualOnlyTables
+		pp.Println("resolvedIndexes", resolvedIndexes, "virtualOnlyTables", virtualOnlyTables)
 
 		if len(resolvedIndexes) == 0 {
 			if optAsync != nil {
@@ -603,7 +609,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		currentSchema = resolvedSchema
 		table = commonTable
 	}
-
+	pp.Println("table", table, "currentSchema", currentSchema)
 	queryTranslator := NewQueryTranslator(ctx, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
 
 	plan, err := queryTranslator.ParseQuery(body)
