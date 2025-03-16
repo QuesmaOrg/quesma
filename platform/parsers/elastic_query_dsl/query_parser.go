@@ -584,6 +584,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					statements = append(statements, simpleStat)
 				}
 			}
+			pp.Println("RETURN", statements)
 			return model.NewSimpleQuery(model.Or(statements), true)
 		}
 

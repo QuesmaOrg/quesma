@@ -1068,6 +1068,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
+	pp.Println("PRE", query.SelectCommand)
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		var (
@@ -1102,6 +1103,8 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				}
 			}
 
+			pp.Println(e.Op, found, lhs, rhs)
+
 			rhsValue := rhs.Value.(string) // checked above
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
@@ -1125,7 +1128,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 			// strings without Like escape type are always equal
 			if rhs.EscapeType == model.NormalNotEscaped {
-				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
 			}
 
 			// handling case when e.Left is a simple column ref
@@ -1189,6 +1192,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
+	pp.Println("POST", query.SelectCommand)
 	return query, nil
 
 }

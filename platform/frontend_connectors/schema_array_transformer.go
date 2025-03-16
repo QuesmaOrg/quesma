@@ -100,7 +100,12 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 				case (opUpperCase == "ILIKE" || opUpperCase == "LIKE" || op == model.MatchOperator) && dbType == "Array(String)":
 
 					if op == model.MatchOperator {
-						op = "ILIKE"
+						op = "="
+						if s, ok := e.Right.(model.LiteralExpr); ok {
+							if s.EscapeType != model.NormalNotEscaped {
+								op = "ILIKE"
+							}
+						}
 					}
 					variableName := "x"
 					lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
