@@ -46,7 +46,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "String"},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText, InternalPropertyType: "String"},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 				true, ""),
@@ -308,7 +308,7 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 	defer s.Stop()
 
 	expectedSchema := schema.NewSchema(map[schema.FieldName]schema.Field{
-		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "String"},
+		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText, InternalPropertyType: "String"},
 		"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 		"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 		true, "")
@@ -328,7 +328,7 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 	})
 
 	expectedSchema = schema.NewSchema(map[schema.FieldName]schema.Field{
-		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "String"},
+		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText, InternalPropertyType: "String"},
 		"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 		"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"},
 		"new_column": {PropertyName: "new_column", InternalPropertyName: "new_column", Type: schema.QuesmaTypeText, Origin: schema.FieldSourceMapping}},
