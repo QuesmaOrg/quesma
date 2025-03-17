@@ -60,6 +60,8 @@ func (t QuesmaType) String() string {
 
 func ParseQuesmaType(t string) (QuesmaType, bool) {
 	switch t {
+	case QuesmaTypeInteger.Name:
+		return QuesmaTypeInteger, true
 	case QuesmaTypeText.Name:
 		return QuesmaTypeText, true
 	case QuesmaTypeKeyword.Name:
