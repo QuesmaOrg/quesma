@@ -2429,6 +2429,44 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [49]
+		"DateTime(N), N > 3 (9 here, should be thesame for all)",
+		`{
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"exists": {
+								"field": "tsPrec9"
+							}
+						},
+						{
+							"range": {
+								"tsPrec9": {
+									"format": "date_time",
+									"gte": "2025-03-18T10:04:36.03123584Z",
+									"lte": "2025-03-18T10:04:36.03123584Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`("tsPrec9" IS NOT NULL AND ("tsPrec9">='2025-03-18T10:04:36.03123584Z' AND "tsPrec9"<='2025-03-18T10:04:36.03123584Z'))`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE ("tsPrec9" IS NOT NULL AND ("tsPrec9">=fromUnixTimestamp64Milli(1742292276031) AND
+				"tsPrec9"<=fromUnixTimestamp64Milli(1742292276031))) LIMIT 10 a`,
+		},
+		[]string{},
+	},
+	{ // [50]
 		"_index term",
 		`{
 			"query": { /*one comment */

@@ -38,17 +38,22 @@ func TestDateManager_parseStrictDateOptionalTimeOrEpochMillis(t *testing.T) {
 		{"2024-02-25T25:00:00", empty, false},
 		{"2024-02-25T13:00:00+05", time.UnixMilli(1708848000000), true},
 		{"2024-02-25T13:00:00+05:00", time.UnixMilli(1708848000000), true},
+		{"2024-02-25T13:00:00.1", time.UnixMilli(1708866000100), true},
 		{"2024-02-25T13:00:00.123", time.UnixMilli(1708866000123), true},
 		{"2024-02-25T13:00:00.123Z", time.UnixMilli(1708866000123), true},
+		{"2024-02-25T13:00:00.03123584", time.Unix(1708866000, 31235840), true},
+		{"2024-02-25T13:00:00.03123584Z", time.Unix(1708866000, 31235840), true},
 		{"2024-02-25T13:00:00.123456789", time.Unix(1708866000, 123456789), true},
 		{"2024-02-25T13:00:00.123456789Z", time.Unix(1708866000, 123456789), true},
 	}
-	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v", tt.input), func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("%v(test nr %d)", tt.input, i), func(t *testing.T) {
 			dm := NewDateManager(context.Background())
 			gotUnixTs, gotParsingSucceeded := dm.parseStrictDateOptionalTimeOrEpochMillis(tt.input)
-			assert.Truef(t, tt.wantedTimestamp.Equal(gotUnixTs), "MissingInDateHistogramToUnixTimestamp(%v)", tt.input)
-			assert.Equalf(t, tt.wantedParsingSucceeded, gotParsingSucceeded, "MissingInDateHistogramToUnixTimestamp(%v)", tt.input)
+			fmt.Println(gotUnixTs, "format:", tt.input, gotParsingSucceeded)
+			fmt.Println("==", gotUnixTs == tt.wantedTimestamp)
+			assert.Truef(t, tt.wantedTimestamp.Equal(gotUnixTs), "wanted %v, got %v", tt.wantedTimestamp, gotUnixTs)
+			assert.Equalf(t, tt.wantedParsingSucceeded, gotParsingSucceeded, "wanted %v, got %v", tt.wantedParsingSucceeded, gotParsingSucceeded)
 		})
 	}
 }

@@ -5,8 +5,10 @@ package elastic_query_dsl
 
 import (
 	"context"
+	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/k0kubun/pp"
 	"strconv"
 	"time"
 )
@@ -19,8 +21,8 @@ func NewDateManager(ctx context.Context) DateManager {
 	return DateManager{ctx}
 }
 
-var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-01-02", "2006-01-02T15",
-	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05.123Z07:00", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
+var acceptableDateTimeFormats = []string{time.RFC3339Nano, "2006", "2006-01", "2006-01-02", "2006-01-02", "2006-01-02T15",
+	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05.99999999Z", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
 
 // parseStrictDateOptionalTimeOrEpochMillis parses date, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
@@ -54,6 +56,8 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 	// https://github.com/relvacode/iso8601/pull/26
 	for _, format := range acceptableDateTimeFormats {
 		if t, err := time.Parse(format, asString); err == nil {
+
+			fmt.Println(t, "format:", format)
 			return t, true
 		}
 	}
@@ -66,6 +70,7 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 // It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
 func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, field model.ColumnRef) (resultExpr model.Expr) {
 	if unixTsInMs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
+		pp.Println("DDDD", unixTsInMs)
 		return model.NewFunction(model.FromUnixTimestampMs, model.NewTimeLiteral(unixTsInMs, field))
 	}
 	return nil
