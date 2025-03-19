@@ -333,7 +333,7 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 	}
 	if visitorHadError {
 		selectAsStr := model.AsString(query.SelectCommand)
-		logger.ErrorWithReason(fmt.Sprintf("Array transformation error. Query: %s", selectAsStr))
+		logger.ErrorWithReason("array transformation error").Msgf("Query: %s", selectAsStr)
 	}
 	return query, nil
 }

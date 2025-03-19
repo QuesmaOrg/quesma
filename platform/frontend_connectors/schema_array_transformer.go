@@ -166,8 +166,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 		if strings.HasPrefix(dbType, "Array") {
 			anyError = true
 			// add context to log line below (already introduced in unmerged Krzysiek's PR)
-			logger.ErrorWithReason("unhandled array column ref").
-				Msgf("column '%v' ('%v')", e.ColumnName, dbType)
+			logger.ErrorWithReason("unhandled array column ref").Msgf("column '%v' ('%v')", e.ColumnName, dbType)
 		}
 		return e
 	}
