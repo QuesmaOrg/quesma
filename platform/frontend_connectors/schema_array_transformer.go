@@ -84,7 +84,7 @@ func (v *arrayTypeResolver) dbColumnType(columName string) string {
 	return field.InternalPropertyType
 }
 
-func NewArrayTypeVisitor(resolver arrayTypeResolver) (visitor_ model.ExprVisitor, anyError bool) {
+func NewArrayTypeVisitor(resolver arrayTypeResolver) (v model.ExprVisitor, anyError bool) {
 
 	visitor := model.NewBaseVisitor()
 	anyError = false
@@ -169,7 +169,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (visitor_ model.ExprVisitor
 		return e
 	}
 
-	return visitor_, false
+	return visitor, anyError
 }
 
 func checkIfGroupingByArrayColumn(selectCommand model.SelectCommand, resolver arrayTypeResolver) bool {
