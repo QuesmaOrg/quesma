@@ -112,6 +112,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 
 				default:
 					anyError = true
+					// add context to log line below (already introduced in unmerged Krzysiek's PR)
 					logger.Error().Msgf("Unhandled array infix operation '%s', column '%v' ('%v')", e.Op, column.ColumnName, dbType)
 				}
 			}
@@ -163,7 +164,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 		dbType := resolver.dbColumnType(e.ColumnName)
 		if strings.HasPrefix(dbType, "Array") {
 			anyError = true
-			// add context (already introduced in unmerged Krzysiek's PR)
+			// add context to log line below (already introduced in unmerged Krzysiek's PR)
 			logger.Error().Msgf("Unhandled array column ref %v (%v)", e.ColumnName, dbType)
 		}
 		return e
