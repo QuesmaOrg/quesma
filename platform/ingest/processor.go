@@ -883,7 +883,7 @@ func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []stri
 
 		err := ip.execute(ctx, q)
 		if err != nil {
-			logger.ErrorWithCtxAndReason(ctx, "error executing ingest statement").Msgf("error: %s, query: %s", err.Error(), q)
+			logger.ErrorFull(ctx, "error executing ingest statement", err).Msgf("query: %s", q)
 			return err
 		}
 	}

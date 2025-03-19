@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/stats/errorstats"
 	quesma_v2 "github.com/QuesmaOrg/quesma/platform/v2/core"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/rs/zerolog"
 	"io"
 	"net/http"
@@ -227,6 +228,11 @@ func DebugWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
 	return logger.DebugWithCtxAndReason(ctx, reason)
 }
 
+func DebugFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
+	return logger.DebugWithCtxAndReason(ctx, reason)
+}
+
 func Info() *zerolog.Event {
 	return logger.Info()
 }
@@ -240,6 +246,11 @@ func InfoWithReason(reason string) *zerolog.Event {
 }
 
 func InfoWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
+	return logger.InfoWithCtxAndReason(ctx, reason)
+}
+
+func InfoFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
 	return logger.InfoWithCtxAndReason(ctx, reason)
 }
 
@@ -265,6 +276,11 @@ func WarnWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
 	return logger.WarnWithCtxAndReason(ctx, reason)
 }
 
+func WarnFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
+	return logger.WarnWithCtxAndReason(ctx, reason)
+}
+
 func Error() *zerolog.Event {
 	return logger.Error()
 }
@@ -278,6 +294,11 @@ func ErrorWithReason(reason string) *zerolog.Event {
 }
 
 func ErrorWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
+	return logger.ErrorWithCtxAndReason(ctx, reason)
+}
+
+func ErrorFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
 	return logger.ErrorWithCtxAndReason(ctx, reason)
 }
 
