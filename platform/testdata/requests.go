@@ -2462,7 +2462,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE ("tsPrec9" IS NOT NULL AND ("tsPrec9">=fromUnixTimestamp64Milli(1742292276031) AND
-				"tsPrec9"<=fromUnixTimestamp64Milli(1742292276031))) LIMIT 10 a`,
+				"tsPrec9"<=fromUnixTimestamp64Milli(1742292276031))) LIMIT 10`,
 		},
 		[]string{},
 	},
