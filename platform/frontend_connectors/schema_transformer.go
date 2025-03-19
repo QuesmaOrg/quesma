@@ -316,17 +316,25 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 		return query, nil
 	}
 
-	var visitor model.ExprVisitor
+	var (
+		visitor         model.ExprVisitor
+		visitorHadError bool
+	)
 
 	if checkIfGroupingByArrayColumn(query.SelectCommand, arrayTypeResolver) {
 		visitor = NewArrayJoinVisitor(arrayTypeResolver)
 	} else {
-		visitor = NewArrayTypeVisitor(arrayTypeResolver)
+		visitor, visitorHadError = NewArrayTypeVisitor(arrayTypeResolver)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	if visitorHadError {
+		logger.ErrorWithReason(
+			fmt.Sprintf("Array transformation error. Query: %s", model.AsString(query.SelectCommand)),
+		)
 	}
 	return query, nil
 }

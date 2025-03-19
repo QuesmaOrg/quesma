@@ -84,9 +84,10 @@ func (v *arrayTypeResolver) dbColumnType(columName string) string {
 	return field.InternalPropertyType
 }
 
-func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
+func NewArrayTypeVisitor(resolver arrayTypeResolver) (visitor_ model.ExprVisitor, anyError bool) {
 
 	visitor := model.NewBaseVisitor()
+	anyError = false
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 
@@ -110,6 +111,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 					return model.NewFunction("has", e.Left, e.Right.Accept(b).(model.Expr))
 
 				default:
+					anyError = true
 					logger.Error().Msgf("Unhandled array infix operation '%s', column '%v' ('%v')", e.Op, column.ColumnName, dbType)
 				}
 			}
@@ -160,12 +162,14 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		dbType := resolver.dbColumnType(e.ColumnName)
 		if strings.HasPrefix(dbType, "Array") {
+			anyError = true
+			// add context (already introduced in unmerged Krzysiek's PR)
 			logger.Error().Msgf("Unhandled array column ref %v (%v)", e.ColumnName, dbType)
 		}
 		return e
 	}
 
-	return visitor
+	return visitor_, false
 }
 
 func checkIfGroupingByArrayColumn(selectCommand model.SelectCommand, resolver arrayTypeResolver) bool {

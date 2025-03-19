@@ -48,6 +48,9 @@ type QuesmaLogger interface {
 	WarnWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event
 	ErrorWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event
 
+	WarnWithReason(reason string) *zerolog.Event
+	ErrorWithReason(reason string) *zerolog.Event
+
 	MarkTraceEndWithCtx(ctx context.Context) *zerolog.Event
 
 	WithComponent(name string) QuesmaLogger

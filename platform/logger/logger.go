@@ -241,6 +241,10 @@ func WarnWithCtx(ctx context.Context) *zerolog.Event {
 	return logger.WarnWithCtx(ctx)
 }
 
+func WarnWithReason(reason string) *zerolog.Event {
+	return logger.WarnWithReason(reason)
+}
+
 func WarnWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
 	return logger.WarnWithCtxAndReason(ctx, reason)
 }
@@ -251,6 +255,10 @@ func Error() *zerolog.Event {
 
 func ErrorWithCtx(ctx context.Context) *zerolog.Event {
 	return logger.ErrorWithCtx(ctx)
+}
+
+func ErrorWithReason(reason string) *zerolog.Event {
+	return logger.ErrorWithReason(reason)
 }
 
 func ErrorWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
