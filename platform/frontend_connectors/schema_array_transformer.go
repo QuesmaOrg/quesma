@@ -84,7 +84,7 @@ func (v *arrayTypeResolver) dbColumnType(columName string) string {
 	return field.InternalPropertyType
 }
 
-func NewArrayTypeVisitor(resolver arrayTypeResolver) (v model.ExprVisitor, anyError bool) {
+func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisitor, anyError bool) {
 
 	visitor := model.NewBaseVisitor()
 	anyError = false
