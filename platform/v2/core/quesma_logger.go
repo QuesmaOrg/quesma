@@ -55,6 +55,11 @@ type QuesmaLogger interface {
 	WarnWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event
 	ErrorWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event
 
+	DebugFull(ctx context.Context, reason string, err error) *zerolog.Event
+	InfoFull(ctx context.Context, reason string, err error) *zerolog.Event
+	WarnFull(ctx context.Context, reason string, err error) *zerolog.Event
+	ErrorFull(ctx context.Context, reason string, err error) *zerolog.Event
+
 	MarkTraceEndWithCtx(ctx context.Context) *zerolog.Event
 
 	WithComponent(name string) QuesmaLogger
@@ -115,6 +120,26 @@ func (l *QuesmaLoggerImpl) WarnWithCtxAndReason(ctx context.Context, reason stri
 
 func (l *QuesmaLoggerImpl) ErrorWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
 	return l.ErrorWithCtx(context.WithValue(ctx, tracing.ReasonCtxKey, reason))
+}
+
+func (l *QuesmaLoggerImpl) DebugFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
+	return l.DebugWithCtxAndReason(ctx, reason)
+}
+
+func (l *QuesmaLoggerImpl) InfoFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
+	return l.InfoWithCtxAndReason(ctx, reason)
+}
+
+func (l *QuesmaLoggerImpl) WarnFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
+	return l.WarnWithCtxAndReason(ctx, reason)
+}
+
+func (l *QuesmaLoggerImpl) ErrorFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
+	return l.ErrorWithCtxAndReason(ctx, reason)
 }
 
 func (l *QuesmaLoggerImpl) addKnownContextValues(event *zerolog.Event, ctx context.Context) *zerolog.Event {

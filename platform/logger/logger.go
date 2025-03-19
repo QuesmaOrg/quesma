@@ -250,8 +250,7 @@ func InfoWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
 }
 
 func InfoFull(ctx context.Context, reason string, err error) *zerolog.Event {
-	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
-	return logger.InfoWithCtxAndReason(ctx, reason)
+	return logger.InfoFull(ctx, reason, err)
 }
 
 // MarkTraceEndWithCtx marks the end of a trace with the given context.
