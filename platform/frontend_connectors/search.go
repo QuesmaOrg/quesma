@@ -455,14 +455,28 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	}
 }
 
-func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery) ([]byte, error) {
+func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery) (resp []byte, err error) {
+
+	var
+	id := "FAKE_ID"
+	if val := ctx.Value(tracing.RequestIdCtxKey); val != nil {
+		id = val.(string)
+	}
+	path := ""
+	if value := ctx.Value(tracing.RequestPath); value != nil {
+		if str, ok := value.(string); ok {
+			path = str
+		}
+	}
+
+	logErrorToConsole := func(resp []byte, err error) {
+		pushSecondaryInfoWhenError(q.debugInfoCollector, resp, err)
+	}
 
 	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, indexPattern)
-	pp.Println("decision handleSearchCommon", decision)
+	//pp.Println("decision handleSearchCommon", decision)
 
 	if decision.Err != nil {
-
-		var resp []byte
 		if optAsync != nil {
 			resp, _ = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 		} else {
@@ -473,18 +487,21 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	if decision.IsEmpty {
 		if optAsync != nil {
-			return elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
+			resp, err = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 		} else {
-			return elastic_query_dsl.EmptySearchResponse(ctx), nil
+			resp, err = elastic_query_dsl.EmptySearchResponse(ctx), nil
 		}
+		return resp, err
 	}
 
 	if decision.IsClosed {
-		return nil, quesma_errors.ErrIndexNotExists() // TODO
+		resp, err = nil, quesma_errors.ErrIndexNotExists() // TODO
+		return resp, err
 	}
 
 	if len(decision.UseConnectors) == 0 {
-		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
+		resp, err = nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
+		return resp, err
 	}
 
 	var clickhouseConnector *quesma_api.ConnectorDecisionClickhouse
@@ -501,43 +518,34 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			// This code lives only to postpone bigger refactor of `handleSearchCommon` which also supports async and A/B testing
 
 		default:
-			return nil, fmt.Errorf("unknown connector type: %T", c)
+			resp, err = nil, fmt.Errorf("unknown connector type: %T", c)
+			return resp, err
 		}
 	}
 
 	if clickhouseConnector == nil {
 		logger.Warn().Msgf("multi-search payload contains Elasticsearch-targetted query")
-		return nil, fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
+		resp, err = nil, fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
+		return resp, err
 	}
-
-	var responseBody []byte
 
 	startTime := time.Now()
-	id := "FAKE_ID"
-	if val := ctx.Value(tracing.RequestIdCtxKey); val != nil {
-		id = val.(string)
-	}
-	path := ""
-	if value := ctx.Value(tracing.RequestPath); value != nil {
-		if str, ok := value.(string); ok {
-			path = str
-		}
-	}
-
 	tables, err := q.logManager.GetTableDefinitions()
 	if err != nil {
-		return nil, err
+		resp, err = nil, err
+		return resp, err
 	}
 
 	var table *clickhouse.Table // TODO we should use schema here only
 	var currentSchema schema.Schema
 	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
 
-	pp.Println("resolvedIndexes", resolvedIndexes, clickhouseConnector.IsCommonTable)
+	//pp.Println("resolvedIndexes", resolvedIndexes, clickhouseConnector.IsCommonTable)
 
 	if !clickhouseConnector.IsCommonTable {
 		if len(resolvedIndexes) < 1 {
-			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
+			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
+			return resp, err
 		}
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
 		resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
@@ -560,7 +568,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		var virtualOnlyTables []string
 		for _, indexName := range resolvedIndexes {
 			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))
-			pp.Println("TABLE", table)
 			if table == nil {
 				continue
 			}
@@ -569,19 +576,22 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 		}
 		resolvedIndexes = virtualOnlyTables
-		pp.Println("resolvedIndexes", resolvedIndexes, "virtualOnlyTables", virtualOnlyTables)
+		// pp.Println("resolvedIndexes", resolvedIndexes, "virtualOnlyTables", virtualOnlyTables)
 
 		if len(resolvedIndexes) == 0 {
 			if optAsync != nil {
-				return elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
+				resp, err = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 			} else {
-				return elastic_query_dsl.EmptySearchResponse(ctx), nil
+				resp, err = elastic_query_dsl.EmptySearchResponse(ctx), nil
 			}
+			return resp, err
 		}
 
 		commonTable, ok := tables.Load(common_table.TableName)
 		if !ok {
-			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", common_table.TableName)).Details("Table: %s", common_table.TableName)
+			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", common_table.TableName)).Details("Table: %s", common_table.TableName)
+			logErrorToConsole(resp, err)
+			return resp, err
 		}
 
 		// Let's build a  union of schemas
@@ -597,7 +607,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		for _, idx := range resolvedIndexes {
 			scm, ok := schemas[schema.IndexName(idx)]
 			if !ok {
-				return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
+				resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
+				logErrorToConsole(resp, err)
+				return resp, err
 			}
 
 			for fieldName := range scm.Fields {
@@ -623,15 +635,15 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			queriesBody[i].Query = []byte(query.SelectCommand.String())
 			queriesBodyConcat += query.SelectCommand.String() + "\n"
 		}
-		responseBody = []byte(fmt.Sprintf("Invalid Queries: %v, err: %v", queriesBody, err))
+		resp = []byte(fmt.Sprintf("Invalid Queries: %v, err: %v", queriesBody, err))
 		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 		bodyAsBytes, _ := body.Bytes()
-		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
-		return responseBody, errors.New(string(responseBody))
+		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, queriesBody, resp, startTime)
+		return resp, errors.New(string(resp))
 	}
 	err = q.transformQueries(plan)
 	if err != nil {
-		return responseBody, err
+		return resp, err
 	}
 	plan.IndexPattern = indexPattern
 	plan.StartTime = startTime
@@ -1048,6 +1060,17 @@ func pushPrimaryInfo(qmc diag.DebugInfoCollector, Id string, QueryResp []byte, s
 }
 
 func pushSecondaryInfo(qmc diag.DebugInfoCollector, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []diag.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
+	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
+		Id:                     Id,
+		AsyncId:                AsyncId,
+		Path:                   Path,
+		IncomingQueryBody:      IncomingQueryBody,
+		QueryBodyTranslated:    QueryBodyTranslated,
+		QueryTranslatedResults: QueryTranslatedResults,
+		SecondaryTook:          time.Since(startTime)})
+}
+
+func pushSecondaryInfoWhenError(qmc diag.DebugInfoCollector, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []diag.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
 	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
 		Id:                     Id,
 		AsyncId:                AsyncId,
