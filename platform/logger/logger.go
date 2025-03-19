@@ -219,12 +219,28 @@ func DebugWithCtx(ctx context.Context) *zerolog.Event {
 	return logger.DebugWithCtx(ctx)
 }
 
+func DebugWithReason(reason string) *zerolog.Event {
+	return logger.DebugWithReason(reason)
+}
+
+func DebugWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
+	return logger.DebugWithCtxAndReason(ctx, reason)
+}
+
 func Info() *zerolog.Event {
 	return logger.Info()
 }
 
 func InfoWithCtx(ctx context.Context) *zerolog.Event {
 	return logger.InfoWithCtx(ctx)
+}
+
+func InfoWithReason(reason string) *zerolog.Event {
+	return logger.InfoWithReason(reason)
+}
+
+func InfoWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
+	return logger.InfoWithCtxAndReason(ctx, reason)
 }
 
 // MarkTraceEndWithCtx marks the end of a trace with the given context.
