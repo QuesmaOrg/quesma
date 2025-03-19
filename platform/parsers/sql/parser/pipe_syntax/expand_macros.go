@@ -71,6 +71,7 @@ func ExpandMacros(node core.Node) {
 					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
 					// "EXTEND"
 					core.TokenNode{Token: lexer_core.Token{RawValue: "EXTEND"}},
+					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
 					// "concat"
 					core.TokenNode{Token: lexer_core.Token{RawValue: "concat"}},
 					// "("
