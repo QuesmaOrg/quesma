@@ -13,9 +13,18 @@ import (
 )
 
 func main() {
-	tokens := lexer_core.Lex("FROM kibana_sample_data_logs |> SELECT `@timestamp` |> CALL TIMEBUCKET `@timestamp` BY 3 HOUR AS timebucket |> AGGREGATE count(*) AS logs_count GROUP BY timebucket |> ORDER BY timebucket", dialect_sqlparse.SqlparseRules)
+	tokens := lexer_core.Lex(
+		`
+from akamai.siem
+|> limit 1000000 
+|> select timestamp, method, port, path
+|> CALL TIMEBUCKET timestamp BY 1 WEEK as TB 
+|> CALL LOGCATEGORY log_line AS category 
+|> aggregate count(*) as cnt GROUP BY TB
+|> order by cnt DESC
+|> limit 100 
+`, dialect_sqlparse.SqlparseRules)
 
-	//tokens := lexer_core.Lex(`SELECT * FROM tabela WHERE b = 9 |> JOIN tabela2 ON b = d |> WHERE b = 3 |> ORDER BY b |> WHERE d = 9 |> SELECT a, b, c |> LIMIT 100`, dialect_sqlparse.SqlparseRules)
 	node := core.TokensToNode(tokens)
 
 	transforms.GroupParenthesis(node)
