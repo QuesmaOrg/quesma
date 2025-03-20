@@ -620,7 +620,12 @@ func extractMapValueType(mapType string) (string, error) {
 	matches := re.FindStringSubmatch(mapType)
 
 	if len(matches) < 2 {
-		return "", fmt.Errorf("invalid map type format: %s", mapType)
+		re = regexp.MustCompile(`Map\(LowCardinality\(String\),\s*([^)]+)\)`)
+		matches = re.FindStringSubmatch(mapType)
+		if len(matches) < 2 {
+			return "", fmt.Errorf("invalid map type format: %s", mapType)
+		}
+		return strings.TrimSpace(matches[1]), nil
 	}
 
 	return strings.TrimSpace(matches[1]), nil
@@ -630,7 +635,8 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 	outputTable := make(map[string]map[string]columnMetadata)
 	for table, columns := range inputTable {
 		for colName, columnMeta := range columns {
-			if strings.HasPrefix(columnMeta.colType, "Map(String") {
+			if strings.HasPrefix(columnMeta.colType, "Map(String") ||
+				strings.HasPrefix(columnMeta.colType, "Map(LowCardinality(String") {
 				logger.Debug().Msgf("Discovered map column: %s.%s", table, colName)
 				// Ensure the table exists in outputTable
 				if _, ok := outputTable[table]; !ok {
