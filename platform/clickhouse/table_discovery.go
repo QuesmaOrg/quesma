@@ -614,20 +614,17 @@ func removePrecision(str string) string {
 }
 
 // extractMapValueType extracts the value type from a ClickHouse Map definition
+// extractMapValueType extracts the value type from a ClickHouse Map definition.
 func extractMapValueType(mapType string) (string, error) {
-	// Regular expression to match Map(String, valueType)
-	re := regexp.MustCompile(`Map\(String,\s*([^)]+)\)`)
-	matches := re.FindStringSubmatch(mapType)
+	// Regular expression to match "Map(String, <valueType>)"
+	re := regexp.MustCompile(`Map\((?:LowCardinality\()?String\)?,\s*(.+)\)$`)
 
+	matches := re.FindStringSubmatch(mapType)
 	if len(matches) < 2 {
-		re = regexp.MustCompile(`Map\(LowCardinality\(String\),\s*([^)]+)\)`)
-		matches = re.FindStringSubmatch(mapType)
-		if len(matches) < 2 {
-			return "", fmt.Errorf("invalid map type format: %s", mapType)
-		}
-		return strings.TrimSpace(matches[1]), nil
+		return "", errors.New("invalid map type format: " + mapType)
 	}
 
+	// Trim spaces and return the full value type
 	return strings.TrimSpace(matches[1]), nil
 }
 
