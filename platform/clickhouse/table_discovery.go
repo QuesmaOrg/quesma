@@ -635,8 +635,9 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 	outputTable := make(map[string]map[string]columnMetadata)
 	for table, columns := range inputTable {
 		for colName, columnMeta := range columns {
-			if strings.HasPrefix(columnMeta.colType, "Map(String") ||
-				strings.HasPrefix(columnMeta.colType, "Map(LowCardinality(String") {
+			columnType := strings.TrimSpace(columnMeta.colType)
+			if strings.HasPrefix(columnType, "Map(String") ||
+				strings.HasPrefix(columnType, "Map(LowCardinality(String") {
 				logger.Debug().Msgf("Discovered map column: %s.%s", table, colName)
 				// Ensure the table exists in outputTable
 				if _, ok := outputTable[table]; !ok {
@@ -667,7 +668,7 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 					// with origin set to mapping
 					mapKeyCol := colName + "." + key
 					var valueType string
-					valueType, err = extractMapValueType(columnMeta.colType)
+					valueType, err = extractMapValueType(columnType)
 					if err != nil {
 						logger.Error().Msgf("Error extracting value type for table, column: %s, %s, %v", table, colName, err)
 						continue
