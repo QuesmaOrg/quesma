@@ -540,7 +540,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	startTime = time.Now()
 	tables, err := q.logManager.GetTableDefinitions()
 	if err != nil {
-		resp, err = nil, err
 		logErrorToConsole(resp, err)
 		return resp, err
 	}
