@@ -456,22 +456,30 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery) (resp []byte, err error) {
 	var (
-		id        = "FAKE_ID"
-		path      = ""
-		startTime = time.Now()
-		plan      *model.ExecutionPlan
+		id                  = "FAKE_ID"
+		path                = ""
+		startTime           = time.Now()
+		resolvedIndexes     []string
+		queryTranslator     IQueryTranslator
+		plan                *model.ExecutionPlan
+		clickhouseConnector *quesma_api.ConnectorDecisionClickhouse
+		table               *clickhouse.Table // TODO we should use schema here only
+		tables              clickhouse.TableMap
+		currentSchema       schema.Schema
 	)
 
 	if val := ctx.Value(tracing.RequestIdCtxKey); val != nil {
-		id = val.(string)
+		if str, ok := val.(string); ok {
+			id = str
+		}
 	}
-	if value := ctx.Value(tracing.RequestPath); value != nil {
-		if str, ok := value.(string); ok {
+	if val := ctx.Value(tracing.RequestPath); val != nil {
+		if str, ok := val.(string); ok {
 			path = str
 		}
 	}
 
-	logErrorToConsole := func(resp []byte, err error) {
+	logErrorToConsole := func() {
 		bodyAsBytes, _ := body.Bytes()
 		pushSecondaryInfoWhenError(q.debugInfoCollector, id, "", path, bodyAsBytes, []diag.TranslatedSQLQuery{}, resp, startTime)
 	}
@@ -484,33 +492,28 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		} else {
 			resp = elastic_query_dsl.EmptySearchResponse(ctx)
 		}
-		logErrorToConsole(resp, decision.Err)
-		return resp, decision.Err
+		err = decision.Err
+		goto logErrorAndReturn
 	}
 
 	if decision.IsEmpty {
 		if optAsync != nil {
 			resp, err = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 		} else {
-			resp, err = elastic_query_dsl.EmptySearchResponse(ctx), nil
+			resp = elastic_query_dsl.EmptySearchResponse(ctx)
 		}
-		logErrorToConsole(resp, err)
-		return resp, err
+		goto logErrorAndReturn
 	}
 
 	if decision.IsClosed {
-		resp, err = nil, quesma_errors.ErrIndexNotExists() // TODO
-		logErrorToConsole(resp, err)
-		return resp, err
+		err = quesma_errors.ErrIndexNotExists() // TODO
+		goto logErrorAndReturn
 	}
 
 	if len(decision.UseConnectors) == 0 {
-		resp, err = nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
-		logErrorToConsole(resp, err)
-		return resp, err
+		err = end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
+		goto logErrorAndReturn
 	}
-
-	var clickhouseConnector *quesma_api.ConnectorDecisionClickhouse
 
 	for _, connector := range decision.UseConnectors {
 		switch c := connector.(type) {
@@ -524,49 +527,43 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			// This code lives only to postpone bigger refactor of `handleSearchCommon` which also supports async and A/B testing
 
 		default:
-			resp, err = nil, fmt.Errorf("unknown connector type: %T", c)
-			logErrorToConsole(resp, err)
-			return resp, err
+			err = fmt.Errorf("unknown connector type: %T", c)
+			goto logErrorAndReturn
 		}
 	}
 
 	if clickhouseConnector == nil {
 		logger.Warn().Msgf("multi-search payload contains Elasticsearch-targetted query")
-		resp, err = nil, fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
-		logErrorToConsole(resp, err)
-		return resp, err
+		err = fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
+		goto logErrorAndReturn
 	}
 
 	startTime = time.Now()
-	tables, err := q.logManager.GetTableDefinitions()
+	tables, err = q.logManager.GetTableDefinitions()
 	if err != nil {
-		logErrorToConsole(resp, err)
-		return resp, err
+		goto logErrorAndReturn
 	}
 
-	var table *clickhouse.Table // TODO we should use schema here only
-	var currentSchema schema.Schema
-	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
+	resolvedIndexes = clickhouseConnector.ClickhouseIndexes
 
 	if !clickhouseConnector.IsCommonTable {
 		if len(resolvedIndexes) < 1 {
 			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
-			logErrorToConsole(resp, err)
-			return resp, err
+			goto logErrorAndReturn
 		}
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
 		resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
 
 		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
 		if !ok {
-			logErrorToConsole(resp, err)
-			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
+			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
+			goto logErrorAndReturn
 		}
 
 		table, _ = tables.Load(resolvedTableName)
 		if table == nil {
-			logErrorToConsole(resp, err)
-			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
+			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
+			goto logErrorAndReturn
 		}
 
 		currentSchema = resolvedSchema
@@ -585,7 +582,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 		}
 		resolvedIndexes = virtualOnlyTables
-		// pp.Println("resolvedIndexes", resolvedIndexes, "virtualOnlyTables", virtualOnlyTables)
 
 		if len(resolvedIndexes) == 0 {
 			if optAsync != nil {
@@ -593,15 +589,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			} else {
 				resp, err = elastic_query_dsl.EmptySearchResponse(ctx), nil
 			}
-			logErrorToConsole(resp, err)
-			return resp, err
+			goto logErrorAndReturn
 		}
 
 		commonTable, ok := tables.Load(common_table.TableName)
 		if !ok {
 			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", common_table.TableName)).Details("Table: %s", common_table.TableName)
-			logErrorToConsole(resp, err)
-			return resp, err
+			goto logErrorAndReturn
 		}
 
 		// Let's build a  union of schemas
@@ -618,8 +612,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			scm, ok := schemas[schema.IndexName(idx)]
 			if !ok {
 				resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
-				logErrorToConsole(resp, err)
-				return resp, err
+				goto logErrorAndReturn
 			}
 
 			for fieldName := range scm.Fields {
@@ -632,7 +625,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		table = commonTable
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
+	queryTranslator = NewQueryTranslator(ctx, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
 
 	plan, err = queryTranslator.ParseQuery(body)
 
@@ -653,8 +646,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 	err = q.transformQueries(plan)
 	if err != nil {
-		logErrorToConsole(resp, err)
-		return resp, err
+		goto logErrorAndReturn
 	}
 	plan.IndexPattern = indexPattern
 	plan.StartTime = startTime
@@ -665,6 +657,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
 
+logErrorAndReturn:
+	logErrorToConsole()
+	return resp, err
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc diag.DebugInfoCollector, id, asyncId string,
