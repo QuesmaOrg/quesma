@@ -22,7 +22,9 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
 	}
 
 	switch s {
-	case "String", "LowCardinality(String)", "UUID", "FixedString":
+	case "String":
+		return schema.QuesmaTypeText, true
+	case "LowCardinality(String)", "UUID", "FixedString":
 		return schema.QuesmaTypeKeyword, true
 	case "Int", "Int8", "Int16", "Int32", "Int64":
 		return schema.QuesmaTypeLong, true

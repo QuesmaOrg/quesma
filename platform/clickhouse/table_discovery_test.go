@@ -303,3 +303,35 @@ func Test_resolveColumn_Nullable(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractMapValueType(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+		hasError bool
+	}{
+		{"Map(String, Int32)", "Int32", false},
+		{"Map(String, Nullable(String))", "Nullable(String)", false},
+		{"Map(String, Array(UInt8))", "Array(UInt8)", false},
+		{"Map(LowCardinality(String), UInt64)", "UInt64", false},
+		{"Map(LowCardinality(String), Decimal(10,2))", "Decimal(10,2)", false},
+		{"Map(LowCardinality(String), FixedString(16))", "FixedString(16)", false},
+		{"Map(String,)", "", true},                                       // Invalid format
+		{"Map(LowCardinality(String),)", "", true},                       // Invalid format
+		{"Map(String)", "", true},                                        // Missing value type
+		{"RandomType(String, Int32)", "", true},                          // Not a Map type
+		{"Map(String, Map(String, Int32))", "Map(String, Int32)", false}, // Nested map
+	}
+
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			result, err := extractMapValueType(test.input)
+			if (err != nil) != test.hasError {
+				t.Errorf("unexpected error state for input %q: got error %v", test.input, err)
+			}
+			if result != test.expected {
+				t.Errorf("expected %q, got %q for input %q", test.expected, result, test.input)
+			}
+		})
+	}
+}
