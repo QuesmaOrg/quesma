@@ -39,15 +39,16 @@ const (
 )
 
 type QuesmaNewConfiguration struct {
-	BackendConnectors  []BackendConnector   `koanf:"backendConnectors"`
-	FrontendConnectors []FrontendConnector  `koanf:"frontendConnectors"`
-	InstallationId     string               `koanf:"installationId"`
-	LicenseKey         string               `koanf:"licenseKey"`
-	Logging            LoggingConfiguration `koanf:"logging"`
-	IngestStatistics   bool                 `koanf:"ingestStatistics"`
-	Processors         []Processor          `koanf:"processors"`
-	Pipelines          []Pipeline           `koanf:"pipelines"`
-	DisableTelemetry   bool                 `koanf:"disableTelemetry"`
+	BackendConnectors           []BackendConnector   `koanf:"backendConnectors"`
+	FrontendConnectors          []FrontendConnector  `koanf:"frontendConnectors"`
+	InstallationId              string               `koanf:"installationId"`
+	LicenseKey                  string               `koanf:"licenseKey"`
+	Logging                     LoggingConfiguration `koanf:"logging"`
+	IngestStatistics            bool                 `koanf:"ingestStatistics"`
+	Processors                  []Processor          `koanf:"processors"`
+	Pipelines                   []Pipeline           `koanf:"pipelines"`
+	DisableTelemetry            bool                 `koanf:"disableTelemetry"`
+	MapFieldsDiscoveringEnabled bool                 `koanf:"mapFieldsDiscoveringEnabled"`
 }
 
 type LoggingConfiguration struct {
@@ -575,6 +576,8 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 
 	conf.InstallationId = c.InstallationId
 	conf.LicenseKey = c.LicenseKey
+
+	conf.MapFieldsDiscoveringEnabled = c.MapFieldsDiscoveringEnabled
 
 	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)

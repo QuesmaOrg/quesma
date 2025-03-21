@@ -16,6 +16,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/goccy/go-json"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -67,6 +68,7 @@ type columnMetadata struct {
 	// we use it as persistent storage and load it
 	// in the case when we don't control ingest
 	comment string
+	origin  schema.FieldSource // TODO this field is just added to have way to forward information to the schema registry and should be considered as a technical debt
 }
 
 func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.BackendConnector, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
@@ -115,6 +117,7 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 				Name:    column.Name,
 				Type:    column.Type.String(),
 				Comment: column.Comment,
+				Origin:  column.Origin,
 			}
 		}
 		table.DatabaseName = value.DatabaseName
@@ -205,6 +208,9 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 		td.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 		return
 	} else {
+		if td.cfg.MapFieldsDiscoveringEnabled {
+			tables = td.enrichTableWithMapFields(tables)
+		}
 		if td.AutodiscoveryEnabled() {
 			configuredTables = td.autoConfigureTables(tables, databaseName)
 		} else {
@@ -379,6 +385,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 			column := resolveColumn(col, columnMeta.colType)
 			if column != nil {
 				column.Comment = columnMeta.comment
+				column.Origin = columnMeta.origin
 				columnsMap[col] = column
 			} else {
 				logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
@@ -604,6 +611,92 @@ func removePrecision(str string) string {
 	} else {
 		return str
 	}
+}
+
+// extractMapValueType extracts the value type from a ClickHouse Map definition
+// extractMapValueType extracts the value type from a ClickHouse Map definition.
+func extractMapValueType(mapType string) (string, error) {
+	// Regular expression to match "Map(String, <valueType>)"
+	re := regexp.MustCompile(`Map\((?:LowCardinality\()?String\)?,\s*(.+)\)$`)
+
+	matches := re.FindStringSubmatch(mapType)
+	if len(matches) < 2 {
+		return "", errors.New("invalid map type format: " + mapType)
+	}
+
+	// Trim spaces and return the full value type
+	return strings.TrimSpace(matches[1]), nil
+}
+
+func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[string]columnMetadata) map[string]map[string]columnMetadata {
+	outputTable := make(map[string]map[string]columnMetadata)
+	for table, columns := range inputTable {
+		for colName, columnMeta := range columns {
+			columnType := strings.TrimSpace(columnMeta.colType)
+			if strings.HasPrefix(columnType, "Map(String") ||
+				strings.HasPrefix(columnType, "Map(LowCardinality(String") {
+				logger.Debug().Msgf("Discovered map column: %s.%s", table, colName)
+				// Ensure the table exists in outputTable
+				if _, ok := outputTable[table]; !ok {
+					outputTable[table] = make(map[string]columnMetadata)
+				}
+				if _, ok := outputTable[table][colName]; !ok {
+					// Update origin for incoming map column
+					columnMeta.origin = schema.FieldSourceIngest
+					outputTable[table][colName] = columnMeta
+					logger.Debug().Msgf("Added column: %s.%s", table, colName)
+				}
+
+				// Query ClickHouse for map keys in the given column
+				rows, err := td.dbConnPool.Query(context.Background(), fmt.Sprintf("SELECT DISTINCT arrayJoin(mapKeys(%s)) FROM %s", colName, table))
+				if err != nil {
+					logger.Error().Msgf("Error querying map keys for table, column: %s, %s, %v", table, colName, err)
+					continue
+				}
+				foundKeys := false
+				for rows.Next() {
+					foundKeys = true
+					var key string
+					if err := rows.Scan(&key); err != nil {
+						logger.Error().Msgf("Error scanning key for table, column: %s, %s, %v", table, colName, err)
+						continue
+					}
+					// Add virtual column for each key in the map
+					// with origin set to mapping
+					mapKeyCol := colName + "." + key
+					var valueType string
+					valueType, err = extractMapValueType(columnType)
+					if err != nil {
+						logger.Error().Msgf("Error extracting value type for table, column: %s, %s, %v", table, colName, err)
+						continue
+					} else {
+						outputTable[table][mapKeyCol] = columnMetadata{
+							colType: valueType,
+							origin:  schema.FieldSourceMapping,
+						}
+						logger.Debug().Msgf("Added map key column: %s.%s", table, mapKeyCol)
+					}
+				}
+				if !foundKeys {
+					logger.Debug().Msgf("No map keys found for table, column: %s, %s", table, colName)
+				}
+				if err := rows.Err(); err != nil {
+					logger.Error().Msgf("Error iterating map keys for %s.%s: %v", table, colName, err)
+				}
+				err = rows.Close() // Close after processing
+				if err != nil {
+					logger.Error().Msgf("Error closing rows for table, column: %s, %s, %v", table, colName, err)
+				}
+			} else {
+				// Copy other columns as-is
+				if _, ok := outputTable[table]; !ok {
+					outputTable[table] = make(map[string]columnMetadata)
+				}
+				outputTable[table][colName] = columnMeta
+			}
+		}
+	}
+	return outputTable
 }
 
 func (td *tableDiscovery) readTables(database string) (map[string]map[string]columnMetadata, error) {

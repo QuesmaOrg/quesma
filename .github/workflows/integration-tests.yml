@@ -19,7 +19,7 @@ on:
 jobs:
   check-comment:
     runs-on: ubuntu-latest
-    if: ${{ github.event.issue.pull_request && github.event.comment.body == '/run-integration-tests' }}
+    if: ${{ github.event.issue.pull_request && (github.event.comment.body == '/run-integration-tests' || github.event.comment.body == '/run-it') }}
     outputs:
       ref: ${{ steps.get-pr-ref.outputs.ref }}
     steps:

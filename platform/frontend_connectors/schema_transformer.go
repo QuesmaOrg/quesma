@@ -592,8 +592,8 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 	var err error
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
 		// full text field should be used only in where clause
+
 		if e.ColumnName == model.FullTextFieldNamePlaceHolder {
 			err = fmt.Errorf("full text field name placeholder found in query")
 		}
@@ -703,6 +703,40 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 }
 
+func (s *SchemaCheckPass) applyFieldMapSyntax(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		// we don't want to resolve our well know technical fields
+		if e.ColumnName == model.FullTextFieldNamePlaceHolder || e.ColumnName == common_table.IndexNameColumn {
+			return e
+		}
+		// 1. we check if the field name point to the map
+		if s.isFieldMapSyntaxEnabled(query) {
+			elements := strings.Split(e.ColumnName, ".")
+			if len(elements) > 1 {
+				if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
+					// check if we have map type, especially  Map(String, any) here
+					if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
+						(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
+							strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
+						return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
+					}
+				}
+			}
+		}
+		return e
+	}
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+
+	return query, nil
+}
+
 func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
 	if !ok {
@@ -730,24 +764,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			return model.NewColumnRefWithTable(resolvedField.InternalPropertyName.AsString(), e.TableAlias)
 		} else {
 			// here we didn't find a column by field name,
-			// we try some other options
-
-			// 1. we check if the field name point to the map
-			if s.isFieldMapSyntaxEnabled(query) {
-				elements := strings.Split(e.ColumnName, ".")
-				if len(elements) > 1 {
-					if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
-						// check if we have map type, especially  Map(String, any) here
-						if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
-							(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
-								strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
-							return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
-						}
-					}
-				}
-			}
-
-			// 2. maybe we should use attributes
+			// maybe we should use attributes
 
 			if hasAttributesValuesColumn {
 				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
@@ -986,6 +1003,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
+		{TransformationName: "FieldMapSyntaxTransformation", Transformation: s.applyFieldMapSyntax},
 		{TransformationName: "AliasColumnsTransformation", Transformation: s.applyAliasColumns},
 
 		// Section 2: generic schema based transformations
@@ -1050,28 +1068,67 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 	visitor := model.NewBaseVisitor()
 
-	var err error
-
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
-		lhs, ok := e.Left.(model.ColumnRef)
-		rhs, ok2 := e.Right.(model.LiteralExpr)
+		var (
+			lhs              = e.Left
+			rhs, okRight     = e.Right.(model.LiteralExpr)
+			col, okLeft      = e.Left.(model.ColumnRef)
+			lhsIsArrayAccess bool
+		)
 
-		if ok && ok2 && e.Op == model.MatchOperator {
-			field, found := indexSchema.ResolveFieldByInternalName(lhs.ColumnName)
-			if !found {
-				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhs.ColumnName, query.TableName)
+		if !okLeft {
+			if arrayAccess, ok := lhs.(model.ArrayAccess); ok {
+				lhsIsArrayAccess = true
+				okLeft = true
+				col = arrayAccess.ColumnRef
+			}
+		}
+
+		if okLeft && okRight && e.Op == model.MatchOperator {
+			if _, ok := rhs.Value.(string); !ok {
+				// only strings can be ILIKEd, everything else is a simple =
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
 			}
 
-			rhsValue := rhs.Value.(string)
+			var colIsAttributes bool
+			field, found := indexSchema.ResolveFieldByInternalName(col.ColumnName)
+			if !found {
+				// indexSchema won't find attributes columns, that's why this check
+				if clickhouse.IsColumnAttributes(col.ColumnName) {
+					colIsAttributes = true
+				} else {
+					logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", col.ColumnName, query.TableName)
+				}
+			}
+
+			rhsValue := rhs.Value.(string) // checked above
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
 
-			switch field.Type.String() {
-			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+			ilike := func() model.Expr {
+				return model.NewInfixExpr(lhs, "ILIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))
+			}
+			equal := func() model.Expr {
 				rhsValue = strings.Trim(rhsValue, "%")
 				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
+			}
+
+			// handling case when e.Left is an array access
+			if lhsIsArrayAccess {
+				if colIsAttributes || field.IsMapWithStringValues() { // attributes always have string values, so ilike
+					return ilike()
+				} else {
+					return equal()
+				}
+			}
+
+			// handling case when e.Left is a simple column ref
+			// TODO: improve? we seem to be `ilike'ing` too much
+			switch field.Type.String() {
+			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+				return equal()
 			default:
-				return model.NewInfixExpr(lhs, "ILIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))
+				return ilike()
 			}
 		}
 
@@ -1115,14 +1172,13 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			}
 		}
 
+		if e.Op == model.MatchOperator {
+			logger.Error().Msgf("Match operator is not supported for column %v", col)
+		}
 		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
-
-	if err != nil {
-		return nil, err
-	}
 
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
