@@ -81,6 +81,8 @@ func ParseElasticType(t string) (schema.QuesmaType, bool) {
 		return schema.QuesmaTypeIp, true
 	case elasticsearch_field_types.FieldTypeGeoPoint:
 		return schema.QuesmaTypePoint, true
+	case elasticsearch_field_types.FieldTypeObject:
+		return schema.QuesmaTypeObject, true
 	default:
 		return schema.QuesmaTypeUnknown, false
 	}
@@ -112,6 +114,8 @@ func schemaTypeToElasticType(t schema.QuesmaType) string {
 		return elasticsearch_field_types.FieldTypeIp
 	case schema.QuesmaTypePoint.Name:
 		return elasticsearch_field_types.FieldTypeGeoPoint
+	case schema.QuesmaTypeMap.Name:
+		return elasticsearch_field_types.FieldTypeObject
 	default:
 		logger.Error().Msgf("Unknown Quesma type '%s', defaulting to 'text' type", t.Name)
 		return elasticsearch_field_types.FieldTypeText

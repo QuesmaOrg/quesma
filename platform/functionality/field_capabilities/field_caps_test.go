@@ -211,12 +211,12 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 			Tables: map[schema.IndexName]schema.Schema{
 				"logs-1": {
 					Fields: map[schema.FieldName]schema.Field{
-						"foo.bar1": {PropertyName: "foo.bar1", InternalPropertyName: "foo.bar1", Type: schema.QuesmaTypeKeyword},
+						"foo.bar1": {PropertyName: "foo.bar1", InternalPropertyName: "foo.bar1", Type: schema.QuesmaTypeText},
 					},
 				},
 				"logs-2": {
 					Fields: map[schema.FieldName]schema.Field{
-						"foo.bar2": {PropertyName: "foo.bar2", InternalPropertyName: "foo.bar2", Type: schema.QuesmaTypeKeyword},
+						"foo.bar2": {PropertyName: "foo.bar2", InternalPropertyName: "foo.bar2", Type: schema.QuesmaTypeText},
 					},
 				},
 			},
@@ -225,68 +225,61 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 	expectedResp, err := json.MarshalIndent([]byte(`{
   "fields": {
     "foo.bar1": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
+      "text": {
+        "aggregatable": false,
+        "indices": ["logs-1"],
         "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-1"]
+        "searchable": true,
+        "type": "text"
       }
     },
-	"foo.bar1.keyword": {
+    "foo.bar1.keyword": {
       "keyword": {
         "aggregatable": true,
-        "searchable": true,
+        "indices": ["logs-1"],
         "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-1"]
+        "searchable": true,
+        "type": "keyword"
       }
     },
     "foo.bar1.text": {
       "text": {
         "aggregatable": false,
-        "indices": [
-          "logs-1"
-        ],
+        "indices": ["logs-1"],
         "metadata_field": false,
         "searchable": true,
         "type": "text"
       }
     },
     "foo.bar2": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
+      "text": {
+        "aggregatable": false,
+        "indices": ["logs-2"],
         "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-2"]
+        "searchable": true,
+        "type": "text"
       }
     },
-	"foo.bar2.keyword": {
+    "foo.bar2.keyword": {
       "keyword": {
         "aggregatable": true,
-        "searchable": true,
+        "indices": ["logs-2"],
         "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-2"]
+        "searchable": true,
+        "type": "keyword"
       }
     },
     "foo.bar2.text": {
       "text": {
         "aggregatable": false,
-        "indices": [
-          "logs-2"
-        ],
+        "indices": ["logs-2"],
         "metadata_field": false,
         "searchable": true,
         "type": "text"
       }
     }
   },
-  "indices": [
-    "logs-1",
-	"logs-2"
-  ]
+  "indices": ["logs-1", "logs-2"]
 }
 `), "", "  ")
 	assert.NoError(t, err)
