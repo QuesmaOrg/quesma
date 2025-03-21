@@ -29,7 +29,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/goccy/go-json"
-	"github.com/k0kubun/pp"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -456,13 +455,16 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery) (resp []byte, err error) {
+	var (
+		id        = "FAKE_ID"
+		path      = ""
+		startTime = time.Now()
+		plan      *model.ExecutionPlan
+	)
 
-	var
-	id := "FAKE_ID"
 	if val := ctx.Value(tracing.RequestIdCtxKey); val != nil {
 		id = val.(string)
 	}
-	path := ""
 	if value := ctx.Value(tracing.RequestPath); value != nil {
 		if str, ok := value.(string); ok {
 			path = str
@@ -470,11 +472,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	logErrorToConsole := func(resp []byte, err error) {
-		pushSecondaryInfoWhenError(q.debugInfoCollector, resp, err)
+		bodyAsBytes, _ := body.Bytes()
+		pushSecondaryInfoWhenError(q.debugInfoCollector, id, "", path, bodyAsBytes, []diag.TranslatedSQLQuery{}, resp, startTime)
 	}
 
 	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, indexPattern)
-	//pp.Println("decision handleSearchCommon", decision)
 
 	if decision.Err != nil {
 		if optAsync != nil {
@@ -482,6 +484,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		} else {
 			resp = elastic_query_dsl.EmptySearchResponse(ctx)
 		}
+		logErrorToConsole(resp, decision.Err)
 		return resp, decision.Err
 	}
 
@@ -491,16 +494,19 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		} else {
 			resp, err = elastic_query_dsl.EmptySearchResponse(ctx), nil
 		}
+		logErrorToConsole(resp, err)
 		return resp, err
 	}
 
 	if decision.IsClosed {
 		resp, err = nil, quesma_errors.ErrIndexNotExists() // TODO
+		logErrorToConsole(resp, err)
 		return resp, err
 	}
 
 	if len(decision.UseConnectors) == 0 {
 		resp, err = nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
+		logErrorToConsole(resp, err)
 		return resp, err
 	}
 
@@ -519,6 +525,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		default:
 			resp, err = nil, fmt.Errorf("unknown connector type: %T", c)
+			logErrorToConsole(resp, err)
 			return resp, err
 		}
 	}
@@ -526,13 +533,15 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if clickhouseConnector == nil {
 		logger.Warn().Msgf("multi-search payload contains Elasticsearch-targetted query")
 		resp, err = nil, fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
+		logErrorToConsole(resp, err)
 		return resp, err
 	}
 
-	startTime := time.Now()
+	startTime = time.Now()
 	tables, err := q.logManager.GetTableDefinitions()
 	if err != nil {
 		resp, err = nil, err
+		logErrorToConsole(resp, err)
 		return resp, err
 	}
 
@@ -540,11 +549,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	var currentSchema schema.Schema
 	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
 
-	//pp.Println("resolvedIndexes", resolvedIndexes, clickhouseConnector.IsCommonTable)
-
 	if !clickhouseConnector.IsCommonTable {
 		if len(resolvedIndexes) < 1 {
 			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
+			logErrorToConsole(resp, err)
 			return resp, err
 		}
 		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
@@ -552,11 +560,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
 		if !ok {
+			logErrorToConsole(resp, err)
 			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
 		table, _ = tables.Load(resolvedTableName)
 		if table == nil {
+			logErrorToConsole(resp, err)
 			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
@@ -584,6 +594,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			} else {
 				resp, err = elastic_query_dsl.EmptySearchResponse(ctx), nil
 			}
+			logErrorToConsole(resp, err)
 			return resp, err
 		}
 
@@ -621,10 +632,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		currentSchema = resolvedSchema
 		table = commonTable
 	}
-	pp.Println("table", table, "currentSchema", currentSchema)
+
 	queryTranslator := NewQueryTranslator(ctx, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
 
-	plan, err := queryTranslator.ParseQuery(body)
+	plan, err = queryTranslator.ParseQuery(body)
 
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
@@ -643,6 +654,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 	err = q.transformQueries(plan)
 	if err != nil {
+		logErrorToConsole(resp, err)
 		return resp, err
 	}
 	plan.IndexPattern = indexPattern
