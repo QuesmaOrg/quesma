@@ -1076,7 +1076,7 @@ func TestFullTextFields(t *testing.T) {
 			var schemaColumns []schema.Column
 
 			for _, col := range columns {
-				schemaColumns = append(schemaColumns, schema.Column{Name: col, Type: "String"})
+				schemaColumns = append(schemaColumns, schema.Column{Name: col, Type: "LowCardinality(String)"})
 			}
 
 			columnMap := make(map[string]schema.Column)

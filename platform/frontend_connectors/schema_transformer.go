@@ -1003,6 +1003,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
+		{TransformationName: "FieldMapSyntaxTransformation", Transformation: s.applyFieldMapSyntax},
 		{TransformationName: "AliasColumnsTransformation", Transformation: s.applyAliasColumns},
 
 		// Section 2: generic schema based transformations
@@ -1011,7 +1012,6 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		// because WildcardExpansion expands the wildcard to all fields
 		// and columns are expanded as PublicFieldName, so we need to encode them
 		// or in other words use internal field names
-		{TransformationName: "FieldMapSyntaxTransformation", Transformation: s.applyFieldMapSyntax},
 		{TransformationName: "FieldEncodingTransformation", Transformation: s.applyFieldEncoding},
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
