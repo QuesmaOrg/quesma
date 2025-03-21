@@ -6,7 +6,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
-	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
@@ -1458,7 +1457,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 
 func Test_mapKeys(t *testing.T) {
 
-	logger.InitSimpleLoggerForTestsWarnLevel()
+	// logger.InitSimpleLoggerForTestsWarnLevel()
 	indexConfig := map[string]config.IndexConfiguration{
 		"test":  {EnableFieldMapSyntax: true},
 		"test2": {EnableFieldMapSyntax: false},
