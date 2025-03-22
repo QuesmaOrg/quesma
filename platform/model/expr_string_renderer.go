@@ -7,6 +7,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/k0kubun/pp"
 	"regexp"
 	"sort"
 	"strconv"
@@ -67,11 +68,32 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 }
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
+	f := func(s string) string {
+		if util.IsInt(s) {
+			i, _ := util.ToInt64(s)
+			return fmt.Sprintf("%d", i)
+		} else if util.IsFloat(s) {
+			f, _ := util.ToFloat(s)
+			return fmt.Sprintf("%f", f)
+		} else if s == "*" || s == "true" || s == "false" || s == "NULL" || s == "NOT NULL" {
+			return s
+		}
+		return util.SingleQuote(escapeStringNormal(s))
+	}
 	switch val := l.Value.(type) {
 	case string:
 		switch l.EscapeType {
 		case NormalNotEscaped:
-			return escapeStringNormal(val)
+			fmt.Println("WTFF", val)
+			if util.IsSingleQuoted(val) {
+				return f(val[1 : len(val)-1])
+			} else if util.IsQuoted(val) {
+				x := f(val[1 : len(val)-1])
+				if util.IsSingleQuoted(x) {
+					return strconv.Quote(x[1 : len(x)-1])
+				}
+			}
+			return f(val)
 		case NotEscapedLikePrefix:
 			return util.SingleQuote(escapeStringLike(escapeStringNormal(val)) + "%")
 		case NotEscapedLikeFull:
@@ -87,7 +109,11 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 			return util.SingleQuote(val)
 		default:
 			logger.WarnWithThrottling("unknown_literal", "VisitLiteral %s", val)
-			return escapeStringNormal(val) // like normal
+			// like normal
+			if util.IsSingleQuoted(val) || util.IsQuoted(val) {
+				return escapeStringNormal(val)
+			}
+			return util.SingleQuote(escapeStringNormal(val))
 		}
 	default:
 		return fmt.Sprintf("%v", val)
@@ -117,11 +143,13 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	} else {
 		lhs = "< LHS NIL >"
 	}
+	pp.Println("e.Right", e.Right)
 	if e.Right != nil {
 		rhs = e.Right.Accept(v)
 	} else {
 		rhs = "< RHS NIL >"
 	}
+	pp.Println("rhs", rhs)
 
 	// This might look like a strange heuristics to but is aligned with the way we are currently generating the statement
 	// I think in the future every infix op should be in braces.
@@ -382,7 +410,10 @@ func escapeStringNormal(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`) // \ should be escaped with no exceptions
 	if len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\'' {
 		// don't escape the first and last '
-		return util.SingleQuote(strings.ReplaceAll(s[1:len(s)-1], `'`, `\'`))
+		return strings.ReplaceAll(s[1:len(s)-1], `'`, `\'`)
+	} else if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		// don't escape "abc"
+		return "\"" + strings.ReplaceAll(s[1:len(s)-1], `'`, `'`) + "\""
 	}
 	return strings.ReplaceAll(s, `'`, `\'`)
 }

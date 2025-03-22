@@ -24,6 +24,11 @@ func IsFloat(s string) bool {
 	return err == nil
 }
 
+// ToFloat converts a string to float64
+func ToFloat(s string) (float64, error) {
+	return strconv.ParseFloat(s, 64)
+}
+
 // IsInt checks if a string is an integer (in range of int64)
 func IsInt(s string) bool {
 	_, err := strconv.ParseInt(s, 10, 64)
