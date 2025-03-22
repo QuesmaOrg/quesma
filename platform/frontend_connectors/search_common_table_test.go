@@ -3,7 +3,6 @@
 package frontend_connectors
 
 import (
-	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
