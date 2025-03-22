@@ -366,13 +366,13 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 		model.NewInfixExpr(
 			model.NewParenExpr(
 				model.NewInfixExpr(model.NewInfixExpr(model.NewLiteral(1), "-", Log), "/",
-					model.NewLiteral("PI()"))), "/",
+					model.NewFunction("PI"))), "/",
 			model.NewLiteral(2.0)), "*",
 		model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
 	yTile := model.NewFunction("FLOOR", FloorContent)
 
 	aggregation.queryType = bucket_aggregations.NewGeoTileGrid(cw.Ctx)
-	aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewLiteral(fmt.Sprintf("CAST(%f AS Float32)", precisionZoom)))
+	aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewLiteralWithEscapeType(fmt.Sprintf("CAST(%f AS Float32)", precisionZoom), model.ZeroEscaping))
 	aggregation.selectedColumns = append(aggregation.selectedColumns, xTile)
 	aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
 	return nil

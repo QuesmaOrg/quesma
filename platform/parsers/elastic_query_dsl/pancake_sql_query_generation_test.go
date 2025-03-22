@@ -53,6 +53,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("works IRL, need to update test's schema. It's already WIP https://github.com/QuesmaOrg/quesma/pull/1255. Let's wait for merge.")
 			}
 
+			if i != 165 {
+				//t.Skip()
+			}
+
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
@@ -63,6 +67,9 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 			if test.TestName == "Terms with order by top metrics(file:kibana-visualize/agg_req,nr:8)" {
 				t.Skip("Need to implement order by top metrics (talk with Jacek, he has an idea)")
+			}
+			if i != 130 {
+				//t.Skip()
 			}
 
 			if test.TestName == "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)(file:opensearch-visualize/pipeline_agg_req,nr:20)" ||

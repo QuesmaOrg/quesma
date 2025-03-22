@@ -815,7 +815,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 					parsed, err := cw.parseDateMathExpression(value)
 					if err == nil {
 						doneParsing = true
-						finalValue = model.NewLiteral(parsed)
+						finalValue = model.NewLiteralWithEscapeType(parsed, model.ZeroEscaping)
 					}
 				}
 				if !doneParsing && isQuoted { // stage 3

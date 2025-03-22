@@ -32,7 +32,7 @@ func NewDateTimeInterval(begin, end string) DateTimeInterval {
 // It's only 1 more field to our SELECT query, so it shouldn't be a performance issue.
 func (interval DateTimeInterval) BeginTimestampToSQL() (sqlSelect model.Expr, selectNeeded bool) {
 	if interval.begin != UnboundedInterval {
-		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteral(interval.begin))), true
+		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteralWithEscapeType(interval.begin, model.ZeroEscaping))), true
 	}
 	return nil, false
 }
@@ -42,7 +42,7 @@ func (interval DateTimeInterval) BeginTimestampToSQL() (sqlSelect model.Expr, se
 // It's only 1 more field to our SELECT query, so it isn't a performance issue.
 func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect model.Expr, selectNeeded bool) {
 	if interval.end != UnboundedInterval {
-		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteral(interval.end))), true
+		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewLiteralWithEscapeType(interval.end, model.ZeroEscaping))), true
 	}
 	return nil, false
 }

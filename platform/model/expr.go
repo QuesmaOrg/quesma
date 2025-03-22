@@ -101,6 +101,7 @@ type (
 
 const (
 	NormalNotEscaped     EscapeType = "normal"        // used in 90% cases, everywhere but not in 'LIKE' exprs
+	ZeroEscaping         EscapeType = "zero_escaping" // rendered as is, e.g. for NULL
 	NotEscapedLikePrefix EscapeType = "like_prefix"   // used in 'LIKE' exprs, will be rendered 'value%'
 	NotEscapedLikeFull   EscapeType = "like_full"     // used in 'LIKE' exprs, will be rendered '%value%'
 	FullyEscaped         EscapeType = "fully_escaped" // will be rendered as is, as Lucene parser did all the escaping
@@ -153,7 +154,7 @@ func NewLiteral(value any) LiteralExpr {
 func NewLiteralSingleQuoteString(value any) LiteralExpr {
 	switch v := value.(type) {
 	case string:
-		return LiteralExpr{Value: fmt.Sprintf("'%s'", v)}
+		return LiteralExpr{Value: fmt.Sprintf("'%s'", v), EscapeType: NormalNotEscaped}
 	default:
 		return LiteralExpr{Value: v}
 	}

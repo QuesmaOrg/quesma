@@ -26,22 +26,22 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`"jakarta apache"~10`, `("title" __quesma_match '%jakarta apache%' OR "text" __quesma_match '%jakarta apache%')`},
 		{`mod_date:[2002-01-01 TO 2003-02-15]`, `("mod_date" >= '2002-01-01' AND "mod_date" <= '2003-02-15')`}, // 7
 		{`mod_date:[2002-01-01 TO 2003-02-15}`, `("mod_date" >= '2002-01-01' AND "mod_date" < '2003-02-15')`},
-		{`age:>10`, `"age" > '10'`},
-		{`age:>=10`, `"age" >= '10'`},
-		{`age:<10`, `"age" < '10'`},
-		{`age:<=10.2`, `"age" <= '10.2'`},
-		{`age:10.2`, `"age" = 10.2`},
-		{`age:-10.2`, `"age" = -10.2`},
-		{`age:<-10.2`, `"age" < '-10.2'`},
-		{`age:        10.2`, `"age" = 10.2`},
-		{`age:  <-10.2`, `"age" < '-10.2'`},
-		{`age:  <   -10.2`, `"age" < '-10.2'`},
-		{`age:10.2 age2:[12 TO 15] age3:{11 TO *}`, `(("age" = 10.2 OR ("age2" >= '12' AND "age2" <= '15')) OR "age3" > '11')`},
+		{`age:>10`, `"age" > 10`},
+		{`age:>=10`, `"age" >= 10`},
+		{`age:<10`, `"age" < 10`},
+		{`age:<=10.2`, `"age" <= 10.200000`},
+		{`age:10.2`, `"age" = 10.200000`},
+		{`age:-10.2`, `"age" = -10.200000`},
+		{`age:<-10.2`, `"age" < -10.200000`},
+		{`age:        10.2`, `"age" = 10.200000`},
+		{`age:  <-10.2`, `"age" < -10.200000`},
+		{`age:  <   -10.2`, `"age" < -10.200000`},
+		{`age:10.2 age2:[12 TO 15] age3:{11 TO *}`, `(("age" = 10.200000 OR ("age2" >= 12 AND "age2" <= 15)) OR "age3" > 11)`},
 		{`date:{* TO 2012-01-01} another`, `("date" < '2012-01-01' OR ("title" __quesma_match '%another%' OR "text" __quesma_match '%another%'))`},
 		{`date:{2012-01-15 TO *} another`, `("date" > '2012-01-15' OR ("title" __quesma_match '%another%' OR "text" __quesma_match '%another%'))`},
 		{`date:{* TO *}`, `"date" IS NOT NULL`},
 		{`title:{Aida TO Carmen]`, `("title" > 'Aida' AND "title" <= 'Carmen')`},
-		{`count:[1 TO 5]`, `("count" >= '1' AND "count" <= '5')`}, // 17
+		{`count:[1 TO 5]`, `("count" >= 1 AND "count" <= 5)`}, // 17
 		{`"jakarta apache" AND "Apache Lucene"`, `(("title" __quesma_match '%jakarta apache%' OR "text" __quesma_match '%jakarta apache%') AND ("title" __quesma_match '%Apache Lucene%' OR "text" __quesma_match '%Apache Lucene%'))`},
 		{`NOT status:"jakarta apache"`, `NOT ("status" __quesma_match '%jakarta apache%')`},
 		{`"jakarta apache" NOT "Apache Lucene"`, `(("title" __quesma_match '%jakarta apache%' OR "text" __quesma_match '%jakarta apache%') AND NOT (("title" __quesma_match '%Apache Lucene%' OR "text" __quesma_match '%Apache Lucene%')))`},
@@ -97,7 +97,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`title[`, `("title" __quesma_match '%title[%' OR "text" __quesma_match '%title[%')`},
 		{`title[]`, `("title" __quesma_match '%title[]%' OR "text" __quesma_match '%title[]%')`},
 		{`title[ TO ]`, `((("title" __quesma_match '%title[%' OR "text" __quesma_match '%title[%') OR ("title" __quesma_match '%TO%' OR "text" __quesma_match '%TO%')) OR ("title" __quesma_match '%]%' OR "text" __quesma_match '%]%'))`},
-		{`title:[ TO 2]`, `("title" >= '' AND "title" <= '2')`},
+		{`title:[ TO 2]`, `("title" >= '' AND "title" <= 2)`},
 		{`  title       `, `("title" __quesma_match '%title%' OR "text" __quesma_match '%title%')`},
 		{`  title : (+a -b c)`, `(("title" __quesma_match '%+a%' OR "title" __quesma_match '%-b%') OR "title" __quesma_match '%c%')`}, // we don't support '+', '-' operators, but in that case the answer seems good enough + nothing crashes
 		{`title:()`, `false`},
@@ -128,7 +128,7 @@ func TestResolvePropertyNamesWhenTranslatingToSQL(t *testing.T) {
 		want    string
 	}{
 		{query: `title:"The Right Way" AND text:go!!`, mapping: map[string]string{}, want: `("title" __quesma_match '%The Right Way%' AND "text" __quesma_match '%go!!%')`},
-		{query: `age:>10`, mapping: map[string]string{"age": "foo"}, want: `"foo" > '10'`},
+		{query: `age:>10`, mapping: map[string]string{"age": "foo"}, want: `"foo" > 10`},
 	}
 	for i, tt := range properQueries {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {

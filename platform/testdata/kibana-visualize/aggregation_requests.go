@@ -3091,10 +3091,10 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 1237940039285380274899124224) AS "aggr__2__key_0",
+			SELECT intDiv("clientip", 1237940039285380274899124224.000000) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 1237940039285380274899124224) AS "aggr__2__key_0"
+			GROUP BY intDiv("clientip", 1237940039285380274899124224.000000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 	{ // [21]

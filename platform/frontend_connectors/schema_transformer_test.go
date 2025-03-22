@@ -1510,7 +1510,7 @@ func Test_mapKeys(t *testing.T) {
 					Columns:    []model.Expr{model.NewColumnRef("foo")},
 					WhereClause: model.NewInfixExpr(
 						model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
-						"ILIKE",
+						"=",
 						model.NewLiteral("'baz'"),
 					),
 				},

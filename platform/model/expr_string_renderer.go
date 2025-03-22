@@ -68,6 +68,7 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 }
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
+	pp.Println("KK, lit", l)
 	f := func(s string) string {
 		if util.IsInt(s) {
 			i, _ := util.ToInt64(s)
@@ -83,6 +84,8 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	switch val := l.Value.(type) {
 	case string:
 		switch l.EscapeType {
+		case ZeroEscaping:
+			return val
 		case NormalNotEscaped:
 			fmt.Println("WTFF", val)
 			if util.IsSingleQuoted(val) {
