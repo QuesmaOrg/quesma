@@ -7,7 +7,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"strconv"
 	"testing"
 )
 
