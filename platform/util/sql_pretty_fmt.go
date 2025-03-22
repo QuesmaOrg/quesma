@@ -48,23 +48,22 @@ func calcHowMuchNextStmtWillTake(tokens []sqllexer.Token) int {
 }
 
 func SqlPrettyPrint(sqlData []byte) string {
-	lexer := sqllexer.New(string(sqlData))
 	var (
-		sb             strings.Builder
-		stack          []string
-		isBreakIndent  bool
-		tokens         []sqllexer.Token
-		lineLength     = 0
-		subQueryIndent = 0
+		sb                         strings.Builder
+		stack                      []string
+		isBreakIndent              bool
+		lineLength, subQueryIndent int
+		tokens                     []sqllexer.Token
+		lexer                      = sqllexer.New(string(sqlData))
 	)
 
-	tok := lexer.Scan()
+	// below: replacement for deprecated lexer.ScanAll()
 	for {
-		tokens = append(tokens, *tok)
-		tok = lexer.Scan()
+		tok := lexer.Scan()
 		if tok == nil || tok.Type == sqllexer.EOF {
 			break
 		}
+		tokens = append(tokens, *tok)
 	}
 
 	for tokenIdx, token := range tokens {
