@@ -479,11 +479,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	logErrorToConsole := func() {
-		bodyAsBytes, _ := body.Bytes()
-		pushSecondaryInfoWhenError(q.debugInfoCollector, id, "", path, bodyAsBytes, []diag.TranslatedSQLQuery{}, resp, startTime)
-	}
-
 	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, indexPattern)
 
 	if decision.Err != nil {
@@ -639,10 +634,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			queriesBodyConcat += query.SelectCommand.String() + "\n"
 		}
 		resp = []byte(fmt.Sprintf("Invalid Queries: %v, err: %v", queriesBody, err))
+		err = errors.New(string(resp))
 		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
-		bodyAsBytes, _ := body.Bytes()
-		pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, queriesBody, resp, startTime)
-		return resp, errors.New(string(resp))
+		goto logErrorAndReturn
 	}
 	err = q.transformQueries(plan)
 	if err != nil {
@@ -658,7 +652,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, nil, true)
 
 logErrorAndReturn:
-	logErrorToConsole()
+	bodyAsBytes, _ := body.Bytes()
+	pushSecondaryInfo(q.debugInfoCollector, id, "", path, bodyAsBytes, []diag.TranslatedSQLQuery{}, resp, startTime)
 	return resp, err
 }
 
@@ -1066,17 +1061,6 @@ func pushPrimaryInfo(qmc diag.DebugInfoCollector, Id string, QueryResp []byte, s
 }
 
 func pushSecondaryInfo(qmc diag.DebugInfoCollector, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []diag.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
-	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
-		Id:                     Id,
-		AsyncId:                AsyncId,
-		Path:                   Path,
-		IncomingQueryBody:      IncomingQueryBody,
-		QueryBodyTranslated:    QueryBodyTranslated,
-		QueryTranslatedResults: QueryTranslatedResults,
-		SecondaryTook:          time.Since(startTime)})
-}
-
-func pushSecondaryInfoWhenError(qmc diag.DebugInfoCollector, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []diag.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
 	qmc.PushSecondaryInfo(&diag.QueryDebugSecondarySource{
 		Id:                     Id,
 		AsyncId:                AsyncId,
