@@ -10,12 +10,13 @@ import (
 type ContextKey string
 
 const (
-	RequestIdCtxKey ContextKey = "RequestId"
-	ReasonCtxKey    ContextKey = "Reason"
-	RequestPath     ContextKey = "RequestPath"
-	AsyncIdCtxKey   ContextKey = "AsyncId"
-	TraceEndCtxKey  ContextKey = "TraceEnd"
 	OpaqueIdCtxKey  ContextKey = "OpaqueId"
+	AsyncIdCtxKey   ContextKey = "AsyncId"
+	ErrorCtxKey     ContextKey = "Error"
+	ReasonCtxKey    ContextKey = "Reason"
+	RequestIdCtxKey ContextKey = "RequestId"
+	RequestPath     ContextKey = "RequestPath"
+	TraceEndCtxKey  ContextKey = "TraceEnd"
 
 	AsyncIdPrefix = "quesma_async_"
 )
