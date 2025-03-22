@@ -25,8 +25,8 @@ import (
 // It runs |testdata.UnsupportedAggregationsTests| tests, each of them sends one query of unsupported type.
 // It ensures that this query type is recorded in the management console, and that all other query types are not.
 func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
-	for _, tt := range testdata.UnsupportedQueriesTests {
-		t.Run(tt.TestName, func(t *testing.T) {
+	for i, tt := range testdata.UnsupportedQueriesTests {
+		t.Run(util.PrettyTestName(tt.TestName, i), func(t *testing.T) {
 			if tt.QueryType == "script" {
 				t.Skip("Only 1 test. We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.")
 			}

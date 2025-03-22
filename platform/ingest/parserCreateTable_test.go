@@ -4,6 +4,7 @@ package ingest
 
 import (
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -316,8 +317,8 @@ func TestParseLongNestedSchema(t *testing.T) {
 
 func Test_parseMultiValueType(t *testing.T) {
 	tupleQueryPart := []string{"(d DateTime64(3) )", "(d DateTime64(3))"}
-	for _, tuple := range tupleQueryPart {
-		t.Run(tuple, func(t *testing.T) {
+	for i, tuple := range tupleQueryPart {
+		t.Run(util.PrettyTestName(tuple, i), func(t *testing.T) {
 			indexAfterMatch, columns := parseMultiValueType(tuple, 0)
 			assert.NotEqual(t, -1, indexAfterMatch)
 			assert.Len(t, columns, 1)

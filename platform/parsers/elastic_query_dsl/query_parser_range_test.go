@@ -6,6 +6,7 @@ import (
 	"context"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -93,8 +94,8 @@ func Test_parseRange(t *testing.T) {
 			},
 		},
 	}
-	for _, test := range parseRangeTests {
-		t.Run(test.name, func(t *testing.T) {
+	for i, test := range parseRangeTests {
+		t.Run(util.PrettyTestName(test.name, i), func(t *testing.T) {
 			table, err := clickhouse.NewTable(test.createTableQuery, clickhouse.NewNoTimestampOnlyStringAttrCHConfig())
 			if err != nil {
 				t.Fatal(err)

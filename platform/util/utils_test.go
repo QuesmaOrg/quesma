@@ -663,7 +663,7 @@ func TestMergeMaps(t *testing.T) {
 		},
 	}
 	for i, tt := range cases {
-		t.Run("TestMergeMaps_"+strconv.Itoa(i), func(t *testing.T) {
+		t.Run(PrettyTestName("TestMergeMaps", i), func(t *testing.T) {
 			// simple == or Equal doesn't work on nested maps => need DeepEqual
 			mergeRes, err := MergeMaps(tt.m1, tt.m2)
 			assert.NoError(t, err)
@@ -695,7 +695,7 @@ func TestIsSqlEqual(t *testing.T) {
 		},
 	}
 	for i, tt := range cases {
-		t.Run("TestIsSqlEqual_"+strconv.Itoa(i), func(t *testing.T) {
+		t.Run(PrettyTestName("TestIsSqlEqual", i), func(t *testing.T) {
 			assert.Equal(t, tt.isEqual, IsSqlEqual(tt.sql1, tt.sql2))
 		})
 	}
@@ -724,7 +724,7 @@ func TestAlmostEmpty(t *testing.T) {
 		},
 	}
 	for i, tt := range cases {
-		t.Run("TestAlmostEmpty_"+strconv.Itoa(i), func(t *testing.T) {
+		t.Run(PrettyTestName("TestAlmostEmpty", i), func(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, AlmostEmpty(tt.jsonMap, tt.acceptableDifference))
 		})
 	}
@@ -892,8 +892,8 @@ func TestExtractUsernameFromBasicAuthHeader(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(PrettyTestName(tt.name, i), func(t *testing.T) {
 			req := &http.Request{
 				Header: http.Header{
 					"Authorization": {tt.authHeader},

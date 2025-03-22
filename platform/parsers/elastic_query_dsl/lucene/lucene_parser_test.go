@@ -6,7 +6,7 @@ import (
 	"context"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"strconv"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"testing"
 )
 
@@ -109,7 +109,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 	}
 
 	for i, tt := range append(properQueries, randomQueriesWithPossiblyIncorrectInput...) {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.query, i), func(t *testing.T) {
 			parser := newLuceneParser(context.Background(), defaultFieldNames, currentSchema)
 			got := model.AsString(parser.translateToSQL(tt.query))
 			if got != tt.want {
@@ -131,7 +131,7 @@ func TestResolvePropertyNamesWhenTranslatingToSQL(t *testing.T) {
 		{query: `age:>10`, mapping: map[string]string{"age": "foo"}, want: `"foo" > '10'`},
 	}
 	for i, tt := range properQueries {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.query, i), func(t *testing.T) {
 			fields := make(map[schema.FieldName]schema.Field)
 
 			for k, v := range tt.mapping {

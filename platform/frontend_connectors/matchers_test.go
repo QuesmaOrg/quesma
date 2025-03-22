@@ -4,6 +4,7 @@ package frontend_connectors
 
 import (
 	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	mux "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -386,8 +387,8 @@ func TestMatchAgainstKibanaAlerts(t *testing.T) {
 		{"migration", migrationQuery, false},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(tt *testing.T) {
+	for i, test := range tests {
+		t.Run(util.PrettyTestName(test.name, i), func(tt *testing.T) {
 
 			req := &mux.Request{Body: test.body}
 
