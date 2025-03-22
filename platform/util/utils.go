@@ -1044,3 +1044,7 @@ func ReadResponseBody(resp *http.Response) ([]byte, error) {
 	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
 	return respBody, nil
 }
+
+func PrettyTestName(name string, idx int) string {
+	return fmt.Sprintf("%s(%d)", name, idx)
+}

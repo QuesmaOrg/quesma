@@ -85,7 +85,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 	}
 
 	for i, tt := range testdata.TestsAsyncSearch {
-		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			defer conn.Close()
@@ -490,8 +490,8 @@ func TestAsyncSearchFilter(t *testing.T) {
 			},
 		},
 	}
-	for _, tt := range testdata.TestSearchFilter {
-		t.Run(tt.Name, func(t *testing.T) {
+	for i, tt := range testdata.TestSearchFilter {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
