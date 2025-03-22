@@ -614,15 +614,17 @@ func removePrecision(str string) string {
 }
 
 // extractMapValueType extracts the value type from a ClickHouse Map definition
+// extractMapValueType extracts the value type from a ClickHouse Map definition.
 func extractMapValueType(mapType string) (string, error) {
-	// Regular expression to match Map(String, valueType)
-	re := regexp.MustCompile(`Map\(String,\s*([^)]+)\)`)
-	matches := re.FindStringSubmatch(mapType)
+	// Regular expression to match "Map(String, <valueType>)"
+	re := regexp.MustCompile(`Map\((?:LowCardinality\()?String\)?,\s*(.+)\)$`)
 
+	matches := re.FindStringSubmatch(mapType)
 	if len(matches) < 2 {
-		return "", fmt.Errorf("invalid map type format: %s", mapType)
+		return "", errors.New("invalid map type format: " + mapType)
 	}
 
+	// Trim spaces and return the full value type
 	return strings.TrimSpace(matches[1]), nil
 }
 
@@ -630,7 +632,9 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 	outputTable := make(map[string]map[string]columnMetadata)
 	for table, columns := range inputTable {
 		for colName, columnMeta := range columns {
-			if strings.HasPrefix(columnMeta.colType, "Map(String") {
+			columnType := strings.TrimSpace(columnMeta.colType)
+			if strings.HasPrefix(columnType, "Map(String") ||
+				strings.HasPrefix(columnType, "Map(LowCardinality(String") {
 				logger.Debug().Msgf("Discovered map column: %s.%s", table, colName)
 				// Ensure the table exists in outputTable
 				if _, ok := outputTable[table]; !ok {
@@ -661,7 +665,7 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 					// with origin set to mapping
 					mapKeyCol := colName + "." + key
 					var valueType string
-					valueType, err = extractMapValueType(columnMeta.colType)
+					valueType, err = extractMapValueType(columnType)
 					if err != nil {
 						logger.Error().Msgf("Error extracting value type for table, column: %s, %s, %v", table, colName, err)
 						continue
