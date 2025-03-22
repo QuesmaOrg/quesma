@@ -31,6 +31,7 @@ jobs:
         run: go install go.elastic.co/go-licence-detector@v0.7.0
 
       - name: Generate NOTICE.MD
+        shell: bash # to get 'set -o pipefail'
         run: |
           rm NOTICE.MD
           .github/notice-generator/collect-go-dependencies.sh | sort | uniq | go-licence-detector -includeIndirect -noticeTemplate=.github/notice-generator/go-licence-detector/NOTICE.MD.tmpl -noticeOut=NOTICE.MD -overrides=.github/notice-generator/go-licence-detector/overrides.ndjson -rules=.github/notice-generator/go-licence-detector/rules.json
@@ -41,6 +42,7 @@ jobs:
 
       - name: Check if NOTICE.MD changed
         id: notice-file-changed
+        shell: bash # to get 'set -o pipefail'
         run: |
           git fetch origin
           if git ls-tree --name-only origin/main | grep -q '^NOTICE.MD$'; then
