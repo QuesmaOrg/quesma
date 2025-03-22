@@ -5,6 +5,7 @@ package model
 import (
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // Expr is a generic representation of an expression which is a part of the SQL query.
@@ -96,8 +97,34 @@ type (
 		Value      any
 		EscapeType EscapeType // only meaningful if Value is string
 	}
+	TimeLiteral struct {
+		Value          time.Time
+		TimestampField ColumnRef
+	}
+	DurationLiteral struct {
+		Value          time.Duration
+		TimestampField ColumnRef
+	}
 	EscapeType string
 )
+
+func ToTimeLiteral(expr Expr) (tl TimeLiteral, ok bool) {
+	if literal, ok := expr.(LiteralExpr); ok {
+		if timeLiteral, ok := literal.Value.(TimeLiteral); ok {
+			return timeLiteral, true
+		}
+	}
+	return TimeLiteral{}, false
+}
+
+func ToDurationLiteral(expr Expr) (dl DurationLiteral, ok bool) {
+	if literal, ok := expr.(LiteralExpr); ok {
+		if durationLiteral, ok := literal.Value.(DurationLiteral); ok {
+			return durationLiteral, true
+		}
+	}
+	return DurationLiteral{}, false
+}
 
 const (
 	NormalNotEscaped     EscapeType = "normal"        // used in 90% cases, everywhere but not in 'LIKE' exprs
@@ -147,6 +174,14 @@ var NewWildcardExpr = NewLiteral("*")
 
 func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value, EscapeType: NormalNotEscaped}
+}
+
+func NewTimeLiteral(value time.Time, timestampField ColumnRef) LiteralExpr {
+	return NewLiteral(TimeLiteral{Value: value, TimestampField: timestampField})
+}
+
+func NewDurationLiteral(value time.Duration, timestampField ColumnRef) LiteralExpr {
+	return NewLiteral(DurationLiteral{Value: value, TimestampField: timestampField})
 }
 
 // NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else

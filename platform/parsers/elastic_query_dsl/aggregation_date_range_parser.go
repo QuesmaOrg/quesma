@@ -4,8 +4,8 @@ package elastic_query_dsl
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
-	"unicode"
 )
 
 func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *pancakeAggregationTreeNode, params QueryMap) (err error) {
@@ -13,6 +13,11 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *panc
 	if field == nil {
 		return fmt.Errorf("no field specified for date range aggregation, params: %v", params)
 	}
+	colRef, ok := field.(model.ColumnRef)
+	if !ok {
+		return fmt.Errorf("field is not a column reference, but %T, field: %v", field, field)
+	}
+
 	format := cw.parseStringField(params, "format", "")
 	ranges, err := cw.parseArrayField(params, "ranges")
 	if err != nil {
@@ -27,19 +32,19 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *panc
 			return fmt.Errorf("range is not a map, but %T, range: %v", rangeRaw, rangeRaw)
 		}
 
-		const defaultIntervalBound = bucket_aggregations.UnboundedInterval
-		intervalBegin := defaultIntervalBound
+		const defaultIntervalBound = bucket_aggregations.UnboundedIntervalString
+		var intervalBegin model.Expr
 		if from := cw.parseStringField(rangeMap, "from", defaultIntervalBound); from != defaultIntervalBound {
-			intervalBegin, err = cw.parseDateTimeInClickhouseMathLanguage(from)
+			intervalBegin, err = cw.parseDateTimeInClickhouseMathLanguage(from, colRef)
 			if err != nil {
 				return err
 			}
 			selectColumnsNr++
 		}
 
-		intervalEnd := bucket_aggregations.UnboundedInterval
+		var intervalEnd model.Expr
 		if to := cw.parseStringField(rangeMap, "to", defaultIntervalBound); to != defaultIntervalBound {
-			intervalEnd, err = cw.parseDateTimeInClickhouseMathLanguage(to)
+			intervalEnd, err = cw.parseDateTimeInClickhouseMathLanguage(to, colRef)
 			if err != nil {
 				return err
 			}
@@ -55,35 +60,18 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(aggregation *panc
 // parseDateTimeInClickhouseMathLanguage parses dateTime from Clickhouse's format
 // It's described here: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-daterange-aggregation.html
 // Maybe not 100% of it is implemented, not sure.
-func (cw *ClickhouseQueryTranslator) parseDateTimeInClickhouseMathLanguage(dateTime string) (string, error) {
+func (cw *ClickhouseQueryTranslator) parseDateTimeInClickhouseMathLanguage(dateTime string, field model.ColumnRef) (model.Expr, error) {
 	// So far we've seen only either:
-	// 1. 2024-01-01 format
-	if cw.isSimpleDate(dateTime) {
-		return "'" + dateTime + "'", nil
+	// 1. 2024-01-01 format TODO update
+	dateManager := NewDateManager(cw.Ctx)
+	if parsed := dateManager.ParseDateUsualFormat(dateTime, field); parsed != nil {
+		return parsed, nil
 	}
 	// 2. expressions like now() or now()-1d
-	res, err := cw.parseDateMathExpression(dateTime)
+	res, err := cw.parseDateMathExpression(dateTime, field)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	return res, nil
 
-}
-
-// isSimpleDate returns true if the given dateTime is a simple date string in format 2024-04-15
-func (cw *ClickhouseQueryTranslator) isSimpleDate(dateTime string) bool {
-	if len(dateTime) != len("2024-04-15") {
-		return false
-	}
-	for _, idx := range []int{0, 1, 2, 3, 5, 6, 8, 9} {
-		if !unicode.IsDigit(rune(dateTime[idx])) {
-			return false
-		}
-	}
-	for _, idx := range []int{4, 7} {
-		if dateTime[idx] != '-' {
-			return false
-		}
-	}
-	return true
 }

@@ -358,9 +358,9 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
-func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
+func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan) error {
 	var err error
-	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
+	plan.Queries, err = q.transformationPipeline.Transform(ctx, plan.Queries)
 	if err != nil {
 		return fmt.Errorf("error transforming queries: %v", err)
 	}
@@ -638,7 +638,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 		goto logErrorAndReturn
 	}
-	err = q.transformQueries(plan)
+	err = q.transformQueries(ctx, plan)
 	if err != nil {
 		goto logErrorAndReturn
 	}
