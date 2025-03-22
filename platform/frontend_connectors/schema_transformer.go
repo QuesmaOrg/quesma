@@ -320,17 +320,24 @@ func (s *SchemaCheckPass) applyArrayTransformations(ctx context.Context, indexSc
 		return query, nil
 	}
 
-	var visitor model.ExprVisitor
+	var (
+		visitor         model.ExprVisitor
+		visitorHadError bool
+	)
 
 	if checkIfGroupingByArrayColumn(query.SelectCommand, arrayTypeResolver) {
 		visitor = NewArrayJoinVisitor(arrayTypeResolver)
 	} else {
-		visitor = NewArrayTypeVisitor(arrayTypeResolver)
+		visitor, visitorHadError = NewArrayTypeVisitor(arrayTypeResolver)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	if visitorHadError {
+		selectAsStr := model.AsString(query.SelectCommand)
+		logger.ErrorWithReason("array transformation error").Msgf("Query: %s", selectAsStr)
 	}
 	return query, nil
 }
@@ -1309,47 +1316,68 @@ func (s *SchemaCheckPass) applyMatchOperator(ctx context.Context, indexSchema sc
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		var (
-			lhs              = e.Left
-			rhs, okRight     = e.Right.(model.LiteralExpr)
-			col, okLeft      = e.Left.(model.ColumnRef)
-			lhsIsArrayAccess bool
+			lhs                                       = e.Left
+			rhs, okRight                              = e.Right.(model.LiteralExpr)
+			lhsCol                                    model.ColumnRef
+			okLeft, lhsIsArrayAccess, colIsAttributes bool
 		)
 
-		if !okLeft {
-			if arrayAccess, ok := lhs.(model.ArrayAccess); ok {
-				lhsIsArrayAccess = true
-				okLeft = true
-				col = arrayAccess.ColumnRef
+		// try to extract column from lhs
+		switch lhsT := lhs.(type) {
+		case model.ColumnRef:
+			lhsCol = lhsT
+			okLeft = true
+		case model.FunctionExpr:
+			if len(lhsT.Args) >= 1 {
+				if col, ok := lhsT.Args[0].(model.ColumnRef); ok {
+					lhsCol = col
+					okLeft = true
+				} else if f2, ok := lhsT.Args[0].(model.FunctionExpr); ok && len(f2.Args) == 1 {
+					if col, ok := f2.Args[0].(model.ColumnRef); ok {
+						lhsCol = col
+						okLeft = true
+					}
+				}
+			}
+		case model.ArrayAccess:
+			lhsIsArrayAccess = true
+			okLeft = true
+			lhsCol = lhsT.ColumnRef
+		default:
+			return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+		}
+
+		rhsValue, ok := rhs.Value.(string)
+		if !ok {
+			if e.Op == model.MatchOperator {
+				// only strings can be ILIKEd, everything else is a simple =
+				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), "=", e.Right.Accept(b).(model.Expr))
+			} else {
+				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 			}
 		}
 
 		if okLeft && okRight && e.Op == model.MatchOperator {
-			if _, ok := rhs.Value.(string); !ok {
-				// only strings can be ILIKEd, everything else is a simple =
-				return model.NewInfixExpr(lhs, "=", rhs.Clone())
-			}
-
-			var colIsAttributes bool
-			field, found := indexSchema.ResolveFieldByInternalName(col.ColumnName)
+			field, found := indexSchema.ResolveFieldByInternalName(lhsCol.ColumnName)
 			if !found {
 				// indexSchema won't find attributes columns, that's why this check
-				if clickhouse.IsColumnAttributes(col.ColumnName) {
+				if clickhouse.IsColumnAttributes(lhsCol.ColumnName) {
 					colIsAttributes = true
 				} else {
-					logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", col.ColumnName, query.TableName)
+					logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsCol.ColumnName, query.TableName)
+					goto experimental
 				}
 			}
 
-			rhsValue := rhs.Value.(string) // checked above
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
 
 			ilike := func() model.Expr {
-				return model.NewInfixExpr(lhs, "ILIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))
+				return model.NewInfixExpr(lhs, "ILIKE", rhs.Clone())
 			}
 			equal := func() model.Expr {
 				rhsValue = strings.Trim(rhsValue, "%")
-				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
 			}
 
 			// handling case when e.Left is an array access
@@ -1371,6 +1399,7 @@ func (s *SchemaCheckPass) applyMatchOperator(ctx context.Context, indexSchema sc
 			}
 		}
 
+	experimental:
 		if s.isFieldMapSyntaxEnabled(query) {
 			// special case where left side is arrayElement,
 			// arrayElement comes from applyFieldEncoding function
@@ -1412,7 +1441,7 @@ func (s *SchemaCheckPass) applyMatchOperator(ctx context.Context, indexSchema sc
 		}
 
 		if e.Op == model.MatchOperator {
-			logger.Error().Msgf("Match operator is not supported for column %v", col)
+			logger.Error().Msgf("Match operator is not supported for column %v (expr: %v)", lhsCol, e)
 		}
 		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 	}
