@@ -50,8 +50,6 @@ func TestDateManager_parseStrictDateOptionalTimeOrEpochMillis(t *testing.T) {
 		t.Run(fmt.Sprintf("%v(test nr %d)", tt.input, i), func(t *testing.T) {
 			dm := NewDateManager(context.Background())
 			gotUnixTs, gotParsingSucceeded := dm.parseStrictDateOptionalTimeOrEpochMillis(tt.input)
-			fmt.Println(gotUnixTs, "format:", tt.input, gotParsingSucceeded)
-			fmt.Println("==", gotUnixTs == tt.wantedTimestamp)
 			assert.Truef(t, tt.wantedTimestamp.Equal(gotUnixTs), "wanted %v, got %v", tt.wantedTimestamp, gotUnixTs)
 			assert.Equalf(t, tt.wantedParsingSucceeded, gotParsingSucceeded, "wanted %v, got %v", tt.wantedParsingSucceeded, gotParsingSucceeded)
 		})
