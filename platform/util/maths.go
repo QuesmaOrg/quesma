@@ -18,6 +18,12 @@ func IsFloat64AnInt64(f float64) bool {
 	return f == math.Ceil(f) && f <= float64(math.MaxInt64)
 }
 
+// IsInt32 checks if 'shouldBeFloat64' is a float64, that is actually an integer small enough to be an int
+func IsInt32(shouldBeFloat64 any) bool {
+	f, ok := shouldBeFloat64.(float64)
+	return ok && f == float64(int(f))
+}
+
 // IsFloat checks if a string is a float
 func IsFloat(s string) bool {
 	_, err := strconv.ParseFloat(s, 64)
