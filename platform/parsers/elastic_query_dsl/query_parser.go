@@ -763,10 +763,8 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string, timest
 		return nil, err
 	}
 
-	if literal, ok := sql.(model.LiteralExpr); ok {
-		if ts, ok := literal.Value.(model.TimeLiteral); ok {
-			return model.NewTimeLiteral(ts.Value, timestampField), nil
-		}
+	if ts, ok := model.ToTimeLiteral(sql); ok {
+		return model.NewTimeLiteral(ts.Value, timestampField), nil
 	}
 
 	return sql, nil

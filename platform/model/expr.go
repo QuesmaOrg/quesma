@@ -108,6 +108,24 @@ type (
 	EscapeType string
 )
 
+func ToTimeLiteral(expr Expr) (tl TimeLiteral, ok bool) {
+	if literal, ok := expr.(LiteralExpr); ok {
+		if timeLiteral, ok := literal.Value.(TimeLiteral); ok {
+			return timeLiteral, true
+		}
+	}
+	return TimeLiteral{}, false
+}
+
+func ToDurationLiteral(expr Expr) (dl DurationLiteral, ok bool) {
+	if literal, ok := expr.(LiteralExpr); ok {
+		if durationLiteral, ok := literal.Value.(DurationLiteral); ok {
+			return durationLiteral, true
+		}
+	}
+	return DurationLiteral{}, false
+}
+
 const (
 	NormalNotEscaped     EscapeType = "normal"        // used in 90% cases, everywhere but not in 'LIKE' exprs
 	NotEscapedLikePrefix EscapeType = "like_prefix"   // used in 'LIKE' exprs, will be rendered 'value%'
