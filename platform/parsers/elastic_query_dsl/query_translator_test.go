@@ -179,7 +179,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 	}
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), Schema: s.Tables["test"]}
 	for i, tt := range args {
-		t.Run(tt.queryType.String(), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.queryType.String(), i), func(t *testing.T) {
 			hitQuery := query_util.BuildHitsQuery(
 				context.Background(), "test", []string{"*"},
 				&model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty,
@@ -416,7 +416,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 			query_util.BuildHitsQuery(context.Background(), "test", []string{"*"}, &model.SimpleQuery{}, model.WeNeedUnlimitedCount, model.SearchAfterEmpty)},
 	}
 	for i, tt := range args {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(util.PrettyTestName("query_translator_test.go/TestMakeResponseAsyncSearchQuery", i), func(t *testing.T) {
 			t.Skip()
 			ourResponse, err := cw.MakeAsyncSearchResponse(args[i].ourQueryResult, tt.query, asyncRequestIdStr, false)
 			assert.NoError(t, err)

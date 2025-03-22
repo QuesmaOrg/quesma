@@ -6,6 +6,7 @@ import (
 	"context"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/model"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -249,8 +250,8 @@ func TestHighLightResults(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			highLighter := model.Highlighter{
 				Tokens:   tt.tokens,

@@ -85,7 +85,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 	}
 
 	for i, tt := range testdata.TestsAsyncSearch {
-		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			defer conn.Close()
@@ -139,7 +139,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	}
 
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.TestName, i), func(t *testing.T) {
 			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer conn.Close()
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
@@ -302,7 +302,7 @@ func TestSearchHandler(t *testing.T) {
 	}
 
 	for i, tt := range testdata.TestsSearch {
-		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
@@ -377,7 +377,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 		},
 	}
 	for i, tt := range testdata.TestSearchRuntimeMappings {
-		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
@@ -434,8 +434,8 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testdata.TestsSearchNoAttrs {
-		t.Run(tt.Name, func(t *testing.T) {
+	for i, tt := range testdata.TestsSearchNoAttrs {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			conn, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer conn.Close()
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)

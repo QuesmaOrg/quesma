@@ -32,8 +32,8 @@ func Test_unmarshalElasticResponse(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			bulkResponse := &BulkResponse{}
 			if err := json.Unmarshal([]byte(tt.bulkResponseFromElastic), bulkResponse); err != nil {
 				t.Errorf("error while unmarshaling elastic response: %v", err)
