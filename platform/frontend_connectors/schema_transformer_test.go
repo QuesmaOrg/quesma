@@ -1202,7 +1202,7 @@ func Test_applyMatchOperator(t *testing.T) {
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("count"),
 						"=",
-						model.NewLiteral("123"),
+						model.NewLiteral("'123'"),
 					),
 				},
 			},
@@ -1457,6 +1457,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 
 func Test_mapKeys(t *testing.T) {
 
+	// logger.InitSimpleLoggerForTestsWarnLevel()
 	indexConfig := map[string]config.IndexConfiguration{
 		"test":  {EnableFieldMapSyntax: true},
 		"test2": {EnableFieldMapSyntax: false},
@@ -1509,8 +1510,8 @@ func Test_mapKeys(t *testing.T) {
 					Columns:    []model.Expr{model.NewColumnRef("foo")},
 					WhereClause: model.NewInfixExpr(
 						model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
-						"iLIKE",
-						model.NewLiteral("'%baz%'"),
+						"ILIKE",
+						model.NewLiteral("'baz'"),
 					),
 				},
 			},
@@ -1526,7 +1527,7 @@ func Test_mapKeys(t *testing.T) {
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("sizes.bar"),
 						model.MatchOperator,
-						model.NewLiteral("1"),
+						model.NewLiteralWithEscapeType("1", model.FullyEscaped),
 					),
 				},
 			},
@@ -1537,8 +1538,8 @@ func Test_mapKeys(t *testing.T) {
 					Columns:    []model.Expr{model.NewColumnRef("foo")},
 					WhereClause: model.NewInfixExpr(
 						model.NewFunction("arrayElement", model.NewColumnRef("sizes"), model.NewLiteral("'bar'")),
-						"=",
-						model.NewLiteral("1"),
+						"ILIKE",
+						model.NewLiteralWithEscapeType("1", model.FullyEscaped),
 					),
 				},
 			},

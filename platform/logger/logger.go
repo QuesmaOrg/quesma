@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/stats/errorstats"
 	quesma_v2 "github.com/QuesmaOrg/quesma/platform/v2/core"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/rs/zerolog"
 	"io"
 	"net/http"
@@ -219,12 +220,37 @@ func DebugWithCtx(ctx context.Context) *zerolog.Event {
 	return logger.DebugWithCtx(ctx)
 }
 
+func DebugWithReason(reason string) *zerolog.Event {
+	return logger.DebugWithReason(reason)
+}
+
+func DebugWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
+	return logger.DebugWithCtxAndReason(ctx, reason)
+}
+
+func DebugFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
+	return logger.DebugWithCtxAndReason(ctx, reason)
+}
+
 func Info() *zerolog.Event {
 	return logger.Info()
 }
 
 func InfoWithCtx(ctx context.Context) *zerolog.Event {
 	return logger.InfoWithCtx(ctx)
+}
+
+func InfoWithReason(reason string) *zerolog.Event {
+	return logger.InfoWithReason(reason)
+}
+
+func InfoWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
+	return logger.InfoWithCtxAndReason(ctx, reason)
+}
+
+func InfoFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	return logger.InfoFull(ctx, reason, err)
 }
 
 // MarkTraceEndWithCtx marks the end of a trace with the given context.
@@ -241,7 +267,16 @@ func WarnWithCtx(ctx context.Context) *zerolog.Event {
 	return logger.WarnWithCtx(ctx)
 }
 
+func WarnWithReason(reason string) *zerolog.Event {
+	return logger.WarnWithReason(reason)
+}
+
 func WarnWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
+	return logger.WarnWithCtxAndReason(ctx, reason)
+}
+
+func WarnFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
 	return logger.WarnWithCtxAndReason(ctx, reason)
 }
 
@@ -253,7 +288,16 @@ func ErrorWithCtx(ctx context.Context) *zerolog.Event {
 	return logger.ErrorWithCtx(ctx)
 }
 
+func ErrorWithReason(reason string) *zerolog.Event {
+	return logger.ErrorWithReason(reason)
+}
+
 func ErrorWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
+	return logger.ErrorWithCtxAndReason(ctx, reason)
+}
+
+func ErrorFull(ctx context.Context, reason string, err error) *zerolog.Event {
+	ctx = context.WithValue(ctx, tracing.ErrorCtxKey, err)
 	return logger.ErrorWithCtxAndReason(ctx, reason)
 }
 
