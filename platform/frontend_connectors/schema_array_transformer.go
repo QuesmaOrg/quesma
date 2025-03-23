@@ -102,14 +102,12 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 
 					if op == model.MatchOperator {
 						op = "="
-						if s, ok := e.Right.(model.LiteralExpr); ok {
-							if s.EscapeType != model.NormalNotEscaped {
-								op = "ILIKE"
-							}
+						if l, ok := e.Right.(model.LiteralExpr); ok {
+							op = l.MatchToOperator()
 						}
 					}
 					variableName := "x"
-					lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
+					lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteralWithEscapeType(variableName, model.ZeroEscaping), op, e.Right.Accept(b).(model.Expr)))
 					return model.NewFunction("arrayExists", lambda, e.Left)
 
 				case op == "=":

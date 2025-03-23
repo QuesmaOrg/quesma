@@ -107,8 +107,16 @@ const (
 	FullyEscaped         EscapeType = "fully_escaped" // will be rendered as is, as Lucene parser did all the escaping
 )
 
-func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
+func (l LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
+}
+
+// MatchToOperator returns what operator should replace MatchOperator (__quesma_match) for string literals
+func (l LiteralExpr) MatchToOperator() string {
+	if l.EscapeType == NormalNotEscaped {
+		return "ILIKE"
+	}
+	return "="
 }
 
 type TupleExpr struct {

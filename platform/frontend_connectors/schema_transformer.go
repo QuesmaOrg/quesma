@@ -11,7 +11,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -1075,7 +1074,6 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
-	pp.Println("PRE", query.SelectCommand)
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		var (
@@ -1132,8 +1130,6 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				}
 			}
 
-			pp.Println(e.Op, found, lhs, rhs)
-
 			rhsValue = strings.TrimPrefix(rhsValue, "'")
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
 
@@ -1154,12 +1150,13 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				}
 			}
 
-			// strings without Like escape type are always equal
-			if rhs.EscapeType == model.NormalNotEscaped {
-				return model.NewInfixExpr(lhs, "=", rhs.Clone())
+			// handling strings separately, as they can have a lot of behaviours
+			newOp := rhs.MatchToOperator()
+			if newOp == "LIKE" || newOp == "ILIKE" {
+				return model.NewInfixExpr(lhs, newOp, rhs.Clone())
 			}
 
-			// handling case when e.Left is a simple column ref
+			// handling rest of types
 			// TODO: improve? we seem to be `ilike'ing` too much
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
@@ -1221,7 +1218,6 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
-	pp.Println("POST", query.SelectCommand)
 	return query, nil
 
 }
