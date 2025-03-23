@@ -560,7 +560,7 @@ func Test_arrayType(t *testing.T) {
 					},
 					WhereClause: model.NewFunction(
 						"arrayExists",
-						model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteral("x"), "ILIKE", model.NewLiteral("%foo%"))),
+						model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteralWithEscapeType(strconv.Quote("x"), model.ZeroEscaping), "ILIKE", model.NewLiteral("%foo%"))),
 						model.NewColumnRef("products_name")),
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
@@ -632,7 +632,7 @@ func Test_arrayType(t *testing.T) {
 							model.NewFunction("sumOrNullIf",
 								model.NewColumnRef("taxful_total_price"),
 								model.NewFunction("arrayExists",
-									model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteral("x"), "ILIKE", model.NewLiteralWithEscapeType("%watch%", model.FullyEscaped))),
+									model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteralWithEscapeType(strconv.Quote("x"), model.ZeroEscaping), "ILIKE", model.NewLiteralWithEscapeType("%watch%", model.FullyEscaped))),
 									model.NewColumnRef("products_name"),
 								),
 							),

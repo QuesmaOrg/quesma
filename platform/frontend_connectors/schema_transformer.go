@@ -1152,8 +1152,8 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 			// handling strings separately, as they can have a lot of behaviours
 			newOp := rhs.MatchToOperator()
-			if newOp == "LIKE" || newOp == "ILIKE" {
-				return model.NewInfixExpr(lhs, newOp, rhs.Clone())
+			if newOp == "=" {
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
 			}
 
 			// handling rest of types

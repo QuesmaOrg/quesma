@@ -6,6 +6,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"strconv"
 	"strings"
 )
 
@@ -107,7 +108,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 						}
 					}
 					variableName := "x"
-					lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteralWithEscapeType(variableName, model.ZeroEscaping), op, e.Right.Accept(b).(model.Expr)))
+					lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteralWithEscapeType(strconv.Quote(variableName), model.ZeroEscaping), op, e.Right.Accept(b).(model.Expr)))
 					return model.NewFunction("arrayExists", lambda, e.Left)
 
 				case op == "=":

@@ -3,7 +3,7 @@
 package model
 
 import (
-	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"strconv"
 )
 
@@ -101,22 +101,22 @@ type (
 
 const (
 	NormalNotEscaped     EscapeType = "normal"        // used in 90% cases, everywhere but not in 'LIKE' exprs
-	ZeroEscaping         EscapeType = "zero_escaping" // rendered as is, e.g. for NULL
+	ZeroEscaping         EscapeType = "zero_escaping" // rendered as is, e.g. for NULL (we don't add any quoting or escaping)
 	NotEscapedLikePrefix EscapeType = "like_prefix"   // used in 'LIKE' exprs, will be rendered 'value%'
 	NotEscapedLikeFull   EscapeType = "like_full"     // used in 'LIKE' exprs, will be rendered '%value%'
-	FullyEscaped         EscapeType = "fully_escaped" // will be rendered as is, as Lucene parser did all the escaping
+	FullyEscaped         EscapeType = "fully_escaped" // will be rendered as is (with single quotes added if needed for strings), as Lucene parser did all the escaping
 )
 
 func (l LiteralExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitLiteral(e)
+	return v.VisitLiteral(l)
 }
 
 // MatchToOperator returns what operator should replace MatchOperator (__quesma_match) for string literals
 func (l LiteralExpr) MatchToOperator() string {
-	if l.EscapeType == NormalNotEscaped {
-		return "ILIKE"
+	if l.EscapeType == NormalNotEscaped || l.EscapeType == ZeroEscaping {
+		return "="
 	}
-	return "="
+	return "ILIKE"
 }
 
 type TupleExpr struct {
@@ -152,7 +152,7 @@ func NewCountFunc(args ...Expr) FunctionExpr {
 	return NewFunction("count", args...)
 }
 
-var NewWildcardExpr = NewLiteral("*")
+var NewWildcardExpr = NewLiteralWithEscapeType("*", ZeroEscaping)
 
 func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value, EscapeType: NormalNotEscaped}
@@ -162,7 +162,7 @@ func NewLiteral(value any) LiteralExpr {
 func NewLiteralSingleQuoteString(value any) LiteralExpr {
 	switch v := value.(type) {
 	case string:
-		return LiteralExpr{Value: fmt.Sprintf("'%s'", v), EscapeType: NormalNotEscaped}
+		return NewLiteral(util.SingleQuote(v))
 	default:
 		return LiteralExpr{Value: v}
 	}
