@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.32.2
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/DataDog/go-sqllexer v0.1.1
+	github.com/DataDog/go-sqllexer v0.1.3
 	github.com/H0llyW00dzZ/cidr v1.2.1
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/barkimedes/go-deepcopy v0.0.0-20220514131651-17c30cfc62df
