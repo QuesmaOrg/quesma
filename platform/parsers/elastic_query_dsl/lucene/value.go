@@ -131,7 +131,7 @@ func (v rangeValue) totallyUnbounded() bool {
 
 func (v rangeValue) toExpression(fieldName string) model.Expr {
 	if v.totallyUnbounded() {
-		return model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NotNullExpr)
 	}
 
 	var left, right model.Expr
@@ -219,7 +219,7 @@ func newInvalidValue() invalidValue {
 }
 
 func (v invalidValue) toExpression(fieldName string) model.Expr {
-	return model.NewLiteral("false")
+	return model.FalseExpr
 }
 
 // buildValue builds a value from p.tokens

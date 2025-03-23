@@ -83,7 +83,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	hitTableName := "hit_table"
 
 	groupTableLiteral := func(reference string) model.Expr {
-		return model.NewLiteralWithEscapeType(strconv.Quote(groupTableName)+"."+strconv.Quote(reference), model.ZeroEscaping)
+		return model.NewLiteralWithEscapeType(fmt.Sprintf(`"%s"."%s"`, groupTableName, reference), model.ZeroEscaping)
 	}
 
 	convertColumnRefToHitTable := func(expr model.Expr) model.Expr {

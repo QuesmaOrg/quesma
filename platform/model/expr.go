@@ -14,9 +14,10 @@ type Expr interface {
 
 var (
 	InvalidExpr = Expr(nil)
-	TrueExpr    = NewLiteral(true)
-	FalseExpr   = NewLiteral(false)
-	NullExpr    = NewLiteral("NULL")
+	TrueExpr    = NewLiteralWithEscapeType("true", ZeroEscaping)
+	FalseExpr   = NewLiteralWithEscapeType("false", ZeroEscaping)
+	NullExpr    = NewLiteralWithEscapeType("NULL", ZeroEscaping)
+	NotNullExpr = NewLiteralWithEscapeType("NOT NULL", ZeroEscaping)
 )
 
 // ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go

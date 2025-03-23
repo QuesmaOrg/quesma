@@ -776,7 +776,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			if hasAttributesValuesColumn {
 				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
 			} else {
-				return model.NewLiteral("NULL")
+				return model.NullExpr
 			}
 		}
 	}
@@ -930,7 +930,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 								if strings.HasPrefix(col.InternalPropertyType, dbTypePrefix) {
 									logger.Warn().Msgf("Aggregation '%s' over unsupported type '%s' in column '%s'", e.Name, dbTypePrefix, col.InternalPropertyName.AsString())
 									args := b.VisitChildren(e.Args)
-									args[0] = model.NewLiteral("NULL")
+									args[0] = model.NullExpr
 									return model.NewFunction(e.Name, args...)
 								}
 							}
@@ -941,7 +941,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 						if access.ColumnRef.ColumnName == clickhouse.AttributesValuesColumn {
 							logger.Warn().Msgf("Unsupported case. Aggregation '%s' over attribute named: '%s'", e.Name, access.Index)
 							args := b.VisitChildren(e.Args)
-							args[0] = model.NewLiteral("NULL")
+							args[0] = model.NullExpr
 							return model.NewFunction(e.Name, args...)
 						}
 					}
@@ -1150,10 +1150,10 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				}
 			}
 
-			// handling strings separately, as they can have a lot of behaviours
+			// handling "equal" string literals separately, "ilike" ones will be caught in switch below
 			newOp := rhs.MatchToOperator()
 			if newOp == "=" {
-				return model.NewInfixExpr(lhs, "=", rhs.Clone())
+				return equal()
 			}
 
 			// handling rest of types

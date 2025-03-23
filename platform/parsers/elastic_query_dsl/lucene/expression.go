@@ -7,14 +7,14 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 )
 
-var invalidStatement = model.NewLiteral("false")
+var invalidStatement = model.FalseExpr
 
 func (p *luceneParser) BuildWhereStatement() model.Expr {
 	for len(p.tokens) > 0 {
 		p.WhereStatement = p.buildWhereStatement(true)
 	}
 	if p.WhereStatement == nil {
-		return model.NewLiteral("true")
+		return model.TrueExpr
 	}
 	return p.WhereStatement
 }
@@ -89,7 +89,7 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 			logger.Error().Msgf("buildExpression: invalid expression, unexpected token: %#v, tokens: %v", currentToken, p.tokens)
 			return invalidStatement
 		}
-		currentStatement = model.NewInfixExpr(model.NewColumnRef(fieldName.term), " IS NOT ", model.NewLiteral("NULL"))
+		currentStatement = model.NewInfixExpr(model.NewColumnRef(fieldName.term), " IS NOT ", model.NullExpr)
 	case leftParenthesisToken:
 		currentStatement = model.NewParenExpr(p.buildWhereStatement(false))
 	case rightParenthesisToken:

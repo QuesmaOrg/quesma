@@ -1380,7 +1380,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("test"),
-					Columns:    []model.Expr{model.NewFunction("sum", model.NewLiteral("NULL"))},
+					Columns:    []model.Expr{model.NewFunction("sum", model.NullExpr)},
 				},
 			},
 		},
@@ -1414,7 +1414,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("test"),
-					Columns:    []model.Expr{model.NewFunction("sum", model.NewLiteral("NULL"))},
+					Columns:    []model.Expr{model.NewFunction("sum", model.NullExpr)},
 				},
 			},
 		},
@@ -1565,7 +1565,7 @@ func Test_mapKeys(t *testing.T) {
 					FromClause: model.NewTableRef("test2"),
 					Columns:    []model.Expr{model.NewColumnRef("foo")},
 					WhereClause: model.NewInfixExpr(
-						model.NewLiteral("NULL"),
+						model.NullExpr,
 						model.MatchOperator,
 						model.NewLiteral("'baz'"),
 					),

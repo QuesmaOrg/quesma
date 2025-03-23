@@ -584,7 +584,6 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					statements = append(statements, simpleStat)
 				}
 			}
-			pp.Println("RETURN", statements)
 			return model.NewSimpleQuery(model.Or(statements), true)
 		}
 
@@ -884,7 +883,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			return model.NewSimpleQueryInvalid()
 		}
 
-		sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
+		sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NotNullExpr)
 	}
 
 	return model.NewSimpleQuery(sql, true)

@@ -7,7 +7,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"github.com/k0kubun/pp"
 	"regexp"
 	"sort"
 	"strconv"
@@ -67,16 +66,16 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 	return e.Name + "(" + strings.Join(args, ",") + ")"
 }
 
+// It's grown a bit big over time (maybe can be refactored/simplified), but maybe it'll just work?
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
-	pp.Println("KK, lit", l)
-	f := func(s string) string {
+	formatter := func(s string) string {
 		if util.IsInt(s) {
 			i, _ := util.ToInt64(s)
 			return fmt.Sprintf("%d", i)
 		} else if util.IsFloat(s) {
 			f, _ := util.ToFloat(s)
 			return fmt.Sprintf("%f", f)
-		} else if s == "*" || s == "true" || s == "false" || s == "NULL" || s == "NOT NULL" {
+		} else if s == "true" || s == "false" {
 			return s
 		}
 		return util.SingleQuote(escapeStringNormal(s))
@@ -87,16 +86,15 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 		case ZeroEscaping:
 			return val
 		case NormalNotEscaped:
-			fmt.Println("WTFF", val)
 			if util.IsSingleQuoted(val) {
-				return f(val[1 : len(val)-1])
+				return formatter(val[1 : len(val)-1])
 			} else if util.IsQuoted(val) {
-				x := f(val[1 : len(val)-1])
+				x := formatter(val[1 : len(val)-1])
 				if util.IsSingleQuoted(x) {
 					return strconv.Quote(x[1 : len(x)-1])
 				}
 			}
-			return f(val)
+			return formatter(val)
 		case NotEscapedLikePrefix:
 			return util.SingleQuote(escapeStringLike(escapeStringNormal(val)) + "%")
 		case NotEscapedLikeFull:
@@ -146,13 +144,11 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	} else {
 		lhs = "< LHS NIL >"
 	}
-	pp.Println("e.Right", e.Right)
 	if e.Right != nil {
 		rhs = e.Right.Accept(v)
 	} else {
 		rhs = "< RHS NIL >"
 	}
-	pp.Println("rhs", rhs)
 
 	// This might look like a strange heuristics to but is aligned with the way we are currently generating the statement
 	// I think in the future every infix op should be in braces.
@@ -411,12 +407,12 @@ func (v *renderer) VisitCTE(c CTE) interface{} {
 // It escapes ' and \ characters: ' -> \', \ -> \\.
 func escapeStringNormal(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`) // \ should be escaped with no exceptions
-	if len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\'' {
+	if util.IsSingleQuoted(s) {
 		// don't escape the first and last '
 		return strings.ReplaceAll(s[1:len(s)-1], `'`, `\'`)
-	} else if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+	} else if util.IsQuoted(s) {
 		// don't escape "abc"
-		return "\"" + strings.ReplaceAll(s[1:len(s)-1], `'`, `'`) + "\""
+		return strconv.Quote(strings.ReplaceAll(s[1:len(s)-1], `'`, `\'`))
 	}
 	return strings.ReplaceAll(s, `'`, `\'`)
 }
