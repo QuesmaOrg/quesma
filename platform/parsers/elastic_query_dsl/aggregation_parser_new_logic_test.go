@@ -12,7 +12,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -55,7 +54,7 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
 
 	for i, test := range testdata.NewLogicTestCases {
-		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
+		t.Run(util.PrettyTestName(test.TestName, i), func(t *testing.T) {
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
 				t.Skip("Needs to be fixed by keeping last key for every aggregation. Now we sometimes don't know it. Hard to reproduce, leaving it for separate PR")
 			}

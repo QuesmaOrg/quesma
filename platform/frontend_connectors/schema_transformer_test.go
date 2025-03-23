@@ -9,6 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"strconv"
 	"testing"
@@ -648,8 +649,8 @@ func Test_arrayType(t *testing.T) {
 		return query.SelectCommand.String()
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
 			actual, err := transform.Transform([]*model.Query{tt.query})
@@ -718,8 +719,8 @@ func TestApplyWildCard(t *testing.T) {
 		t.Fatal("schema not found")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			query := &model.Query{
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
@@ -959,8 +960,8 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 		t.Fatal("schema not found")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			indexes := tt.indexes
 			if len(indexes) == 0 {
@@ -1064,8 +1065,8 @@ func TestFullTextFields(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			query := &model.Query{
 				TableName:     "test",
 				SelectCommand: tt.input,
@@ -1317,8 +1318,8 @@ func Test_applyMatchOperator(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tableDiscovery :=
 				fixedTableProvider{tables: map[string]schema.Table{
 					"test": schemaTable,
@@ -1420,8 +1421,8 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tableDiscovery :=
 				fixedTableProvider{tables: map[string]schema.Table{
 					"test": schemaTable,
@@ -1578,8 +1579,8 @@ func Test_mapKeys(t *testing.T) {
 		return query.SelectCommand.String()
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
 			actual, err := transform.Transform([]*model.Query{tt.query})

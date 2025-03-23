@@ -692,8 +692,8 @@ func TestLogManager_GetTable(t *testing.T) {
 			found:            false,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(&tt.predefinedTables)
 			lm := NewLogManager(&tt.predefinedTables, &config.QuesmaConfiguration{})
@@ -770,8 +770,8 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 			resolved: []string{"table2"},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			schemaTables := make(map[schema2.IndexName]schema2.Schema)
 
