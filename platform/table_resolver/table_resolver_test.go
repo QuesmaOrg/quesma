@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	mux "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
@@ -393,8 +394,8 @@ func TestTableResolver(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			currentQuesmaConf := cfg
 			if tt.quesmaConf != nil {

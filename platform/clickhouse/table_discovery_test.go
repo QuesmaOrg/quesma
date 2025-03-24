@@ -3,6 +3,7 @@
 package clickhouse
 
 import (
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
@@ -143,8 +144,8 @@ func Test_resolveColumn(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			assert.Equalf(t, tt.want, resolveColumn(tt.args.colName, tt.args.colType), "resolveColumn(%v, %v)", tt.args.colName, tt.args.colType)
 		})
 	}
@@ -297,8 +298,8 @@ func Test_resolveColumn_Nullable(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			assert.Equalf(t, tt.want, resolveColumn(tt.args.colName, tt.args.colType), "resolveColumn(%v, %v)", tt.args.colName, tt.args.colType)
 		})
 	}
@@ -323,8 +324,8 @@ func TestExtractMapValueType(t *testing.T) {
 		{"Map(String, Map(String, Int32))", "Map(String, Int32)", false}, // Nested map
 	}
 
-	for _, test := range tests {
-		t.Run(test.input, func(t *testing.T) {
+	for i, test := range tests {
+		t.Run(util.PrettyTestName(test.input, i), func(t *testing.T) {
 			result, err := extractMapValueType(test.input)
 			if (err != nil) != test.hasError {
 				t.Errorf("unexpected error state for input %q: got error %v", test.input, err)
