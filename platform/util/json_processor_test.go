@@ -38,8 +38,8 @@ func TestFlattenMap(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(PrettyTestName(tt.name, i), func(t *testing.T) {
 			if got := FlattenMap(tt.data, "::"); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("FlattenMap() = %v, want %v", got, tt.want)
 			}
@@ -110,8 +110,8 @@ func TestRewriteArrayOfObject_Transform(t *testing.T) {
 
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(PrettyTestName(tt.name, i), func(t *testing.T) {
 			processor := &RewriteArrayOfObject{}
 
 			ingres := toMap(tt.ingres)

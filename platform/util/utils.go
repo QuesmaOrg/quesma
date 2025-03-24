@@ -654,18 +654,20 @@ func ExtractInt64Maybe(value any) (asInt64 int64, success bool) {
 // * value,  if it's float64/32
 // * *value, if it's *float64/32
 // * -1,     otherwise
-func ExtractFloat64(value any) (float64, error) {
+func ExtractFloat64(value any) float64 {
 	switch valueTyped := value.(type) {
 	case float64:
-		return valueTyped, nil
+		return valueTyped
 	case *float64:
-		return *valueTyped, nil
+		return *valueTyped
 	case float32:
-		return float64(valueTyped), nil
+		return float64(valueTyped)
 	case *float32:
-		return float64(*valueTyped), nil
+		return float64(*valueTyped)
+	default:
+		return -1 // fmt.Errorf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v; type: %T", value, value)
+		// reapply above if needed to change return signature to (float64, error)
 	}
-	return -1, fmt.Errorf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v; type: %T", value, value)
 }
 
 // ExtractFloat64Maybe returns float64 value behind `value`:

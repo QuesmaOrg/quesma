@@ -6,6 +6,7 @@ package elastic_query_dsl
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -47,7 +48,7 @@ func TestDateManager_parseStrictDateOptionalTimeOrEpochMillis(t *testing.T) {
 		{"2024-02-25T13:00:00.123456789Z", time.Unix(1708866000, 123456789), true},
 	}
 	for i, tt := range tests {
-		t.Run(fmt.Sprintf("%v(test nr %d)", tt.input, i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(fmt.Sprintf("%v", tt.input), i), func(t *testing.T) {
 			dm := NewDateManager(context.Background())
 			gotUnixTs, gotParsingSucceeded := dm.parseStrictDateOptionalTimeOrEpochMillis(tt.input)
 			assert.Truef(t, tt.wantedTimestamp.Equal(gotUnixTs), "wanted %v, got %v", tt.wantedTimestamp, gotUnixTs)

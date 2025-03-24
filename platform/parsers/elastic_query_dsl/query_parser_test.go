@@ -17,7 +17,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -67,7 +66,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
 
 	for i, tt := range testdata.TestsSearch {
-		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
 			plan, errQuery := cw.ParseQuery(body)
@@ -134,7 +133,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
 
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
 			plan, errQuery := cw.ParseQuery(body)
@@ -195,8 +194,8 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 		},
 	}
 	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables["logs-generic-default"]}
-	for _, tt := range testdata.TestsSearchNoAttrs {
-		t.Run(tt.Name, func(t *testing.T) {
+	for i, tt := range testdata.TestsSearchNoAttrs {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
 			plan, errQuery := cw.ParseQuery(body)
@@ -278,8 +277,8 @@ func Test_parseSortFields(t *testing.T) {
 		clickhouse.NewChTableConfigNoAttrs(),
 	)
 	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background()}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			assert.Equal(t, tt.sortColumns, cw.parseSortFields(tt.sortMap))
 		})
 	}
@@ -311,7 +310,7 @@ func TestInvalidQueryRequests(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
 	for i, test := range testdata.InvalidAggregationTests {
-		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
+		t.Run(util.PrettyTestName(test.TestName, i), func(t *testing.T) {
 			if strings.Contains(strings.ToLower(test.TestName), "rate") {
 				t.Skip("Unskip after merge of rate aggregation")
 			}

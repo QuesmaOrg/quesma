@@ -4,6 +4,7 @@ package elastic_query_dsl
 
 import (
 	"github.com/QuesmaOrg/quesma/platform/model"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -23,8 +24,8 @@ func TestParseDateMathExpression(t *testing.T) {
 		{"now-15m-25s/y", &DateMathExpression{intervals: []DateMathInterval{{amount: -15, unit: "m"}, {amount: -25, unit: "s"}}, rounding: "y"}},
 	}
 
-	for _, test := range tests {
-		t.Run(test.input, func(tt *testing.T) {
+	for i, test := range tests {
+		t.Run(util.PrettyTestName(test.input, i), func(tt *testing.T) {
 			result, err := ParseDateMathExpression(test.input)
 			require.NoError(tt, err)
 			assert.Equal(tt, test.expected, result)
@@ -91,8 +92,8 @@ func Test_DateMathExpressionAsLiteral(t *testing.T) {
 		{"now-1d", now.Add(-24 * time.Hour)},
 	}
 
-	for _, test := range tests {
-		t.Run(test.input, func(tt *testing.T) {
+	for i, test := range tests {
+		t.Run(util.PrettyTestName(test.input, i), func(tt *testing.T) {
 
 			dt, err := ParseDateMathExpression(test.input)
 			assert.NoError(tt, err)
