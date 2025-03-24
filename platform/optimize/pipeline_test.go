@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/model"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -47,9 +48,9 @@ func Test_cacheQueries(t *testing.T) {
 		Optimizers: map[string]config.OptimizerConfiguration{"cache_queries": {}},
 	}
 
-	for _, tt := range tests {
+	for i, tt := range tests {
 
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			queries := []*model.Query{
 				{
@@ -200,9 +201,9 @@ func Test_dateTrunc(t *testing.T) {
 		Optimizers: map[string]config.OptimizerConfiguration{"truncate_date": {}},
 	}
 
-	for _, tt := range tests {
+	for i, tt := range tests {
 
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			queries := []*model.Query{
 				{
@@ -436,9 +437,9 @@ func Test_materialized_view_replace(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i, tt := range tests {
 
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			queries := []*model.Query{
 				{

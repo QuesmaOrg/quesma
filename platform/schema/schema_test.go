@@ -3,6 +3,7 @@
 package schema
 
 import (
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"reflect"
 	"testing"
 )
@@ -50,8 +51,8 @@ func TestSchema_ResolveField(t *testing.T) {
 			exists:        false,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			got, exists := tt.schema.ResolveField(tt.fieldName)
 			if exists != tt.exists {
 				t.Errorf("ResolveField() exists = %v, want %v", exists, tt.exists)
@@ -93,8 +94,8 @@ func TestSchema_ResolveFieldByInternalName(t *testing.T) {
 			found:     true,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.testName, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.testName, i), func(t *testing.T) {
 			s := NewSchemaWithAliases(tt.schema.Fields, tt.schema.Aliases, false, "")
 			got, found := s.ResolveFieldByInternalName(tt.fieldName)
 			if !reflect.DeepEqual(got, tt.want) {

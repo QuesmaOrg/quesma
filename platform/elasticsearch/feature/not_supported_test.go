@@ -5,6 +5,7 @@ package feature
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -41,9 +42,9 @@ func TestNewUnsupportedFeature_index(t *testing.T) {
 		return []string{}, nil
 	}
 
-	for _, tt := range tests {
+	for i, tt := range tests {
 
-		t.Run(tt.path, func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.path, i), func(t *testing.T) {
 			given := AnalyzeUnsupportedCalls(ctx, "GET", tt.path, tt.opaqueId, indexNameResolver)
 			assert.Equal(t, tt.isLogged, given)
 		})
@@ -64,8 +65,8 @@ func TestIndexRegexp(t *testing.T) {
 		{"/traces-xx*,xx-*,traces-xx*,x-*,logs-xx*,xx-*/_search", "traces-xx*,xx-*,traces-xx*,x-*,logs-xx*,xx-*"},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.path, i), func(t *testing.T) {
 			given := indexPathRegexp.FindStringSubmatch(tt.path)
 			if len(given) > 1 {
 				index := given[1]
