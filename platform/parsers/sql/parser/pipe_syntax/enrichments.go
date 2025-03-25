@@ -161,6 +161,11 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 
 								fmt.Println("IP enrichment complete. Found countries for", len(ipToCountry), "IPs")
 
+								_, err := conn.Exec("CREATE TABLE IF NOT EXISTS quesma_enrich\n(\n    `enrich_type` LowCardinality(String),\n    `key` String,\n    `value` Nullable(String)\n)\nENGINE = MergeTree\nORDER BY (`enrich_type`, `key`)")
+								if err != nil {
+									fmt.Printf("Error creating quesma_enrich table: %v\n", err)
+								}
+
 								// For each unique IP, insert a record into quesma_enrich table
 								for ip, country := range ipToCountry {
 									if ip != "NULL" && ip != "" && country != "Unknown" {
