@@ -1662,10 +1662,7 @@ func Test_d(t *testing.T) {
 					Columns: []model.Expr{
 						model.NewFunction(
 							"toInt64",
-							model.NewFunction(
-								"toUnixTimestamp64Milli",
-								model.NewColumnRef("timestampInt"),
-							),
+							model.NewColumnRef("timestampInt"),
 						),
 					},
 				},

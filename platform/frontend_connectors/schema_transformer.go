@@ -1064,6 +1064,15 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 		return visitInfix(b, e)
 	}
 
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, f model.FunctionExpr) interface{} {
+		if f.Name == "toUnixTimestamp64Milli" && len(f.Args) == 1 {
+			if col, ok := model.ExtractColRef(f.Args[0]); ok && table.IsInt(col.ColumnName) {
+				return f.Args[0]
+			}
+		}
+		return visitFunction(b, f)
+	}
+
 	expr := query.SelectCommand.Accept(visitor)
 
 	if _, ok := expr.(*model.SelectCommand); ok {
