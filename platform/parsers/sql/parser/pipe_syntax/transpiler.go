@@ -36,13 +36,19 @@ func Transpile(node core.Node) {
 		for _, pipe := range pipeNode.Pipes {
 			if pipeNodeList, ok := pipe.(core.NodeListNode); ok {
 				name := strings.ToUpper(pipeNodeList.Nodes[2].(core.TokenNode).Token.RawValue)
-				switch name {
-				case "JOIN":
+
+				// JOIN, CROSS JOIN, LEFT OUTER JOIN etc.
+				if strings.HasSuffix(name, "JOIN") {
 					if state.lastPriority >= 2 {
 						state = TranspileState{from: renderState(state, true)}
 					}
 					state.join = pipeNodeList
 					state.lastPriority = 2
+
+					continue
+				}
+
+				switch name {
 				case "WHERE":
 					if state.lastPriority >= 3 {
 						state = TranspileState{from: renderState(state, true)}

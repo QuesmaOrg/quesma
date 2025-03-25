@@ -16,12 +16,7 @@ func main() {
 	tokens := lexer_core.Lex(
 		`
 from akamai.siem
-|> limit 1000000 
-|> select timestamp, method, port, path
-|> CALL TIMEBUCKET timestamp BY 1 WEEK as TB 
-|> CALL LOGCATEGORY log_line AS category 
-|> aggregate count(*) as cnt GROUP BY TB
-|> order by cnt DESC
+|> LEFT JOIN x ON x.id = siem.id
 |> limit 100 
 `, dialect_sqlparse.SqlparseRules)
 
