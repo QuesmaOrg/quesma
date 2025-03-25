@@ -60,9 +60,8 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query
 			if strings.Contains(boolLiteral, "true") || strings.Contains(boolLiteral, "false") {
 				boolLiteral = strings.TrimLeft(boolLiteral, "'")
 				boolLiteral = strings.TrimRight(boolLiteral, "'")
-				clone := e.Clone()
-				clone.Value = boolLiteral
-				return clone
+				var asAny any = boolLiteral
+				return e.CloneAndOverride(&asAny, nil, nil)
 			}
 		}
 		return e.Clone()
@@ -239,7 +238,7 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 			}
 		}
 
-		return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+		return visitFunction(b, e)
 	}
 
 	visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
@@ -619,9 +618,9 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 
 				if len(fullTextFields) == 0 {
 					if (strings.ToUpper(e.Op) == "LIKE" || strings.ToUpper(e.Op) == "ILIKE") && model.AsString(e.Right) == "'%'" {
-						return model.NewLiteral(true)
+						return model.TrueExpr
 					}
-					return model.NewLiteral(false)
+					return model.FalseExpr
 				}
 
 				var expressions []model.Expr
@@ -636,7 +635,7 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 			}
 		}
 
-		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+		return visitInfix(b, e)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
@@ -901,7 +900,7 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 			// add more
 
 		default:
-			return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+			return visitFunction(b, e)
 		}
 	}
 
@@ -954,7 +953,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 			}
 		}
 
-		return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+		return visitFunction(b, e)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
@@ -1166,7 +1165,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			okLeft = true
 			lhsCol = lhsT.ColumnRef
 		default:
-			return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+			return visitInfix(b, e)
 		}
 
 		rhsValue, ok := rhs.Value.(string)
@@ -1175,7 +1174,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				// only strings can be ILIKEd, everything else is a simple =
 				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), "=", e.Right.Accept(b).(model.Expr))
 			} else {
-				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+				return visitInfix(b, e)
 			}
 		}
 
@@ -1243,7 +1242,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 								// sanity check for map type with two elements
 								if len(kvTypes) == 2 {
-									rhsValue := rhs.Value.(string)
+									rhsValue = rhs.Value.(string)
 									rhsValue = strings.TrimPrefix(rhsValue, "'")
 									rhsValue = strings.TrimSuffix(rhsValue, "'")
 
@@ -1251,6 +1250,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 									if strings.Contains(kvTypes[1], "String") {
 										clone := rhs.Clone()
+										clone.Value = rhsValue
 										clone.Attrs[model.EscapeKey] = model.NotEscapedLikeFull
 										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "iLIKE", clone)
 									} else {
@@ -1267,7 +1267,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 		if e.Op == model.MatchOperator {
 			logger.Error().Msgf("Match operator is not supported for column %v (expr: %v)", lhsCol, e)
 		}
-		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+		return visitInfix(b, e)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)

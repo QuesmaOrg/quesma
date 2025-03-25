@@ -198,6 +198,20 @@ func (e LiteralExpr) Clone() LiteralExpr {
 	return c
 }
 
+func (e LiteralExpr) CloneAndOverride(val *any, escapeType *EscapeType, format *string) LiteralExpr {
+	c := e.Clone()
+	if val != nil {
+		c.Value = *val
+	}
+	if escapeType != nil {
+		c.Attrs[EscapeKey] = *escapeType
+	}
+	if format != nil {
+		c.Attrs[FormatKey] = *format
+	}
+	return c
+}
+
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`
 type DistinctExpr struct {
 	Expr Expr
@@ -268,6 +282,10 @@ func (o OrderByExpr) IsCountDesc() bool {
 
 func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
 	return InfixExpr{Left: lhs, Op: operator, Right: rhs}
+}
+
+func (e InfixExpr) Clone() InfixExpr {
+	return NewInfixExpr(e.Left, e.Op, e.Right)
 }
 
 // AliasedExpr is an expression with an alias, e.g. `columnName AS alias` or `COUNT(x) AS sum_of_xs`
