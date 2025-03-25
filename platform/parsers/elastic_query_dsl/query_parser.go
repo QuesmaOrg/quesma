@@ -819,7 +819,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 					parsed, err := cw.parseDateMathExpression(value)
 					if err == nil {
 						doneParsing = true
-						literal := model.NewLiteralWithEscapeType(parsed, model.FullyEscaped)
+						literal := model.NewLiteralWithEscapeType(parsed, model.NormalNotEscaped)
 						if formatExists {
 							literal.Attrs[model.FormatKey] = format
 						}
@@ -838,7 +838,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						}
 					}
 					if isNumber {
-						literal := model.NewLiteralWithEscapeType(unquoted, model.FullyEscaped)
+						literal := model.NewLiteralWithEscapeType(unquoted, model.NormalNotEscaped)
 						if formatExists {
 							literal.Attrs[model.FormatKey] = format
 						}

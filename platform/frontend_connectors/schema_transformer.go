@@ -1036,7 +1036,7 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 		col, okLeft := model.ExtractColRef(e.Left)
 		lit, _ := model.ToLiteral(e.Right)
 		ts, okRight := model.ToLiteralsValue(e.Right)
-		pp.Println(e, okLeft, okRight, col, "TEEEES", ts, lit, indexSchema.IsInt(col.ColumnName), table.IsInt(col.ColumnName))
+		//pp.Println(e, okLeft, okRight, col, "TEEEES", ts, lit, indexSchema.IsInt(col.ColumnName), table.IsInt(col.ColumnName))
 		if okLeft && okRight && table.IsInt(col.ColumnName) {
 			format := ""
 			if f, ok := lit.Format(); ok {

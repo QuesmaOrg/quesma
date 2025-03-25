@@ -1614,7 +1614,7 @@ func Test_d(t *testing.T) {
 		{
 			name: "String",
 			query: &model.Query{
-				TableName: "timestamp as int",
+				TableName: "test",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("test"),
 					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
@@ -1635,6 +1635,39 @@ func Test_d(t *testing.T) {
 						">=",
 						model.NewLiteral(1742905971527),
 					),
+				},
+			},
+		},
+		{
+			name: "String",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						model.NewFunction(
+							"toInt64",
+							model.NewFunction(
+								"toUnixTimestamp64Milli",
+								model.NewColumnRef("timestampInt"),
+							),
+						),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						model.NewFunction(
+							"toInt64",
+							model.NewFunction(
+								"toUnixTimestamp64Milli",
+								model.NewColumnRef("timestampInt"),
+							),
+						),
+					},
 				},
 			},
 		},
@@ -1703,10 +1736,19 @@ func Test_d(t *testing.T) {
 				"test": {},
 			})
 
+			tableMap := clickhouse.NewTableMap()
+			tab, _ := clickhouse.NewTable(`
+				CREATE TABLE table (
+					"timestampInt" UInt64
+				) ENGINE = Memory`, clickhouse.NewChTableConfigTimestampStringAttr())
+			tableMap.Store("test", tab)
+			td := clickhouse.NewEmptyTableDiscovery()
+			td.TableMap = tableMap
+
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
-			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
+			transform := NewSchemaCheckPass(&cfg, td, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")
 			if !ok {
