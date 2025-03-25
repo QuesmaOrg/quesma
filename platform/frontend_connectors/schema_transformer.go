@@ -1028,7 +1028,7 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		dm := elastic_query_dsl.NewDateManager(context.Background())
 		col, okLeft := model.ExtractColRef(e.Left)
-		ts, okRight := model.ToLiteralValue(e.Right)
+		ts, okRight := model.ToLiteralsValue(e.Right)
 		pp.Println(okLeft, okRight, col, ts, indexSchema.IsInt(col.ColumnName))
 		if okLeft && okRight && indexSchema.IsInt(col.ColumnName) {
 			if expr, ok := dm.ParseDateUsualFormat(ts, clickhouse.DateTime64); ok {
