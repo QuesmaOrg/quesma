@@ -9,7 +9,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"github.com/k0kubun/pp"
 	"strconv"
 	"strings"
 )
@@ -194,6 +193,5 @@ func (t *Table) GetFieldInfo(ctx context.Context, fieldName string) FieldInfo {
 
 func (t *Table) IsInt(fieldName string) bool {
 	col, ok := t.Cols[fieldName]
-	pp.Println(col, ok)
 	return ok && col.Type != nil && strings.Contains(col.Type.String(), "Int")
 }

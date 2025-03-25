@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Elastic-2.0
 package model
 
-import "github.com/k0kubun/pp"
-
 // ExtractColRef returns the ColumnRef from an expression, or false if the expression is not a ColumnRef.
 func ExtractColRef(e Expr) (c ColumnRef, ok bool) {
 	c, ok = e.(ColumnRef)
@@ -18,9 +16,7 @@ func ToFunction(e Expr) (f FunctionExpr, ok bool) {
 
 // ToLiteral returns the LiteralExpr, or false if the expression is not a LiteralExpr.
 func ToLiteral(e Expr) (l LiteralExpr, ok bool) {
-	pp.Println(e)
 	l, ok = e.(LiteralExpr)
-	pp.Println(l)
 	return l, ok
 }
 

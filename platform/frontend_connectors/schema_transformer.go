@@ -13,7 +13,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -1013,48 +1012,34 @@ func visitInfix(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 }
 
 func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-	visitor := model.NewBaseVisitor()
-
-	/*
-		visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
-			if e.Name == "fromUnixTimestamp64Millis" && len(e.Args) == 1 {
-				if col, ok := e.Args[0].(model.LiteralExpr); ok {
-					pp.Println(col)
-				}
-			}
-			return visitFunction(b, e)
-		}
-	*/
-
-	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
-	if !ok {
+	table, exists := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !exists {
 		return nil, fmt.Errorf("table %s not found", query.TableName)
 	}
 
+	dateManager := elastic_query_dsl.NewDateManager(context.Background())
+	visitor := model.NewBaseVisitor()
+
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
-		dm := elastic_query_dsl.NewDateManager(context.Background())
 		col, okLeft := model.ExtractColRef(e.Left)
 		lit, _ := model.ToLiteral(e.Right)
 		ts, okRight := model.ToLiteralsValue(e.Right)
-		//pp.Println(e, okLeft, okRight, col, "TEEEES", ts, lit, indexSchema.IsInt(col.ColumnName), table.IsInt(col.ColumnName))
 		if okLeft && okRight && table.IsInt(col.ColumnName) {
 			format := ""
 			if f, ok := lit.Format(); ok {
 				format = f
 			}
-			expr, ok := dm.ParseDateUsualFormat(ts, clickhouse.DateTime64, format)
+			expr, ok := dateManager.ParseDateUsualFormat(ts, clickhouse.DateTime64, format)
 			if !ok {
-				pp.Println("QQhehe", ts)
+				// FIXME hacky but seems working
 				if tsStr, ok_ := ts.(string); ok_ && len(tsStr) > 2 {
-					expr, ok = dm.ParseDateUsualFormat(tsStr[1:len(tsStr)-1], clickhouse.DateTime64, format)
+					expr, ok = dateManager.ParseDateUsualFormat(tsStr[1:len(tsStr)-1], clickhouse.DateTime64, format)
 				}
 			}
 			if ok {
-				pp.Println("hehe", expr)
 				if f, okF := model.ToFunction(expr); okF && f.Name == "fromUnixTimestamp64Milli" && len(f.Args) == 1 {
-					pp.Println(f)
 					if l, okL := model.ToLiteral(f.Args[0]); okL {
-						if _, exists := l.Format(); exists {
+						if _, exists := l.Format(); exists { // heuristics: it's a date <=> it has a format
 							return model.NewInfixExpr(col, e.Op, f.Args[0])
 						}
 					}
@@ -1067,11 +1052,13 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, f model.FunctionExpr) interface{} {
 		if f.Name == "toUnixTimestamp64Milli" && len(f.Args) == 1 {
 			if col, ok := model.ExtractColRef(f.Args[0]); ok && table.IsInt(col.ColumnName) {
+				// erases toUnixTimestamp64Milli
 				return f.Args[0]
 			}
 		}
 		if f.Name == "toTimezone" && len(f.Args) == 2 {
 			if col, ok := model.ExtractColRef(f.Args[0]); ok && table.IsInt(col.ColumnName) {
+				// adds fromUnixTimestamp64Milli
 				return model.NewFunction("toTimezone", model.NewFunction("fromUnixTimestamp64Milli", f.Args[0]), f.Args[1])
 			}
 		}
@@ -1079,10 +1066,10 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
-
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
+
 	return query, nil
 }
 
@@ -1276,10 +1263,10 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 									// here we check if the value of the map is string or not
 
 									if strings.Contains(kvTypes[1], "String") {
-										clone := rhs.Clone()
-										clone.Value = rhsValue
-										clone.Attrs[model.EscapeKey] = model.NotEscapedLikeFull
-										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "iLIKE", clone)
+										newRhs := rhs.Clone()
+										newRhs.Value = rhsValue
+										newRhs.Attrs[model.EscapeKey] = model.NotEscapedLikeFull
+										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "iLIKE", newRhs)
 									} else {
 										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "=", e.Right.Accept(b).(model.Expr))
 									}
