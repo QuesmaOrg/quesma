@@ -15,9 +15,16 @@ import (
 	"testing"
 )
 
-type fixedTableProvider struct {
-	tables map[string]schema.Table
-}
+type (
+	fixedTableProvider struct {
+		tables map[string]schema.Table
+	}
+	transformTest struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}
+)
 
 func newFixedTableProvider(tables map[string]schema.Table) *fixedTableProvider {
 	return &fixedTableProvider{tables: tables}
@@ -451,11 +458,7 @@ func Test_arrayType(t *testing.T) {
 
 	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
 
-	tests := []struct {
-		name     string
-		query    *model.Query
-		expected *model.Query
-	}{
+	tests := []transformTest{
 		{
 			name: "simple array",
 			query: &model.Query{
@@ -1149,11 +1152,7 @@ func Test_applyMatchOperator(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
-		name     string
-		query    *model.Query
-		expected *model.Query
-	}{
+	tests := []transformTest{
 		{
 			name: "match operator transformation for String (ILIKE)",
 			query: &model.Query{
@@ -1361,11 +1360,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
-		name     string
-		query    *model.Query
-		expected *model.Query
-	}{
+	tests := []transformTest{
 		{
 			name: "String",
 			query: &model.Query{
@@ -1480,12 +1475,7 @@ func Test_mapKeys(t *testing.T) {
 
 	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
 
-	tests := []struct {
-		name     string
-		query    *model.Query
-		expected *model.Query
-	}{
-
+	tests := []transformTest{
 		{
 			name: "match operator transformation for String (ILIKE)",
 			query: &model.Query{
@@ -1597,7 +1587,7 @@ func Test_mapKeys(t *testing.T) {
 
 }
 
-func Test_d(t *testing.T) {
+func Test_acceptIntsAsTimestamps(t *testing.T) {
 	schemaTable := schema.Table{
 		Columns: map[string]schema.Column{
 			"@timestamp":   {Name: "@timestamp", Type: "DateTime64"},
@@ -1606,13 +1596,9 @@ func Test_d(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
-		name     string
-		query    *model.Query
-		expected *model.Query
-	}{
+	tests := []transformTest{
 		{
-			name: "String",
+			name: "replace string datetime with unix millis timestamp",
 			query: &model.Query{
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
@@ -1669,7 +1655,7 @@ func Test_d(t *testing.T) {
 			},
 		},
 		{
-			name: "query e.g. from date_histogram with time_zone. need to erase toUnixTimestamp() when column is already int",
+			name: "query e.g. from date_histogram with time_zone. need to erase toUnixTimestamp() + add fromUnixTimestamp() when column is already int",
 			query: &model.Query{
 				TableName: "test",
 				SelectCommand: model.SelectCommand{

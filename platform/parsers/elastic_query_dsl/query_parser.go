@@ -854,8 +854,6 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 				finalValue = defaultValue
 			}
 
-			pp.Println("FINAL VALUE", finalValue)
-
 			field := model.NewColumnRef(fieldName)
 			switch op {
 			case "gte":
