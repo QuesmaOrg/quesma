@@ -63,9 +63,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			}},
 		},
 	}
-	cfg := config.QuesmaConfiguration{
-		IndexConfig: indexConfig,
-	}
+	cfg := config.NewQuesmaConfigurationIndexConfigOnly(indexConfig)
 
 	tableMap := clickhouse.NewTableMap()
 
@@ -1114,14 +1112,12 @@ func TestFullTextFields(t *testing.T) {
 				},
 			}
 
-			cfg := config.QuesmaConfiguration{
-				IndexConfig: indexConfig,
-			}
+			cfg := config.NewQuesmaConfigurationIndexConfigOnly(indexConfig)
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
-			transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
+			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")
 			if !ok {
@@ -1333,9 +1329,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				"test": {},
 			}
 
-			cfg := config.QuesmaConfiguration{
-				IndexConfig: indexConfig,
-			}
+			cfg := config.NewQuesmaConfigurationIndexConfigOnly(indexConfig)
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 			s.Start()
@@ -1436,9 +1430,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 				"test": {},
 			}
 
-			cfg := config.QuesmaConfiguration{
-				IndexConfig: indexConfig,
-			}
+			cfg := config.NewQuesmaConfigurationIndexConfigOnly(indexConfig)
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 			s.Start()
