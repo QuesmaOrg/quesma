@@ -47,7 +47,7 @@ func (c SelectCommand) String() string {
 
 func (c SelectCommand) IsWildcard() bool {
 	for _, col := range c.Columns {
-		if col == NewWildcardExpr {
+		if AsString(col) == AsString(NewWildcardExpr) {
 			return true
 		}
 	}

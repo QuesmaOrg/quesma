@@ -4,6 +4,7 @@ package model
 
 import (
 	"fmt"
+	"github.com/k0kubun/pp"
 	"strconv"
 )
 
@@ -93,10 +94,10 @@ func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
 
 type (
 	LiteralExpr struct {
-		Value      any
-		EscapeType EscapeType // only meaningful if Value is string
+		Value any
+		Attrs map[string]any
 	}
-	EscapeType string
+	EscapeType string // may appear in Attrs under FormatKey key. Only meaningful if Value is string
 )
 
 const (
@@ -104,10 +105,32 @@ const (
 	NotEscapedLikePrefix EscapeType = "like_prefix"   // used in 'LIKE' exprs, will be rendered 'value%'
 	NotEscapedLikeFull   EscapeType = "like_full"     // used in 'LIKE' exprs, will be rendered '%value%'
 	FullyEscaped         EscapeType = "fully_escaped" // will be rendered as is, as Lucene parser did all the escaping
+	EscapeKey            string     = "escape"
+	FormatKey            string     = "format"
 )
 
 func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
+}
+
+func (e LiteralExpr) Escape() (typ EscapeType) {
+	const default_ = NormalNotEscaped
+	if val, ok := e.Attrs[EscapeKey]; ok {
+		if typ, ok = val.(EscapeType); ok {
+			return typ
+		}
+	}
+	return default_
+}
+
+func (e LiteralExpr) Format() (format string, exists bool) {
+	pp.Println("format", e.Attrs)
+	if val, ok := e.Attrs[FormatKey]; ok {
+		if format, ok = val.(string); ok {
+			return format, true
+		}
+	}
+	return "", false
 }
 
 type TupleExpr struct {
@@ -146,7 +169,7 @@ func NewCountFunc(args ...Expr) FunctionExpr {
 var NewWildcardExpr = NewLiteral("*")
 
 func NewLiteral(value any) LiteralExpr {
-	return LiteralExpr{Value: value, EscapeType: NormalNotEscaped}
+	return LiteralExpr{Value: value, Attrs: make(map[string]any)}
 }
 
 // NewLiteralSingleQuoteString simply does: string -> 'string', anything_else -> anything_else
@@ -160,11 +183,19 @@ func NewLiteralSingleQuoteString(value any) LiteralExpr {
 }
 
 func NewLiteralWithEscapeType(value any, escapeType EscapeType) LiteralExpr {
-	return LiteralExpr{Value: value, EscapeType: escapeType}
+	return LiteralExpr{Value: value, Attrs: map[string]any{EscapeKey: escapeType}}
+}
+
+func NewLiteralWithFormat(value any, format string) LiteralExpr {
+	return LiteralExpr{Value: value, Attrs: map[string]any{FormatKey: format}}
 }
 
 func (e LiteralExpr) Clone() LiteralExpr {
-	return NewLiteralWithEscapeType(e.Value, e.EscapeType)
+	c := NewLiteral(e.Value)
+	for k, v := range e.Attrs {
+		c.Attrs[k] = v
+	}
+	return c
 }
 
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`

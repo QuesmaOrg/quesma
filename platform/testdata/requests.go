@@ -2559,7 +2559,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		WantedRegexes: []string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("tsAsUInt64">=15 AND "tsAsUInt64"<=2025) ` +
+				`WHERE ("tsAsUInt64">=15 AND "tsAsUInt64"<=1735689600000) ` +
 				`LIMIT 10`,
 		},
 	},

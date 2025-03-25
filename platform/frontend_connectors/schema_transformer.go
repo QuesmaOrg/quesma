@@ -60,7 +60,9 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query
 			if strings.Contains(boolLiteral, "true") || strings.Contains(boolLiteral, "false") {
 				boolLiteral = strings.TrimLeft(boolLiteral, "'")
 				boolLiteral = strings.TrimRight(boolLiteral, "'")
-				return model.NewLiteralWithEscapeType(boolLiteral, e.EscapeType)
+				clone := e.Clone()
+				clone.Value = boolLiteral
+				return clone
 			}
 		}
 		return e.Clone()
@@ -536,7 +538,7 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 
 	for _, selectColumn := range query.SelectCommand.Columns {
 
-		if selectColumn == model.NewWildcardExpr {
+		if model.IsWildcard(selectColumn) {
 			hasWildcard = true
 		} else {
 			newColumns = append(newColumns, selectColumn)
@@ -779,7 +781,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			if hasAttributesValuesColumn {
 				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
 			} else {
-				return model.NewLiteral("NULL")
+				return model.NullExpr
 			}
 		}
 	}
@@ -933,7 +935,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 								if strings.HasPrefix(col.InternalPropertyType, dbTypePrefix) {
 									logger.Warn().Msgf("Aggregation '%s' over unsupported type '%s' in column '%s'", e.Name, dbTypePrefix, col.InternalPropertyName.AsString())
 									args := b.VisitChildren(e.Args)
-									args[0] = model.NewLiteral("NULL")
+									args[0] = model.NullExpr
 									return model.NewFunction(e.Name, args...)
 								}
 							}
@@ -944,7 +946,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 						if access.ColumnRef.ColumnName == clickhouse.AttributesValuesColumn {
 							logger.Warn().Msgf("Unsupported case. Aggregation '%s' over attribute named: '%s'", e.Name, access.Index)
 							args := b.VisitChildren(e.Args)
-							args[0] = model.NewLiteral("NULL")
+							args[0] = model.NullExpr
 							return model.NewFunction(e.Name, args...)
 						}
 					}
@@ -1028,13 +1030,22 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		dm := elastic_query_dsl.NewDateManager(context.Background())
 		col, okLeft := model.ExtractColRef(e.Left)
+		lit, _ := model.ToLiteral(e.Right)
 		ts, okRight := model.ToLiteralsValue(e.Right)
-		pp.Println(okLeft, okRight, col, ts, indexSchema.IsInt(col.ColumnName))
+		pp.Println(e, okLeft, okRight, col, ts, lit, indexSchema.IsInt(col.ColumnName))
 		if okLeft && okRight && indexSchema.IsInt(col.ColumnName) {
-			if expr, ok := dm.ParseDateUsualFormat(ts, clickhouse.DateTime64); ok {
+			format := ""
+			if f, ok := lit.Format(); ok {
+				format = f
+			}
+			if expr, ok := dm.ParseDateUsualFormat(ts, clickhouse.DateTime64, format); ok {
 				if f, okF := model.ToFunction(expr); okF && f.Name == "fromUnixTimestamp64Milli" && len(f.Args) == 1 {
 					pp.Println(f)
-					return model.NewInfixExpr(col, e.Op, f.Args[0])
+					if l, okL := model.ToLiteral(f.Args[0]); okL {
+						if _, exists := l.Format(); exists {
+							return model.NewInfixExpr(col, e.Op, f.Args[0])
+						}
+					}
 				}
 			}
 		}
@@ -1239,7 +1250,9 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 									// here we check if the value of the map is string or not
 
 									if strings.Contains(kvTypes[1], "String") {
-										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "iLIKE", model.NewLiteralWithEscapeType(rhsValue, model.NotEscapedLikeFull))
+										clone := rhs.Clone()
+										clone.Attrs[model.EscapeKey] = model.NotEscapedLikeFull
+										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "iLIKE", clone)
 									} else {
 										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "=", e.Right.Accept(b).(model.Expr))
 									}

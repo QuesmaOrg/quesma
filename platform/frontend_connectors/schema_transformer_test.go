@@ -1629,7 +1629,7 @@ func Test_d(t *testing.T) {
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("timestampInt"),
 						">=",
-						model.NewLiteral("2025-03-25T12:32:51.527Z"),
+						model.NewLiteralWithFormat("2025-03-25T12:32:51.527Z", "epoch_millis"),
 					),
 				},
 			},
