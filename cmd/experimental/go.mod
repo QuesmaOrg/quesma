@@ -11,7 +11,7 @@ require (
 	github.com/ClickHouse/ch-go v0.65.1 // indirect
 	github.com/ClickHouse/clickhouse-go/v2 v2.32.2 // indirect
 	github.com/DATA-DOG/go-sqlmock v1.5.2 // indirect
-	github.com/DataDog/go-sqllexer v0.0.21 // indirect
+	github.com/DataDog/go-sqllexer v0.1.1 // indirect
 	github.com/H0llyW00dzZ/cidr v1.2.1 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/apparentlymart/go-cidr v1.1.0 // indirect
