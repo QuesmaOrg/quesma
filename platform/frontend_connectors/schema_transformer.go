@@ -3,6 +3,7 @@
 package frontend_connectors
 
 import (
+	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
@@ -10,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"sort"
 	"strings"
@@ -1000,6 +1002,48 @@ func (s *SchemaCheckPass) applyAliasColumns(indexSchema schema.Schema, query *mo
 	return query, nil
 }
 
+func visitFunction(b *model.BaseExprVisitor, f model.FunctionExpr) interface{} {
+	return model.NewFunction(f.Name, b.VisitChildren(f.Args)...)
+}
+
+func visitInfix(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+	return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+}
+
+func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	visitor := model.NewBaseVisitor()
+
+	/*
+		visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+			if e.Name == "fromUnixTimestamp64Millis" && len(e.Args) == 1 {
+				if col, ok := e.Args[0].(model.LiteralExpr); ok {
+					pp.Println(col)
+				}
+			}
+			return visitFunction(b, e)
+		}
+	*/
+
+	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+		dm := elastic_query_dsl.NewDateManager(context.Background())
+		col, okLeft := model.ExtractColRef(e.Left)
+		ts, okRight := model.ToLiteralValue(e.Right)
+		if okLeft && okRight && indexSchema.IsInt(col.ColumnName) {
+			if expr, ok := dm.ParseDateUsualFormat(ts, clickhouse.DateTime64); ok {
+				return model.NewInfixExpr(col, e.Op, expr)
+			}
+		}
+		return visitInfix(b, e)
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	transformationChain := []struct {
@@ -1012,6 +1056,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
 		{TransformationName: "FieldMapSyntaxTransformation", Transformation: s.applyFieldMapSyntax},
 		{TransformationName: "AliasColumnsTransformation", Transformation: s.applyAliasColumns},
+		{TransformationName: "AcceptIntsAsTimestamps", Transformation: s.acceptIntsAsTimestamps},
 
 		// Section 2: generic schema based transformations
 		//

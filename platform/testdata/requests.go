@@ -2505,6 +2505,37 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [49]
+		"range with int as datetime",
+		`
+		{
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"tsAsUInt64": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-03-25T12:32:51.527Z",
+									"lte": "2025-03-25T12:47:51.527Z"
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`("tsAsUInt64">='2025-03-25T12:32:51.527Z' AND "tsAsUInt64"<='2025-03-25T12:47:51.527Z')`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE ("tsAsUInt64">='2025-03-25T12:32:51.527Z' AND "tsAsUInt64"<='2025-03-25T12:47:51.527Z') ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [50]
 		"_index term",
 		`{
 			"query": { /*one comment */

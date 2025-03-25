@@ -59,6 +59,12 @@ type QuesmaConfiguration struct {
 	MapFieldsDiscoveringEnabled bool
 }
 
+func NewQuesmaConfigurationIndexConfigOnly(indexConfig map[string]IndexConfiguration) QuesmaConfiguration {
+	return QuesmaConfiguration{
+		IndexConfig: indexConfig,
+	}
+}
+
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
 	aliases := make(map[string]string)
 	if indexConfig, found := c.IndexConfig[indexName]; found {

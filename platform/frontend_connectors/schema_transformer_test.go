@@ -19,6 +19,10 @@ type fixedTableProvider struct {
 	tables map[string]schema.Table
 }
 
+func newFixedTableProvider(tables map[string]schema.Table) *fixedTableProvider {
+	return &fixedTableProvider{tables: tables}
+}
+
 func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 	return f.tables
 }
@@ -1599,4 +1603,130 @@ func Test_mapKeys(t *testing.T) {
 		})
 	}
 
+}
+
+func Test_d(t *testing.T) {
+	schemaTable := schema.Table{
+		Columns: map[string]schema.Column{
+			"@timestamp":   {Name: "@timestamp", Type: "DateTime64"},
+			"timestampInt": {Name: "timestampInt", Type: "UInt64"},
+			"normalInt":    {Name: "normalInt", Type: "Int"},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}{
+		{
+			name: "String",
+			query: &model.Query{
+				TableName: "timestamp as int",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("timestampInt"),
+						">=",
+						model.NewLiteral("2025-03-25T12:32:51.527Z"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("timestampInt"),
+						">=",
+						model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(1742905971527)),
+					),
+				},
+			},
+		},
+		{
+			name: "int but not as timestamp",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+		},
+		{
+			name: "int but not as timestamp, came as string",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral("50"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
+			tableDiscovery := newFixedTableProvider(map[string]schema.Table{
+				"test": schemaTable,
+			})
+			cfg := config.NewQuesmaConfigurationIndexConfigOnly(map[string]config.IndexConfiguration{
+				"test": {},
+			})
+
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s.Start()
+			defer s.Stop()
+			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
+
+			indexSchema, ok := s.FindSchema("test")
+			if !ok {
+				t.Fatal("schema not found")
+			}
+
+			actual, err := transform.acceptIntsAsTimestamps(indexSchema, tt.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, model.AsString(tt.expected.SelectCommand), model.AsString(actual.SelectCommand))
+		})
+	}
 }
