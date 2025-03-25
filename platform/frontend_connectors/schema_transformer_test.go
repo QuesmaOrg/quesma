@@ -1641,7 +1641,7 @@ func Test_d(t *testing.T) {
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("timestampInt"),
 						">=",
-						model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(1742905971527)),
+						model.NewLiteral(1742905971527),
 					),
 				},
 			},

@@ -60,9 +60,7 @@ type QuesmaConfiguration struct {
 }
 
 func NewQuesmaConfigurationIndexConfigOnly(indexConfig map[string]IndexConfiguration) QuesmaConfiguration {
-	return QuesmaConfiguration{
-		IndexConfig: indexConfig,
-	}
+	return QuesmaConfiguration{IndexConfig: indexConfig}
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {

@@ -2505,8 +2505,8 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [49]
-		"range with int as datetime",
-		`
+		Name: "range with int as datetime. when all query tests use transformers, expected results should be different",
+		QueryJson: `
 		{
 			"query": {
 				"bool": {
@@ -2525,17 +2525,45 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`("tsAsUInt64">='2025-03-25T12:32:51.527Z' AND "tsAsUInt64"<='2025-03-25T12:47:51.527Z')`},
-		model.ListAllFields,
-		[]string{
+		WantedSql:       []string{`("tsAsUInt64">='2025-03-25T12:32:51.527Z' AND "tsAsUInt64"<='2025-03-25T12:47:51.527Z')`},
+		WantedQueryType: model.ListAllFields,
+		WantedRegexes: []string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE ("tsAsUInt64">='2025-03-25T12:32:51.527Z' AND "tsAsUInt64"<='2025-03-25T12:47:51.527Z') ` +
 				`LIMIT 10`,
 		},
-		[]string{},
 	},
 	{ // [50]
+		Name: "range with int not as datetime. when all query tests use transformers, expected results should be different",
+		QueryJson: `
+		{
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"tsAsUInt64": {
+									"gte": 15,
+									"lte": "2025"
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		WantedSql:       []string{`("tsAsUInt64">=15 AND "tsAsUInt64"<=2025)`},
+		WantedQueryType: model.ListAllFields,
+		WantedRegexes: []string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE ("tsAsUInt64">=15 AND "tsAsUInt64"<=2025) ` +
+				`LIMIT 10`,
+		},
+	},
+	{ // [51]
 		"_index term",
 		`{
 			"query": { /*one comment */

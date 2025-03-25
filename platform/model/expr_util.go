@@ -4,10 +4,8 @@ package model
 
 // ExtractColRef returns the ColumnRef from an expression, or false if the expression is not a ColumnRef.
 func ExtractColRef(e Expr) (c ColumnRef, ok bool) {
-	if c, ok = e.(ColumnRef); ok {
-		return c, true
-	}
-	return ColumnRef{}, false
+	c, ok = e.(ColumnRef)
+	return c, ok
 }
 
 // ToLiteralValue returns the value of a LiteralExpr, or false if the expression is not a LiteralExpr.
@@ -16,4 +14,10 @@ func ToLiteralValue(e Expr) (v any, ok bool) {
 		return l.Value, true
 	}
 	return nil, false
+}
+
+// ToLiteralValue returns the value of a LiteralExpr, or false if the expression is not a LiteralExpr.
+func ToFunction(e Expr) (f FunctionExpr, ok bool) {
+	f, ok = e.(FunctionExpr)
+	return f, ok
 }

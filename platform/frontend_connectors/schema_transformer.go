@@ -13,6 +13,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -1028,9 +1029,13 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 		dm := elastic_query_dsl.NewDateManager(context.Background())
 		col, okLeft := model.ExtractColRef(e.Left)
 		ts, okRight := model.ToLiteralValue(e.Right)
+		pp.Println(okLeft, okRight, col, ts, indexSchema.IsInt(col.ColumnName))
 		if okLeft && okRight && indexSchema.IsInt(col.ColumnName) {
 			if expr, ok := dm.ParseDateUsualFormat(ts, clickhouse.DateTime64); ok {
-				return model.NewInfixExpr(col, e.Op, expr)
+				if f, okF := model.ToFunction(expr); okF && f.Name == "fromUnixTimestamp64Milli" && len(f.Args) == 1 {
+					pp.Println(f)
+					return model.NewInfixExpr(col, e.Op, f.Args[0])
+				}
 			}
 		}
 		return visitInfix(b, e)
