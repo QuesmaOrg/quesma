@@ -1070,6 +1070,11 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 				return f.Args[0]
 			}
 		}
+		if f.Name == "toTimezone" && len(f.Args) == 2 {
+			if col, ok := model.ExtractColRef(f.Args[0]); ok && table.IsInt(col.ColumnName) {
+				return model.NewFunction("toTimezone", model.NewFunction("fromUnixTimestamp64Milli", f.Args[0]), f.Args[1])
+			}
+		}
 		return visitFunction(b, f)
 	}
 

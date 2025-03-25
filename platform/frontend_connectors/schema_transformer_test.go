@@ -1639,7 +1639,7 @@ func Test_d(t *testing.T) {
 			},
 		},
 		{
-			name: "String",
+			name: "query e.g. from date_histogram. need to erase toUnixTimestamp() when column is already int",
 			query: &model.Query{
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
@@ -1663,6 +1663,89 @@ func Test_d(t *testing.T) {
 						model.NewFunction(
 							"toInt64",
 							model.NewColumnRef("timestampInt"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name: "query e.g. from date_histogram with time_zone. need to erase toUnixTimestamp() when column is already int",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						// toInt64(
+						//	(
+						//    toUnixTimestamp64Milli("timestampInt")
+						//    +
+						//      timeZoneOffset(toTimezone("timestampInt", 'Europe/Warsaw'))
+						//      *
+						//      1000
+						//  )
+						//  / 43200000
+						// )
+						model.NewFunction(
+							"toInt64",
+							model.NewInfixExpr(
+								model.NewParenExpr(
+									model.NewInfixExpr(
+										model.NewFunction("toUnixTimestamp64Milli", model.NewColumnRef("timestampInt")),
+										"+",
+										model.NewInfixExpr(
+											model.NewFunction("timeZoneOffset", model.NewFunction(
+												"toTimezone",
+												model.NewColumnRef("timestampInt"),
+												model.NewLiteral("'Europe/Warsaw'")),
+											),
+											"*",
+											model.NewLiteral(1000),
+										),
+									),
+								),
+								"/",
+								model.NewLiteral(43200000),
+							),
+						),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						// toInt64(
+						//	(
+						//    "timestampInt"
+						//    +
+						//      timeZoneOffset(toTimezone(fromUnixTimestamp64Milli("timestampInt"), 'Europe/Warsaw'))
+						//      *
+						//      1000
+						//  )
+						//  / 43200000
+						// )
+						model.NewFunction(
+							"toInt64",
+							model.NewInfixExpr(
+								model.NewParenExpr(
+									model.NewInfixExpr(
+										model.NewColumnRef("timestampInt"),
+										"+",
+										model.NewInfixExpr(
+											model.NewFunction("timeZoneOffset", model.NewFunction(
+												"toTimezone",
+												model.NewFunction("fromUnixTimestamp64Milli", model.NewColumnRef("timestampInt")),
+												model.NewLiteral("'Europe/Warsaw'")),
+											),
+											"*",
+											model.NewLiteral(1000),
+										),
+									),
+								),
+								"/",
+								model.NewLiteral(43200000),
+							),
 						),
 					},
 				},
