@@ -794,7 +794,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 		for _, op := range keysSorted {
 			valueRaw := v.(QueryMap)[op]
 			value := sprint(valueRaw)
-			formatAny := v.(QueryMap)["format"]
+			formatAny, formatExists := v.(QueryMap)["format"]
 			format := ""
 			if f, ok := formatAny.(string); ok {
 				format = f
@@ -819,7 +819,11 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 					parsed, err := cw.parseDateMathExpression(value)
 					if err == nil {
 						doneParsing = true
-						finalValue = model.NewLiteral(parsed)
+						literal := model.NewLiteralWithEscapeType(parsed, model.FullyEscaped)
+						if formatExists {
+							literal.Attrs[model.FormatKey] = format
+						}
+						finalValue = literal
 					}
 				}
 				if !doneParsing && isQuoted { // stage 3
@@ -834,7 +838,11 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						}
 					}
 					if isNumber {
-						finalValue = model.NewLiteral(unquoted)
+						literal := model.NewLiteralWithEscapeType(unquoted, model.FullyEscaped)
+						if formatExists {
+							literal.Attrs[model.FormatKey] = format
+						}
+						finalValue = literal
 						doneParsing = true
 					}
 				}
@@ -845,6 +853,8 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			if !doneParsing {
 				finalValue = defaultValue
 			}
+
+			pp.Println("FINAL VALUE", finalValue)
 
 			field := model.NewColumnRef(fieldName)
 			switch op {

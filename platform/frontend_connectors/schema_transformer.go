@@ -1026,18 +1026,31 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 		}
 	*/
 
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		dm := elastic_query_dsl.NewDateManager(context.Background())
 		col, okLeft := model.ExtractColRef(e.Left)
 		lit, _ := model.ToLiteral(e.Right)
 		ts, okRight := model.ToLiteralsValue(e.Right)
-		pp.Println(e, okLeft, okRight, col, ts, lit, indexSchema.IsInt(col.ColumnName))
-		if okLeft && okRight && indexSchema.IsInt(col.ColumnName) {
+		pp.Println(e, okLeft, okRight, col, "TEEEES", ts, lit, indexSchema.IsInt(col.ColumnName), table.IsInt(col.ColumnName))
+		if okLeft && okRight && table.IsInt(col.ColumnName) {
 			format := ""
 			if f, ok := lit.Format(); ok {
 				format = f
 			}
-			if expr, ok := dm.ParseDateUsualFormat(ts, clickhouse.DateTime64, format); ok {
+			expr, ok := dm.ParseDateUsualFormat(ts, clickhouse.DateTime64, format)
+			if !ok {
+				pp.Println("QQhehe", ts)
+				if tsStr, ok_ := ts.(string); ok_ && len(tsStr) > 2 {
+					expr, ok = dm.ParseDateUsualFormat(tsStr[1:len(tsStr)-1], clickhouse.DateTime64, format)
+				}
+			}
+			if ok {
+				pp.Println("hehe", expr)
 				if f, okF := model.ToFunction(expr); okF && f.Name == "fromUnixTimestamp64Milli" && len(f.Args) == 1 {
 					pp.Println(f)
 					if l, okL := model.ToLiteral(f.Args[0]); okL {
