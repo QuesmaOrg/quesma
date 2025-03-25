@@ -7,9 +7,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/ip2location/ip2location-go/v9"
 	"strings"
 	"time"
+
+	"github.com/ip2location/ip2location-go/v9"
 
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/transforms"
 	"github.com/huandu/go-clone"
@@ -170,7 +171,17 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 								for ip, country := range ipToCountry {
 									if ip != "NULL" && ip != "" && country != "Unknown" {
 										// Insert or update the enrichment data
+										// First delete any existing entry for this IP
 										_, err := conn.Exec(
+											"DELETE FROM quesma_enrich WHERE enrich_type = 'ip' AND key = ?",
+											ip,
+										)
+										if err != nil {
+											fmt.Printf("Error deleting existing enrichment for IP %s: %v\n", ip, err)
+										}
+
+										// Then insert the new entry
+										_, err = conn.Exec(
 											"INSERT INTO quesma_enrich (key, value, enrich_type) VALUES (?, ?, 'ip')",
 											ip, country,
 										)
