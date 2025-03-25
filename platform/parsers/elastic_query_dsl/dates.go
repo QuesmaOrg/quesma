@@ -70,7 +70,7 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 // It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
 func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, field model.ColumnRef) (resultExpr model.Expr) {
 	if unixTsInMs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
-		pp.Println("DDDD", unixTsInMs)
+		pp.Println("DDDD", unixTsInMs, unixTsInMs.Nanosecond())
 		return model.NewFunction(model.FromUnixTimestampMs, model.NewTimeLiteral(unixTsInMs, field))
 	}
 	return nil

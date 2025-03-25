@@ -159,6 +159,7 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 				scope = datetime
 				clickhouseFunc = model.ClickhouseToUnixTimestampMsFromDatetimeFunction
 			}
+
 			return model.NewFunction(clickhouseFunc, b.VisitChildren(e.Args)...)
 		}
 
@@ -168,11 +169,27 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 				return visitChildren()
 			}
 
+			children := b.VisitChildren(e.Args)
 			var clickhouseFunc string
 			switch scope {
 			case datetime:
 				clickhouseFunc = model.ClickhouseFromUnixTimestampMsToDatetimeFunction
 			default:
+				pp.Println("Children", children)
+				/*threeDigitsOfPrecisionSuffice := utcTs.UnixNano()%1_000_000 == 0
+				if threeDigitsOfPrecisionSuffice {
+					return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(utcTs.UnixMilli())), true
+				} else {
+					return model.NewFunction(
+						"toDateTime64",
+						model.NewInfixExpr(
+							model.NewLiteral(utcTs.UnixNano()),
+							"/",
+							model.NewLiteral(1_000_000_000),
+						),
+						model.NewLiteral(9),
+					), true
+				}*/
 				clickhouseFunc = model.ClickhouseFromUnixTimestampMsToDatetime64Function
 			}
 
@@ -196,12 +213,30 @@ func ApplyNecessaryTransformations(ctx context.Context, query *model.Query, tabl
 	visitor.OverrideVisitLiteral = func(b *model.BaseExprVisitor, l model.LiteralExpr) interface{} {
 		pp.Println("visitor literal", l)
 		if timeL, ok := l.Value.(model.TimeLiteral); ok {
+			ts := timeL.Value
+			fmt.Println("eee", ts, scope)
 			switch scope {
 			case datetime:
-				return model.NewLiteral(timeL.Value.Unix())
+				return model.NewLiteral(ts.Unix())
 			default:
-				return model.NewLiteral(timeL.Value.UnixMilli())
+				threeDigitsOfPrecisionSuffice := ts.UnixNano()%1_000_000 == 0
+				fmt.Println("three?", threeDigitsOfPrecisionSuffice)
+				if threeDigitsOfPrecisionSuffice {
+					return model.NewLiteral(ts.UnixMilli())
+				} else {
+					return model.NewFunction(
+						"toDateTime64",
+						model.NewInfixExpr(
+							model.NewLiteral(ts.UnixNano()),
+							"/",
+							model.NewLiteral(1_000_000_000),
+						),
+						model.NewLiteral(9),
+					)
+				}
 			}
+		} else {
+			fmt.Println(l.Value)
 		}
 
 		msLiteral, ok := l.Value.(model.DurationLiteral)

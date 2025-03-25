@@ -2429,7 +2429,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [49]
-		"DateTime(N), N > 3 (9 here, should be thesame for all)",
+		"DateTime(N), N > 3 (9 here, should be the same for all)",
 		`{
 			"query": {
 				"bool": {
@@ -2461,7 +2461,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE ("tsPrec9" IS NOT NULL AND ("tsPrec9">=fromUnixTimestamp64Milli(1742292276031) AND
+				`WHERE ("tsPrec9" IS NOT NULL AND ("tsPrec9">=afromUnixTimestamp64Milli(1742292276031) AND
 				"tsPrec9"<=fromUnixTimestamp64Milli(1742292276031))) LIMIT 10`,
 		},
 		[]string{},
