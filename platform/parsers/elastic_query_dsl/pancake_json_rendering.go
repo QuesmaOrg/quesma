@@ -263,10 +263,9 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 	}
 
 	layer := remainingLayers[0]
-	fmt.Println("kk model:", rows)
 	for _, metric := range layer.currentMetricAggregations {
 		var metricRows []model.QueryResultRow
-		switch metric.queryType.(type) {
+		switch queryType := metric.queryType.(type) {
 		case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
 			metricRows = p.selectTopHitsRows(metric, rows)
 		case *metrics_aggregations.Rate:
@@ -275,13 +274,10 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 			// 2 lines below: e.g. metric__2__year -> aggr__2
 			parentHistogramColName := fmt.Sprintf("aggr%s", strings.TrimPrefix(metric.internalName, "metric"))
 			parentHistogramColName = strings.TrimSuffix(parentHistogramColName, metric.name)
+			parentHistogramKey := fmt.Sprintf("%skey_0", parentHistogramColName)
+			var metricValue string
 
-			var (
-				parentHistogramKey = fmt.Sprintf("%skey_0", parentHistogramColName)
-				metricValue        string
-			)
-			rate, _ := metric.queryType.(*metrics_aggregations.Rate)
-			if rate.FieldPresent() {
+			if queryType.FieldPresent() {
 				// if we have field, we use it
 				metricValue = metric.InternalNamePrefix()
 			} else {

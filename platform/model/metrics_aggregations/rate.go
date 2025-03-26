@@ -278,7 +278,7 @@ func CheckParamsRate(ctx context.Context, paramsRaw any) error {
 		if _, isRequired := requiredParams[paramName]; !isRequired {
 			wantedType, isOptional := optionalParams[paramName]
 			if !isOptional {
-				return fmt.Errorf("unexpected parameter %s found in IP Range params %v", paramName, params)
+				return fmt.Errorf("unexpected parameter %s found in Rate params %v", paramName, params)
 			}
 			if reflect.TypeOf(params[paramName]).Name() != wantedType { // TODO I'll make a small rewrite to not use reflect here
 				return fmt.Errorf("optional parameter %s is not of type %s, but %T", paramName, wantedType, params[paramName])

@@ -401,18 +401,15 @@ func (a *pancakeTransformer) transformAutoDateHistogram(layers []*pancakeModelLa
 // To do that we need parse WHERE clause which happens in this method.
 func (a *pancakeTransformer) transformRate(layers []*pancakeModelLayer) {
 	for i, layer := range layers[:len(layers)-1] {
-		fmt.Println(layer.nextBucketAggregation, layer.currentMetricAggregations)
 		if layer.nextBucketAggregation == nil {
 			continue
 		}
 		if dateHistogram, ok := layer.nextBucketAggregation.queryType.(*bucket_aggregations.DateHistogram); ok {
-			dhInterval, ok := dateHistogram.Interval()
-			if !ok {
-				continue
-			}
-			for _, metric := range layers[i+1].currentMetricAggregations {
-				if rate, ok := metric.queryType.(*metrics_aggregations.Rate); ok {
-					rate.CalcAndSetMultiplier(dhInterval)
+			if dhInterval, ok := dateHistogram.Interval(); ok {
+				for _, metric := range layers[i+1].currentMetricAggregations {
+					if rate, ok := metric.queryType.(*metrics_aggregations.Rate); ok {
+						rate.CalcAndSetMultiplier(dhInterval)
+					}
 				}
 			}
 		}
