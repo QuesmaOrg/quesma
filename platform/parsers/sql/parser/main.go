@@ -84,34 +84,7 @@ func main() {
 
 	tokens := lexer_core.Lex(
 		`FROM openssh_logs
--- OpenSSH logs (FIXME: this comment can't be in line above)
-|> ORDER BY timestamp DESC
-|> WHERE timestamp BETWEEN $start AND $end
-
--- Filter out sshd logs, break-in attempts logs
-|> WHERE source = 'sshd'
-|> WHERE msg ILIKE '%break-in attempt!%'
-
--- Parse IP, hostname from loglines
-|> WHERE msg ILIKE 'reverse mapping checking getaddrinfo for % [%] failed - POSSIBLE BREAK-IN ATTEMPT!'
-|> EXTEND extractGroups(msg, 'reverse mapping checking getaddrinfo for (\S+) \[(\S+)\] failed - POSSIBLE BREAK-IN ATTEMPT!') AS extracted_tmp
-|> EXTEND extracted_tmp[1] AS extracted_host, extracted_tmp[2] AS extracted_ip
-
-|> SELECT timestamp, msg, extracted_host, extracted_ip
-
--- IP enrichment (FIXME: this should be a |> CALL ENRICH_IP(extracted_ip) or |> EXTEND ENRICH_IP(extracted_ip) )
-|> EXTEND ENRICH_IP(extracted_ip) AS enriched_ip
---|> LEFT JOIN ip_data ON ip_data.ip = extracted_ip
-
--- IP enrichment - bot IPs (FIXME: this should be a |> CALL ENRICH_IP_BOTS(extracted_ip) or |> EXTEND ENRICH_IP_BOTS(extracted_ip))
--- The production version of this would either have more rules or use a commercial DB of bot/spam/scam IPs
---|> EXTEND coalesce(hostname ILIKE '%amazonaws%' OR hostname ILIKE '%server%' OR hostname ILIKE '%cloud%', false) AS is_bot
---|> WHERE is_bot
-
--- Aggregate by country
---|> AGGREGATE count(*) AS country_count GROUP BY country_long
---|> ORDER BY country_count DESC
-
+|> EXTEND PARSE_PATTERN(msg, 'reverse mapping checking getaddrinfo for % [%] failed - POSSIBLE BREAK-IN ATTEMPT!') AS extracted_host, extracted_ip
 |> LIMIT 100`, dialect_sqlparse.SqlparseRules)
 
 	node := core.TokensToNode(tokens)
