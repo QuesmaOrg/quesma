@@ -204,7 +204,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 	case bucket_aggregations.SamplerInterface, bucket_aggregations.FilterAgg:
 		selectedRows := p.selectMetricRows(layer.nextBucketAggregation.InternalNameForCount(), rows)
 		aggJson := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(selectedRows)
-		subAggr, err := p.layerToJSON(remainingLayers[1:], rows)
+		subAggr, err := p.layerToJSON(remainingLayers[1:], rows, layer.nextBucketAggregation)
 		if err != nil {
 			return nil, err
 		}
@@ -218,7 +218,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 		for _, subGroup := range queryType.CombinatorGroups() {
 			selectedRowsWithoutPrefix := p.selectPrefixRows(subGroup.Prefix, rows)
 
-			subAggr, err := p.layerToJSON(remainingLayers[1:], selectedRowsWithoutPrefix)
+			subAggr, err := p.layerToJSON(remainingLayers[1:], selectedRowsWithoutPrefix, layer.nextBucketAggregation)
 			if err != nil {
 				return nil, err
 			}
@@ -256,7 +256,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 	}
 }
 
-func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow, parentBucketAggr *pancakeModelBucketAggregation) (model.JsonMap, error) {
 	result := model.JsonMap{}
 	if len(remainingLayers) == 0 {
 		return result, nil
@@ -271,21 +271,24 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 		case *metrics_aggregations.Rate:
 			// Special, as we need to select also parent date_histogram's values.
 
-			// 2 lines below: e.g. metric__2__year -> aggr__2
-			parentHistogramColName := fmt.Sprintf("aggr%s", strings.TrimPrefix(metric.internalName, "metric"))
-			parentHistogramColName = strings.TrimSuffix(parentHistogramColName, metric.name)
-			parentHistogramKey := fmt.Sprintf("%skey_0", parentHistogramColName)
-			var metricValue string
-
-			if queryType.FieldPresent() {
-				// if we have field, we use it
-				metricValue = metric.InternalNamePrefix()
-			} else {
-				// else: our value is date_histogram's count
-				metricValue = fmt.Sprintf("%scount", parentHistogramColName)
+			if parentBucketAggr == nil {
+				return nil, fmt.Errorf("parentBucketAggr is nil for rate metric")
 			}
-			metricRows = p.selectMetricRowsMultipleNames([]string{parentHistogramKey, metricValue}, rows)
-
+			if _, ok := parentBucketAggr.queryType.(*bucket_aggregations.DateHistogram); ok {
+				// TODO we have to look further... Traverse entire path to aggregation root node, not only last bucket aggregation.
+				// Works almost always now though.
+				parentDHKey := parentBucketAggr.InternalNameForKey(0)
+				parentDHCount := parentBucketAggr.InternalNameForCount()
+				var metricValue string
+				if queryType.FieldPresent() { // if we have field, we use it
+					metricValue = metric.InternalNamePrefix()
+				} else { // else: our value is date_histogram's count
+					metricValue = parentDHCount
+				}
+				metricRows = p.selectMetricRowsMultipleNames([]string{parentDHKey, metricValue}, rows)
+			} else {
+				return nil, fmt.Errorf("parentBucketAggr is not date_histogram for rate metric")
+			}
 		default:
 			metricRows = p.selectMetricRows(metric.InternalNamePrefix(), rows)
 		}
@@ -369,7 +372,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						bucketArr[i][pipelineAggrName] = pipelineAggrResult[i]
 					}
 
-					subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[i])
+					subAggr, err := p.layerToJSON(remainingLayers[1:], subAggrRows[i], layer.nextBucketAggregation)
 					if err != nil {
 						return nil, err
 					}
@@ -412,7 +415,7 @@ func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, 
 						currentBucketSubAggrRows = []model.QueryResultRow{}
 					}
 
-					subAggr, err := p.layerToJSON(remainingLayers[1:], currentBucketSubAggrRows)
+					subAggr, err := p.layerToJSON(remainingLayers[1:], currentBucketSubAggrRows, layer.nextBucketAggregation)
 					if err != nil {
 						return nil, err
 					}
@@ -450,5 +453,5 @@ func (p *pancakeJSONRenderer) valueForColumn(rows []model.QueryResultRow, column
 }
 
 func (p *pancakeJSONRenderer) toJSON(agg *pancakeModel, rows []model.QueryResultRow) (model.JsonMap, error) {
-	return p.layerToJSON(agg.layers, rows)
+	return p.layerToJSON(agg.layers, rows, nil)
 }
