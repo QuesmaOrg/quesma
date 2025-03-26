@@ -182,12 +182,12 @@ func (cw *ClickhouseQueryTranslator) generateMetricsType(metricsAggr metricsAggr
 		return metrics_aggregations.NewGeoBounds(cw.Ctx)
 	case "rate":
 		isFieldPresent := len(metricsAggr.Fields) > 0
-		rate, err := metrics_aggregations.NewRate(cw.Ctx, metricsAggr.unit, isFieldPresent)
-		if err != nil {
+		if rate, err := metrics_aggregations.NewRate(cw.Ctx, metricsAggr.unit, isFieldPresent); err == nil {
+			return rate
+		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("error creating rate aggregation: %s", err)
 			return nil
 		}
-		return rate
 	}
 
 	return nil

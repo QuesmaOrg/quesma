@@ -256,6 +256,7 @@ func (p *pancakeJSONRenderer) combinatorBucketToJSON(remainingLayers []*pancakeM
 	}
 }
 
+// parentBucketAggr will be nil for the first layer
 func (p *pancakeJSONRenderer) layerToJSON(remainingLayers []*pancakeModelLayer, rows []model.QueryResultRow, parentBucketAggr *pancakeModelBucketAggregation) (model.JsonMap, error) {
 	result := model.JsonMap{}
 	if len(remainingLayers) == 0 {
