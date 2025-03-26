@@ -12,8 +12,8 @@ import (
 
 func ExpandMacros(node core.Node) {
 	TransformPipeNodes(node, func(pipeNode *PipeNode) core.Node {
-		for i, pipe := range pipeNode.Pipes {
-			pipeNodeList, ok := pipe.(core.NodeListNode)
+		for i := 0; i < len(pipeNode.Pipes); i++ {
+			pipeNodeList, ok := pipeNode.Pipes[i].(core.NodeListNode)
 			if !ok {
 				continue
 			}
