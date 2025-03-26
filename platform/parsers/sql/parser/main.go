@@ -84,15 +84,7 @@ func main() {
 
 	tokens := lexer_core.Lex(
 		`FROM apache_logs
-|> ORDER BY timestamp DESC
-|> SELECT timestamp, severity, msg, client
-|> WHERE client IS NOT NULL 
-|> CALL ENRICH_IP(client)
-|> AGGREGATE ip_country, COUNT(*) as ip_country_count GROUP BY ip_country
-|> ORDER BY ip_country_count DESC
-|> SELECT ip_country, ip_country_count
-|> CALL ENRICH_LLM 'most popular dish', ip_country
-`, dialect_sqlparse.SqlparseRules)
+|> EXTEND ENRICH_IP(myipcol) AS myalias`, dialect_sqlparse.SqlparseRules)
 
 	node := core.TokensToNode(tokens)
 
