@@ -2459,10 +2459,10 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{`("tsPrec9" IS NOT NULL AND ("tsPrec9">='2025-03-18T10:04:36.03123584Z' AND "tsPrec9"<='2025-03-18T10:04:36.03123584Z'))`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("tsPrec9" IS NOT NULL AND ("tsPrec9">=afromUnixTimestamp64Milli(1742292276031) AND
-				"tsPrec9"<=fromUnixTimestamp64Milli(1742292276031))) LIMIT 10`,
+			`SELECT "message" FROM ` + TableName + ` ` +
+				`WHERE ("tsPrec9" IS NOT NULL AND ("tsPrec9">=fromUnixTimestamp64Milli(toDateTime64(1742292276031235840/1000000000,9)) AND ` +
+				`"tsPrec9"<=fromUnixTimestamp64Milli(toDateTime64(1742292276031235840/1000000000,9)))) ` +
+				`LIMIT 10`,
 		},
 		[]string{},
 	},
