@@ -1591,7 +1591,7 @@ func Test_acceptIntsAsTimestamps(t *testing.T) {
 	schemaTable := schema.Table{
 		Columns: map[string]schema.Column{
 			"@timestamp":   {Name: "@timestamp", Type: "DateTime64"},
-			"timestampInt": {Name: "timestampInt", Type: "UInt64"},
+			"timestampInt": {Name: "timestampInt", Type: "DateTime64"}, // datetime in schema (and Quesma config), UInt64 in Clickhouse
 			"normalInt":    {Name: "normalInt", Type: "Int"},
 		},
 	}
@@ -1803,6 +1803,8 @@ func Test_acceptIntsAsTimestamps(t *testing.T) {
 			})
 
 			tableMap := clickhouse.NewTableMap()
+
+			// timestampInt is datetime in schema (and Quesma config), UInt64 in Clickhouse
 			tab, _ := clickhouse.NewTable(`
 				CREATE TABLE table (
 					"timestampInt" UInt64
