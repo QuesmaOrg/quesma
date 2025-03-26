@@ -184,9 +184,10 @@ func expandExtendEnrichIP(pipeNodeList core.NodeListNode) core.NodeListNode {
 			break
 		}
 	}
-	// The remaining tokens are the alias tokens.
+	// The remaining 1 token are the alias tokens.
 	for ; i < len(pipeNodeList.Nodes); i++ {
 		aliasTokens = append(aliasTokens, pipeNodeList.Nodes[i])
+		break
 	}
 
 	// Convert ipTokens and aliasTokens to strings.
