@@ -85,7 +85,7 @@ func main() {
 	tokens := lexer_core.Lex(
 		`FROM openssh_logs
 |> EXTEND PARSE_PATTERN(msg, 'reverse mapping checking getaddrinfo for % [%] failed - POSSIBLE BREAK-IN ATTEMPT!') AS extracted_host, extracted_ip
-|> LIMIT 100`, dialect_sqlparse.SqlparseRules)
+|> EXTEND ENRICH_IP(extracted_ip) AS enriched_ip`, dialect_sqlparse.SqlparseRules)
 
 	node := core.TokensToNode(tokens)
 
