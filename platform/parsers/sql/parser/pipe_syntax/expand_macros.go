@@ -1,6 +1,9 @@
 package pipe_syntax
 
 import (
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 
 	lexer_core "github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
@@ -18,29 +21,34 @@ func ExpandMacros(node core.Node) {
 				continue
 			}
 
-			if newPipe, handled := handleMacroOperator(pipeNodeList); handled {
-				pipeNode.Pipes[i] = newPipe
+			if newPipes, handled := handleMacroOperator(pipeNodeList); handled {
+				var convertedNewPipes []core.Node
+				for _, np := range newPipes {
+					convertedNewPipes = append(convertedNewPipes, np)
+				}
+				newPipes := slices.Clone(pipeNode.Pipes)
+				pipeNode.Pipes = append(append(newPipes[:i], convertedNewPipes...), pipeNode.Pipes[i+1:]...)
 			}
 		}
 		return pipeNode
 	})
 }
 
-func handleMacroOperator(pipeNodeList core.NodeListNode) (core.NodeListNode, bool) {
+func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, bool) {
 	// Support both "CALL" and "EXTEND" macros.
 	tokenNode, ok := pipeNodeList.Nodes[2].(core.TokenNode)
 	if !ok {
-		return pipeNodeList, false
+		return []core.NodeListNode{pipeNodeList}, false
 	}
 	operator := strings.ToUpper(tokenNode.Token.RawValue)
 	if operator == "CALL" {
 		// Determine the macro type from the 5th token.
 		if len(pipeNodeList.Nodes) < 5 {
-			return pipeNodeList, false
+			return []core.NodeListNode{pipeNodeList}, false
 		}
 		macroToken, ok := pipeNodeList.Nodes[4].(core.TokenNode)
 		if !ok {
-			return pipeNodeList, false
+			return []core.NodeListNode{pipeNodeList}, false
 		}
 		macroType := strings.ToUpper(macroToken.Token.RawValue)
 		switch macroType {
@@ -50,24 +58,31 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) (core.NodeListNode, boo
 			return expandCallLogCategory(pipeNodeList), true
 		default:
 			// Macro not recognized; do nothing.
-			return pipeNodeList, false
+			return []core.NodeListNode{pipeNodeList}, false
 		}
 	} else if operator == "EXTEND" {
-		// Check if this is the new ENRICH_IP macro.
 		if len(pipeNodeList.Nodes) < 7 {
-			return pipeNodeList, false
+			return []core.NodeListNode{pipeNodeList}, false
 		}
 		macroToken, ok := pipeNodeList.Nodes[4].(core.TokenNode)
-		if !ok || strings.ToUpper(macroToken.Token.RawValue) != "ENRICH_IP" {
-			return pipeNodeList, false
+		if !ok {
+			return []core.NodeListNode{pipeNodeList}, false
 		}
-		return expandExtendEnrichIP(pipeNodeList), true
+		macroName := strings.ToUpper(macroToken.Token.RawValue)
+		switch macroName {
+		case "ENRICH_IP":
+			return expandExtendEnrichIP(pipeNodeList), true
+		case "PARSE_PATTERN":
+			return expandExtendParsePattern(pipeNodeList), true
+		default:
+			return []core.NodeListNode{pipeNodeList}, false
+		}
 	}
 	// Operator not recognized.
-	return pipeNodeList, false
+	return []core.NodeListNode{pipeNodeList}, false
 }
 
-func expandCallTimebucket(pipeNodeList core.NodeListNode) core.NodeListNode {
+func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	// Expected form: |> CALL TIMEBUCKET <timestamp> BY <interval tokens> AS <alias tokens>
 	var timestampTokens, intervalTokens, nameTokens []core.Node
 	phase := 0
@@ -157,10 +172,10 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) core.NodeListNode {
 	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}})
 	newNodes = append(newNodes, nameTokens...)
 
-	return core.NodeListNode{Nodes: newNodes}
+	return []core.NodeListNode{core.NodeListNode{Nodes: newNodes}}
 }
 
-func expandExtendEnrichIP(pipeNodeList core.NodeListNode) core.NodeListNode {
+func expandExtendEnrichIP(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	// Expected form: |> EXTEND ENRICH_IP(<ip column tokens>) AS <alias tokens>
 	var ipTokens, aliasTokens []core.Node
 	// The expected form is: |> EXTEND ENRICH_IP(<ip_column_tokens>) AS <alias_tokens>
@@ -254,10 +269,151 @@ func expandExtendEnrichIP(pipeNodeList core.NodeListNode) core.NodeListNode {
 		core.TokenNode{Token: lexer_core.Token{RawValue: ipExprStr}},
 	)
 
-	return core.NodeListNode{Nodes: newNodes}
+	return []core.NodeListNode{core.NodeListNode{Nodes: newNodes}}
+}
+func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNode {
+	// Expected form:
+	//   |> EXTEND PARSE_PATTERN(<msg>, <pattern>) AS <alias1>, <alias2>, <alias3>, ...
+	//
+	// Transformation:
+	//   |> EXTEND extractGroups(<msg>, '<regex>') AS extracted_<msg>
+	//   |> EXTEND extracted_<msg>[1] AS <alias1>, extracted_<msg>[2] AS <alias2>, extracted_<msg>[3] AS <alias3>, ...
+	//
+	// The <regex> is built by replacing each "%" in <pattern> with "(.*)"
+	// and escaping all other characters using regexp.QuoteMeta.
+
+	// Extract the parameters from the nested node at index 5.
+	var msgTokens, patternTokens []core.Node
+	nested, ok := pipeNodeList.Nodes[5].(*core.NodeListNode)
+	if !ok {
+		return []core.NodeListNode{pipeNodeList}
+	}
+	// Remove surrounding parentheses.
+	if len(nested.Nodes) >= 2 {
+		params := nested.Nodes[1 : len(nested.Nodes)-1]
+		// Split tokens by comma.
+		var parts [][]core.Node
+		current := []core.Node{}
+		for _, token := range params {
+			if tk, ok := token.(core.TokenNode); ok && strings.TrimSpace(tk.Token.RawValue) == "," {
+				parts = append(parts, current)
+				current = []core.Node{}
+			} else {
+				current = append(current, token)
+			}
+		}
+		if len(current) > 0 {
+			parts = append(parts, current)
+		}
+		if len(parts) != 2 {
+			// Expected exactly 2 parameters.
+			return []core.NodeListNode{pipeNodeList}
+		}
+		msgTokens = parts[0]
+		patternTokens = parts[1]
+	} else {
+		return []core.NodeListNode{pipeNodeList}
+	}
+
+	// Extract alias tokens after the nested parameters.
+	var aliasTokens []core.Node
+	for i := 6; i < len(pipeNodeList.Nodes); i++ {
+		if token, ok := pipeNodeList.Nodes[i].(core.TokenNode); ok && strings.ToUpper(token.Token.RawValue) == "AS" {
+			// Collect all tokens after the "AS".
+			i++
+			for ; i < len(pipeNodeList.Nodes); i++ {
+				aliasTokens = append(aliasTokens, pipeNodeList.Nodes[i])
+			}
+			break
+		}
+	}
+
+	// Convert pattern tokens to string.
+	rawPattern := tokensToString(patternTokens)
+	rawPattern = strings.TrimSpace(rawPattern)
+	// Remove surrounding quotes if present.
+	if len(rawPattern) > 1 && (rawPattern[0] == '\'' || rawPattern[0] == '"') && rawPattern[0] == rawPattern[len(rawPattern)-1] {
+		rawPattern = rawPattern[1 : len(rawPattern)-1]
+	}
+	// Build the regex by splitting on '%' and escaping each part.
+	splitParts := strings.Split(rawPattern, "%")
+	for i, part := range splitParts {
+		splitParts[i] = regexp.QuoteMeta(part)
+	}
+	finalRegex := strings.Join(splitParts, "(.*)")
+	// Wrap the final regex in single quotes.
+	finalRegexLiteral := "'" + finalRegex + "'"
+
+	// Determine the extracted alias based on the <msg> parameter.
+	msgStr := strings.TrimSpace(tokensToString(msgTokens))
+	extractedAlias := "extracted_" + msgStr
+
+	// Build the first pipe:
+	//   |> EXTEND extractGroups(<msg>, <finalRegexLiteral>) AS extracted_<msg>
+	var firstPipe []core.Node
+	firstPipe = append(firstPipe,
+		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "EXTEND"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "extractGroups"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "("}},
+	)
+	firstPipe = append(firstPipe, msgTokens...)
+	firstPipe = append(firstPipe,
+		core.TokenNode{Token: lexer_core.Token{RawValue: ","}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: finalRegexLiteral}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: ")"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: extractedAlias}},
+	)
+
+	// Process alias tokens into individual alias names.
+	aliasStr := tokensToString(aliasTokens)
+	aliasParts := strings.Split(aliasStr, ",")
+	for i := range aliasParts {
+		aliasParts[i] = strings.TrimSpace(aliasParts[i])
+	}
+
+	// Build the second pipe:
+	//   |> EXTEND extracted_<msg>[1] AS <alias1>, extracted_<msg>[2] AS <alias2>, ...
+	var secondPipe []core.Node
+	secondPipe = append(secondPipe,
+		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "EXTEND"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+	)
+	for i, alias := range aliasParts {
+		if i > 0 {
+			secondPipe = append(secondPipe,
+				core.TokenNode{Token: lexer_core.Token{RawValue: ","}},
+				core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+			)
+		}
+		// Build tokens for: extracted_<msg>[<i+1>] AS <alias>
+		secondPipe = append(secondPipe,
+			core.TokenNode{Token: lexer_core.Token{RawValue: extractedAlias}},
+			core.TokenNode{Token: lexer_core.Token{RawValue: "["}},
+			core.TokenNode{Token: lexer_core.Token{RawValue: strconv.Itoa(i + 1)}},
+			core.TokenNode{Token: lexer_core.Token{RawValue: "]"}},
+			core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+			core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}},
+			core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+			core.TokenNode{Token: lexer_core.Token{RawValue: alias}},
+		)
+	}
+
+	// Combine both pipe commands into a single node list, separating them with a newline.
+	firstPipe = append(firstPipe, core.TokenNode{Token: lexer_core.Token{RawValue: "\n"}})
+
+	return []core.NodeListNode{{Nodes: firstPipe}, {Nodes: secondPipe}}
 }
 
-func expandCallLogCategory(pipeNodeList core.NodeListNode) core.NodeListNode {
+func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	// Expected form: |> CALL LOGCATEGORY <log_line> AS <alias tokens>
 	var logLineTokens []core.Node
 	var aliasTokens []core.Node
@@ -394,7 +550,7 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) core.NodeListNode {
 	)
 	newNodes = append(newNodes, aliasTokens...)
 
-	return core.NodeListNode{Nodes: newNodes}
+	return []core.NodeListNode{core.NodeListNode{Nodes: newNodes}}
 }
 
 func tokensToString(tokens []core.Node) string {
