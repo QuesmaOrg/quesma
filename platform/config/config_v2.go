@@ -455,15 +455,12 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 		errAcc = multierror.Append(errAcc, fmt.Errorf("frontend connector named %s referenced in %s not found in configuration", pipeline.FrontendConnectors[0], pipeline.Name))
 	}
 
-	if len(pipeline.BackendConnectors) == 0 || len(pipeline.BackendConnectors) > 2 {
-		return multierror.Append(errAcc, fmt.Errorf("pipeline must define exactly one or two backend connectors, %d defined", len(pipeline.BackendConnectors)))
+	if len(pipeline.BackendConnectors) == 0 {
+		return multierror.Append(errAcc, fmt.Errorf("pipeline must define > 0 backend connectors, %d defined", len(pipeline.BackendConnectors)))
 	}
-	if !slices.Contains(c.definedBackendConnectorNames(), pipeline.BackendConnectors[0]) {
-		errAcc = multierror.Append(errAcc, fmt.Errorf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[0], pipeline.Name))
-	}
-	if len(pipeline.BackendConnectors) == 2 {
-		if !slices.Contains(c.definedBackendConnectorNames(), pipeline.BackendConnectors[1]) {
-			errAcc = multierror.Append(errAcc, fmt.Errorf("backend connector named %s referenced in %s not found in configuration", pipeline.BackendConnectors[1], pipeline.Name))
+	for _, bcName := range pipeline.BackendConnectors {
+		if !slices.Contains(c.definedBackendConnectorNames(), bcName) {
+			errAcc = multierror.Append(errAcc, fmt.Errorf("backend connector named %s referenced in %s not found in configuration", bcName, pipeline.Name))
 		}
 	}
 
@@ -1092,9 +1089,6 @@ func (c *QuesmaNewConfiguration) validateBackendConnectors() error {
 	}
 	if elasticBackendConnectors > 1 {
 		return fmt.Errorf("only one elasticsearch backend connector is allowed, found %d many", elasticBackendConnectors)
-	}
-	if clickhouseBackendConnectors > 1 {
-		return fmt.Errorf("only one clickhouse-compatible backend connector is allowed, found %d many", clickhouseBackendConnectors)
 	}
 	return nil
 }

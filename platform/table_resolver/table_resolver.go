@@ -12,6 +12,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/recovery"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/v2/core"
+	"github.com/k0kubun/pp"
 	"sort"
 	"sync"
 )
@@ -74,7 +75,8 @@ func (ir *compoundResolver) resolve(indexName string) *quesma_api.Decision {
 			}
 		}
 	}
-
+	pp.Println("KKK resolve for index:", indexName)
+	pp.Println("KKK", decisions)
 	return ir.decisionMerger.merger(decisions)
 }
 
