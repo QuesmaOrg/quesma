@@ -10,6 +10,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
 	"github.com/QuesmaOrg/quesma/platform/model/metrics_aggregations"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl/query_util"
+	"github.com/k0kubun/pp"
 	"strings"
 )
 
@@ -443,6 +444,7 @@ func (p *pancakeSqlQueryGenerator) generateQuery(aggregation *pancakeModel) (*mo
 	}
 
 	resultSelectCommand, optimizerName, err := p.generateSelectCommand(aggregation)
+	pp.Println(resultSelectCommand)
 	if err != nil {
 		return nil, err
 	}

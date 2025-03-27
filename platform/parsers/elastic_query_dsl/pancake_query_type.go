@@ -9,6 +9,7 @@ import (
 )
 
 const PancakeTotalCountMetricName = "__quesma_total_count"
+const PancakeTotalCountColumnName = "metric____quesma_total_count_col_0"
 
 // Not a real aggregation, but it is a pancake that has alternative JSON rendering
 type PancakeQueryType struct {
