@@ -13,6 +13,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/testdata"
+	transformations_delete "github.com/QuesmaOrg/quesma/platform/transformations-delete"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
@@ -71,6 +72,12 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			plan, errQuery := cw.ParseQuery(body)
 			queries := plan.Queries
 			assert.NoError(t, errQuery, "no ParseQuery error")
+
+			for j, query := range queries {
+				queries[j], err = transformations_delete.ApplyNecessaryTransformations(context.Background(), query, table, s.Tables[schema.IndexName(tableName)])
+				assert.NoError(t, err)
+			}
+
 			assert.True(t, len(queries) > 0, "len queries > 0")
 			var simpleListQuery *model.Query
 			for _, query := range queries {

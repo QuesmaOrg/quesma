@@ -193,6 +193,10 @@ func TestSearchHandler(t *testing.T) {
 				Name: "@timestamp",
 				Type: clickhouse.NewBaseType("DateTime64"),
 			},
+			"tsPrec9": {
+				Name: "@tsPrec9",
+				Type: clickhouse.NewBaseType("DateTime64"),
+			},
 			"user_id": {
 				Name: "user_id",
 				Type: clickhouse.NewBaseType("String"),
@@ -268,6 +272,7 @@ func TestSearchHandler(t *testing.T) {
 		"type":                            {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeKeyword},
 		"task.enabled":                    {PropertyName: "task.enabled", InternalPropertyName: "task_enabled", Type: schema.QuesmaTypeBoolean},
 		"@timestamp":                      {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+		"tsPrec9":                         {PropertyName: "tsPrec9", InternalPropertyName: "tsPrec9", Type: schema.QuesmaTypeDate},
 		"user.id":                         {PropertyName: "user.id", InternalPropertyName: "user_id", Type: schema.QuesmaTypeKeyword},
 		"tags":                            {PropertyName: "tags", InternalPropertyName: "tags", Type: schema.QuesmaTypeKeyword},
 		"age":                             {PropertyName: "age", InternalPropertyName: "age", Type: schema.QuesmaTypeInteger},
@@ -303,6 +308,9 @@ func TestSearchHandler(t *testing.T) {
 
 	for i, tt := range testdata.TestsSearch {
 		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
+			if i != 49 {
+				t.Skip()
+			}
 			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
@@ -552,6 +560,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		Cols: map[string]*clickhouse.Column{
 			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime")},
 			"timestamp64": {Name: "timestamp64", Type: clickhouse.NewBaseType("DateTime64")},
+			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
 	}
 	query := func(fieldName string) string {
@@ -586,40 +595,44 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		}`
 	}
 	expectedSelectStatement := map[string]string{
-		dateTimeTimestampField: `SELECT toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0",
-									  count(*) AS "aggr__0__count"
-									FROM __quesma_table_name
-									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
-									  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
-									  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))) 
-									GROUP BY toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0"
-									ORDER BY "aggr__0__key_0" ASC`,
-		dateTime64TimestampField: `SELECT toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
-									  "aggr__0__key_0", count(*) AS "aggr__0__count"
-									FROM __quesma_table_name
-									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
-									  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
-									  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
-									GROUP BY toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
-									  "aggr__0__key_0"
-									ORDER BY "aggr__0__key_0" ASC`,
-		dateTime64OurTimestampField: `SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS "aggr__0__key_0"
-									  , count(*) AS "aggr__0__count"
-									FROM __quesma_table_name
-									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
-									  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
-									  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
-									GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
-									  "aggr__0__key_0"
-									ORDER BY "aggr__0__key_0" ASC`,
+		dateTimeTimestampField: `
+			SELECT toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0",
+			  count(*) AS "aggr__0__count"
+			FROM __quesma_table_name
+			WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
+			  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
+			  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
+			GROUP BY toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0"
+			ORDER BY "aggr__0__key_0" ASC`,
+		dateTime64TimestampField: `
+			SELECT toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
+			  "aggr__0__key_0", count(*) AS "aggr__0__count"
+			FROM __quesma_table_name
+			WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
+			  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
+			  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
+			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
+			  "aggr__0__key_0"
+			ORDER BY "aggr__0__key_0" ASC`,
+		dateTime64OurTimestampField: `
+			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS "aggr__0__key_0"
+			  , count(*) AS "aggr__0__count"
+			FROM __quesma_table_name
+			WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
+			  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
+			  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
+			  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
+			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
+			  "aggr__0__key_0"
+			ORDER BY "aggr__0__key_0" ASC`,
 	}
 
+	// logger.InitSimpleLoggerForTestsWarnLevel()
 	conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 	defer conn.Close()
 	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)

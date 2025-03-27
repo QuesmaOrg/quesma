@@ -3,10 +3,12 @@
 package elastic_query_dsl
 
 import (
+	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestParseDateMathExpression(t *testing.T) {
@@ -34,12 +36,12 @@ func TestParseDateMathExpression(t *testing.T) {
 func Test_parseDateTimeInClickhouseMathLanguage(t *testing.T) {
 	exprs := map[string]string{
 		"now":          "now()",
-		"now-15m":      "subDate(now(), INTERVAL 15 minute)",
-		"now-15m+5s":   "addDate(subDate(now(), INTERVAL 15 minute), INTERVAL 5 second)",
+		"now-15m":      "subDate(now(),INTERVAL 15 minute)",
+		"now-15m+5s":   "addDate(subDate(now(),INTERVAL 15 minute),INTERVAL 5 second)",
 		"now-":         "now()",
-		"now-15m+/M":   "toStartOfMonth(subDate(now(), INTERVAL 15 minute))",
-		"now-15m/d":    "toStartOfDay(subDate(now(), INTERVAL 15 minute))",
-		"now-15m+5s/w": "toStartOfWeek(addDate(subDate(now(), INTERVAL 15 minute), INTERVAL 5 second))",
+		"now-15m+/M":   "toStartOfMonth(subDate(now(),INTERVAL 15 minute))",
+		"now-15m/d":    "toStartOfDay(subDate(now(),INTERVAL 15 minute))",
+		"now-15m+5s/w": "toStartOfWeek(addDate(subDate(now(),INTERVAL 15 minute),INTERVAL 5 second))",
 		"now-/Y":       "toStartOfYear(now())",
 	}
 
@@ -55,38 +57,39 @@ func Test_parseDateTimeInClickhouseMathLanguage(t *testing.T) {
 				return
 			}
 
-			resultExpr, err := renderer.RenderSQL(dt)
+			resultExpr, err := renderer.RenderExpr(dt)
 			assert.NoError(t, err)
 
 			if err != nil {
 				return
 			}
 
-			assert.Equal(t, expected, resultExpr)
+			assert.Equal(t, expected, model.AsString(resultExpr))
 
 		})
 	}
 }
 
 func Test_DateMathExpressionAsLiteral(t *testing.T) {
+	now := time.Date(2024, 5, 17, 12, 1, 2, 3, time.UTC)
 	tests := []struct {
 		input    string
-		expected string
+		expected time.Time
 	}{
-		{"now", "'2024-05-17 12:01:02'"},
-		{"now-15m", "'2024-05-17 11:46:02'"},
-		{"now-15m+5s", "'2024-05-17 11:46:07'"},
-		{"now-", "'2024-05-17 12:01:02'"},
-		{"now-15m+/M", "'2024-05-01 00:00:00'"},
-		{"now-15m/d", "'2024-05-17 00:00:00'"},
-		{"now-15m+5s/w", "'2024-05-12 00:00:00'"}, // week starts on Sunday here so 2024-05-12 is the start of the week
-		{"now-/Y", "'2024-01-01 00:00:00'"},
-		{"now-2M", "'2024-03-17 12:01:02'"},
-		{"now-1y", "'2023-05-17 12:01:02'"},
-		{"now-1w", "'2024-05-10 12:01:02'"},
-		{"now-1s", "'2024-05-17 12:01:01'"},
-		{"now-1m", "'2024-05-17 12:00:02'"},
-		{"now-1d", "'2024-05-16 12:01:02'"},
+		{"now", now},
+		{"now-15m", now.Add(-15 * time.Minute)},
+		{"now-15m+5s", now.Add(-15 * time.Minute).Add(5 * time.Second)},
+		{"now-", now},
+		{"now-15m+/M", time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC)},
+		{"now-15m/d", time.Date(2024, 5, 17, 0, 0, 0, 0, time.UTC)},
+		{"now-15m+5s/w", time.Date(2024, 5, 12, 0, 0, 0, 0, time.UTC)}, // week starts on Sunday here so 2024-05-12 is the start of the week
+		{"now-/Y", time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{"now-2M", now.AddDate(0, -2, 0)},
+		{"now-1y", now.AddDate(-1, 0, 0)},
+		{"now-1w", now.Add(-7 * 24 * time.Hour)},
+		{"now-1s", now.Add(-1 * time.Second)},
+		{"now-1m", now.Add(-1 * time.Minute)},
+		{"now-1d", now.Add(-24 * time.Hour)},
 	}
 
 	for i, test := range tests {
@@ -102,14 +105,14 @@ func Test_DateMathExpressionAsLiteral(t *testing.T) {
 			// this renderer is single use, so we can't reuse it
 			renderer := DateMathExpressionRendererFactory(DateMathExpressionFormatLiteralTest)
 
-			resultExpr, err := renderer.RenderSQL(dt)
+			resultExpr, err := renderer.RenderExpr(dt)
 			assert.NoError(t, err)
 
 			if err != nil {
 				return
 			}
 
-			assert.Equal(t, test.expected, resultExpr)
+			assert.Equal(t, model.NewFunction(model.FromUnixTimestampMs, model.NewLiteral(model.TimeLiteral{Value: test.expected})), resultExpr)
 		})
 	}
 }
