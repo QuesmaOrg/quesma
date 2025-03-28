@@ -132,7 +132,8 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte) {
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).
 		WillReturnRows(sqlmock.NewRows([]string{"client_name"}).AddRow("client_a").AddRow("client_b"))
 
-	resp, err := handleTermsEnumRequest(ctx, types.MustJSON(string(requestBody)), lm, qt, managementConsole)
+	const isFieldMapSyntaxEnabled = false
+	resp, err := handleTermsEnumRequest(ctx, types.MustJSON(string(requestBody)), lm, qt, isFieldMapSyntaxEnabled, managementConsole)
 	assert.NoError(t, err)
 
 	var responseModel model.TermsEnumResponse

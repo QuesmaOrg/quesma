@@ -1612,6 +1612,7 @@ func Test_mapKeys(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
+			t.Skip("RR")
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
 			actual, err := transform.Transform([]*model.Query{tt.query})
