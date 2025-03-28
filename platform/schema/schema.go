@@ -3,6 +3,7 @@
 package schema
 
 import (
+	"github.com/k0kubun/pp"
 	"strings"
 )
 
@@ -61,6 +62,10 @@ func (f Field) IsMapWithStringValues() bool {
 		typename == "Map(String,Nullable(String))"
 }
 
+func (f Field) IsMap() bool {
+	return strings.HasPrefix(f.InternalPropertyType, "Map")
+}
+
 func (f FieldName) AsString() string {
 	return string(f)
 }
@@ -83,11 +88,35 @@ func (s Schema) ResolveFieldByInternalName(fieldName string) (Field, bool) {
 	return Field{}, false
 }
 
-func (s Schema) ResolveField(fieldName string) (Field, bool) {
-	if alias, exists := s.Aliases[FieldName(fieldName)]; exists {
-		field, exists := s.Fields[alias]
+func (s Schema) ResolveFieldMapHasPriority(fieldName string) (Field, bool) {
+	pp.Println("resolve field", fieldName, s)
+	resolve := func(fieldName string) (Field, bool) {
+		if alias, exists := s.Aliases[FieldName(fieldName)]; exists {
+			field, exists := s.Fields[alias]
+			return field, exists
+		}
+		field, exists := s.Fields[FieldName(fieldName)]
 		return field, exists
 	}
-	field, exists := s.Fields[FieldName(fieldName)]
-	return field, exists
+
+	// try map first
+	if split := strings.Split(fieldName, "."); len(split) > 1 {
+		if f, ok := resolve(split[0]); ok {
+			return f, true
+		}
+	}
+	return resolve(fieldName)
+}
+
+func (s Schema) ResolveField(fieldName string) (Field, bool) {
+	pp.Println("resolve field", fieldName, s)
+	resolve := func(fieldName string) (Field, bool) {
+		if alias, exists := s.Aliases[FieldName(fieldName)]; exists {
+			field, exists := s.Fields[alias]
+			return field, exists
+		}
+		field, exists := s.Fields[FieldName(fieldName)]
+		return field, exists
+	}
+	return resolve(fieldName)
 }

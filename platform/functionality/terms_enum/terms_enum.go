@@ -12,16 +12,18 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/QuesmaOrg/quesma/platform/transformations"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/goccy/go-json"
+	"github.com/k0kubun/pp"
 	"strconv"
 	"time"
 )
 
 func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm clickhouse.LogManagerIFace,
-	schemaRegistry schema.Registry, qmc diag.DebugInfoCollector) ([]byte, error) {
+	schemaRegistry schema.Registry, isFieldMapSyntaxEnabled bool, qmc diag.DebugInfoCollector) ([]byte, error) {
 	if indices, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.Error().Msg(errorMsg)
@@ -33,12 +35,14 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm clic
 			return []byte{}, end_user_errors.ErrNoSuchSchema.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
-		return handleTermsEnumRequest(ctx, body, lm, &elastic_query_dsl.ClickhouseQueryTranslator{Table: lm.FindTable(indices[0]), Ctx: context.Background(), Schema: resolvedSchema}, qmc)
+		return handleTermsEnumRequest(ctx, body, lm,
+			&elastic_query_dsl.ClickhouseQueryTranslator{Table: lm.FindTable(indices[0]), Ctx: ctx, Schema: resolvedSchema},
+			isFieldMapSyntaxEnabled, qmc)
 	}
 }
 
 func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.LogManagerIFace, qt *elastic_query_dsl.ClickhouseQueryTranslator,
-	qmc diag.DebugInfoCollector) (result []byte, err error) {
+	isFieldMapSyntaxEnabled bool, qmc diag.DebugInfoCollector) (result []byte, err error) {
 	startTime := time.Now()
 
 	// defaults as in:
@@ -92,9 +96,12 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
 	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
+	selectQuery, err = transformations.ApplyAllNecessaryTransformations(selectQuery, qt.Schema, isFieldMapSyntaxEnabled)
 	dbQueryCtx, cancel := context.WithCancel(ctx)
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel
+
+	pp.Println("KK SELECT TERMS ENUM", selectQuery)
 
 	if rows, _, err2 := lm.ProcessQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
 		logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err2)
@@ -129,10 +136,14 @@ func makeTermsEnumResponse(rows []model.QueryResultRow) *model.TermsEnumResponse
 	for _, row := range rows {
 		value := row.Cols[0].Value
 		if value != nil {
-			if tmp, ok := value.(*string); ok {
-				terms = append(terms, *tmp)
-			} else {
-				terms = append(terms, value.(string)) // needed only for tests
+			switch val := value.(type) {
+			case *string:
+				terms = append(terms, *val)
+			case string:
+				terms = append(terms, val)
+			default:
+				// may be e.g. Map(String, String)
+				// TODO check if we should add e.g. all keys then?
 			}
 		}
 	}

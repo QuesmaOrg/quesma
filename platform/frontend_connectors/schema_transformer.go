@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/k0kubun/pp"
 	"sort"
 	"strings"
 )
@@ -33,7 +34,10 @@ func (s *SchemaCheckPass) isFieldMapSyntaxEnabled(query *model.Query) bool {
 
 	var enabled bool
 
+	pp.Println("QI1", query.Indexes)
+
 	if len(query.Indexes) == 1 {
+		pp.Println(s.cfg.IndexConfig[query.Indexes[0]])
 		if indexConf, ok := s.cfg.IndexConfig[query.Indexes[0]]; ok {
 			enabled = indexConf.EnableFieldMapSyntax
 		}
@@ -369,10 +373,12 @@ func (s *SchemaCheckPass) applyMapTransformations(indexSchema schema.Schema, que
 
 	visitor := NewMapTypeVisitor(mapResolver)
 
+	pp.Println("PRE", query.SelectCommand)
 	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
+	pp.Println("POST", query.SelectCommand)
 	return query, nil
 }
 
@@ -720,14 +726,19 @@ func (s *SchemaCheckPass) applyFieldMapSyntax(indexSchema schema.Schema, query *
 			return e
 		}
 		// 1. we check if the field name point to the map
+		pp.Println("QQQ1", e.ColumnName, s.isFieldMapSyntaxEnabled(query))
 		if s.isFieldMapSyntaxEnabled(query) {
 			elements := strings.Split(e.ColumnName, ".")
 			if len(elements) > 1 {
 				if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
+					pp.Println("QQQ2", mapField, mapField.Type.Name, mapField.InternalPropertyType)
 					// check if we have map type, especially  Map(String, any) here
 					if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
 						(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
 							strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
+						if len(elements) > 2 && (elements[len(elements)-1] == "keyword" || elements[len(elements)-1] == "text") {
+							elements = elements[:len(elements)-1]
+						}
 						return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
 					}
 				}

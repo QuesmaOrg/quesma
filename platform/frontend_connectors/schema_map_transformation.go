@@ -3,10 +3,12 @@
 package frontend_connectors
 
 import (
+	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/k0kubun/pp"
 	"strings"
 )
 
@@ -47,11 +49,12 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 	}
 
 	tableColumnName, ok := v.indexSchema.ResolveField(fieldName)
+	fmt.Println("tableColumnName", tableColumnName, ok)
 	if !ok {
 		return false, scope, fieldName
 	}
 	col, ok := v.indexSchema.Fields[schema.FieldName(tableColumnName.InternalPropertyName.AsString())]
-
+	fmt.Println("col", col, ok, col.InternalPropertyType)
 	if ok {
 		if strings.HasPrefix(col.InternalPropertyType, "Map") {
 			return true, scope, tableColumnName.InternalPropertyName.AsString()
@@ -72,12 +75,31 @@ func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-		isMap, _, realName := resolver.isMap(e.ColumnName)
-		if !isMap {
-			return e
+		pp.Println("e", e.ColumnName)
+		if isMap, _, realName := resolver.isMap(e.ColumnName); isMap {
+			pp.Println("isMap", isMap, realName)
+			return model.NewColumnRef(realName)
 		}
 
-		return model.NewColumnRef(realName)
+		/*
+			// maybe map.key
+			colNameSplit := strings.Split(e.ColumnName, ".")
+			fmt.Println("KKK SPLIT", colNameSplit, len(colNameSplit))
+			if len(colNameSplit) == 2 {
+				mapName, key := colNameSplit[0], colNameSplit[1]
+				fmt.Println("mapName", mapName)
+				if isMap, _, realName := resolver.isMap(mapName); isMap {
+					fmt.Println("isMap", isMap, realName)
+					return model.NewArrayAccess(
+						model.NewColumnRefWithTable(realName, e.TableAlias),
+						model.NewLiteral(key),
+					)
+				}
+			}
+
+		*/
+
+		return e.Clone()
 	}
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {

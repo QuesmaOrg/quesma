@@ -85,7 +85,6 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 
 func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
-
 	for _, m := range message {
 		req, err := quesma_api.CheckedCast[*http.Request](m)
 		if err != nil {
@@ -138,7 +137,8 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			if err != nil {
 				return metadata, nil, err
 			}
-			res, err := frontend_connectors.HandleTermsEnum(ctx, indexPattern, query, p.queryRunner.GetLogManager(), p.queryRunner.GetSchemaRegistry(), p.legacyDependencies)
+			isFieldMapSyntaxEnabled := p.config.IsFieldMapSyntaxEnabled(indexPattern)
+			res, err := frontend_connectors.HandleTermsEnum(ctx, indexPattern, query, p.queryRunner.GetLogManager(), p.queryRunner.GetSchemaRegistry(), isFieldMapSyntaxEnabled, p.legacyDependencies)
 			return metadata, res, err
 		case es_to_ch_common.IndexPath:
 			if indexNotInConfig {

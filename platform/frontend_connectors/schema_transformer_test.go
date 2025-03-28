@@ -1573,6 +1573,37 @@ func Test_mapKeys(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			name: "todo name it",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("foo.bar")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("foo.bar"),
+						"IS",
+						model.NewLiteral("NOT NULL"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test2",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test2"),
+					Columns:    []model.Expr{model.NewColumnRef("foo")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(
+							model.NewColumnRef("foo"),
+							model.NewLiteral("bar"),
+						),
+						"IS",
+						model.NewLiteral("NOT NULL"),
+					),
+				},
+			},
+		},
 	}
 
 	asString := func(query *model.Query) string {

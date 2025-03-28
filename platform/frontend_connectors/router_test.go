@@ -391,7 +391,8 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				return nil, errors.New("invalid request body, expecting JSON")
 			}
 
-			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, sr, console); err != nil {
+			const isFieldMapSyntaxEnabled = false
+			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, sr, isFieldMapSyntaxEnabled, console); err != nil {
 				return nil, err
 			} else {
 				return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
