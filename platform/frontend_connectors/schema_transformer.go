@@ -1180,7 +1180,6 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				return model.NewInfixExpr(lhs, "ILIKE", rhs.Clone())
 			}
 			equal := func() model.Expr {
-				rhsValue = strings.Trim(rhsValue, "%")
 				return model.NewInfixExpr(lhs, "=", rhs.Clone())
 			}
 
@@ -1197,6 +1196,8 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			// TODO: improve? we seem to be `ilike'ing` too much
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+				rhs.Value = strings.Trim(rhsValue, "%")
+				rhs.Attrs[model.EscapeKey] = model.NormalNotEscaped
 				return equal()
 			default:
 				return ilike()
