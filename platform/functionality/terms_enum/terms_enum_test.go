@@ -155,14 +155,14 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName stri
 }
 
 func TestHandleTermsEnumRequest(t *testing.T) {
-	testHandleTermsEnumRequest(t, rawRequestBody, "client_name")
+	testHandleTermsEnumRequest(t, rawRequestBody, `"client_name"`)
 }
 
 // Basic test.
 // "client.name" should be replaced by "client_name", and results should stay the same
 func TestIfHandleTermsEnumUsesSchema(t *testing.T) {
 	requestBodyWithAliasedField := bytes.ReplaceAll(rawRequestBody, []byte(`"field": "client_name"`), []byte(`"field": "client.name"`))
-	testHandleTermsEnumRequest(t, requestBodyWithAliasedField, "client_name")
+	testHandleTermsEnumRequest(t, requestBodyWithAliasedField, `"client_name"`)
 }
 
 func TestIfHandleTermsEnumUsesSchemaForMapColumn(t *testing.T) {

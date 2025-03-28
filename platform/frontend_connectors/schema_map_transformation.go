@@ -3,7 +3,6 @@
 package frontend_connectors
 
 import (
-	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
@@ -48,12 +47,11 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 	}
 
 	tableColumnName, ok := v.indexSchema.ResolveField(fieldName)
-	fmt.Println("tableColumnName", tableColumnName, ok)
 	if !ok {
 		return false, scope, fieldName
 	}
+
 	col, ok := v.indexSchema.Fields[schema.FieldName(tableColumnName.InternalPropertyName.AsString())]
-	fmt.Println("col", col, ok, col.InternalPropertyType)
 	if ok {
 		if strings.HasPrefix(col.InternalPropertyType, "Map") {
 			return true, scope, tableColumnName.InternalPropertyName.AsString()

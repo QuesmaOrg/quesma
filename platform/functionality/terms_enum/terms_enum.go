@@ -17,7 +17,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/goccy/go-json"
-	"github.com/k0kubun/pp"
 	"strconv"
 	"time"
 )
@@ -97,13 +96,10 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
 	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
 	selectQuery, err = transformations.ApplyAllNecessaryTransformations(selectQuery, qt.Schema, isFieldMapSyntaxEnabled)
-	pp.Println("RRR SEL", selectQuery, "err", err)
 	if err == nil {
 		dbQueryCtx, cancel := context.WithCancel(ctx)
 		// TODO this will be used to cancel goroutine that is executing the query
 		_ = cancel
-
-		pp.Println("KK SELECT TERMS ENUM", selectQuery)
 
 		if rows, _, err2 := lm.ProcessQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
 			logger.ErrorFull(ctx, "terms enum failed - error processing SQL query", err2)
