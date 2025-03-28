@@ -95,7 +95,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
 	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
-	selectQuery, err = transformations.ApplyAllNecessaryTransformations(selectQuery, qt.Schema, isFieldMapSyntaxEnabled)
+	selectQuery, err = transformations.ApplyAllNecessaryCommonTransformations(selectQuery, qt.Schema, isFieldMapSyntaxEnabled)
 	if err == nil {
 		dbQueryCtx, cancel := context.WithCancel(ctx)
 		// TODO this will be used to cancel goroutine that is executing the query

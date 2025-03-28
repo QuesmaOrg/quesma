@@ -11,7 +11,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"github.com/k0kubun/pp"
 	"reflect"
 	"strconv"
 	"strings"
@@ -125,11 +124,11 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 			return val
 		}
 
-		result := make([]interface{}, v.Len())
+		resultArray := make([]interface{}, v.Len())
 		for i := 0; i < v.Len(); i++ {
-			result[i] = v.Index(i).Interface()
+			resultArray[i] = v.Index(i).Interface()
 		}
-		return result
+		return resultArray
 	}
 
 	for _, col := range resultRow.Cols {
@@ -139,15 +138,19 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 			continue
 		}
 
+		// we don't return empty value
 		if col.Value == nil {
-			continue // We don't return empty value
+			continue
 		}
 
-		var mapAsValue bool
-		suffixes, vals := []string{}, []any{}
+		// Arrays below introduced only to unify handling for maps and other types.
+		// If it's not a map, suffixes will always simply be [""] (no suffix) and vals will always be [col.Value]
+		suffixes, vals := make([]string, 0), make([]any, 0)
+		var isValueAMap bool
+
 		switch colT := col.Value.(type) {
 		case map[string]*string:
-			mapAsValue = true
+			isValueAMap = true
 			for key, value := range colT {
 				if value != nil {
 					suffixes = append(suffixes, "."+key)
@@ -155,7 +158,7 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 				}
 			}
 		case map[string]string:
-			mapAsValue = true
+			isValueAMap = true
 			for key, value := range colT {
 				suffixes = append(suffixes, "."+key)
 				vals = append(vals, value)
@@ -165,27 +168,24 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 			vals = []any{colT}
 		}
 
-		pp.Println("suffixes", suffixes, "vals", vals)
-
 		columnNameWithoutMapSuffix := col.ColName
 		for i := 0; i < len(vals); i++ {
 			columnName := columnNameWithoutMapSuffix + suffixes[i]
 			hit.Fields[columnName] = append(hit.Fields[columnName], toProperType(vals[i]))
 
 			var fieldName string
-			if mapAsValue {
-				fieldName = columnName
+			if isValueAMap {
+				fieldName = columnName // we don't decode, leave "map.key" as is
 			} else {
 				fieldName = util.FieldToColumnEncoder(columnName)
 			}
-			pp.Println("RRR", col, "column name", columnName, fieldName, toProperType(col.Value), "should high?", query.highlighter.ShouldHighlight(util.FieldToColumnEncoder(columnName)))
+
 			// TODO using using util.FieldToColumnEncoder is a workaround
 			// we first build highlighter tokens using internal representation
 			// then we do postprocessing changing columns to public fields
 			// and then highlighter build json using public one
 			// which is incorrect
 			if query.highlighter.ShouldHighlight(fieldName) {
-				fmt.Println("TAK", vals[i])
 				// check if we have a string here and if so, highlight it
 				switch valueAsString := vals[i].(type) {
 				case string:
@@ -212,11 +212,8 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 	}
 
 	// TODO: highlight and field checks
-	pp.Println("high", hit.Highlight, query.highlighter.Tokens)
 	for fieldName, target := range query.table.Aliases() {
-		fmt.Println("fieldName", fieldName, "target", target)
 		if v, ok := hit.Fields[target]; ok {
-			fmt.Println("ok")
 			hit.Fields[fieldName] = v
 		}
 	}

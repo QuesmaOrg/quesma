@@ -977,8 +977,8 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
-		{TransformationName: "FieldMapSyntaxTransformation", Transformation: func(schema schema.Schema, query *model.Query) (*model.Query, error) {
-			return transformations.ApplyAllNecessaryTransformations(query, schema, s.cfg.MapFieldsDiscoveringEnabled)
+		{TransformationName: "AllNecessaryCommonTransformations", Transformation: func(schema schema.Schema, query *model.Query) (*model.Query, error) {
+			return transformations.ApplyAllNecessaryCommonTransformations(query, schema, s.cfg.MapFieldsDiscoveringEnabled)
 		}},
 		{TransformationName: "AliasColumnsTransformation", Transformation: s.applyAliasColumns},
 
