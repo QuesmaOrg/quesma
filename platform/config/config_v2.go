@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/hashicorp/go-multierror"
+	"github.com/k0kubun/pp"
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
@@ -116,7 +117,8 @@ const DefaultWildcardIndexName = "*"
 
 // Configuration of QuesmaV1ProcessorQuery and QuesmaV1ProcessorIngest
 type QuesmaProcessorConfig struct {
-	UseCommonTable bool           `koanf:"useCommonTable"`
+	UseCommonTable bool `koanf:"useCommonTable"`
+	chDbNames      []string
 	IndexConfig    IndicesConfigs `koanf:"indexes"`
 	// DefaultTargetConnectorType is used in V2 code only
 	DefaultTargetConnectorType string //it is not serialized to maintain configuration BWC, so it's basically just populated from '*' config in `config_v2.go`
@@ -138,6 +140,7 @@ func LoadV2Config() QuesmaNewConfiguration {
 	if err := v2config.Validate(); err != nil {
 		log.Fatalf("Config validation failed: %v", err)
 	}
+	pp.Println("KKK", v2config)
 	return v2config
 }
 
