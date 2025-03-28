@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/k0kubun/pp"
 	"reflect"
 	"strconv"
 	"strings"
@@ -118,10 +119,10 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 }
 
 func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.QueryResultRow) {
-	toInterfaceArray := func(val interface{}) []interface{} {
+	toProperType := func(val interface{}) any {
 		v := reflect.ValueOf(val)
 		if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
-			return []interface{}{val}
+			return val
 		}
 
 		result := make([]interface{}, v.Len())
@@ -141,41 +142,81 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 		if col.Value == nil {
 			continue // We don't return empty value
 		}
-		columnName := col.ColName
-		hit.Fields[columnName] = toInterfaceArray(col.Value)
-		// TODO using using util.FieldToColumnEncoder is a workaround
-		// we first build highlighter tokens using internal representation
-		// then we do postprocessing changing columns to public fields
-		// and then highlighter build json using public one
-		// which is incorrect
-		if query.highlighter.ShouldHighlight(util.FieldToColumnEncoder(columnName)) {
-			// check if we have a string here and if so, highlight it
-			switch valueAsString := col.Value.(type) {
-			case string:
-				hit.Highlight[columnName] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), valueAsString)
-			case *string:
-				if valueAsString != nil {
-					hit.Highlight[columnName] = query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), *valueAsString)
+
+		var mapAsValue bool
+		suffixes, vals := []string{}, []any{}
+		switch colT := col.Value.(type) {
+		case map[string]*string:
+			mapAsValue = true
+			for key, value := range colT {
+				if value != nil {
+					suffixes = append(suffixes, "."+key)
+					vals = append(vals, *value)
 				}
-			case []string:
-				for _, v := range valueAsString {
-					hit.Highlight[columnName] = append(hit.Highlight[columnName], query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), v)...)
-				}
-			case []*string:
-				for _, v := range valueAsString {
-					if v != nil {
-						hit.Highlight[columnName] = append(hit.Highlight[columnName], query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), *v)...)
+			}
+		case map[string]string:
+			mapAsValue = true
+			for key, value := range colT {
+				suffixes = append(suffixes, "."+key)
+				vals = append(vals, value)
+			}
+		default:
+			suffixes = []string{""}
+			vals = []any{colT}
+		}
+
+		pp.Println("suffixes", suffixes, "vals", vals)
+
+		columnNameWithoutMapSuffix := col.ColName
+		for i := 0; i < len(vals); i++ {
+			columnName := columnNameWithoutMapSuffix + suffixes[i]
+			hit.Fields[columnName] = append(hit.Fields[columnName], toProperType(vals[i]))
+
+			var fieldName string
+			if mapAsValue {
+				fieldName = columnName
+			} else {
+				fieldName = util.FieldToColumnEncoder(columnName)
+			}
+			pp.Println("RRR", col, "column name", columnName, fieldName, toProperType(col.Value), "should high?", query.highlighter.ShouldHighlight(util.FieldToColumnEncoder(columnName)))
+			// TODO using using util.FieldToColumnEncoder is a workaround
+			// we first build highlighter tokens using internal representation
+			// then we do postprocessing changing columns to public fields
+			// and then highlighter build json using public one
+			// which is incorrect
+			if query.highlighter.ShouldHighlight(fieldName) {
+				fmt.Println("TAK", vals[i])
+				// check if we have a string here and if so, highlight it
+				switch valueAsString := vals[i].(type) {
+				case string:
+					hit.Highlight[columnName] = query.highlighter.HighlightValue(fieldName, valueAsString)
+				case *string:
+					if valueAsString != nil {
+						hit.Highlight[columnName] = query.highlighter.HighlightValue(fieldName, *valueAsString)
 					}
+				case []string:
+					for _, v := range valueAsString {
+						hit.Highlight[columnName] = append(hit.Highlight[columnName], query.highlighter.HighlightValue(fieldName, v)...)
+					}
+				case []*string:
+					for _, v := range valueAsString {
+						if v != nil {
+							hit.Highlight[columnName] = append(hit.Highlight[columnName], query.highlighter.HighlightValue(fieldName, *v)...)
+						}
+					}
+				default:
+					logger.WarnWithCtx(query.ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)
 				}
-			default:
-				logger.WarnWithCtx(query.ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)
 			}
 		}
 	}
 
 	// TODO: highlight and field checks
+	pp.Println("high", hit.Highlight, query.highlighter.Tokens)
 	for fieldName, target := range query.table.Aliases() {
+		fmt.Println("fieldName", fieldName, "target", target)
 		if v, ok := hit.Fields[target]; ok {
+			fmt.Println("ok")
 			hit.Fields[fieldName] = v
 		}
 	}
