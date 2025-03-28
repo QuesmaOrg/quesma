@@ -1143,6 +1143,7 @@ func Test_applyMatchOperator(t *testing.T) {
 	schemaTable := schema.Table{
 		Columns: map[string]schema.Column{
 			"message":     {Name: "message", Type: "String"},
+			"easy":        {Name: "easy", Type: "Bool"},
 			"map_str_str": {Name: "map_str_str", Type: "Map(String, String)"},
 			"map_str_int": {Name: "map_str_int", Type: "Map(String, Int)"},
 			"count":       {Name: "count", Type: "Int64"},
@@ -1203,7 +1204,34 @@ func Test_applyMatchOperator(t *testing.T) {
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("count"),
 						"=",
-						model.NewLiteral("'123'"),
+						model.NewLiteral("123"),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for Bool",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("easy"),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("true", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("easy"),
+						"=",
+						model.TrueExpr,
 					),
 				},
 			},
