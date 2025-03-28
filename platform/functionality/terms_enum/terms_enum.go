@@ -26,7 +26,7 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm clic
 	schemaRegistry schema.Registry, isFieldMapSyntaxEnabled bool, qmc diag.DebugInfoCollector) ([]byte, error) {
 	if indices, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
-		logger.Error().Msg(errorMsg)
+		logger.ErrorFull(ctx, errorMsg, err)
 		return nil, errors.New(errorMsg)
 	} else {
 		resolvedTableName := indices[0]
@@ -105,7 +105,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 		pp.Println("KK SELECT TERMS ENUM", selectQuery)
 
 		if rows, _, err2 := lm.ProcessQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
-			logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err2)
+			logger.ErrorFull(ctx, "terms enum failed - error processing SQL query", err2)
 			result, err = json.Marshal(emptyTermsEnumResponse())
 		} else {
 			result, err = json.Marshal(makeTermsEnumResponse(rows))
@@ -146,10 +146,9 @@ func makeTermsEnumResponse(rows []model.QueryResultRow) *model.TermsEnumResponse
 			case *string:
 				terms = append(terms, *val)
 			case string:
-				terms = append(terms, val)
+				terms = append(terms, val) // needed only for tests
 			default:
-				// may be e.g. Map(String, String)
-				// TODO check if we should add e.g. all keys then?
+				// may be e.g. Map(String, String). Elastic does nothing in that case, so let's do the same everywhere for now.
 			}
 		}
 	}

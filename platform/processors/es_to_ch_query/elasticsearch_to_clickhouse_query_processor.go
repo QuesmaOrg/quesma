@@ -85,6 +85,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) prepareTemporaryQueryProcessor
 
 func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]interface{}, message ...any) (map[string]interface{}, any, error) {
 	var data []byte
+
 	for _, m := range message {
 		req, err := quesma_api.CheckedCast[*http.Request](m)
 		if err != nil {

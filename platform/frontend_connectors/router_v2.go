@@ -248,12 +248,13 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 			return nil, errors.New("multi index terms enum is not yet supported")
 		}
 		body, err := types.ExpectJSON(req.ParsedBody)
+		if err != nil {
+			return nil, errors.New("invalid request body, expecting JSON")
+		}
+
 		var isFieldMapSyntaxEnabled bool
 		if indexCfg, exists := cfg.IndexConfig[indexPattern]; exists {
 			isFieldMapSyntaxEnabled = indexCfg.EnableFieldMapSyntax
-		}
-		if err != nil {
-			return nil, errors.New("invalid request body, expecting JSON")
 		}
 		return HandleTermsEnum(ctx, indexPattern, body, lm, sr, isFieldMapSyntaxEnabled, dependencies)
 	})

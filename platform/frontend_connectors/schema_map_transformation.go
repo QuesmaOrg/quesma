@@ -8,7 +8,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
-	"github.com/k0kubun/pp"
 	"strings"
 )
 
@@ -75,30 +74,9 @@ func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-		pp.Println("e", e.ColumnName)
 		if isMap, _, realName := resolver.isMap(e.ColumnName); isMap {
-			pp.Println("isMap", isMap, realName)
-			return model.NewColumnRef(realName)
+			return model.NewColumnRefWithTable(realName, e.TableAlias)
 		}
-
-		/*
-			// maybe map.key
-			colNameSplit := strings.Split(e.ColumnName, ".")
-			fmt.Println("KKK SPLIT", colNameSplit, len(colNameSplit))
-			if len(colNameSplit) == 2 {
-				mapName, key := colNameSplit[0], colNameSplit[1]
-				fmt.Println("mapName", mapName)
-				if isMap, _, realName := resolver.isMap(mapName); isMap {
-					fmt.Println("isMap", isMap, realName)
-					return model.NewArrayAccess(
-						model.NewColumnRefWithTable(realName, e.TableAlias),
-						model.NewLiteral(key),
-					)
-				}
-			}
-
-		*/
-
 		return e.Clone()
 	}
 
