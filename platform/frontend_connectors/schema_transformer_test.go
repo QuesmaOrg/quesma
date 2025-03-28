@@ -1479,10 +1479,21 @@ func Test_mapKeys(t *testing.T) {
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 	for indexName := range indexConfig {
-		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+		tab := &clickhouse.Table{
+			Name:   indexName,
+			Config: clickhouse.NewDefaultCHConfig(),
+			Cols: map[string]*clickhouse.Column{
+				"foo": {
+					Name: "foo",
+					Type: clickhouse.NewBaseType("Map(String, Nullable(String))"),
+				},
+			},
+		}
+		tableMap.Store(indexName, tab)
 	}
 
-	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
+	transformPass := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig, MapFieldsDiscoveringEnabled: true}, tableDiscovery, defaultSearchAfterStrategy)
+	noTransformPass := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig, MapFieldsDiscoveringEnabled: false}, tableDiscovery, defaultSearchAfterStrategy)
 
 	tests := []struct {
 		name     string
@@ -1575,7 +1586,7 @@ func Test_mapKeys(t *testing.T) {
 		},
 
 		{
-			name: "todo name it",
+			name: "map syntax transformation",
 			query: &model.Query{
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
@@ -1589,15 +1600,17 @@ func Test_mapKeys(t *testing.T) {
 				},
 			},
 			expected: &model.Query{
-				TableName: "test2",
+				TableName: "test",
 				SelectCommand: model.SelectCommand{
-					FromClause: model.NewTableRef("test2"),
-					Columns:    []model.Expr{model.NewColumnRef("foo")},
-					WhereClause: model.NewInfixExpr(
-						model.NewArrayAccess(
-							model.NewColumnRef("foo"),
-							model.NewLiteral("bar"),
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						model.NewAliasedExpr(
+							model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
+							"column_0",
 						),
+					},
+					WhereClause: model.NewInfixExpr(
+						model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
 						"IS",
 						model.NewLiteral("NOT NULL"),
 					),
@@ -1612,10 +1625,15 @@ func Test_mapKeys(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
-			t.Skip("RR")
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			actual, err := transform.Transform([]*model.Query{tt.query})
+			var actual []*model.Query
+			var err error
+			if indexConfig[tt.query.TableName].EnableFieldMapSyntax {
+				actual, err = transformPass.Transform([]*model.Query{tt.query})
+			} else {
+				actual, err = noTransformPass.Transform([]*model.Query{tt.query})
+			}
 			assert.NoError(t, err)
 
 			if err != nil {
