@@ -16,6 +16,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/goccy/go-json"
+	"github.com/k0kubun/pp"
 	"regexp"
 	"strings"
 	"sync"
@@ -192,6 +193,8 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 	logger.Debug().Msg("reloading tables definitions")
 	var configuredTables map[string]discoveredTable
 	databaseName := "default"
+	//databaseNames := []string{"default"},
+	pp.Println("conn", td.cfg.Connectors)
 	if td.cfg.ClickHouse.Database != "" {
 		databaseName = td.cfg.ClickHouse.Database
 	}
