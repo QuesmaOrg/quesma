@@ -7,13 +7,12 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/k0kubun/pp"
 	"strings"
 )
 
 // TODO it should be removed and transformations should be in 1 place.
 // Only introduced temporarly e.g. for terms_enum to be able to get transformed
-// (it can't import frontend_conntectors package)
+// (terms_enum package can't import frontend_conntectors package)
 func ApplyAllNecessaryTransformations(query *model.Query, schema schema.Schema, isFieldMapSyntaxEnabled bool) (*model.Query, error) {
 	query, err := ApplyFieldMapSyntax(schema, query, isFieldMapSyntaxEnabled)
 	if err != nil {
@@ -32,12 +31,10 @@ func ApplyFieldMapSyntax(indexSchema schema.Schema, query *model.Query, isFieldM
 			return e
 		}
 		// 1. we check if the field name point to the map
-		pp.Println("QQQ1", e.ColumnName, isFieldMapSyntaxEnabled)
 		if isFieldMapSyntaxEnabled {
 			elements := strings.Split(e.ColumnName, ".")
 			if len(elements) > 1 {
 				if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
-					pp.Println("QQQ2", mapField, mapField.Type.Name, mapField.InternalPropertyType)
 					// check if we have map type, especially  Map(String, any) here
 					if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
 						(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
@@ -52,8 +49,8 @@ func ApplyFieldMapSyntax(indexSchema schema.Schema, query *model.Query, isFieldM
 		}
 		return e
 	}
-	expr := query.SelectCommand.Accept(visitor)
 
+	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
