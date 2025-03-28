@@ -97,18 +97,24 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
 	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
 	selectQuery, err = transformations.ApplyAllNecessaryTransformations(selectQuery, qt.Schema, isFieldMapSyntaxEnabled)
-	dbQueryCtx, cancel := context.WithCancel(ctx)
-	// TODO this will be used to cancel goroutine that is executing the query
-	_ = cancel
+	if err == nil {
+		dbQueryCtx, cancel := context.WithCancel(ctx)
+		// TODO this will be used to cancel goroutine that is executing the query
+		_ = cancel
 
-	pp.Println("KK SELECT TERMS ENUM", selectQuery)
+		pp.Println("KK SELECT TERMS ENUM", selectQuery)
 
-	if rows, _, err2 := lm.ProcessQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
-		logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err2)
-		result, err = json.Marshal(emptyTermsEnumResponse())
+		if rows, _, err2 := lm.ProcessQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
+			logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err2)
+			result, err = json.Marshal(emptyTermsEnumResponse())
+		} else {
+			result, err = json.Marshal(makeTermsEnumResponse(rows))
+		}
 	} else {
-		result, err = json.Marshal(makeTermsEnumResponse(rows))
+		logger.ErrorFull(ctx, "error applying necessary transformations", err)
+		result, err = json.Marshal(emptyTermsEnumResponse())
 	}
+
 	path := ""
 	if value := ctx.Value(tracing.RequestPath); value != nil {
 		if str, ok := value.(string); ok {
