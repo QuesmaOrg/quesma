@@ -61,6 +61,10 @@ func (f Field) IsMapWithStringValues() bool {
 		typename == "Map(String,Nullable(String))"
 }
 
+func (f Field) IsMap() bool {
+	return strings.HasPrefix(f.InternalPropertyType, "Map")
+}
+
 func (f FieldName) AsString() string {
 	return string(f)
 }
