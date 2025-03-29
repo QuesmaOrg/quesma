@@ -40,6 +40,7 @@ func ExpandMacros(node core.Node) {
 				pipeNode.Pipes = append(append(newPipes[:i], convertedNewPipes...), pipeNode.Pipes[i+1:]...)
 			}
 		}
+
 		return pipeNode
 	})
 }
@@ -50,7 +51,7 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 	if !ok {
 		return []core.NodeListNode{pipeNodeList}, false
 	}
-	operator := strings.ToUpper(tokenNode.Token.RawValue)
+	operator := tokenNode.ValueUpper()
 	if operator == "CALL" {
 		// Determine the macro type from the 5th token.
 		if len(pipeNodeList.Nodes) < minimumCallNodes {
@@ -60,8 +61,7 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 		if !ok {
 			return []core.NodeListNode{pipeNodeList}, false
 		}
-		macroType := strings.ToUpper(macroToken.Token.RawValue)
-		switch macroType {
+		switch macroToken.ValueUpper() {
 		case "TIMEBUCKET":
 			return expandCallTimebucket(pipeNodeList), true
 		case "LOGCATEGORY":
@@ -78,8 +78,7 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 		if !ok {
 			return []core.NodeListNode{pipeNodeList}, false
 		}
-		macroName := strings.ToUpper(macroToken.Token.RawValue)
-		switch macroName {
+		switch macroToken.ValueUpper() {
 		case "ENRICH_IP":
 			return expandExtendEnrichIP(pipeNodeList), true
 		case "PARSE_PATTERN":
@@ -140,16 +139,16 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.LeftBracket(),
 	)
 	core.Add(pipe, timestampTokens...)
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "INTERVAL"}})
+	core.Add(pipe, core.Comma())
+	core.Add(pipe, core.NewTokenNode("INTERVAL"))
 	core.Add(pipe, intervalTokens...)
 	// Close toStartOfInterval call.
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
+	core.Add(pipe, core.RightBracket())
 	// End first argument list for formatDateTime: add comma and the format string.
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "'%Y-%m-%d %H:00'"}})
+	core.Add(pipe, core.Comma())
+	core.Add(pipe, core.NewTokenNode(util.SingleQuote("%Y-%m-%d %H:00")))
 	// Close formatDateTime call.
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
+	core.Add(pipe, core.RightBracket())
 	// Separator for concat arguments.
 	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
 	// Second argument: the literal separator ' - '
@@ -328,7 +327,7 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 	// Extract alias tokens after the nested parameters.
 	var aliasTokens []core.Node
 	for i := 6; i < len(pipeNodeList.Nodes); i++ {
-		if token, ok := pipeNodeList.Nodes[i].(core.TokenNode); ok && strings.ToUpper(token.Token.RawValue) == "AS" {
+		if token, ok := pipeNodeList.Nodes[i].(core.TokenNode); ok && token.ValueUpper() == "AS" {
 			// Collect all tokens after the "AS".
 			i++
 			for ; i < len(pipeNodeList.Nodes); i++ {
@@ -373,7 +372,7 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 	secondPipe := buildSecondExtendPipe(aliasParts, extractedAlias)
 
 	// Combine both pipe commands into a single node list, separating them with a newline.
-	firstPipe = append(firstPipe, core.TokenNode{Token: lexer_core.Token{RawValue: "\n"}})
+	firstPipe = append(firstPipe, core.NewLine())
 
 	return []core.NodeListNode{{Nodes: firstPipe}, {Nodes: secondPipe}}
 }
@@ -385,7 +384,7 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	phase := 0
 	for j := minimumCallNodes; j < len(pipeNodeList.Nodes); j++ {
 		if token, ok := pipeNodeList.Nodes[j].(core.TokenNode); ok {
-			if strings.ToUpper(token.Token.RawValue) == "AS" {
+			if token.ValueUpper() == "AS" {
 				phase = 1
 				continue
 			}
@@ -481,21 +480,21 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	core.Add(pipe, spaceWhenSpace()...)
 	core.Add(pipe, logLineTokens...)
 	core.Add(pipe,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'(Failed password for|Invalid user|Disconnected from) .+? port \\d+'"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'SSH Authentication Error'"}},
+		core.Space(),
+		core.Regexp(),
+		core.Space(),
+		core.NewTokenNode(util.SingleQuote("(Failed password for|Invalid user|Disconnected from) .+? port \\d+")),
+		core.Space(),
+		core.Then(),
+		core.Space(),
+		core.NewTokenNodeSingleQuote("SSH Authentication Error"),
 	)
 	// ELSE clause
 	core.Add(pipe,
 		core.Space(),
 		core.Else(),
 		core.Space(),
-		core.NewTokenNode("'Unknown'"),
+		core.NewTokenNodeSingleQuote("Unknown"),
 	)
 	// End clause: END AS <alias tokens>
 	core.Add(pipe,
@@ -536,28 +535,28 @@ func buildFirstExtendPipe(msgTokens []core.Node, finalRegexLiteral, extractedAli
 
 func buildSecondExtendPipe(aliasParts []string, extractedAlias string) []core.Node {
 	secondPipe := []core.Node{
-		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "EXTEND"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.PipeToken(),
+		core.Space(),
+		core.Extend(),
+		core.Space(),
 	}
 	for i, alias := range aliasParts {
 		if i > 0 {
 			secondPipe = append(secondPipe,
-				core.TokenNode{Token: lexer_core.Token{RawValue: ","}},
-				core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+				core.Comma(),
+				core.Space(),
 			)
 		}
 		// Build tokens for: extracted_<msg>[<i+1>] AS <alias>
 		secondPipe = append(secondPipe,
-			core.TokenNode{Token: lexer_core.Token{RawValue: extractedAlias}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: "["}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: strconv.Itoa(i + 1)}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: "]"}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: alias}},
+			core.NewTokenNode(extractedAlias),
+			core.NewTokenNode("["),
+			core.NewTokenNode(strconv.Itoa(i+1)),
+			core.NewTokenNode("]"),
+			core.Space(),
+			core.As(),
+			core.Space(),
+			core.NewTokenNode(alias),
 		)
 	}
 
