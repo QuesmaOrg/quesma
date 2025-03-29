@@ -15,7 +15,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/functionality/doc"
 	"github.com/QuesmaOrg/quesma/platform/functionality/field_capabilities"
 	"github.com/QuesmaOrg/quesma/platform/functionality/resolve"
-	"github.com/QuesmaOrg/quesma/platform/functionality/terms_enum"
 	"github.com/QuesmaOrg/quesma/platform/ingest"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
@@ -392,10 +391,10 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}
 
 			const isFieldMapSyntaxEnabled = false
-			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, sr, isFieldMapSyntaxEnabled, console); err != nil {
-				return nil, err
+			if responseBody, err := queryRunner.Hand(ctx, req.Params["index"], body, lm, sr, isFieldMapSyntaxEnabled); err == nil {
+				return responseBody, nil
 			} else {
-				return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
+				return nil, err
 			}
 		}
 	})
