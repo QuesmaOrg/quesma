@@ -1,3 +1,5 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
 package frontend_connectors
 
 import (
@@ -98,7 +100,6 @@ func (q *QueryRunner) resolveIndexesNonCommonTable(ctx context.Context, clickhou
 
 	resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
 	resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
-	// pp.Println(resolvedSchema)
 	if !ok {
 		err = end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		return
@@ -108,7 +109,6 @@ func (q *QueryRunner) resolveIndexesNonCommonTable(ctx context.Context, clickhou
 		err = end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		return
 	}
-	// pp.Println(table)
 
 	currentSchema = resolvedSchema
 	return
