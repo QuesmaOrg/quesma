@@ -161,9 +161,8 @@ func HandleGetIndex(sr schema.Registry, index string) (*quesma_api.Result, error
 	return getIndexResult(index, mappings)
 }
 
-func HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, lm clickhouse.LogManagerIFace, sr schema.Registry,
-	isFieldMapSyntaxEnabled bool, queryRunner QueryRunnerIFace) (*quesma_api.Result, error) {
-	if responseBody, err := queryRunner.HandleTermsEnum(ctx, indexPattern, body, lm, sr, isFieldMapSyntaxEnabled); err != nil {
+func HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, isFieldMapSyntaxEnabled bool, queryRunner QueryRunnerIFace) (*quesma_api.Result, error) {
+	if responseBody, err := queryRunner.HandleTermsEnum(ctx, indexPattern, body, isFieldMapSyntaxEnabled); err != nil {
 		return nil, err
 	} else {
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil

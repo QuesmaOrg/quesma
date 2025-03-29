@@ -28,6 +28,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/goccy/go-json"
+	"github.com/k0kubun/pp"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -71,7 +72,7 @@ type QueryRunnerIFace interface {
 	HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON, waitForResultsMs int, keepOnCompletion bool) ([]byte, error)
 	HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error)
 	HandleCount(ctx context.Context, indexPattern string) (int64, error)
-	HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error)
+	HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, something bool) ([]byte, error)
 	// Todo: consider removing this getters for these two below, this was required for temporary Field Caps impl in v2 api
 	GetSchemaRegistry() schema.Registry
 	GetLogManager() clickhouse.LogManagerIFace
@@ -501,6 +502,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	queryTranslator = NewQueryTranslator(ctx, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
 
 	plan, err = queryTranslator.ParseQuery(body)
+	pp.Println("AAAA", plan.Queries, err)
 
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
@@ -520,6 +522,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if err != nil {
 		goto logErrorAndReturn
 	}
+	pp.Println("BBBB", plan.Queries, err)
 	plan.IndexPattern = indexPattern
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan

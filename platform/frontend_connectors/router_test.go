@@ -391,8 +391,8 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 			}
 
 			const isFieldMapSyntaxEnabled = false
-			if responseBody, err := queryRunner.Hand(ctx, req.Params["index"], body, lm, sr, isFieldMapSyntaxEnabled); err == nil {
-				return responseBody, nil
+			if responseBody, err := queryRunner.HandleTermsEnum(ctx, req.Params["index"], body, isFieldMapSyntaxEnabled); err == nil {
+				return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
 			} else {
 				return nil, err
 			}

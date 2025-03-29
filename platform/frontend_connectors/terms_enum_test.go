@@ -68,8 +68,6 @@ var rawRequestBody = []byte(`{
   }
 }`)
 
-var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "test")
-
 func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName string) {
 	table := &clickhouse.Table{
 		Name:   testTableName,
@@ -128,7 +126,8 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName stri
 			},
 		},
 	}
-	qt := &elastic_query_dsl.ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(testTableName)]}
+	ctx = context.WithValue(context.Background(), tracing.RequestIdCtxKey, "test")
+	qt := &elastic_query_dsl.ClickhouseQueryTranslator{Table: table, Ctx: ctx, Schema: s.Tables[schema.IndexName(testTableName)]}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
 	expectedQuery1 := fmt.Sprintf(`SELECT DISTINCT %s FROM %s WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`, fieldName, testTableName)
 	expectedQuery2 := fmt.Sprintf(`SELECT DISTINCT %s FROM %s WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`, fieldName, testTableName)
