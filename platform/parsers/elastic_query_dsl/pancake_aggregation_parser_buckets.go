@@ -375,7 +375,7 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 		model.NewInfixExpr(
 			model.NewParenExpr(
 				model.NewInfixExpr(model.NewInfixExpr(model.NewLiteral(1), "-", Log), "/",
-					model.NewLiteral("PI()"))), "/",
+					model.NewFunction("PI"))), "/",
 			model.NewLiteral(2.0)), "*",
 		model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))
 	yTile := model.NewFunction("FLOOR", FloorContent)
@@ -638,13 +638,6 @@ func (cw *ClickhouseQueryTranslator) addMissingParameterIfPresent(field model.Ex
 
 	// Maybe we should check the input type against the schema?
 	// Right now we quote if it's a string.
-	var value model.LiteralExpr
-	switch val := params["missing"].(type) {
-	case string:
-		value = model.NewLiteral("'" + val + "'")
-	default:
-		value = model.NewLiteral(val)
-	}
-
-	return model.NewFunction("COALESCE", field, value), true
+	val := model.NewLiteralSingleQuoteString(params["missing"])
+	return model.NewFunction("COALESCE", field, val), true
 }
