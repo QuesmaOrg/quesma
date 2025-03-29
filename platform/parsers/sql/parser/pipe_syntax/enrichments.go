@@ -529,7 +529,7 @@ func buildIpPipe(ipColumn []core.Node) core.Pipe {
 		core.Space(),
 		core.Equals(),
 		core.Space(),
-		core.NewTokenNode(util.SingleQuote("ip")),
+		core.NewTokenNodeSingleQuote("ip"),
 	)
 
 	return pipe
@@ -559,7 +559,7 @@ func buildEnrichLLMPipe(inputColumn []core.Node) core.Pipe {
 		core.Space(),
 		core.Equals(),
 		core.Space(),
-		core.NewTokenNode(util.SingleQuote("llm")),
+		core.NewTokenNodeSingleQuote("llm"),
 	)
 
 	return pipe
