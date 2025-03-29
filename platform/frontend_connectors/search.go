@@ -28,7 +28,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/goccy/go-json"
-	"github.com/k0kubun/pp"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -502,7 +501,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	queryTranslator = NewQueryTranslator(ctx, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
 
 	plan, err = queryTranslator.ParseQuery(body)
-	pp.Println("AAAA", plan.Queries, err)
 
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
@@ -522,7 +520,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if err != nil {
 		goto logErrorAndReturn
 	}
-	pp.Println("BBBB", plan.Queries, err)
 	plan.IndexPattern = indexPattern
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan

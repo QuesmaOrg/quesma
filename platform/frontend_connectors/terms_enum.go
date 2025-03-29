@@ -23,6 +23,7 @@ import (
 
 func handleTermsEnumInternal(ctx context.Context, index string, body types.JSON, lm clickhouse.LogManagerIFace,
 	schemaRegistry schema.Registry, isFieldMapSyntaxEnabled bool, qmc diag.DebugInfoCollector) ([]byte, error) {
+
 	if indices, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.ErrorFull(ctx, errorMsg, err)
@@ -42,6 +43,7 @@ func handleTermsEnumInternal(ctx context.Context, index string, body types.JSON,
 
 func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.LogManagerIFace, qt *elastic_query_dsl.ClickhouseQueryTranslator,
 	isFieldMapSyntaxEnabled bool, qmc diag.DebugInfoCollector) (result []byte, err error) {
+
 	startTime := time.Now()
 
 	// defaults as in:

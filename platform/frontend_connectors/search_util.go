@@ -14,6 +14,7 @@ import (
 )
 
 func (q *QueryRunner) clickhouseConnectorFromDecision(ctx context.Context, decision *quesma_api.Decision) (clickhouseConnector *quesma_api.ConnectorDecisionClickhouse, err error) {
+
 	for _, connector := range decision.UseConnectors {
 		switch c := connector.(type) {
 
@@ -32,13 +33,14 @@ func (q *QueryRunner) clickhouseConnectorFromDecision(ctx context.Context, decis
 
 	if clickhouseConnector == nil {
 		logger.WarnWithCtx(ctx).Msgf("multi-search payload contains Elasticsearch-targetted query")
-		err = fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
+		return nil, fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
 	}
 
-	return clickhouseConnector, err
+	return clickhouseConnector, nil
 }
 
 func (q *QueryRunner) checkDecision(ctx context.Context, decision *quesma_api.Decision, optAsync *AsyncQuery) (respIfWeEndSearch []byte, err error, weEndSearch bool) {
+
 	if decision.Err != nil {
 		if optAsync != nil {
 			respIfWeEndSearch, _ = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
@@ -72,6 +74,7 @@ func (q *QueryRunner) checkDecision(ctx context.Context, decision *quesma_api.De
 
 func (q *QueryRunner) resolveIndexes(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
 	tables clickhouse.TableMap, optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *clickhouse.Table, respWhenError []byte, err error) {
+
 	if clickhouseConnector.IsCommonTable {
 		return q.resolveIndexesCommonTable(ctx, clickhouseConnector, tables, optAsync)
 	} else {
@@ -88,15 +91,12 @@ func (q *QueryRunner) resolveIndexesNonCommonTable(ctx context.Context, clickhou
 		return
 	}
 
-	fmt.Println(resolvedIndexes)
-
 	indexName := resolvedIndexes[0] // we got exactly one table here because of the check above (much later: for sure?)
 	if len(resolvedIndexes) > 1 {
 		logger.WarnWithCtx(ctx).Msgf("multiple indexes in search request, using the first one: %s", indexName)
 	}
 
 	resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
-	fmt.Println(resolvedTableName)
 	resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
 	// pp.Println(resolvedSchema)
 	if !ok {
