@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package terms_enum
+package frontend_connectors
 
 import (
 	"context"
@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm clickhouse.LogManagerIFace,
+func handleTermsEnumInternal(ctx context.Context, index string, body types.JSON, lm clickhouse.LogManagerIFace,
 	schemaRegistry schema.Registry, isFieldMapSyntaxEnabled bool, qmc diag.DebugInfoCollector) ([]byte, error) {
 	if indices, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
