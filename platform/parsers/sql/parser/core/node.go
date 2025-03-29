@@ -34,6 +34,30 @@ type TokenNode struct {
 	Token core.Token
 }
 
+func NewTokenNode(rawValue string) TokenNode {
+	return TokenNode{
+		Token: core.Token{
+			RawValue: rawValue,
+		},
+	}
+}
+
+func PipeToken() TokenNode {
+	return NewTokenNode("|>")
+}
+
+func Space() TokenNode {
+	return NewTokenNode(" ")
+}
+
+func Extend() TokenNode {
+	return NewTokenNode("EXTEND")
+}
+
+func As() TokenNode {
+	return NewTokenNode("AS")
+}
+
 func (n TokenNode) String() string {
 	return "TokenNode[" + n.Token.String() + "]"
 }

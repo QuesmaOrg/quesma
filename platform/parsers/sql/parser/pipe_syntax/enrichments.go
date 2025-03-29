@@ -165,16 +165,16 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 				copiedNode.Pipes = copiedNode.Pipes[:i]
 				{
 					newNodes := []core.Node{
-						core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-						core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-						core.TokenNode{Token: lexer_core.Token{RawValue: "AGGREGATE"}},
-						core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+						core.NewTokenNode("|>"),
+						core.NewTokenNode(" "),
+						core.NewTokenNode("AGGREGATE"),
+						core.NewTokenNode(" "),
 					}
 					newNodes = append(newNodes, inputColumn...)
 					newNodes = append(newNodes,
-						core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-						core.TokenNode{Token: lexer_core.Token{RawValue: "GROUP BY"}},
-						core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+						core.NewTokenNode(" "),
+						core.NewTokenNode("GROUP BY"),
+						core.NewTokenNode(" "),
 					)
 					newNodes = append(newNodes, inputColumn...)
 					copiedNode.Pipes = append(copiedNode.Pipes, core.NodeListNode{Nodes: newNodes})
@@ -310,50 +310,16 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 				// Build two new pipes:
 				// |> LEFT JOIN quesma_enrich ON quesma_enrich.key = <input_column> AND enrich_type = 'llm'
 				// |> EXTEND quesma_enrich.value AS llm_result
-				newNodes := []core.Node{
-					core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "LEFT JOIN"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "quesma_enrich"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "ON"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "quesma_enrich.key"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "="}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-				}
-				newNodes = append(newNodes, inputColumn...)
-				newNodes = append(newNodes,
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "AND"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "enrich_type"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "="}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "'llm'"}},
-				)
+				enrichPipe := buildEnrichLLMPipe(inputColumn)
 
 				// Create second pipe for EXTEND
-				extendNodes := []core.Node{
-					core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "EXTEND"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "quesma_enrich.value"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "llm_result"}},
-				}
+				extendPipe := buildExtendLLMPipe()
 
 				// FIXME: iteration probably breaks after adding new pipes!
 
 				// Replace the old macro pipe with the two new pipes
-				pipeNode.Pipes[i] = core.NodeListNode{Nodes: newNodes}
-				pipeNode.Pipes = append(pipeNode.Pipes[:i+1], append([]core.Node{core.NodeListNode{Nodes: extendNodes}}, pipeNode.Pipes[i+1:]...)...)
+				pipeNode.Pipes[i] = core.NodeListNode{Nodes: enrichPipe}
+				pipeNode.Pipes = append(pipeNode.Pipes[:i+1], append([]core.Node{core.NodeListNode{Nodes: extendPipe}}, pipeNode.Pipes[i+1:]...)...)
 			} else {
 				// Enrichment not recognized; continue.
 				continue
@@ -529,10 +495,40 @@ func enrichIpMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, i int, 
 	}
 
 END:
-	return buildIpPipe(ipColumn), buildExtendPipe()
+	return buildIpPipe(ipColumn), buildExtendIpPipe()
 }
 
 func buildIpPipe(ipColumn []core.Node) core.Pipe {
+	pipe := core.NewPipe(
+		core.NewTokenNode("|>"),
+		core.NewTokenNode(" "),
+		core.NewTokenNode("LEFT JOIN"),
+		core.NewTokenNode(" "),
+		core.NewTokenNode("quesma_enrich"),
+		core.NewTokenNode(" "),
+		core.NewTokenNode("ON"),
+		core.NewTokenNode(" "),
+		core.NewTokenNode("quesma_enrich.key"),
+		core.NewTokenNode(" "),
+		core.NewTokenNode("="),
+		core.NewTokenNode(" "),
+	)
+	core.Add(pipe, ipColumn...)
+	core.Add(pipe,
+		core.NewTokenNode(" "),
+		core.NewTokenNode("AND"),
+		core.NewTokenNode(" "),
+		core.NewTokenNode("enrich_type"),
+		core.NewTokenNode(" "),
+		core.NewTokenNode("="),
+		core.NewTokenNode(" "),
+		core.NewTokenNode("'ip'"),
+	)
+
+	return pipe
+}
+
+func buildEnrichLLMPipe(inputColumn []core.Node) core.Pipe {
 	pipe := core.NewPipe(
 		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
@@ -547,7 +543,7 @@ func buildIpPipe(ipColumn []core.Node) core.Pipe {
 		core.TokenNode{Token: lexer_core.Token{RawValue: "="}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
 	)
-	core.Add(pipe, ipColumn...)
+	core.Add(pipe, inputColumn...)
 	core.Add(pipe,
 		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: "AND"}},
@@ -556,22 +552,36 @@ func buildIpPipe(ipColumn []core.Node) core.Pipe {
 		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: "="}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'ip'"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'llm'"}},
 	)
 
 	return pipe
 }
 
-func buildExtendPipe() core.Pipe {
+func buildExtendIpPipe() core.Pipe {
 	return core.NewPipe(
-		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "EXTEND"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "quesma_enrich.value"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "ip_country"}},
+		core.PipeToken(),
+		core.Space(),
+		core.Extend(),
+		core.Space(),
+		core.NewTokenNode("quesma_enrich.value"),
+		core.Space(),
+		core.As(),
+		core.Space(),
+		core.NewTokenNode("ip_country"),
+	)
+}
+
+func buildExtendLLMPipe() core.Pipe {
+	return core.NewPipe(
+		core.PipeToken(),
+		core.Space(),
+		core.Extend(),
+		core.Space(),
+		core.NewTokenNode("quesma_enrich.value"),
+		core.Space(),
+		core.As(),
+		core.Space(),
+		core.NewTokenNode("llm_result"),
 	)
 }
