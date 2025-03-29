@@ -30,7 +30,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	logger.InitSimpleLoggerForTestsWarnLevel()
 	tableName := "logs-generic-default"
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String))
+		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "tsAsUInt64" UInt64, "attributes_values" Map(String,String))
 		ENGINE = Memory`,
 		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
 	)
@@ -58,6 +58,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.QuesmaTypeText},
 					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.QuesmaTypeText},
 					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.QuesmaTypeText},
+					"tsAsUInt64":        {PropertyName: "tsAsUInt64", InternalPropertyName: "tsAsUInt64", Type: schema.QuesmaTypeInteger},
 				},
 			},
 		},

@@ -193,6 +193,10 @@ func TestSearchHandler(t *testing.T) {
 				Name: "@timestamp",
 				Type: clickhouse.NewBaseType("DateTime64"),
 			},
+			"tsAsUInt64": {
+				Name: "tsAsUInt64",
+				Type: clickhouse.NewBaseType("UInt64"),
+			},
 			"user_id": {
 				Name: "user_id",
 				Type: clickhouse.NewBaseType("String"),
@@ -268,6 +272,7 @@ func TestSearchHandler(t *testing.T) {
 		"type":                            {PropertyName: "type", InternalPropertyName: "type", Type: schema.QuesmaTypeKeyword},
 		"task.enabled":                    {PropertyName: "task.enabled", InternalPropertyName: "task_enabled", Type: schema.QuesmaTypeBoolean},
 		"@timestamp":                      {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
+		"tsAsUInt64":                      {PropertyName: "tsAsUInt64", InternalPropertyName: "tsAsUInt64", Type: schema.QuesmaTypeInteger},
 		"user.id":                         {PropertyName: "user.id", InternalPropertyName: "user_id", Type: schema.QuesmaTypeKeyword},
 		"tags":                            {PropertyName: "tags", InternalPropertyName: "tags", Type: schema.QuesmaTypeKeyword},
 		"age":                             {PropertyName: "age", InternalPropertyName: "age", Type: schema.QuesmaTypeInteger},

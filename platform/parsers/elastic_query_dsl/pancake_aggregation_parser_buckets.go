@@ -113,7 +113,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 	if missingRaw, exists := params["missing"]; exists {
 		if missing, ok := missingRaw.(string); ok {
 			dateManager := NewDateManager(cw.Ctx)
-			if missingExpr, parsingOk := dateManager.ParseDateUsualFormat(missing, dateTimeType); parsingOk {
+			if missingExpr, parsingOk := dateManager.ParseDateUsualFormat(missing, dateTimeType, params["format"]); parsingOk {
 				field = model.NewFunction("COALESCE", field, missingExpr)
 				weAddedMissing = true
 			} else {
