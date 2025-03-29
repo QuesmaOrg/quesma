@@ -3,6 +3,7 @@
 package painful
 
 import (
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"reflect"
 	"testing"
 )
@@ -80,8 +81,8 @@ func TestPainless(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			res, err := ParsePainless(tt.script)
 			if err != nil {
 				t.Fatal(err)

@@ -7,7 +7,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"math"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -60,7 +59,7 @@ func Test_processResult(t *testing.T) {
 		{[]any{util.ParseTime("2024-05-02T21:58:16.297Z")}, 1714687096297.0, &wantedStr},
 	}
 	for i, tt := range tests {
-		t.Run("testing processResult"+strconv.Itoa(i), func(t *testing.T) {
+		t.Run(util.PrettyTestName("Test_processResult", i), func(t *testing.T) {
 			percentile, percentileAsString, _ := quantile.processResult(colName, tt.percentileReturnedByClickhouse)
 			if !equalFloats(percentile, tt.wantedPercentile) {
 				t.Errorf("got %v, wanted %v", percentile, tt.wantedPercentile)

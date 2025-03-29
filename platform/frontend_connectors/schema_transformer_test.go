@@ -9,6 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"strconv"
 	"testing"
@@ -648,8 +649,8 @@ func Test_arrayType(t *testing.T) {
 		return query.SelectCommand.String()
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
 			actual, err := transform.Transform([]*model.Query{tt.query})
@@ -718,8 +719,8 @@ func TestApplyWildCard(t *testing.T) {
 		t.Fatal("schema not found")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			query := &model.Query{
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
@@ -959,8 +960,8 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 		t.Fatal("schema not found")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			indexes := tt.indexes
 			if len(indexes) == 0 {
@@ -1064,8 +1065,8 @@ func TestFullTextFields(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			query := &model.Query{
 				TableName:     "test",
 				SelectCommand: tt.input,
@@ -1142,6 +1143,7 @@ func Test_applyMatchOperator(t *testing.T) {
 	schemaTable := schema.Table{
 		Columns: map[string]schema.Column{
 			"message":     {Name: "message", Type: "String"},
+			"easy":        {Name: "easy", Type: "Bool"},
 			"map_str_str": {Name: "map_str_str", Type: "Map(String, String)"},
 			"map_str_int": {Name: "map_str_int", Type: "Map(String, Int)"},
 			"count":       {Name: "count", Type: "Int64"},
@@ -1202,7 +1204,34 @@ func Test_applyMatchOperator(t *testing.T) {
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("count"),
 						"=",
-						model.NewLiteral("'123'"),
+						model.NewLiteral("123"),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for Bool",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("easy"),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("true", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("easy"),
+						"=",
+						model.TrueExpr,
 					),
 				},
 			},
@@ -1317,8 +1346,8 @@ func Test_applyMatchOperator(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tableDiscovery :=
 				fixedTableProvider{tables: map[string]schema.Table{
 					"test": schemaTable,
@@ -1420,8 +1449,8 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tableDiscovery :=
 				fixedTableProvider{tables: map[string]schema.Table{
 					"test": schemaTable,
@@ -1478,10 +1507,21 @@ func Test_mapKeys(t *testing.T) {
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 	for indexName := range indexConfig {
-		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+		tab := &clickhouse.Table{
+			Name:   indexName,
+			Config: clickhouse.NewDefaultCHConfig(),
+			Cols: map[string]*clickhouse.Column{
+				"foo": {
+					Name: "foo",
+					Type: clickhouse.NewBaseType("Map(String, Nullable(String))"),
+				},
+			},
+		}
+		tableMap.Store(indexName, tab)
 	}
 
-	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
+	transformPass := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig, MapFieldsDiscoveringEnabled: true}, tableDiscovery, defaultSearchAfterStrategy)
+	noTransformPass := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig, MapFieldsDiscoveringEnabled: false}, tableDiscovery, defaultSearchAfterStrategy)
 
 	tests := []struct {
 		name     string
@@ -1572,17 +1612,56 @@ func Test_mapKeys(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			name: "map syntax transformation",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("foo.bar")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("foo.bar"),
+						"IS",
+						model.NewLiteral("NOT NULL"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						model.NewAliasedExpr(
+							model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
+							"column_0",
+						),
+					},
+					WhereClause: model.NewInfixExpr(
+						model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
+						"IS",
+						model.NewLiteral("NOT NULL"),
+					),
+				},
+			},
+		},
 	}
 
 	asString := func(query *model.Query) string {
 		return query.SelectCommand.String()
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			actual, err := transform.Transform([]*model.Query{tt.query})
+			var actual []*model.Query
+			var err error
+			if indexConfig[tt.query.TableName].EnableFieldMapSyntax {
+				actual, err = transformPass.Transform([]*model.Query{tt.query})
+			} else {
+				actual, err = noTransformPass.Transform([]*model.Query{tt.query})
+			}
 			assert.NoError(t, err)
 
 			if err != nil {
