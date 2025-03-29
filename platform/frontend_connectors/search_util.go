@@ -70,19 +70,19 @@ func (q *QueryRunner) checkDecision(ctx context.Context, decision *quesma_api.De
 	return []byte{}, nil, false
 }
 
-func (q *QueryRunner) getTableAndSchema(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
-	tables clickhouse.TableMap, optAsync *AsyncQuery) (currentSchema schema.Schema, table *clickhouse.Table, respWhenError []byte, err error) {
+func (q *QueryRunner) resolveIndexes(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
+	tables clickhouse.TableMap, optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *clickhouse.Table, respWhenError []byte, err error) {
 	if clickhouseConnector.IsCommonTable {
-		return q.getTableAndSchemaCommonTable(ctx, clickhouseConnector, tables, optAsync)
+		return q.resolveIndexesCommonTable(ctx, clickhouseConnector, tables, optAsync)
 	} else {
-		return q.getTableAndSchemaNonCommonTable(ctx, clickhouseConnector, tables)
+		return q.resolveIndexesNonCommonTable(ctx, clickhouseConnector, tables)
 	}
 }
 
-func (q *QueryRunner) getTableAndSchemaNonCommonTable(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
-	tables clickhouse.TableMap) (currentSchema schema.Schema, table *clickhouse.Table, respWhenError []byte, err error) {
+func (q *QueryRunner) resolveIndexesNonCommonTable(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
+	tables clickhouse.TableMap) (resolvedIndexes []string, currentSchema schema.Schema, table *clickhouse.Table, respWhenError []byte, err error) {
 
-	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
+	resolvedIndexes = clickhouseConnector.ClickhouseIndexes
 	if len(resolvedIndexes) < 1 {
 		err = end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
 		return
@@ -114,12 +114,12 @@ func (q *QueryRunner) getTableAndSchemaNonCommonTable(ctx context.Context, click
 	return
 }
 
-func (q *QueryRunner) getTableAndSchemaCommonTable(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
-	tables clickhouse.TableMap, optAsync *AsyncQuery) (currentSchema schema.Schema, table *clickhouse.Table, respWhenError []byte, err error) {
+func (q *QueryRunner) resolveIndexesCommonTable(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
+	tables clickhouse.TableMap, optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *clickhouse.Table, respWhenError []byte, err error) {
 
 	// here we filter out indexes that are not stored in the common table
 	var virtualOnlyTables []string
-	resolvedIndexes := clickhouseConnector.ClickhouseIndexes
+	resolvedIndexes = clickhouseConnector.ClickhouseIndexes
 	for _, indexName := range resolvedIndexes {
 		tabl, _ := tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))
 		if tabl == nil {

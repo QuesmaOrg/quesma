@@ -413,6 +413,8 @@ func (s *SchemaCheckPass) applyPhysicalFromExpression(currentSchema schema.Schem
 		useCommonTable = true
 	}
 
+	fmt.Println("LOOOL", useCommonTable, query.Indexes, query.TableName, model.SingleTableNamePlaceHolder)
+
 	physicalFromExpression := model.NewTableRefWithDatabaseName(query.TableName, currentSchema.DatabaseName)
 
 	if useCommonTable {
