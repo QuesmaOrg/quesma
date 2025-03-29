@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -114,16 +115,16 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 
 			// Verify we have a "CALL" operator.
 			tokenNode, ok := pipeNodeList.Nodes[2].(core.TokenNode)
-			if !ok || strings.ToUpper(tokenNode.Token.RawValue) != "CALL" {
+			if !ok || tokenNode.ValueUpper() != "CALL" {
 				continue
 			}
 
 			// Determine the macro type from the 5th token.
-			macroToken, ok := pipeNodeList.Nodes[4].(core.TokenNode)
+			macroToken, ok := pipeNodeList.Nodes[macroTokenIdx].(core.TokenNode)
 			if !ok {
 				continue
 			}
-			macroType := strings.ToUpper(macroToken.Token.RawValue)
+			macroType := macroToken.ValueUpper()
 
 			if macroType == "ENRICH_IP" {
 				// Build two new pipes:
@@ -142,178 +143,14 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 			} else if macroType == "ENRICH_LLM" {
 				// Parse out the tokens following "CALL ENRICH_LLM":
 				// Expected form: |> CALL ENRICH_LLM <prompt> , <input_column>
-				var promptNodes []core.Node
-				var inputColumn []core.Node
-				commaFound := false
-				for j := 5; j < len(pipeNodeList.Nodes); j++ {
-					if token, ok := pipeNodeList.Nodes[j].(core.TokenNode); ok && token.Token.RawValue == "," {
-						commaFound = true
-						continue
-					}
-					if !commaFound {
-						promptNodes = append(promptNodes, pipeNodeList.Nodes[j])
-					} else {
-						inputColumn = append(inputColumn, pipeNodeList.Nodes[j])
-					}
-				}
-				if len(promptNodes) == 0 || len(inputColumn) == 0 {
-					continue
-				}
-
-				// Build the aggregated query for enrichment using inputColumn
-				copiedNode := clone.Clone(pipeNode).(*PipeNode)
-				copiedNode.Pipes = copiedNode.Pipes[:i]
-				{
-					newNodes := []core.Node{
-						core.PipeToken(),
-						core.Space(),
-						core.NewTokenNode("AGGREGATE"),
-						core.Space(),
-					}
-					newNodes = append(newNodes, inputColumn...)
-					newNodes = append(newNodes,
-						core.Space(),
-						core.NewTokenNode("GROUP BY"),
-						core.Space(),
-					)
-					newNodes = append(newNodes, inputColumn...)
-					copiedNode.Pipes = append(copiedNode.Pipes, core.NodeListNode{Nodes: newNodes})
-				}
-				copiedNode.Pipes = append(copiedNode.Pipes, core.NodeListNode{Nodes: []core.Node{
-					core.PipeToken(),
-					core.Space(),
-					core.NewTokenNode("LIMIT"),
-					core.Space(),
-					core.NewTokenNode("100"),
-				}})
-				copiedNode2 := &core.NodeListNode{Nodes: []core.Node{copiedNode}}
-				Transpile(copiedNode2)
-				fmt.Println(transforms.ConcatTokenNodes(copiedNode2))
-				fmt.Println("------")
-
-				// Execute the query and print the result to stdout
-				queryStr := transforms.ConcatTokenNodes(copiedNode2)
-				fmt.Println("Executing query:", queryStr)
-
-				// Create a context with timeout
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-
-				// Execute the query
-				result, err := conn.QueryContext(ctx, queryStr)
-				if err != nil {
-					fmt.Println("Error executing query:", err)
-				} else {
-					defer result.Close()
-
-					// Get column names
-					columns, err := result.Columns()
-					if err != nil {
-						fmt.Println("Error getting columns:", err)
-					} else {
-						// Prepare values holders
-						values := make([]interface{}, len(columns))
-						valuePtrs := make([]interface{}, len(columns))
-						for i := range columns {
-							valuePtrs[i] = &values[i]
-						}
-
-						// Collect first column values into a string array
-						firstColumnValues := []string{}
-						for result.Next() {
-							err := result.Scan(valuePtrs...)
-							if err != nil {
-								fmt.Println("Error scanning row:", err)
-								break
-							}
-
-							if values[0] != nil {
-								firstColumnValues = append(firstColumnValues, fmt.Sprintf("%v", values[0]))
-							} else {
-								firstColumnValues = append(firstColumnValues, "NULL")
-							}
-						}
-
-						fmt.Println("First column values:", firstColumnValues)
-						fmt.Println("Total rows:", len(firstColumnValues))
-
-						// Enrich using LLM calls in parallel
-						if len(firstColumnValues) > 0 {
-							promptStr := transforms.ConcatTokenNodes(&core.NodeListNode{Nodes: promptNodes})
-							fmt.Println("Enriching using LLM with prompt:", promptStr)
-
-							var wg sync.WaitGroup
-							var mu sync.Mutex
-							llmResults := make(map[string]string)
-
-							// Create a semaphore channel to limit parallel calls to 20.
-							limiter := make(chan struct{}, 20)
-
-							for _, val := range firstColumnValues {
-								if val == "NULL" || val == "" {
-									mu.Lock()
-									llmResults[val] = "Unknown"
-									mu.Unlock()
-									continue
-								}
-								wg.Add(1)
-								limiter <- struct{}{} // Acquire a slot
-								go func(input string) {
-									defer wg.Done()
-									defer func() { <-limiter }() // Release the slot
-
-									res, err := llmCall(promptStr, input)
-									if err != nil {
-										fmt.Printf("Error calling llm for input %s: %v\n", input, err)
-										res = "Error"
-									}
-									mu.Lock()
-									llmResults[input] = res
-									mu.Unlock()
-								}(val)
-							}
-							wg.Wait()
-
-							fmt.Println("LLM enrichment complete. Received responses for", len(llmResults), "inputs")
-
-							// Create enrichment table if not exists
-							_, err = conn.Exec("CREATE TABLE IF NOT EXISTS quesma_enrich\n(\n    `enrich_type` LowCardinality(String),\n    `key` String,\n    `value` Nullable(String)\n)\nENGINE = MergeTree\nORDER BY (`enrich_type`, `key`)")
-							if err != nil {
-								fmt.Printf("Error creating quesma_enrich table: %v\n", err)
-							}
-
-							// For each unique input, insert the LLM enrichment result into the table
-							for input, response := range llmResults {
-								if input != "NULL" && input != "" && response != "Error" {
-									// First delete any existing entry for this input
-									_, err = conn.Exec(
-										"DELETE FROM quesma_enrich WHERE enrich_type = 'llm' AND key = ?",
-										input,
-									)
-									if err != nil {
-										fmt.Printf("Error deleting existing enrichment for input %s: %v\n", input, err)
-									}
-									// Then insert the new enrichment result
-									_, err = conn.Exec(
-										"INSERT INTO quesma_enrich (key, value, enrich_type) VALUES (?, ?, 'llm')",
-										input, response,
-									)
-									if err != nil {
-										fmt.Printf("Error inserting enrichment for input %s: %v\n", input, err)
-									}
-								}
-							}
-						}
-					}
-				}
 
 				// Build two new pipes:
+				// 1.
 				// |> LEFT JOIN quesma_enrich ON quesma_enrich.key = <input_column> AND enrich_type = 'llm'
 				// |> EXTEND quesma_enrich.value AS llm_result
-				enrichPipe := buildEnrichLLMPipe(inputColumn)
-
-				// Create second pipe for EXTEND
-				extendPipe := buildExtendLLMPipe()
+				// 2.
+				// Second pipe for EXTEND
+				enrichPipe, extendPipe := enrichLLMMacro(pipeNodeList, clone.Clone(pipeNode).(*PipeNode), i, conn)
 
 				// FIXME: iteration probably breaks after adding new pipes!
 
@@ -498,20 +335,194 @@ END:
 	return buildIpPipe(ipColumn), buildExtendIpPipe()
 }
 
+func enrichLLMMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, lastPipeIdx int, conn *sql.DB) (enrichPipe core.Pipe, extendPipe core.Pipe) {
+
+	var promptNodes []core.Node
+	var inputColumn []core.Node
+
+	end := func() (core.Pipe, core.Pipe) {
+		return buildEnrichLLMPipe(inputColumn), buildExtendLLMPipe()
+	}
+
+	commaFound := false
+	for j := 5; j < len(pipeNodeList.Nodes); j++ {
+		if token, ok := pipeNodeList.Nodes[j].(core.TokenNode); ok && token.Token.RawValue == "," {
+			commaFound = true
+			continue
+		}
+		if !commaFound {
+			promptNodes = append(promptNodes, pipeNodeList.Nodes[j])
+		} else {
+			inputColumn = append(inputColumn, pipeNodeList.Nodes[j])
+		}
+	}
+	if len(promptNodes) == 0 || len(inputColumn) == 0 {
+		return end()
+	}
+
+	// Build the aggregated query for enrichment using inputColumn
+	copiedNode.Pipes = copiedNode.Pipes[:lastPipeIdx]
+	{
+		newNodes := []core.Node{
+			core.PipeToken(),
+			core.Space(),
+			core.NewTokenNode("AGGREGATE"),
+			core.Space(),
+		}
+		newNodes = append(newNodes, inputColumn...)
+		newNodes = append(newNodes,
+			core.Space(),
+			core.NewTokenNode("GROUP BY"),
+			core.Space(),
+		)
+		newNodes = append(newNodes, inputColumn...)
+		copiedNode.Pipes = append(copiedNode.Pipes, core.NodeListNode{Nodes: newNodes})
+	}
+	copiedNode.Pipes = append(copiedNode.Pipes, core.NodeListNode{Nodes: []core.Node{
+		core.PipeToken(),
+		core.Space(),
+		core.NewTokenNode("LIMIT"),
+		core.Space(),
+		core.NewTokenNode("100"),
+	}})
+	copiedNode2 := &core.NodeListNode{Nodes: []core.Node{copiedNode}}
+	Transpile(copiedNode2)
+	fmt.Println(transforms.ConcatTokenNodes(copiedNode2))
+	fmt.Println("------")
+
+	// Execute the query and print the result to stdout
+	queryStr := transforms.ConcatTokenNodes(copiedNode2)
+	fmt.Println("Executing query:", queryStr)
+
+	// Create a context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Execute the query
+	result, err := conn.QueryContext(ctx, queryStr)
+	if err != nil {
+		fmt.Println("Error executing query:", err)
+		return end()
+	}
+
+	defer result.Close()
+
+	// Get column names
+	columns, err := result.Columns()
+	if err != nil {
+		fmt.Println("Error getting columns:", err)
+		return end()
+	}
+
+	// Prepare values holders
+	values := make([]interface{}, len(columns))
+	valuePtrs := make([]interface{}, len(columns))
+	for i := range columns {
+		valuePtrs[i] = &values[i]
+	}
+
+	// Collect first column values into a string array
+	firstColumnValues := make([]string, 0)
+	for result.Next() {
+		err = result.Scan(valuePtrs...)
+		if err != nil {
+			fmt.Println("Error scanning row:", err)
+			break
+		}
+
+		if values[0] != nil {
+			firstColumnValues = append(firstColumnValues, fmt.Sprintf("%v", values[0]))
+		} else {
+			firstColumnValues = append(firstColumnValues, "NULL")
+		}
+	}
+
+	fmt.Println("First column values:", firstColumnValues)
+	fmt.Println("Total rows:", len(firstColumnValues))
+
+	if len(firstColumnValues) == 0 {
+		return end()
+	}
+
+	// Enrich using LLM calls in parallel
+	promptStr := transforms.ConcatTokenNodes(&core.NodeListNode{Nodes: promptNodes})
+	fmt.Println("Enriching using LLM with prompt:", promptStr)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var res string
+	llmResults := make(map[string]string)
+
+	// Create a semaphore channel to limit parallel calls to 20.
+	limiter := make(chan struct{}, 20)
+
+	for _, val := range firstColumnValues {
+		if val == "NULL" || val == "" {
+			mu.Lock()
+			llmResults[val] = "Unknown"
+			mu.Unlock()
+			continue
+		}
+		wg.Add(1)
+		limiter <- struct{}{} // Acquire a slot
+		go func(input string) {
+			defer wg.Done()
+			defer func() { <-limiter }() // Release the slot
+
+			res, err = llmCall(promptStr, input)
+			if err != nil {
+				fmt.Printf("Error calling llm for input %s: %v\n", input, err)
+				res = "Error"
+			}
+			mu.Lock()
+			llmResults[input] = res
+			mu.Unlock()
+		}(val)
+	}
+	wg.Wait()
+
+	fmt.Println("LLM enrichment complete. Received responses for", len(llmResults), "inputs")
+
+	// Create enrichment table if not exists
+	_, err = conn.Exec("CREATE TABLE IF NOT EXISTS quesma_enrich\n(\n    `enrich_type` LowCardinality(String),\n    `key` String,\n    `value` Nullable(String)\n)\nENGINE = MergeTree\nORDER BY (`enrich_type`, `key`)")
+	util.PrintfIfErr(err, "Error creating quesma_enrich table: %v\n", err)
+
+	// For each unique input, insert the LLM enrichment result into the table
+	for input, response := range llmResults {
+		if input != "NULL" && input != "" && response != "Error" {
+			// First delete any existing entry for this input
+			_, err = conn.Exec(
+				"DELETE FROM quesma_enrich WHERE enrich_type = 'llm' AND key = ?",
+				input,
+			)
+			util.PrintfIfErr(err, "Error deleting existing enrichment for input %s: %v\n", input, err)
+
+			// Then insert the new enrichment result
+			_, err = conn.Exec(
+				"INSERT INTO quesma_enrich (key, value, enrich_type) VALUES (?, ?, 'llm')",
+				input, response,
+			)
+			util.PrintfIfErr(err, "Error inserting enrichment for input %s: %v\n", input, err)
+		}
+	}
+
+	return end()
+}
+
 func buildIpPipe(ipColumn []core.Node) core.Pipe {
 	pipe := core.NewPipe(
-		core.NewTokenNode("|>"),
-		core.NewTokenNode(" "),
-		core.NewTokenNode("LEFT JOIN"),
-		core.NewTokenNode(" "),
+		core.PipeToken(),
+		core.Space(),
+		core.LeftJoin(),
+		core.Space(),
 		core.NewTokenNode("quesma_enrich"),
-		core.NewTokenNode(" "),
-		core.NewTokenNode("ON"),
-		core.NewTokenNode(" "),
+		core.Space(),
+		core.On(),
+		core.Space(),
 		core.NewTokenNode("quesma_enrich.key"),
-		core.NewTokenNode(" "),
-		core.NewTokenNode("="),
-		core.NewTokenNode(" "),
+		core.Space(),
+		core.Equals(),
+		core.Space(),
 	)
 	core.Add(pipe, ipColumn...)
 	core.Add(pipe,
@@ -532,25 +543,25 @@ func buildEnrichLLMPipe(inputColumn []core.Node) core.Pipe {
 	pipe := core.NewPipe(
 		core.PipeToken(),
 		core.Space(),
-		core.NewTokenNode("LEFT JOIN"),
+		core.LeftJoin(),
 		core.Space(),
 		core.NewTokenNode("quesma_enrich"),
 		core.Space(),
-		core.NewTokenNode("ON"),
+		core.On(),
 		core.Space(),
 		core.NewTokenNode("quesma_enrich.key"),
 		core.Space(),
-		core.NewTokenNode("="),
+		core.Equals(),
 		core.Space(),
 	)
 	core.Add(pipe, inputColumn...)
 	core.Add(pipe,
 		core.Space(),
-		core.NewTokenNode("AND"),
+		core.And(),
 		core.Space(),
 		core.NewTokenNode("enrich_type"),
 		core.Space(),
-		core.NewTokenNode("="),
+		core.Equals(),
 		core.Space(),
 		core.NewTokenNode("'llm'"),
 	)

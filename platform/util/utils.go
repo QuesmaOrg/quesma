@@ -1048,3 +1048,10 @@ func UnquoteIfQuoted(s string) string {
 	}
 	return s
 }
+
+func PrintfIfErr(err error, msg string, args ...any) {
+	if err != nil {
+		fmt.Printf(msg, args...)
+		fmt.Println(err)
+	}
+}
