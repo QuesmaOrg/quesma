@@ -5,6 +5,7 @@ package core
 
 import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"strings"
 )
 
@@ -61,8 +62,36 @@ func Comma() TokenNode {
 	return NewTokenNode(",")
 }
 
+func Regexp() TokenNode {
+	return NewTokenNode("REGEXP")
+}
+
+func Then() TokenNode {
+	return NewTokenNode("THEN")
+}
+
+func NewTokenNodeSingleQuote(value string) TokenNode {
+	return NewTokenNode(util.SingleQuote(value))
+}
+
 func LeftBracket() TokenNode {
 	return NewTokenNode("(")
+}
+
+func Limit() TokenNode {
+	return NewTokenNode("LIMIT")
+}
+
+func NewLine() TokenNode {
+	return NewTokenNode("\n")
+}
+
+func GroupBy() TokenNode {
+	return NewTokenNode("GROUP BY")
+}
+
+func Aggregate() TokenNode {
+	return NewTokenNode("AGGREGATE")
 }
 
 func RightBracket() TokenNode {
@@ -75,6 +104,22 @@ func Extend() TokenNode {
 
 func Else() TokenNode {
 	return NewTokenNode("ELSE")
+}
+
+func QuesmaEnrichValue() TokenNode {
+	return NewTokenNode("quesma_enrich.value")
+}
+
+func QuesmaEnrich() TokenNode {
+	return NewTokenNode("quesma_enrich")
+}
+
+func QuesmaEnrichKey() TokenNode {
+	return NewTokenNode("quesma_enrich.key")
+}
+
+func EnrichType() TokenNode {
+	return NewTokenNode("enrich_type")
 }
 
 func As() TokenNode {
