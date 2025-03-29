@@ -494,7 +494,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if clickhouseConnector, err = q.clickhouseConnectorFromDecision(ctx, decision); err != nil || clickhouseConnector == nil {
 		goto logErrorAndReturn
 	}
-	if currentSchema, table, respWhenError, err = q.getTableAndSchema(ctx, clickhouseConnector, tables, optAsync); err != nil || table == nil {
+	if resolvedIndexes, currentSchema, table, respWhenError, err = q.resolveIndexes(ctx, clickhouseConnector, tables, optAsync); err != nil || table == nil {
 		resp = respWhenError
 		goto logErrorAndReturn
 	}
