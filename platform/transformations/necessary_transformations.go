@@ -3,6 +3,7 @@
 package transformations
 
 import (
+	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/model"
@@ -13,7 +14,7 @@ import (
 // TODO it should be removed and transformations should be in 1 place.
 // Only introduced temporarly e.g. for terms_enum to be able to get transformed
 // (terms_enum package can't import frontend_conntectors package)
-func ApplyAllNecessaryCommonTransformations(query *model.Query, schema schema.Schema, isFieldMapSyntaxEnabled bool) (*model.Query, error) {
+func ApplyAllNecessaryCommonTransformations(ctx context.Context, query *model.Query, schema schema.Schema, isFieldMapSyntaxEnabled bool) (*model.Query, error) {
 	query, err := ApplyFieldMapSyntax(schema, query, isFieldMapSyntaxEnabled)
 	if err != nil {
 		return nil, err

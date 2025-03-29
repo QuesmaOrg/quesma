@@ -13,6 +13,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/transformations"
+	transformations_delete "github.com/QuesmaOrg/quesma/platform/transformations-delete"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
@@ -95,7 +96,13 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.
 
 	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
 	selectQuery := buildAutocompleteQuery(field, qt.Table.Name, where.WhereClause, size)
-	selectQuery, err = transformations.ApplyAllNecessaryCommonTransformations(selectQuery, qt.Schema, isFieldMapSyntaxEnabled)
+	selectQuery, err = transformations_delete.ApplyNecessaryTransformations(ctx, selectQuery, lm.FindTable(qt.Table.Name), qt.Schema)
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Err(err).Msg("error applying necessary transformations")
+		return json.Marshal(emptyTermsEnumResponse())
+	}
+
+	selectQuery, err = transformations.ApplyAllNecessaryCommonTransformations(ctx, selectQuery, qt.Schema, isFieldMapSyntaxEnabled)
 	if err == nil {
 		dbQueryCtx, cancel := context.WithCancel(ctx)
 		// TODO this will be used to cancel goroutine that is executing the query

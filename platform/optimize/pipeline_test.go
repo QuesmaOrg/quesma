@@ -3,6 +3,7 @@
 package optimize
 
 import (
+	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/model"
@@ -59,7 +60,7 @@ func Test_cacheQueries(t *testing.T) {
 				},
 			}
 			pipeline := NewOptimizePipeline(&cfg)
-			optimized, err := pipeline.Transform(queries)
+			optimized, err := pipeline.Transform(context.Background(), queries)
 			if err != nil {
 				t.Fatalf("error optimizing query: %v", err)
 			}
@@ -212,7 +213,7 @@ func Test_dateTrunc(t *testing.T) {
 				},
 			}
 			pipeline := NewOptimizePipeline(&cfg)
-			optimized, err := pipeline.Transform(queries)
+			optimized, err := pipeline.Transform(context.Background(), queries)
 
 			if err != nil {
 				t.Fatalf("error optimizing query: %v", err)
@@ -448,7 +449,7 @@ func Test_materialized_view_replace(t *testing.T) {
 				},
 			}
 			pipeline := NewOptimizePipeline(&cfg)
-			optimized, err := pipeline.Transform(queries)
+			optimized, err := pipeline.Transform(context.Background(), queries)
 
 			if err != nil {
 				t.Fatalf("error optimizing query: %v", err)
