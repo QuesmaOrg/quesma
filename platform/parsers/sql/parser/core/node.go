@@ -51,3 +51,13 @@ func TokensToNode(tokens []core.Token) Node {
 
 	return &NodeListNode{Nodes: nodes}
 }
+
+type Pipe = []Node
+
+func NewPipe(nodes ...Node) Pipe {
+	return nodes
+}
+
+func Add(pipe Pipe, nodes ...Node) {
+	pipe = append(pipe, nodes...)
+}
