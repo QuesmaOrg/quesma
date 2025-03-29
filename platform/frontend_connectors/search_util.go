@@ -88,13 +88,17 @@ func (q *QueryRunner) getTableAndSchemaNonCommonTable(ctx context.Context, click
 		return
 	}
 
+	fmt.Println(resolvedIndexes)
+
 	indexName := resolvedIndexes[0] // we got exactly one table here because of the check above (much later: for sure?)
 	if len(resolvedIndexes) > 1 {
 		logger.WarnWithCtx(ctx).Msgf("multiple indexes in search request, using the first one: %s", indexName)
 	}
 
 	resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
+	fmt.Println(resolvedTableName)
 	resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
+	// pp.Println(resolvedSchema)
 	if !ok {
 		err = end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		return
@@ -104,6 +108,7 @@ func (q *QueryRunner) getTableAndSchemaNonCommonTable(ctx context.Context, click
 		err = end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		return
 	}
+	// pp.Println(table)
 
 	currentSchema = resolvedSchema
 	return
