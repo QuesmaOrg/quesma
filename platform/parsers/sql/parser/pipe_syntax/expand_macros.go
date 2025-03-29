@@ -1,6 +1,8 @@
 package pipe_syntax
 
 import (
+	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"regexp"
 	"slices"
 	"strconv"
@@ -10,6 +12,14 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
 )
 
+const (
+	expandStartNode    = 5
+	minimumExpandNodes = expandStartNode
+	minimumCallNodes   = expandStartNode
+	minimumExtendNodes = 7
+	macroTokenIdx      = 4
+)
+
 func ExpandMacros(node core.Node) {
 	TransformPipeNodes(node, func(pipeNode *PipeNode) core.Node {
 		for i := 0; i < len(pipeNode.Pipes); i++ {
@@ -17,7 +27,7 @@ func ExpandMacros(node core.Node) {
 			if !ok {
 				continue
 			}
-			if len(pipeNodeList.Nodes) < 5 {
+			if len(pipeNodeList.Nodes) < minimumExpandNodes {
 				continue
 			}
 
@@ -43,10 +53,10 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 	operator := strings.ToUpper(tokenNode.Token.RawValue)
 	if operator == "CALL" {
 		// Determine the macro type from the 5th token.
-		if len(pipeNodeList.Nodes) < 5 {
+		if len(pipeNodeList.Nodes) < minimumCallNodes {
 			return []core.NodeListNode{pipeNodeList}, false
 		}
-		macroToken, ok := pipeNodeList.Nodes[4].(core.TokenNode)
+		macroToken, ok := pipeNodeList.Nodes[macroTokenIdx].(core.TokenNode)
 		if !ok {
 			return []core.NodeListNode{pipeNodeList}, false
 		}
@@ -61,10 +71,10 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 			return []core.NodeListNode{pipeNodeList}, false
 		}
 	} else if operator == "EXTEND" {
-		if len(pipeNodeList.Nodes) < 7 {
+		if len(pipeNodeList.Nodes) < minimumExtendNodes {
 			return []core.NodeListNode{pipeNodeList}, false
 		}
-		macroToken, ok := pipeNodeList.Nodes[4].(core.TokenNode)
+		macroToken, ok := pipeNodeList.Nodes[macroTokenIdx].(core.TokenNode)
 		if !ok {
 			return []core.NodeListNode{pipeNodeList}, false
 		}
@@ -84,9 +94,9 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 
 func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	// Expected form: |> CALL TIMEBUCKET <timestamp> BY <interval tokens> AS <alias tokens>
-	var timestampTokens, intervalTokens, nameTokens []core.Node
+	var timestampTokens, intervalTokens, nameTokens core.Pipe
 	phase := 0
-	for j := 5; j < len(pipeNodeList.Nodes); j++ {
+	for j := minimumCallNodes; j < len(pipeNodeList.Nodes); j++ {
 		if tokenNode, ok := pipeNodeList.Nodes[j].(core.TokenNode); ok {
 			switch strings.ToUpper(tokenNode.Token.RawValue) {
 			case "BY":
@@ -99,11 +109,11 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		}
 		switch phase {
 		case 0:
-			timestampTokens = append(timestampTokens, pipeNodeList.Nodes[j])
+			core.Add(timestampTokens, pipeNodeList.Nodes[j])
 		case 1:
-			intervalTokens = append(intervalTokens, pipeNodeList.Nodes[j])
+			core.Add(intervalTokens, pipeNodeList.Nodes[j])
 		case 2:
-			nameTokens = append(nameTokens, pipeNodeList.Nodes[j])
+			core.Add(nameTokens, pipeNodeList.Nodes[j])
 		}
 	}
 
@@ -113,66 +123,66 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	//       ' - ',
 	//       formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>) + INTERVAL <interval>, '%Y-%m-%d %H:00')
 	//    ) AS <alias>
-	newNodes := []core.Node{
-		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+	pipe := core.NewPipe(
+		core.PipeToken(),
+		core.Space(),
 		// "EXTEND"
-		core.TokenNode{Token: lexer_core.Token{RawValue: "EXTEND"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.Extend(),
+		core.Space(),
 		// "concat"
-		core.TokenNode{Token: lexer_core.Token{RawValue: "concat"}},
+		core.NewTokenNode("concat"),
 		// "("
-		core.TokenNode{Token: lexer_core.Token{RawValue: "("}},
+		core.LeftBracket(),
 		// First argument: formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>), '%Y-%m-%d %H:00')
-		core.TokenNode{Token: lexer_core.Token{RawValue: "formatDateTime"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "("}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "toStartOfInterval"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "("}},
-	}
-	newNodes = append(newNodes, timestampTokens...)
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "INTERVAL"}})
-	newNodes = append(newNodes, intervalTokens...)
+		core.NewTokenNode("formatDateTime"),
+		core.LeftBracket(),
+		core.NewTokenNode("toStartOfInterval"),
+		core.LeftBracket(),
+	)
+	core.Add(pipe, timestampTokens...)
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "INTERVAL"}})
+	core.Add(pipe, intervalTokens...)
 	// Close toStartOfInterval call.
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
 	// End first argument list for formatDateTime: add comma and the format string.
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "'%Y-%m-%d %H:00'"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "'%Y-%m-%d %H:00'"}})
 	// Close formatDateTime call.
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
 	// Separator for concat arguments.
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
 	// Second argument: the literal separator ' - '
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "' - '"}})
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "' - '"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
 	// Second argument: formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>) + INTERVAL <interval>, '%Y-%m-%d %H:00')
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "formatDateTime"}})
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "("}})
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "toStartOfInterval"}})
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "("}})
-	newNodes = append(newNodes, timestampTokens...)
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "INTERVAL"}})
-	newNodes = append(newNodes, intervalTokens...)
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "formatDateTime"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "("}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "toStartOfInterval"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "("}})
+	core.Add(pipe, timestampTokens...)
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "INTERVAL"}})
+	core.Add(pipe, intervalTokens...)
 	// Close the first toStartOfInterval call.
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
 	// Add the plus operator and the second "INTERVAL" for addition.
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "+"}})
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "INTERVAL"}})
-	newNodes = append(newNodes, intervalTokens...)
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "+"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "INTERVAL"}})
+	core.Add(pipe, intervalTokens...)
 	// Add comma and the format string.
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "'%Y-%m-%d %H:00'"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "'%Y-%m-%d %H:00'"}})
 	// Close the second formatDateTime call.
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
 	// Close the concat call.
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
 	// Add "AS" and the alias tokens.
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
-	newNodes = append(newNodes, core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}})
-	newNodes = append(newNodes, nameTokens...)
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
+	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}})
+	core.Add(pipe, nameTokens...)
 
-	return []core.NodeListNode{core.NodeListNode{Nodes: newNodes}}
+	return []core.NodeListNode{{Nodes: pipe}}
 }
 
 func expandExtendEnrichIP(pipeNodeList core.NodeListNode) []core.NodeListNode {
@@ -227,49 +237,49 @@ func expandExtendEnrichIP(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		"timezone",
 		"zipcode",
 	}
-	for i, col := range columns {
-		if i > 0 {
+	for j, col := range columns {
+		if j > 0 {
 			selectColumns = append(selectColumns,
-				core.TokenNode{Token: lexer_core.Token{RawValue: ","}},
-				core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+				core.Comma(),
+				core.Space(),
 			)
 		}
 		selectColumns = append(selectColumns,
-			core.TokenNode{Token: lexer_core.Token{RawValue: col}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: "\"" + aliasStr + "." + col + "\""}},
+			core.NewTokenNode(col),
+			core.Space(),
+			core.As(),
+			core.Space(),
+			core.NewTokenNode(fmt.Sprintf(`"%s.%s"`, aliasStr, col)),
 		)
 	}
 
 	newNodes := []core.Node{
-		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "LEFT JOIN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "("}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "SELECT"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.PipeToken(),
+		core.Space(),
+		core.LeftJoin(),
+		core.Space(),
+		core.LeftBracket(),
+		core.Select(),
+		core.Space(),
 	}
 	newNodes = append(newNodes, selectColumns...)
 	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "FROM"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "ip_data"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: ")"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "ON"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: aliasStr + ".ip"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "="}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: ipExprStr}},
+		core.Space(),
+		core.From(),
+		core.Space(),
+		core.NewTokenNode("ip_data"),
+		core.RightBracket(),
+		core.Space(),
+		core.On(),
+		core.Space(),
+		core.NewTokenNode(aliasStr+".ip"),
+		core.Space(),
+		core.Equals(),
+		core.Space(),
+		core.NewTokenNode(ipExprStr),
 	)
 
-	return []core.NodeListNode{core.NodeListNode{Nodes: newNodes}}
+	return []core.NodeListNode{{Nodes: newNodes}}
 }
 func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	// Expected form:
@@ -293,7 +303,7 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 		params := nested.Nodes[1 : len(nested.Nodes)-1]
 		// Split tokens by comma.
 		var parts [][]core.Node
-		current := []core.Node{}
+		current := make([]core.Node, 0)
 		for _, token := range params {
 			if tk, ok := token.(core.TokenNode); ok && strings.TrimSpace(tk.Token.RawValue) == "," {
 				parts = append(parts, current)
@@ -332,9 +342,8 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 	rawPattern := tokensToString(patternTokens)
 	rawPattern = strings.TrimSpace(rawPattern)
 	// Remove surrounding quotes if present.
-	if len(rawPattern) > 1 && (rawPattern[0] == '\'' || rawPattern[0] == '"') && rawPattern[0] == rawPattern[len(rawPattern)-1] {
-		rawPattern = rawPattern[1 : len(rawPattern)-1]
-	}
+	rawPattern = util.UnquoteIfQuoted(rawPattern)
+
 	// Build the regex by splitting on '%' and escaping each part.
 	splitParts := strings.Split(rawPattern, "%")
 	for i, part := range splitParts {
@@ -342,7 +351,7 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 	}
 	finalRegex := strings.Join(splitParts, "(.*)")
 	// Wrap the final regex in single quotes.
-	finalRegexLiteral := "'" + finalRegex + "'"
+	finalRegexLiteral := util.SingleQuote(finalRegex)
 
 	// Determine the extracted alias based on the <msg> parameter.
 	msgStr := strings.TrimSpace(tokensToString(msgTokens))
@@ -350,15 +359,166 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 
 	// Build the first pipe:
 	//   |> EXTEND extractGroups(<msg>, <finalRegexLiteral>) AS extracted_<msg>
-	var firstPipe []core.Node
-	firstPipe = append(firstPipe,
+	firstPipe := buildFirstExtendPipe(msgTokens, finalRegexLiteral, extractedAlias)
+
+	// Process alias tokens into individual alias names.
+	aliasStr := tokensToString(aliasTokens)
+	aliasParts := strings.Split(aliasStr, ",")
+	for i := range aliasParts {
+		aliasParts[i] = strings.TrimSpace(aliasParts[i])
+	}
+
+	// Build the second pipe:
+	//   |> EXTEND extracted_<msg>[1] AS <alias1>, extracted_<msg>[2] AS <alias2>, ...
+	secondPipe := buildSecondExtendPipe(aliasParts, extractedAlias)
+
+	// Combine both pipe commands into a single node list, separating them with a newline.
+	firstPipe = append(firstPipe, core.TokenNode{Token: lexer_core.Token{RawValue: "\n"}})
+
+	return []core.NodeListNode{{Nodes: firstPipe}, {Nodes: secondPipe}}
+}
+
+func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
+	// Expected form: |> CALL LOGCATEGORY <log_line> AS <alias tokens>
+	var logLineTokens []core.Node
+	var aliasTokens []core.Node
+	phase := 0
+	for j := minimumCallNodes; j < len(pipeNodeList.Nodes); j++ {
+		if token, ok := pipeNodeList.Nodes[j].(core.TokenNode); ok {
+			if strings.ToUpper(token.Token.RawValue) == "AS" {
+				phase = 1
+				continue
+			}
+		}
+		if phase == 0 {
+			logLineTokens = append(logLineTokens, pipeNodeList.Nodes[j])
+		} else {
+			aliasTokens = append(aliasTokens, pipeNodeList.Nodes[j])
+		}
+	}
+
+	spaceWhenSpace := func() []core.Node {
+		return []core.Node{
+			core.Space(),
+			core.When(),
+			core.Space(),
+		}
+	}
+
+	// Build a new pipe representing:
+	// |> extend CASE
+	//     WHEN <log_line> REGEXP '\\{"code":200,"message":"success"\\}' THEN 'JSON API Response'
+	//     WHEN <log_line> REGEXP '\\[\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}\\] \\[ info\\] \\[output:http:http\\.\\d+\\] .+?, HTTP status=200' THEN 'HTTP Output'
+	//     WHEN <log_line> REGEXP 'action ''action-\\d+-builtin:omfile'' \\(module ''builtin:omfile''\\) message lost, could not be processed\\. Check for additional error messages before this one\\.' THEN 'Rsyslog Message Lost'
+	//     WHEN <log_line> REGEXP '(no space left on device|write error - see https://www\\.rsyslog\\.com/solving-rsyslog-write-errors/)' THEN 'Disk Space Error'
+	//     WHEN <log_line> REGEXP '(Failed password for|Invalid user|Disconnected from) .+? port \\d+' THEN 'SSH Authentication Error'
+	//     ELSE 'Unknown'
+	// END AS <alias tokens>
+	pipe := core.NewPipe(
+		core.PipeToken(),
+		core.Space(),
+		core.Extend(),
+		core.Space(),
+		core.Case(),
+	)
+	// Clause 1
+	core.Add(pipe,
+		core.Space(),
+		core.When(),
+		core.Space(),
+	)
+	core.Add(pipe, logLineTokens...)
+	core.Add(pipe,
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'\\\\{\"code\":200,\"message\":\"success\"\\\\}'"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'JSON API Response'"}},
+	)
+	// Clause 2
+	core.Add(pipe, spaceWhenSpace()...)
+	core.Add(pipe, logLineTokens...)
+	core.Add(pipe,
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'\\\\[\\\\d{4}/\\\\d{2}/\\\\d{2} \\\\d{2}:\\\\d{2}:\\\\d{2}\\\\] \\\\[ info\\\\] \\\\[output:http:http\\\\.\\\\d+\\\\] .+?, HTTP status=200'"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'HTTP Output'"}},
+	)
+	// Clause 3
+	core.Add(pipe, spaceWhenSpace()...)
+	core.Add(pipe, logLineTokens...)
+	core.Add(pipe,
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'action ''action-\\\\d+-builtin:omfile'' \\(module ''builtin:omfile''\\) message lost, could not be processed\\. Check for additional error messages before this one\\.'"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'Rsyslog Message Lost'"}},
+	)
+	// Clause 4
+	core.Add(pipe, spaceWhenSpace()...)
+	core.Add(pipe, logLineTokens...)
+	core.Add(pipe,
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'(no space left on device|write error - see https://www\\\\.rsyslog\\\\.com/solving-rsyslog-write-errors/)'"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'Disk Space Error'"}},
+	)
+	// Clause 5
+	core.Add(pipe, spaceWhenSpace()...)
+	core.Add(pipe, logLineTokens...)
+	core.Add(pipe,
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'(Failed password for|Invalid user|Disconnected from) .+? port \\d+'"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.TokenNode{Token: lexer_core.Token{RawValue: "'SSH Authentication Error'"}},
+	)
+	// ELSE clause
+	core.Add(pipe,
+		core.Space(),
+		core.Else(),
+		core.Space(),
+		core.NewTokenNode("'Unknown'"),
+	)
+	// End clause: END AS <alias tokens>
+	core.Add(pipe,
+		core.Space(),
+		core.NewTokenNode("END"),
+		core.Space(),
+		core.As(),
+		core.Space(),
+	)
+	core.Add(pipe, aliasTokens...)
+
+	return []core.NodeListNode{{Nodes: pipe}}
+}
+
+func buildFirstExtendPipe(msgTokens []core.Node, finalRegexLiteral, extractedAlias string) []core.Node {
+	firstPipe := []core.Node{
 		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: "EXTEND"}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: "extractGroups"}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: "("}},
-	)
+	}
 	firstPipe = append(firstPipe, msgTokens...)
 	firstPipe = append(firstPipe,
 		core.TokenNode{Token: lexer_core.Token{RawValue: ","}},
@@ -371,22 +531,16 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 		core.TokenNode{Token: lexer_core.Token{RawValue: extractedAlias}},
 	)
 
-	// Process alias tokens into individual alias names.
-	aliasStr := tokensToString(aliasTokens)
-	aliasParts := strings.Split(aliasStr, ",")
-	for i := range aliasParts {
-		aliasParts[i] = strings.TrimSpace(aliasParts[i])
-	}
+	return firstPipe
+}
 
-	// Build the second pipe:
-	//   |> EXTEND extracted_<msg>[1] AS <alias1>, extracted_<msg>[2] AS <alias2>, ...
-	var secondPipe []core.Node
-	secondPipe = append(secondPipe,
+func buildSecondExtendPipe(aliasParts []string, extractedAlias string) []core.Node {
+	secondPipe := []core.Node{
 		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: "EXTEND"}},
 		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-	)
+	}
 	for i, alias := range aliasParts {
 		if i > 0 {
 			secondPipe = append(secondPipe,
@@ -407,150 +561,7 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 		)
 	}
 
-	// Combine both pipe commands into a single node list, separating them with a newline.
-	firstPipe = append(firstPipe, core.TokenNode{Token: lexer_core.Token{RawValue: "\n"}})
-
-	return []core.NodeListNode{{Nodes: firstPipe}, {Nodes: secondPipe}}
-}
-
-func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
-	// Expected form: |> CALL LOGCATEGORY <log_line> AS <alias tokens>
-	var logLineTokens []core.Node
-	var aliasTokens []core.Node
-	phase := 0
-	for j := 5; j < len(pipeNodeList.Nodes); j++ {
-		if token, ok := pipeNodeList.Nodes[j].(core.TokenNode); ok {
-			if strings.ToUpper(token.Token.RawValue) == "AS" {
-				phase = 1
-				continue
-			}
-		}
-		if phase == 0 {
-			logLineTokens = append(logLineTokens, pipeNodeList.Nodes[j])
-		} else {
-			aliasTokens = append(aliasTokens, pipeNodeList.Nodes[j])
-		}
-	}
-
-	// Build a new pipe representing:
-	// |> extend CASE
-	//     WHEN <log_line> REGEXP '\\{"code":200,"message":"success"\\}' THEN 'JSON API Response'
-	//     WHEN <log_line> REGEXP '\\[\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}\\] \\[ info\\] \\[output:http:http\\.\\d+\\] .+?, HTTP status=200' THEN 'HTTP Output'
-	//     WHEN <log_line> REGEXP 'action ''action-\\d+-builtin:omfile'' \\(module ''builtin:omfile''\\) message lost, could not be processed\\. Check for additional error messages before this one\\.' THEN 'Rsyslog Message Lost'
-	//     WHEN <log_line> REGEXP '(no space left on device|write error - see https://www\\.rsyslog\\.com/solving-rsyslog-write-errors/)' THEN 'Disk Space Error'
-	//     WHEN <log_line> REGEXP '(Failed password for|Invalid user|Disconnected from) .+? port \\d+' THEN 'SSH Authentication Error'
-	//     ELSE 'Unknown'
-	// END AS <alias tokens>
-	newNodes := []core.Node{
-		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "extend"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "CASE"}},
-	}
-	// Clause 1
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "WHEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-	)
-	newNodes = append(newNodes, logLineTokens...)
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'\\\\{\"code\":200,\"message\":\"success\"\\\\}'"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'JSON API Response'"}},
-	)
-	// Clause 2
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "WHEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-	)
-	newNodes = append(newNodes, logLineTokens...)
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'\\\\[\\\\d{4}/\\\\d{2}/\\\\d{2} \\\\d{2}:\\\\d{2}:\\\\d{2}\\\\] \\\\[ info\\\\] \\\\[output:http:http\\\\.\\\\d+\\\\] .+?, HTTP status=200'"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'HTTP Output'"}},
-	)
-	// Clause 3
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "WHEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-	)
-	newNodes = append(newNodes, logLineTokens...)
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'action ''action-\\\\d+-builtin:omfile'' \\(module ''builtin:omfile''\\) message lost, could not be processed\\. Check for additional error messages before this one\\.'"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'Rsyslog Message Lost'"}},
-	)
-	// Clause 4
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "WHEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-	)
-	newNodes = append(newNodes, logLineTokens...)
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'(no space left on device|write error - see https://www\\\\.rsyslog\\\\.com/solving-rsyslog-write-errors/)'"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'Disk Space Error'"}},
-	)
-	// Clause 5
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "WHEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-	)
-	newNodes = append(newNodes, logLineTokens...)
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'(Failed password for|Invalid user|Disconnected from) .+? port \\d+'"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'SSH Authentication Error'"}},
-	)
-	// ELSE clause
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "ELSE"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'Unknown'"}},
-	)
-	// End clause: END AS <alias tokens>
-	newNodes = append(newNodes,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "END"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-	)
-	newNodes = append(newNodes, aliasTokens...)
-
-	return []core.NodeListNode{core.NodeListNode{Nodes: newNodes}}
+	return secondPipe
 }
 
 func tokensToString(tokens []core.Node) string {

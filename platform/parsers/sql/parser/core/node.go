@@ -34,6 +34,74 @@ type TokenNode struct {
 	Token core.Token
 }
 
+func NewTokenNode(rawValue string) TokenNode {
+	return TokenNode{
+		Token: core.Token{
+			RawValue: rawValue,
+		},
+	}
+}
+
+func PipeToken() TokenNode {
+	return NewTokenNode("|>")
+}
+
+func Space() TokenNode {
+	return NewTokenNode(" ")
+}
+
+func Comma() TokenNode {
+	return NewTokenNode(",")
+}
+
+func LeftBracket() TokenNode {
+	return NewTokenNode("(")
+}
+
+func RightBracket() TokenNode {
+	return NewTokenNode(")")
+}
+
+func Extend() TokenNode {
+	return NewTokenNode("EXTEND")
+}
+
+func Else() TokenNode {
+	return NewTokenNode("ELSE")
+}
+
+func As() TokenNode {
+	return NewTokenNode("AS")
+}
+
+func On() TokenNode {
+	return NewTokenNode("ON")
+}
+
+func Select() TokenNode {
+	return NewTokenNode("SELECT")
+}
+
+func From() TokenNode {
+	return NewTokenNode("FROM")
+}
+
+func When() TokenNode {
+	return NewTokenNode("WHEN")
+}
+
+func Equals() TokenNode {
+	return NewTokenNode("=")
+}
+
+func Case() TokenNode {
+	return NewTokenNode("CASE")
+}
+
+func LeftJoin() TokenNode {
+	return NewTokenNode("LEFT JOIN")
+}
+
 func (n TokenNode) String() string {
 	return "TokenNode[" + n.Token.String() + "]"
 }
@@ -50,4 +118,14 @@ func TokensToNode(tokens []core.Token) Node {
 	}
 
 	return &NodeListNode{Nodes: nodes}
+}
+
+type Pipe = []Node
+
+func NewPipe(nodes ...Node) Pipe {
+	return nodes
+}
+
+func Add(pipe Pipe, nodes ...Node) {
+	pipe = append(pipe, nodes...)
 }
