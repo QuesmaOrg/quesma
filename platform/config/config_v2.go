@@ -115,14 +115,22 @@ type Processor struct {
 const DefaultWildcardIndexName = "*"
 
 // Configuration of QuesmaV1ProcessorQuery and QuesmaV1ProcessorIngest
-type QuesmaProcessorConfig struct {
-	UseCommonTable bool           `koanf:"useCommonTable"`
-	IndexConfig    IndicesConfigs `koanf:"indexes"`
-	// DefaultTargetConnectorType is used in V2 code only
-	DefaultTargetConnectorType string //it is not serialized to maintain configuration BWC, so it's basically just populated from '*' config in `config_v2.go`
-}
+type (
+	QuesmaProcessorConfig struct {
+		UseCommonTable bool           `koanf:"useCommonTable"`
+		IndexConfig    IndicesConfigs `koanf:"indexes"`
+		// DefaultTargetConnectorType is used in V2 code only
+		DefaultTargetConnectorType string //it is not serialized to maintain configuration BWC, so it's basically just populated from '*' config in `config_v2.go`
+	}
+	IndicesConfigs map[string]IndexConfiguration
+)
 
-type IndicesConfigs map[string]IndexConfiguration
+func (p *QuesmaProcessorConfig) IsFieldMapSyntaxEnabled(indexName string) bool {
+	if indexConf, exists := p.IndexConfig[indexName]; exists {
+		return indexConf.EnableFieldMapSyntax
+	}
+	return false
+}
 
 func LoadV2Config() QuesmaNewConfiguration {
 	var v2config QuesmaNewConfiguration

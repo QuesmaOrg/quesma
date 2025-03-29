@@ -258,6 +258,15 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
 }
 
+func (query *DateHistogram) Interval() (interval time.Duration, ok bool) {
+	if duration, err := util.ParseInterval(query.interval); err == nil {
+		return duration, true
+	} else {
+		logger.WarnWithCtx(query.ctx).Msg(err.Error())
+		return 0, false
+	}
+}
+
 func (query *DateHistogram) calculateResponseKeyInUTC(originalKey int64) int64 {
 	if query.intervalType == DateHistogramCalendarInterval {
 		return originalKey

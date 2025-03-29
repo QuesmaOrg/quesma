@@ -12,6 +12,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/QuesmaOrg/quesma/platform/transformations"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/k0kubun/pp"
 	"slices"
@@ -1015,6 +1016,7 @@ func (s *SchemaCheckPass) applyFieldMapSyntax(ctx context.Context, indexSchema s
 }
 
 func (s *SchemaCheckPass) applyFieldEncoding(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
 	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
 	if !ok {
 		return nil, fmt.Errorf("table %s not found", query.TableName)
@@ -1280,7 +1282,9 @@ func (s *SchemaCheckPass) Transform(ctx context.Context, queries []*model.Query)
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
-		{TransformationName: "FieldMapSyntaxTransformation", Transformation: s.applyFieldMapSyntax},
+		{TransformationName: "AllNecessaryCommonTransformations", Transformation: func(ctx context.Context, schema schema.Schema, query *model.Query) (*model.Query, error) {
+			return transformations.ApplyAllNecessaryCommonTransformations(ctx, query, schema, s.cfg.MapFieldsDiscoveringEnabled)
+		}},
 		{TransformationName: "AliasColumnsTransformation", Transformation: s.applyAliasColumns},
 		{TransformationName: "UnixTimestampToDateTimeTransformation", Transformation: s.applyTimestampFieldd},
 
@@ -1411,7 +1415,6 @@ func (s *SchemaCheckPass) applyMatchOperator(ctx context.Context, indexSchema sc
 				return model.NewInfixExpr(lhs, "ILIKE", rhs.Clone())
 			}
 			equal := func() model.Expr {
-				rhsValue = strings.Trim(rhsValue, "%")
 				return model.NewInfixExpr(lhs, "=", rhs.Clone())
 			}
 
@@ -1428,6 +1431,8 @@ func (s *SchemaCheckPass) applyMatchOperator(ctx context.Context, indexSchema sc
 			// TODO: improve? we seem to be `ilike'ing` too much
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+				rhs.Value = strings.Trim(rhsValue, "%")
+				rhs.EscapeType = model.NormalNotEscaped
 				return equal()
 			default:
 				return ilike()
