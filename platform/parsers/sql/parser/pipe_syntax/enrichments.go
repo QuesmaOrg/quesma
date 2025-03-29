@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -23,7 +22,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/transforms"
 	"github.com/huandu/go-clone"
 
-	lexer_core "github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
 )
 
@@ -109,24 +107,8 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 			if !ok {
 				continue
 			}
-			if len(pipeNodeList.Nodes) < 5 {
-				continue
-			}
 
-			// Verify we have a "CALL" operator.
-			tokenNode, ok := pipeNodeList.Nodes[2].(core.TokenNode)
-			if !ok || tokenNode.ValueUpper() != "CALL" {
-				continue
-			}
-
-			// Determine the macro type from the 5th token.
-			macroToken, ok := pipeNodeList.Nodes[macroTokenIdx].(core.TokenNode)
-			if !ok {
-				continue
-			}
-			macroType := macroToken.ValueUpper()
-
-			if macroType == "ENRICH_IP" {
+			if macroType, _ := validatePipe(pipeNodeList); macroType == "ENRICH_IP" {
 				// Build two new pipes:
 				// 1.
 				// |> LEFT JOIN quesma_enrich ON quesma_enrich.key = <ip_column> AND enrich_type = 'ip'
@@ -159,25 +141,46 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 				pipeNode.Pipes = append(pipeNode.Pipes[:i+1], append([]core.Node{core.NodeListNode{Nodes: extendPipe}}, pipeNode.Pipes[i+1:]...)...)
 			} else {
 				// Enrichment not recognized; continue.
-				continue
 			}
 		}
+
 		return pipeNode
 	})
+}
+
+func validatePipe(pipeNodeList core.NodeListNode) (macroType string, ok bool) {
+	if len(pipeNodeList.Nodes) < 5 {
+		return
+	}
+
+	// Verify we have a "CALL" operator.
+	tokenNode, ok := pipeNodeList.Nodes[2].(core.TokenNode)
+	if !ok || tokenNode.ValueUpper() != "CALL" {
+		return
+	}
+
+	// Determine the macro type from the 5th token.
+	macroToken, ok := pipeNodeList.Nodes[macroTokenIdx].(core.TokenNode)
+	if !ok {
+		return
+	}
+
+	return macroToken.ValueUpper(), true
 }
 
 func enrichIpMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, i int, conn *sql.DB) (ipPipe, extendPipe core.Pipe) {
 	// Parse out the tokens following "CALL ENRICH_IP":
 	// Expected form: |> CALL ENRICH_IP <ip_column>
+
 	var (
 		ipColumn                   core.Pipe
 		columns, firstColumnValues []string
-		values, valuePtrs          []interface{}
-		ipToCountry                map[string]string
 		db                         *ip2location.DB
-		r_                         sql.Result
 	)
-	_ = r_
+
+	end := func() (core.Pipe, core.Pipe) {
+		return buildIpPipe(ipColumn), buildExtendIpPipe()
+	}
 
 	for j := 5; j < len(pipeNodeList.Nodes); j++ {
 		core.Add(ipColumn, pipeNodeList.Nodes[j])
@@ -186,26 +189,26 @@ func enrichIpMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, i int, 
 	copiedNode.Pipes = copiedNode.Pipes[:i]
 	{
 		newNodes := []core.Node{
-			core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: "AGGREGATE"}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+			core.PipeToken(),
+			core.Space(),
+			core.Aggregate(),
+			core.Space(),
 		}
 		newNodes = append(newNodes, ipColumn...)
 		newNodes = append(newNodes,
-			core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: "GROUP BY"}},
-			core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+			core.Space(),
+			core.GroupBy(),
+			core.Space(),
 		)
 		newNodes = append(newNodes, ipColumn...)
 		copiedNode.Pipes = append(copiedNode.Pipes, core.NodeListNode{Nodes: newNodes})
 	}
 	copiedNode.Pipes = append(copiedNode.Pipes, core.NodeListNode{Nodes: []core.Node{
-		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "LIMIT"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "100"}},
+		core.PipeToken(),
+		core.Space(),
+		core.Limit(),
+		core.Space(),
+		core.NewTokenNode("100"),
 	}})
 
 	copiedNode2 := &core.NodeListNode{Nodes: []core.Node{copiedNode}}
@@ -225,7 +228,7 @@ func enrichIpMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, i int, 
 	result, err := conn.QueryContext(ctx, queryStr)
 	if err != nil {
 		fmt.Println("Error executing query:", err)
-		goto END
+		return end()
 	}
 
 	defer result.Close()
@@ -234,12 +237,12 @@ func enrichIpMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, i int, 
 	columns, err = result.Columns()
 	if err != nil {
 		fmt.Println("Error getting columns:", err)
-		goto END
+		return end()
 	}
 
 	// Prepare values holders
-	values = make([]interface{}, len(columns))
-	valuePtrs = make([]interface{}, len(columns))
+	values := make([]interface{}, len(columns))
+	valuePtrs := make([]interface{}, len(columns))
 	for j := range columns {
 		valuePtrs[j] = &values[j]
 	}
@@ -264,7 +267,7 @@ func enrichIpMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, i int, 
 	fmt.Println("Total rows:", len(firstColumnValues))
 
 	if len(firstColumnValues) == 0 {
-		goto END
+		return end()
 	}
 
 	// Attempt to enrich IP addresses with country information
@@ -274,13 +277,13 @@ func enrichIpMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, i int, 
 	db, err = ip2location.OpenDB("/root/quesma-logexplorer-app/IP2LOCATION-LITE-DB11.BIN")
 	if err != nil {
 		fmt.Println("Error opening IP2Location database:", err)
-		goto END
+		return end()
 	}
 
 	defer db.Close()
 
 	// Create a map to store IP to country mappings
-	ipToCountry = make(map[string]string)
+	ipToCountry := make(map[string]string)
 
 	// Process each IP address
 	for _, ip := range firstColumnValues {
@@ -302,37 +305,30 @@ func enrichIpMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, i int, 
 
 	fmt.Println("IP enrichment complete. Found countries for", len(ipToCountry), "IPs")
 
-	r_, err = conn.Exec("CREATE TABLE IF NOT EXISTS quesma_enrich\n(\n    `enrich_type` LowCardinality(String),\n    `key` String,\n    `value` Nullable(String)\n)\nENGINE = MergeTree\nORDER BY (`enrich_type`, `key`)")
-	if err != nil {
-		fmt.Printf("Error creating quesma_enrich table: %v\n", err)
-	}
+	_, err = conn.Exec("CREATE TABLE IF NOT EXISTS quesma_enrich\n(\n    `enrich_type` LowCardinality(String),\n    `key` String,\n    `value` Nullable(String)\n)\nENGINE = MergeTree\nORDER BY (`enrich_type`, `key`)")
+	util.PrintfIfErr(err, "Error creating quesma_enrich table: %v\n", err)
 
 	// For each unique IP, insert a record into quesma_enrich table
 	for ip, country := range ipToCountry {
 		if ip != "NULL" && ip != "" && country != "Unknown" {
 			// Insert or update the enrichment data
 			// First delete any existing entry for this IP
-			_, err := conn.Exec(
+			_, err = conn.Exec(
 				"DELETE FROM quesma_enrich WHERE enrich_type = 'ip' AND key = ?",
 				ip,
 			)
-			if err != nil {
-				fmt.Printf("Error deleting existing enrichment for IP %s: %v\n", ip, err)
-			}
+			util.PrintfIfErr(err, "Error deleting existing enrichment for IP %s: %v\n", ip, err)
 
 			// Then insert the new entry
 			_, err = conn.Exec(
 				"INSERT INTO quesma_enrich (key, value, enrich_type) VALUES (?, ?, 'ip')",
 				ip, country,
 			)
-			if err != nil {
-				fmt.Printf("Error inserting enrichment for IP %s: %v\n", ip, err)
-			}
+			util.PrintfIfErr(err, "Error inserting enrichment for IP %s: %v\n", ip, err)
 		}
 	}
 
-END:
-	return buildIpPipe(ipColumn), buildExtendIpPipe()
+	return end()
 }
 
 func enrichLLMMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, lastPipeIdx int, conn *sql.DB) (enrichPipe core.Pipe, extendPipe core.Pipe) {
@@ -366,13 +362,13 @@ func enrichLLMMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, lastPi
 		newNodes := []core.Node{
 			core.PipeToken(),
 			core.Space(),
-			core.NewTokenNode("AGGREGATE"),
+			core.Aggregate(),
 			core.Space(),
 		}
 		newNodes = append(newNodes, inputColumn...)
 		newNodes = append(newNodes,
 			core.Space(),
-			core.NewTokenNode("GROUP BY"),
+			core.GroupBy(),
 			core.Space(),
 		)
 		newNodes = append(newNodes, inputColumn...)
@@ -381,7 +377,7 @@ func enrichLLMMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, lastPi
 	copiedNode.Pipes = append(copiedNode.Pipes, core.NodeListNode{Nodes: []core.Node{
 		core.PipeToken(),
 		core.Space(),
-		core.NewTokenNode("LIMIT"),
+		core.Limit(),
 		core.Space(),
 		core.NewTokenNode("100"),
 	}})
@@ -515,25 +511,25 @@ func buildIpPipe(ipColumn []core.Node) core.Pipe {
 		core.Space(),
 		core.LeftJoin(),
 		core.Space(),
-		core.NewTokenNode("quesma_enrich"),
+		core.QuesmaEnrich(),
 		core.Space(),
 		core.On(),
 		core.Space(),
-		core.NewTokenNode("quesma_enrich.key"),
+		core.QuesmaEnrichKey(),
 		core.Space(),
 		core.Equals(),
 		core.Space(),
 	)
 	core.Add(pipe, ipColumn...)
 	core.Add(pipe,
-		core.NewTokenNode(" "),
-		core.NewTokenNode("AND"),
-		core.NewTokenNode(" "),
-		core.NewTokenNode("enrich_type"),
-		core.NewTokenNode(" "),
-		core.NewTokenNode("="),
-		core.NewTokenNode(" "),
-		core.NewTokenNode("'ip'"),
+		core.Space(),
+		core.And(),
+		core.Space(),
+		core.EnrichType(),
+		core.Space(),
+		core.Equals(),
+		core.Space(),
+		core.NewTokenNode(util.SingleQuote("ip")),
 	)
 
 	return pipe
@@ -545,11 +541,11 @@ func buildEnrichLLMPipe(inputColumn []core.Node) core.Pipe {
 		core.Space(),
 		core.LeftJoin(),
 		core.Space(),
-		core.NewTokenNode("quesma_enrich"),
+		core.QuesmaEnrich(),
 		core.Space(),
 		core.On(),
 		core.Space(),
-		core.NewTokenNode("quesma_enrich.key"),
+		core.QuesmaEnrichKey(),
 		core.Space(),
 		core.Equals(),
 		core.Space(),
@@ -559,11 +555,11 @@ func buildEnrichLLMPipe(inputColumn []core.Node) core.Pipe {
 		core.Space(),
 		core.And(),
 		core.Space(),
-		core.NewTokenNode("enrich_type"),
+		core.EnrichType(),
 		core.Space(),
 		core.Equals(),
 		core.Space(),
-		core.NewTokenNode("'llm'"),
+		core.NewTokenNode(util.SingleQuote("llm")),
 	)
 
 	return pipe
@@ -575,7 +571,7 @@ func buildExtendIpPipe() core.Pipe {
 		core.Space(),
 		core.Extend(),
 		core.Space(),
-		core.NewTokenNode("quesma_enrich.value"),
+		core.QuesmaEnrichValue(),
 		core.Space(),
 		core.As(),
 		core.Space(),
@@ -589,7 +585,7 @@ func buildExtendLLMPipe() core.Pipe {
 		core.Space(),
 		core.Extend(),
 		core.Space(),
-		core.NewTokenNode("quesma_enrich.value"),
+		core.QuesmaEnrichValue(),
 		core.Space(),
 		core.As(),
 		core.Space(),
