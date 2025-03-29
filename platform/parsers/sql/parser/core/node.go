@@ -3,7 +3,10 @@
 
 package core
 
-import "github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
+import (
+	"github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
+	"strings"
+)
 
 type Node interface {
 	String() string
@@ -42,6 +45,10 @@ func NewTokenNode(rawValue string) TokenNode {
 	}
 }
 
+func (n TokenNode) ValueUpper() string {
+	return strings.ToUpper(n.Token.RawValue)
+}
+
 func PipeToken() TokenNode {
 	return NewTokenNode("|>")
 }
@@ -72,6 +79,10 @@ func Else() TokenNode {
 
 func As() TokenNode {
 	return NewTokenNode("AS")
+}
+
+func And() TokenNode {
+	return NewTokenNode("AND")
 }
 
 func On() TokenNode {
