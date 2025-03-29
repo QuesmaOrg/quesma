@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	lexer_core "github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
 )
 
@@ -129,56 +128,56 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.Extend(),
 		core.Space(),
 		// "concat"
-		core.NewTokenNode("concat"),
+		core.Concat(),
 		// "("
 		core.LeftBracket(),
 		// First argument: formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>), '%Y-%m-%d %H:00')
-		core.NewTokenNode("formatDateTime"),
+		core.FormatDateTime(),
 		core.LeftBracket(),
-		core.NewTokenNode("toStartOfInterval"),
+		core.ToStartOfInterval(),
 		core.LeftBracket(),
 	)
 	core.Add(pipe, timestampTokens...)
 	core.Add(pipe, core.Comma())
-	core.Add(pipe, core.NewTokenNode("INTERVAL"))
+	core.Add(pipe, core.Interval())
 	core.Add(pipe, intervalTokens...)
 	// Close toStartOfInterval call.
 	core.Add(pipe, core.RightBracket())
 	// End first argument list for formatDateTime: add comma and the format string.
 	core.Add(pipe, core.Comma())
-	core.Add(pipe, core.NewTokenNode(util.SingleQuote("%Y-%m-%d %H:00")))
+	core.Add(pipe, core.NewTokenNodeSingleQuote("%Y-%m-%d %H:00"))
 	// Close formatDateTime call.
 	core.Add(pipe, core.RightBracket())
 	// Separator for concat arguments.
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
+	core.Add(pipe, core.Comma())
 	// Second argument: the literal separator ' - '
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "' - '"}})
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
+	core.Add(pipe, core.NewTokenNodeSingleQuote(" - "))
+	core.Add(pipe, core.Comma())
 	// Second argument: formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>) + INTERVAL <interval>, '%Y-%m-%d %H:00')
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "formatDateTime"}})
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "("}})
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "toStartOfInterval"}})
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "("}})
+	core.Add(pipe, core.FormatDateTime())
+	core.Add(pipe, core.LeftBracket())
+	core.Add(pipe, core.ToStartOfInterval())
+	core.Add(pipe, core.LeftBracket())
 	core.Add(pipe, timestampTokens...)
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "INTERVAL"}})
+	core.Add(pipe, core.Comma())
+	core.Add(pipe, core.Interval())
 	core.Add(pipe, intervalTokens...)
 	// Close the first toStartOfInterval call.
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
+	core.Add(pipe, core.RightBracket())
 	// Add the plus operator and the second "INTERVAL" for addition.
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "+"}})
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "INTERVAL"}})
+	core.Add(pipe, core.Plus())
+	core.Add(pipe, core.Interval())
 	core.Add(pipe, intervalTokens...)
 	// Add comma and the format string.
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "'%Y-%m-%d %H:00'"}})
+	core.Add(pipe, core.Comma())
+	core.Add(pipe, core.NewTokenNodeSingleQuote("%Y-%m-%d %H:00"))
 	// Close the second formatDateTime call.
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
+	core.Add(pipe, core.RightBracket())
 	// Close the concat call.
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
+	core.Add(pipe, core.RightBracket())
 	// Add "AS" and the alias tokens.
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
-	core.Add(pipe, core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}})
+	core.Add(pipe, core.Space())
+	core.Add(pipe, core.As())
 	core.Add(pipe, nameTokens...)
 
 	return []core.NodeListNode{{Nodes: pipe}}
@@ -372,7 +371,7 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 	secondPipe := buildSecondExtendPipe(aliasParts, extractedAlias)
 
 	// Combine both pipe commands into a single node list, separating them with a newline.
-	firstPipe = append(firstPipe, core.NewLine())
+	core.Add(firstPipe, core.NewLine())
 
 	return []core.NodeListNode{{Nodes: firstPipe}, {Nodes: secondPipe}}
 }
@@ -428,53 +427,53 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	)
 	core.Add(pipe, logLineTokens...)
 	core.Add(pipe,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'\\\\{\"code\":200,\"message\":\"success\"\\\\}'"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'JSON API Response'"}},
+		core.Space(),
+		core.Regexp(),
+		core.Space(),
+		core.NewTokenNodeSingleQuote("\\\\{\"code\":200,\"message\":\"success\"\\\\}"),
+		core.Space(),
+		core.Then(),
+		core.Space(),
+		core.NewTokenNodeSingleQuote("JSON API Response"),
 	)
 	// Clause 2
 	core.Add(pipe, spaceWhenSpace()...)
 	core.Add(pipe, logLineTokens...)
 	core.Add(pipe,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'\\\\[\\\\d{4}/\\\\d{2}/\\\\d{2} \\\\d{2}:\\\\d{2}:\\\\d{2}\\\\] \\\\[ info\\\\] \\\\[output:http:http\\\\.\\\\d+\\\\] .+?, HTTP status=200'"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'HTTP Output'"}},
+		core.Space(),
+		core.Regexp(),
+		core.Space(),
+		core.NewTokenNodeSingleQuote("\\\\[\\\\d{4}/\\\\d{2}/\\\\d{2} \\\\d{2}:\\\\d{2}:\\\\d{2}\\\\] \\\\[ info\\\\] \\\\[output:http:http\\\\.\\\\d+\\\\] .+?, HTTP status=200"),
+		core.Space(),
+		core.Then(),
+		core.Space(),
+		core.NewTokenNodeSingleQuote("HTTP Output"),
 	)
 	// Clause 3
 	core.Add(pipe, spaceWhenSpace()...)
 	core.Add(pipe, logLineTokens...)
 	core.Add(pipe,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'action ''action-\\\\d+-builtin:omfile'' \\(module ''builtin:omfile''\\) message lost, could not be processed\\. Check for additional error messages before this one\\.'"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'Rsyslog Message Lost'"}},
+		core.Space(),
+		core.Regexp(),
+		core.Space(),
+		core.NewTokenNodeSingleQuote("action ''action-\\\\d+-builtin:omfile'' \\(module ''builtin:omfile''\\) message lost, could not be processed\\. Check for additional error messages before this one\\."),
+		core.Space(),
+		core.Then(),
+		core.Space(),
+		core.NewTokenNodeSingleQuote("Rsyslog Message Lost"),
 	)
 	// Clause 4
 	core.Add(pipe, spaceWhenSpace()...)
 	core.Add(pipe, logLineTokens...)
 	core.Add(pipe,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "REGEXP"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'(no space left on device|write error - see https://www\\\\.rsyslog\\\\.com/solving-rsyslog-write-errors/)'"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "THEN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'Disk Space Error'"}},
+		core.Space(),
+		core.Regexp(),
+		core.Space(),
+		core.NewTokenNodeSingleQuote("no space left on device|write error - see https://www\\\\.rsyslog\\\\.com/solving-rsyslog-write-errors/)"),
+		core.Space(),
+		core.Then(),
+		core.Space(),
+		core.NewTokenNodeSingleQuote("Disk Space Error"),
 	)
 	// Clause 5
 	core.Add(pipe, spaceWhenSpace()...)
@@ -483,7 +482,7 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.Space(),
 		core.Regexp(),
 		core.Space(),
-		core.NewTokenNode(util.SingleQuote("(Failed password for|Invalid user|Disconnected from) .+? port \\d+")),
+		core.NewTokenNodeSingleQuote("Failed password for|Invalid user|Disconnected from) .+? port \\d+"),
 		core.Space(),
 		core.Then(),
 		core.Space(),
@@ -510,45 +509,45 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 }
 
 func buildFirstExtendPipe(msgTokens []core.Node, finalRegexLiteral, extractedAlias string) []core.Node {
-	firstPipe := []core.Node{
-		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "EXTEND"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "extractGroups"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "("}},
-	}
-	firstPipe = append(firstPipe, msgTokens...)
-	firstPipe = append(firstPipe,
-		core.TokenNode{Token: lexer_core.Token{RawValue: ","}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: finalRegexLiteral}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: ")"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "AS"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: extractedAlias}},
+	firstPipe := core.NewPipe(
+		core.PipeToken(),
+		core.Space(),
+		core.Extend(),
+		core.Space(),
+		core.NewTokenNode("extractGroups"),
+		core.LeftBracket(),
+	)
+	core.Add(firstPipe, msgTokens...)
+	core.Add(firstPipe,
+		core.Comma(),
+		core.Space(),
+		core.NewTokenNode(finalRegexLiteral),
+		core.RightBracket(),
+		core.Space(),
+		core.As(),
+		core.Space(),
+		core.NewTokenNode(extractedAlias),
 	)
 
 	return firstPipe
 }
 
 func buildSecondExtendPipe(aliasParts []string, extractedAlias string) []core.Node {
-	secondPipe := []core.Node{
+	secondPipe := core.NewPipe(
 		core.PipeToken(),
 		core.Space(),
 		core.Extend(),
 		core.Space(),
-	}
+	)
 	for i, alias := range aliasParts {
 		if i > 0 {
-			secondPipe = append(secondPipe,
+			core.Add(secondPipe,
 				core.Comma(),
 				core.Space(),
 			)
 		}
 		// Build tokens for: extracted_<msg>[<i+1>] AS <alias>
-		secondPipe = append(secondPipe,
+		core.Add(secondPipe,
 			core.NewTokenNode(extractedAlias),
 			core.NewTokenNode("["),
 			core.NewTokenNode(strconv.Itoa(i+1)),

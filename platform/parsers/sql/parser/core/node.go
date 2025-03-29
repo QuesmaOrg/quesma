@@ -50,6 +50,18 @@ func (n TokenNode) ValueUpper() string {
 	return strings.ToUpper(n.Token.RawValue)
 }
 
+func Concat() TokenNode {
+	return NewTokenNode("concat")
+}
+
+func FormatDateTime() TokenNode {
+	return NewTokenNode("formatDateTime")
+}
+
+func ToStartOfInterval() TokenNode {
+	return NewTokenNode("toStartOfInterval")
+}
+
 func PipeToken() TokenNode {
 	return NewTokenNode("|>")
 }
@@ -72,6 +84,14 @@ func Then() TokenNode {
 
 func NewTokenNodeSingleQuote(value string) TokenNode {
 	return NewTokenNode(util.SingleQuote(value))
+}
+
+func Plus() TokenNode {
+	return NewTokenNode("+")
+}
+
+func Interval() TokenNode {
+	return NewTokenNode("INTERVAL")
 }
 
 func LeftBracket() TokenNode {
