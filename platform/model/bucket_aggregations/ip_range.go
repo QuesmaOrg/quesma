@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"net/netip"
 	"reflect"
 )
@@ -97,8 +98,8 @@ func (interval IpInterval) ToWhereClause(field model.Expr) model.Expr {
 	hasBegin := interval.hasBeginInResponse()
 	hasEnd := interval.hasEndInResponse()
 
-	begin := model.NewInfixExpr(field, ">=", model.NewLiteralSingleQuoteString(interval.begin))
-	end := model.NewInfixExpr(field, "<", model.NewLiteralSingleQuoteString(interval.end))
+	begin := model.NewInfixExpr(field, ">=", model.NewLiteralWithEscapeType(util.SingleQuote(interval.begin), model.ZeroEscaping))
+	end := model.NewInfixExpr(field, "<", model.NewLiteralWithEscapeType(util.SingleQuote(interval.end), model.ZeroEscaping))
 
 	if hasBegin && hasEnd {
 		return model.NewInfixExpr(begin, "AND", end)
