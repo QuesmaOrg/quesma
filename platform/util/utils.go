@@ -1041,3 +1041,10 @@ func ReadResponseBody(resp *http.Response) ([]byte, error) {
 	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
 	return respBody, nil
 }
+
+func UnquoteIfQuoted(s string) string {
+	if len(s) > 1 && (s[0] == '\'' || s[0] == '"') && s[0] == s[len(s)-1] {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
