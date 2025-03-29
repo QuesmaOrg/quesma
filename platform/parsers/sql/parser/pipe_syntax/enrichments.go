@@ -165,26 +165,26 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 				copiedNode.Pipes = copiedNode.Pipes[:i]
 				{
 					newNodes := []core.Node{
-						core.NewTokenNode("|>"),
-						core.NewTokenNode(" "),
+						core.PipeToken(),
+						core.Space(),
 						core.NewTokenNode("AGGREGATE"),
-						core.NewTokenNode(" "),
+						core.Space(),
 					}
 					newNodes = append(newNodes, inputColumn...)
 					newNodes = append(newNodes,
-						core.NewTokenNode(" "),
+						core.Space(),
 						core.NewTokenNode("GROUP BY"),
-						core.NewTokenNode(" "),
+						core.Space(),
 					)
 					newNodes = append(newNodes, inputColumn...)
 					copiedNode.Pipes = append(copiedNode.Pipes, core.NodeListNode{Nodes: newNodes})
 				}
 				copiedNode.Pipes = append(copiedNode.Pipes, core.NodeListNode{Nodes: []core.Node{
-					core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "LIMIT"}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-					core.TokenNode{Token: lexer_core.Token{RawValue: "100"}},
+					core.PipeToken(),
+					core.Space(),
+					core.NewTokenNode("LIMIT"),
+					core.Space(),
+					core.NewTokenNode("100"),
 				}})
 				copiedNode2 := &core.NodeListNode{Nodes: []core.Node{copiedNode}}
 				Transpile(copiedNode2)
@@ -277,7 +277,7 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 							fmt.Println("LLM enrichment complete. Received responses for", len(llmResults), "inputs")
 
 							// Create enrichment table if not exists
-							_, err := conn.Exec("CREATE TABLE IF NOT EXISTS quesma_enrich\n(\n    `enrich_type` LowCardinality(String),\n    `key` String,\n    `value` Nullable(String)\n)\nENGINE = MergeTree\nORDER BY (`enrich_type`, `key`)")
+							_, err = conn.Exec("CREATE TABLE IF NOT EXISTS quesma_enrich\n(\n    `enrich_type` LowCardinality(String),\n    `key` String,\n    `value` Nullable(String)\n)\nENGINE = MergeTree\nORDER BY (`enrich_type`, `key`)")
 							if err != nil {
 								fmt.Printf("Error creating quesma_enrich table: %v\n", err)
 							}
@@ -286,7 +286,7 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 							for input, response := range llmResults {
 								if input != "NULL" && input != "" && response != "Error" {
 									// First delete any existing entry for this input
-									_, err := conn.Exec(
+									_, err = conn.Exec(
 										"DELETE FROM quesma_enrich WHERE enrich_type = 'llm' AND key = ?",
 										input,
 									)
@@ -530,29 +530,29 @@ func buildIpPipe(ipColumn []core.Node) core.Pipe {
 
 func buildEnrichLLMPipe(inputColumn []core.Node) core.Pipe {
 	pipe := core.NewPipe(
-		core.TokenNode{Token: lexer_core.Token{RawValue: "|>"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "LEFT JOIN"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "quesma_enrich"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "ON"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "quesma_enrich.key"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "="}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
+		core.PipeToken(),
+		core.Space(),
+		core.NewTokenNode("LEFT JOIN"),
+		core.Space(),
+		core.NewTokenNode("quesma_enrich"),
+		core.Space(),
+		core.NewTokenNode("ON"),
+		core.Space(),
+		core.NewTokenNode("quesma_enrich.key"),
+		core.Space(),
+		core.NewTokenNode("="),
+		core.Space(),
 	)
 	core.Add(pipe, inputColumn...)
 	core.Add(pipe,
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "AND"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "enrich_type"}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "="}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: " "}},
-		core.TokenNode{Token: lexer_core.Token{RawValue: "'llm'"}},
+		core.Space(),
+		core.NewTokenNode("AND"),
+		core.Space(),
+		core.NewTokenNode("enrich_type"),
+		core.Space(),
+		core.NewTokenNode("="),
+		core.Space(),
+		core.NewTokenNode("'llm'"),
 	)
 
 	return pipe
