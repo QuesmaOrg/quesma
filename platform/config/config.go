@@ -56,7 +56,10 @@ type QuesmaConfiguration struct {
 	DefaultQueryTarget          []string
 	DefaultIngestOptimizers     map[string]OptimizerConfiguration
 	DefaultQueryOptimizers      map[string]OptimizerConfiguration
-	MapFieldsDiscoveringEnabled bool
+
+	// experimental features
+	MapFieldsDiscoveringEnabled      bool
+	MultipleBackendConnectorsAllowed bool
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {

@@ -40,16 +40,19 @@ const (
 )
 
 type QuesmaNewConfiguration struct {
-	BackendConnectors           []BackendConnector   `koanf:"backendConnectors"`
-	FrontendConnectors          []FrontendConnector  `koanf:"frontendConnectors"`
-	InstallationId              string               `koanf:"installationId"`
-	LicenseKey                  string               `koanf:"licenseKey"`
-	Logging                     LoggingConfiguration `koanf:"logging"`
-	IngestStatistics            bool                 `koanf:"ingestStatistics"`
-	Processors                  []Processor          `koanf:"processors"`
-	Pipelines                   []Pipeline           `koanf:"pipelines"`
-	DisableTelemetry            bool                 `koanf:"disableTelemetry"`
-	MapFieldsDiscoveringEnabled bool                 `koanf:"mapFieldsDiscoveringEnabled"`
+	BackendConnectors  []BackendConnector   `koanf:"backendConnectors"`
+	FrontendConnectors []FrontendConnector  `koanf:"frontendConnectors"`
+	InstallationId     string               `koanf:"installationId"`
+	LicenseKey         string               `koanf:"licenseKey"`
+	Logging            LoggingConfiguration `koanf:"logging"`
+	IngestStatistics   bool                 `koanf:"ingestStatistics"`
+	Processors         []Processor          `koanf:"processors"`
+	Pipelines          []Pipeline           `koanf:"pipelines"`
+	DisableTelemetry   bool                 `koanf:"disableTelemetry"`
+
+	// experimental features
+	MapFieldsDiscoveringEnabled      bool `koanf:"mapFieldsDiscoveringEnabled"`
+	MultipleBackendConnectorsAllowed bool `koanf:"multipleBackendConnectorsAllowed"`
 }
 
 type LoggingConfiguration struct {
@@ -465,10 +468,15 @@ func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
 		errAcc = multierror.Append(errAcc, fmt.Errorf("frontend connector named %s referenced in %s not found in configuration", pipeline.FrontendConnectors[0], pipeline.Name))
 	}
 
-	if len(pipeline.BackendConnectors) == 0 {
-		return multierror.Append(errAcc, fmt.Errorf("pipeline must define > 0 backend connectors, %d defined", len(pipeline.BackendConnectors)))
+	if !c.MultipleBackendConnectorsAllowed { // usual/default
+		if len(pipeline.BackendConnectors) == 0 || len(pipeline.BackendConnectors) > 2 {
+			return multierror.Append(errAcc, fmt.Errorf("pipeline must define exactly one or two backend connectors, %d defined", len(pipeline.BackendConnectors)))
+		}
+	} else if len(pipeline.BackendConnectors) == 0 {
+		return multierror.Append(errAcc, fmt.Errorf("pipeline must define at least one backend connector, none defined"))
 	}
-	for _, bcName := range pipeline.BackendConnectors {
+
+	for _, bcName := range pipeline.BackendConnectors[1:] { // we skip [0] - it's elastic
 		if !slices.Contains(c.definedBackendConnectorNames(), bcName) {
 			errAcc = multierror.Append(errAcc, fmt.Errorf("backend connector named %s referenced in %s not found in configuration", bcName, pipeline.Name))
 		}
@@ -585,6 +593,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	conf.LicenseKey = c.LicenseKey
 
 	conf.MapFieldsDiscoveringEnabled = c.MapFieldsDiscoveringEnabled
+	conf.MultipleBackendConnectorsAllowed = c.MultipleBackendConnectorsAllowed
 
 	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)
@@ -1099,6 +1108,9 @@ func (c *QuesmaNewConfiguration) validateBackendConnectors() error {
 	}
 	if elasticBackendConnectors > 1 {
 		return fmt.Errorf("only one elasticsearch backend connector is allowed, found %d many", elasticBackendConnectors)
+	}
+	if !c.MultipleBackendConnectorsAllowed && clickhouseBackendConnectors > 1 {
+		return fmt.Errorf("only one clickhouse-compatible backend connector is allowed, found %d many", clickhouseBackendConnectors)
 	}
 	return nil
 }
