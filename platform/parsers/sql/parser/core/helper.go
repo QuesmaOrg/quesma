@@ -3,26 +3,118 @@
 
 package core
 
+//
+// Feel free to sort it out better, please! I'm not the best in naming/clustering these keywords :(
+//
+
+// King Token
+
 func PipeToken() TokenNode {
 	return NewTokenNode("|>")
 }
 
+// clauses
+
+func Aggregate() TokenNode {
+	return NewTokenNode("AGGREGATE")
+}
+
+func From() TokenNode {
+	return NewTokenNode("FROM")
+}
+
+func GroupBy() TokenNode {
+	return NewTokenNode("GROUP BY")
+}
+
+func LeftJoin() TokenNode {
+	return NewTokenNode("LEFT JOIN")
+}
+
+func Limit() TokenNode {
+	return NewTokenNode("LIMIT")
+}
+
+func Select() TokenNode {
+	return NewTokenNode("SELECT")
+}
+
+// pipe syntax
+
+func EnrichType() TokenNode {
+	return NewTokenNode("enrich_type")
+}
+
+func Extend() TokenNode {
+	return NewTokenNode("EXTEND")
+}
+
+func QuesmaEnrich() TokenNode {
+	return NewTokenNode("quesma_enrich")
+}
+
+func QuesmaEnrichKey() TokenNode {
+	return NewTokenNode("quesma_enrich.key")
+}
+
+func QuesmaEnrichValue() TokenNode {
+	return NewTokenNode("quesma_enrich.value")
+}
+
+// special characters
+
 func Comma() TokenNode {
 	return NewTokenNode(",")
+}
+
+func Equals() TokenNode {
+	return NewTokenNode("=")
+}
+
+func LeftBracket() TokenNode {
+	return NewTokenNode("(")
+}
+
+func NewLine() TokenNode {
+	return NewTokenNode("\n")
+}
+
+func Plus() TokenNode {
+	return NewTokenNode("+")
+}
+
+func RightBracket() TokenNode {
+	return NewTokenNode(")")
 }
 
 func Space() TokenNode {
 	return NewTokenNode(" ")
 }
 
-// dates
+// operators
 
-func FormatDateTime() TokenNode {
-	return NewTokenNode("formatDateTime")
+func And() TokenNode {
+	return NewTokenNode("AND")
 }
 
-func ToStartOfInterval() TokenNode {
-	return NewTokenNode("toStartOfInterval")
+func Case() TokenNode {
+	return NewTokenNode("CASE")
+}
+
+func Else() TokenNode {
+	return NewTokenNode("ELSE")
+}
+
+func If() TokenNode {
+	return NewTokenNode("IF")
+}
+
+func Or() TokenNode {
+	return NewTokenNode("OR")
+}
+
+func When() TokenNode {
+	return NewTokenNode("WHEN")
 }
 
 // functions
@@ -35,98 +127,26 @@ func Regexp() TokenNode {
 	return NewTokenNode("REGEXP")
 }
 
-func Then() TokenNode {
-	return NewTokenNode("THEN")
-}
+// dates
 
-func Plus() TokenNode {
-	return NewTokenNode("+")
+func FormatDateTime() TokenNode {
+	return NewTokenNode("formatDateTime")
 }
 
 func Interval() TokenNode {
 	return NewTokenNode("INTERVAL")
 }
 
-func LeftBracket() TokenNode {
-	return NewTokenNode("(")
+func ToStartOfInterval() TokenNode {
+	return NewTokenNode("toStartOfInterval")
 }
 
-func Limit() TokenNode {
-	return NewTokenNode("LIMIT")
-}
-
-func NewLine() TokenNode {
-	return NewTokenNode("\n")
-}
-
-func GroupBy() TokenNode {
-	return NewTokenNode("GROUP BY")
-}
-
-func Aggregate() TokenNode {
-	return NewTokenNode("AGGREGATE")
-}
-
-func RightBracket() TokenNode {
-	return NewTokenNode(")")
-}
-
-func Extend() TokenNode {
-	return NewTokenNode("EXTEND")
-}
-
-func Else() TokenNode {
-	return NewTokenNode("ELSE")
-}
-
-func QuesmaEnrichValue() TokenNode {
-	return NewTokenNode("quesma_enrich.value")
-}
-
-func QuesmaEnrich() TokenNode {
-	return NewTokenNode("quesma_enrich")
-}
-
-func QuesmaEnrichKey() TokenNode {
-	return NewTokenNode("quesma_enrich.key")
-}
-
-func EnrichType() TokenNode {
-	return NewTokenNode("enrich_type")
-}
+// ? what type of keyword is this? :D
 
 func As() TokenNode {
 	return NewTokenNode("AS")
 }
 
-func And() TokenNode {
-	return NewTokenNode("AND")
-}
-
 func On() TokenNode {
 	return NewTokenNode("ON")
-}
-
-func Select() TokenNode {
-	return NewTokenNode("SELECT")
-}
-
-func From() TokenNode {
-	return NewTokenNode("FROM")
-}
-
-func When() TokenNode {
-	return NewTokenNode("WHEN")
-}
-
-func Equals() TokenNode {
-	return NewTokenNode("=")
-}
-
-func Case() TokenNode {
-	return NewTokenNode("CASE")
-}
-
-func LeftJoin() TokenNode {
-	return NewTokenNode("LEFT JOIN")
 }
