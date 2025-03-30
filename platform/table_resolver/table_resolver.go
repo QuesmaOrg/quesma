@@ -74,7 +74,8 @@ func (ir *compoundResolver) resolve(indexName string) *quesma_api.Decision {
 			}
 		}
 	}
-
+	//pp.Println("KKK resolve for index:", indexName)
+	//pp.Println("KKK", decisions)
 	return ir.decisionMerger.merger(decisions)
 }
 
