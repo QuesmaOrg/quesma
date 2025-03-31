@@ -91,7 +91,7 @@ func main() {
 |> WHERE msg ILIKE '%break-in attempt!%'
 
 -- Parse IP, hostname from loglines
-|> EXTEND ENRICH_LLM('extract IP address from logline', msg) AS output
+|> EXTEND ENRICH_LLM(msg, 'extract IP address from logline') AS output
 `, dialect_sqlparse.SqlparseRules)
 
 	node := core.TokensToNode(tokens)
