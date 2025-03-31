@@ -91,6 +91,10 @@ func Space() TokenNode {
 	return NewTokenNode(" ")
 }
 
+func Star() TokenNode {
+	return NewTokenNode("*")
+}
+
 // operators
 
 func And() TokenNode {

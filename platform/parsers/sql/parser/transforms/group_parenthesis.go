@@ -62,17 +62,15 @@ func (p *groupParenthesisParser) Parse(parenStarted bool) []core.Node {
 }
 
 func isOpeningParenthesis(node core.Node) bool {
-	tokenNode, ok := node.(core.TokenNode)
-	if !ok {
-		return false
+	if tokenNode, ok := node.(core.TokenNode); ok {
+		return tokenNode.Value() == "("
 	}
-	return tokenNode.Token.RawValue == "("
+	return false
 }
 
 func isClosingParenthesis(node core.Node) bool {
-	tokenNode, ok := node.(core.TokenNode)
-	if !ok {
-		return false
+	if tokenNode, ok := node.(core.TokenNode); ok {
+		return tokenNode.Value() == ")"
 	}
-	return tokenNode.Token.RawValue == ")"
+	return false
 }

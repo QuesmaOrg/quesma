@@ -78,5 +78,5 @@ func GroupPipeSyntax(node core.Node) {
 
 func isPipeOperator(node core.Node) bool {
 	tokenNode, ok := node.(core.TokenNode)
-	return ok && tokenNode.Token.RawValue == "|>"
+	return ok && tokenNode.Value() == "|>"
 }

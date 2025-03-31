@@ -50,6 +50,10 @@ func NewTokenNodeSingleQuote(value string) TokenNode {
 	return NewTokenNode(util.SingleQuote(value))
 }
 
+func (n TokenNode) Value() string {
+	return n.Token.RawValue
+}
+
 func (n TokenNode) ValueUpper() string {
 	return strings.ToUpper(n.Token.RawValue)
 }
@@ -72,12 +76,16 @@ func TokensToNode(tokens []core.Token) Node {
 	return &NodeListNode{Nodes: nodes}
 }
 
-type Pipe = []Node
+type Pipe = *[]Node
 
 func NewPipe(nodes ...Node) Pipe {
-	return nodes
+	return &nodes
 }
 
-func Add(pipe *Pipe, nodes ...Node) {
+func Add(pipe Pipe, nodes ...Node) {
 	*pipe = append(*pipe, nodes...)
+}
+
+func AddPipe(pipe, pipeToAdd Pipe) {
+	*pipe = append(*pipe, *pipeToAdd...)
 }
