@@ -105,23 +105,29 @@ func handleMacroOperator(pipeNodeList core.NodeListNode, minimumUnixTime *int64,
 					// - and nameTokens as replacementToken.
 					timestampTokens := []core.Node{core.NewTokenNode(innerContents)}
 					intervalTokens := []core.Node{core.NewTokenNode(" 1 DAY ")}
+					minutes := false
 					if *maximumUnixTime != 0 && *minimumUnixTime != 0 {
 						if (*maximumUnixTime-*minimumUnixTime)/(60*5) <= 26 {
 							intervalTokens = []core.Node{core.NewTokenNode(" 5 MINUTE ")}
+							minutes = true
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60) <= 26 {
 							intervalTokens = []core.Node{core.NewTokenNode(" 1 HOUR ")}
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*4) <= 26 {
 							intervalTokens = []core.Node{core.NewTokenNode(" 4 HOUR ")}
+						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*8) <= 26 {
+							intervalTokens = []core.Node{core.NewTokenNode(" 8 HOUR ")}
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*24) <= 26 {
 							intervalTokens = []core.Node{core.NewTokenNode(" 1 DAY ")}
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*24*2) <= 26 {
 							intervalTokens = []core.Node{core.NewTokenNode(" 2 DAY ")}
+						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*24*4) <= 26 {
+							intervalTokens = []core.Node{core.NewTokenNode(" 4 DAY ")}
 						} else {
 							intervalTokens = []core.Node{core.NewTokenNode(" 1 WEEK ")}
 						}
 					}
 					nameTokens := []core.Node{replacementToken}
-					newPipeNodes := buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens)
+					newPipeNodes := buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens, minutes)
 					newPipe := core.NodeListNode{Nodes: newPipeNodes}
 
 					// Replace the TIME_BUCKET and its following node with the new pipe and the replacement token.
@@ -197,12 +203,12 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		}
 	}
 
-	pipe := buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens)
+	pipe := buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens, false)
 	return []core.NodeListNode{{Nodes: pipe}}
 }
 
 // buildTimebucketPipe extracts the pipe-building logic for the TIME_BUCKET macro.
-func buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens core.Pipe) []core.Node {
+func buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens core.Pipe, minutes bool) []core.Node {
 	pipe := core.NewPipe(
 		core.PipeToken(),
 		core.Space(),
@@ -223,7 +229,11 @@ func buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens core.Pipe) 
 	core.Add(&pipe, core.RightBracket())
 	// End first argument list for formatDateTime: add comma and the format string.
 	core.Add(&pipe, core.Comma())
-	core.Add(&pipe, core.NewTokenNodeSingleQuote("%m-%d %H:00"))
+	if !minutes {
+		core.Add(&pipe, core.NewTokenNodeSingleQuote("%m-%d %H:00"))
+	} else {
+		core.Add(&pipe, core.NewTokenNodeSingleQuote("%m-%d %H:%M"))
+	}
 	// Close formatDateTime call.
 	core.Add(&pipe, core.RightBracket())
 	// Add "AS" and the alias tokens.
