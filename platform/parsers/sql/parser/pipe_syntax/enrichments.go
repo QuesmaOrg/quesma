@@ -353,6 +353,9 @@ func enrichIpMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, i int, 
 }
 
 func enrichLLMMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, lastPipeIdx int, conn *sql.DB) (enrichPipe core.Pipe, extendPipe core.Pipe) {
+	// Create enrichment table if not exists
+	_, err := conn.Exec("CREATE TABLE IF NOT EXISTS quesma_enrich\n(\n    `enrich_type` LowCardinality(String),\n    `key` String,\n    `value` Nullable(String)\n)\nENGINE = MergeTree\nORDER BY (`enrich_type`, `key`)")
+	util.PrintfIfErr(err, "Error creating quesma_enrich table: %v\n", err)
 
 	var promptNodes []core.Node
 	var inputColumn []core.Node
@@ -373,7 +376,7 @@ func enrichLLMMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, lastPi
 			commaFound = true
 			continue
 		}
-		if !commaFound {
+		if commaFound {
 			promptNodes = append(promptNodes, insideParens.Nodes[j])
 		} else {
 			inputColumn = append(inputColumn, insideParens.Nodes[j])
@@ -462,9 +465,14 @@ func enrichLLMMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, lastPi
 		}
 
 		if values[0] != nil {
-			firstColumnValues = append(firstColumnValues, fmt.Sprintf("%v", values[0]))
-		} else {
-			firstColumnValues = append(firstColumnValues, "NULL")
+			key := fmt.Sprintf("%v", values[0])
+			var count int
+			errQuery := conn.QueryRow("SELECT COUNT(1) FROM quesma_enrich WHERE enrich_type = 'llm' AND key = ?", key).Scan(&count)
+			if errQuery != nil {
+				fmt.Printf("Error checking existing enrichment for key %s: %v\n", key, errQuery)
+			} else if count == 0 {
+				firstColumnValues = append(firstColumnValues, key)
+			}
 		}
 	}
 
@@ -513,10 +521,6 @@ func enrichLLMMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, lastPi
 	wg.Wait()
 
 	fmt.Println("LLM enrichment complete. Received responses for", len(llmResults), "inputs")
-
-	// Create enrichment table if not exists
-	_, err = conn.Exec("CREATE TABLE IF NOT EXISTS quesma_enrich\n(\n    `enrich_type` LowCardinality(String),\n    `key` String,\n    `value` Nullable(String)\n)\nENGINE = MergeTree\nORDER BY (`enrich_type`, `key`)")
-	util.PrintfIfErr(err, "Error creating quesma_enrich table: %v\n", err)
 
 	// For each unique input, insert the LLM enrichment result into the table
 	for input, response := range llmResults {
