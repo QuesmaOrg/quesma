@@ -2,11 +2,12 @@ package pipe_syntax
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/util"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/QuesmaOrg/quesma/platform/util"
 
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
 )
@@ -80,6 +81,8 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 		switch macroToken.ValueUpper() {
 		case "ENRICH_IP":
 			return expandExtendEnrichIP(pipeNodeList), true
+		case "ENRICH_IP_BOTS":
+			return expandExtendEnrichIPBots(pipeNodeList), true
 		case "PARSE_PATTERN":
 			return expandExtendParsePattern(pipeNodeList), true
 		default:
@@ -279,6 +282,79 @@ func expandExtendEnrichIP(pipeNodeList core.NodeListNode) []core.NodeListNode {
 
 	return []core.NodeListNode{{Nodes: newNodes}}
 }
+
+func expandExtendEnrichIPBots(pipeNodeList core.NodeListNode) []core.NodeListNode {
+	// Expected form: |> EXTEND ENRICH_IP_BOTS(<ip column tokens>) AS <alias token>
+	var ipTokens, aliasTokens []core.Node
+	// Extract the ip column tokens from a nested node at index 5.
+	if nested, ok := pipeNodeList.Nodes[5].(*core.NodeListNode); ok {
+		if len(nested.Nodes) >= 3 {
+			ipTokens = nested.Nodes[1 : len(nested.Nodes)-1]
+		} else {
+			ipTokens = nested.Nodes
+		}
+	}
+
+	// Continue parsing after the nested ip column node to extract the alias.
+	i := 6
+	for ; i < len(pipeNodeList.Nodes); i++ {
+		if token, ok := pipeNodeList.Nodes[i].(core.TokenNode); ok && strings.ToUpper(token.Token.RawValue) == "AS" {
+			i++ // Skip "AS"
+			// Optionally skip a whitespace token.
+			if i < len(pipeNodeList.Nodes) {
+				if ws, ok := pipeNodeList.Nodes[i].(core.TokenNode); ok && strings.TrimSpace(ws.Token.RawValue) == "" {
+					i++
+				}
+			}
+			break
+		}
+	}
+	if i < len(pipeNodeList.Nodes) {
+		aliasTokens = append(aliasTokens, pipeNodeList.Nodes[i])
+	}
+
+	// Build a new pipe representing:
+	// |> EXTEND coalesce(enriched_ip.hostname ILIKE '%amazonaws%' OR enriched_ip.hostname ILIKE '%server%' OR enriched_ip.hostname ILIKE '%cloud%', false) AS <alias>
+	var newNodes []core.Node
+	newNodes = append(newNodes, core.PipeToken())
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.Extend())
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNode("coalesce"))
+	newNodes = append(newNodes, core.LeftBracket())
+	newNodes = append(newNodes, core.NewTokenNode(tokensToString(ipTokens)))
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNode("ILIKE"))
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNodeSingleQuote("%amazonaws%"))
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNode("OR"))
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNode(tokensToString(ipTokens)))
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNode("ILIKE"))
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNodeSingleQuote("%server%"))
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNode("OR"))
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNode(tokensToString(ipTokens)))
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNode("ILIKE"))
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNodeSingleQuote("%cloud%"))
+	newNodes = append(newNodes, core.Comma())
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.NewTokenNode("false"))
+	newNodes = append(newNodes, core.RightBracket())
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, core.As())
+	newNodes = append(newNodes, core.Space())
+	newNodes = append(newNodes, aliasTokens...)
+
+	return []core.NodeListNode{{Nodes: newNodes}}
+}
+
 func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	// Expected form:
 	//   |> EXTEND PARSE_PATTERN(<msg>, <pattern>) AS <alias1>, <alias2>, <alias3>, ...
