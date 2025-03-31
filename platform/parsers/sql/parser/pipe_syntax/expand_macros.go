@@ -121,7 +121,7 @@ func handleMacroOperator(pipeNodeList core.NodeListNode, minimumUnixTime *int64,
 					newPipe := core.NodeListNode{Nodes: newPipeNodes}
 
 					// Replace the TIME_BUCKET and its following node with the new pipe and the replacement token.
-					pipeNodeList.Nodes = append(pipeNodeList.Nodes[:i], append([]core.Node{replacementToken}, pipeNodeList.Nodes[i+2:]...)...)
+					pipeNodeList.Nodes = append(slices.Clone(pipeNodeList.Nodes[:i]), append([]core.Node{replacementToken}, pipeNodeList.Nodes[i+2:]...)...)
 					return []core.NodeListNode{newPipe, pipeNodeList}, true
 				}
 			}
@@ -157,7 +157,7 @@ func handleMacroOperator(pipeNodeList core.NodeListNode, minimumUnixTime *int64,
 				if innerList, ok := pipeNodeList.Nodes[i+1].(*core.NodeListNode); ok && len(innerList.Nodes) >= 2 {
 					innerContents := tokensToString(innerList.Nodes[1 : len(innerList.Nodes)-1])
 					replacementToken := core.NewTokenNode(" time_bucket_" + innerContents)
-					pipeNodeList.Nodes = append(pipeNodeList.Nodes[:i], append([]core.Node{replacementToken}, pipeNodeList.Nodes[i+2:]...)...)
+					pipeNodeList.Nodes = append(slices.Clone(pipeNodeList.Nodes[:i]), append([]core.Node{replacementToken}, pipeNodeList.Nodes[i+2:]...)...)
 				}
 			}
 		}
