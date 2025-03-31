@@ -483,34 +483,44 @@ func expandExtendLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode
 		regex    string
 		thenText string
 	}{
-		{"Accepted password for .* from .* port .* ssh2", "E1"},
-		{"Connection closed by .* \\[preauth\\]", "E2"},
-		{"Did not receive identification string from .*", "E3"},
-		{"Disconnecting: Too many authentication failures for admin \\[preauth\\]", "E4"},
-		{"Disconnecting: Too many authentication failures for root \\[preauth\\]", "E5"},
-		{"error: Received disconnect from .*: .*: com.jcraft.jsch.JSchException: Auth fail \\[preauth\\]", "E6"},
-		{"error: Received disconnect from .*: .*: No more user authentication methods available\\. \\[preauth\\]", "E7"},
-		{"Failed none for invalid user .* from .* port .* ssh2", "E8"},
-		{"Failed password for .* from .* port .* ssh2", "E9"},
-		{"Failed password for invalid user .* from .* port .* ssh2", "E10"},
-		{"fatal: Write failed: Connection reset by peer \\[preauth\\]", "E11"},
-		{"input_userauth_request: invalid user .* \\[preauth\\]", "E12"},
-		{"Invalid user .* from .*", "E13"},
-		{"message repeated .* times: \\[ Failed password for root from .* port .*\\]", "E14"},
-		{"PAM .* more authentication failure; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*", "E15"},
-		{"PAM .* more authentication failures; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*", "E16"},
-		{"PAM .* more authentication failures; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*  user=root", "E17"},
-		{"PAM service\\(sshd\\) ignoring max retries; .* > .*", "E18"},
-		{"pam_unix\\(sshd:auth\\): authentication failure; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*", "E19"},
-		{"pam_unix\\(sshd:auth\\): authentication failure; logname= uid=.* euid=.* tty=ssh ruser= rhost=.* user=.*", "E20"},
-		{"pam_unix\\(sshd:auth\\): check pass; user unknown", "E21"},
-		{"pam_unix\\(sshd:session\\): session closed for user .*", "E22"},
-		{"pam_unix\\(sshd:session\\): session opened for user .* by \\(uid=.*\\)", "E23"},
-		{"Received disconnect from .*: .*: Bye Bye \\[preauth\\]", "E24"},
-		{"Received disconnect from .*: .*: Closed due to user request\\. \\[preauth\\]", "E25"},
-		{"Received disconnect from .*: .*: disconnected by user", "E26"},
-		{"reverse mapping checking getaddrinfo for .* \\[.*\\] failed - POSSIBLE BREAK-IN ATTEMPT!", "E27"},
+		{"Failed password for .* from .* port .* ssh2", "Failed password"},
+		{"pam_unix\\(sshd:auth\\): authentication failure; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*", "Auth failure"},
+		{"reverse mapping checking getaddrinfo for .* \\[.*\\] failed - POSSIBLE BREAK-IN ATTEMPT!", "Break-in attempt"},
+		{"pam_unix\\(sshd:auth\\): check pass; user unknown", "Unknown user"},
+		{"Received disconnect from .*: .*: Bye Bye \\[preauth\\]", "Disconnect bye"},
+		{"input_userauth_request: invalid user .* \\[preauth\\]", "Invalid user"},
+		{"Accepted password for .* from .* port .* ssh2", "Accepted password"},
 	}
+
+	// Less common ones, commented out for now to avoid noise.
+	//
+
+	//{"Connection closed by .* \\[preauth\\]", "E2"},
+	//{"Did not receive identification string from .*", "E3"},
+	//{"Disconnecting: Too many authentication failures for admin \\[preauth\\]", "E4"},
+	//{"Disconnecting: Too many authentication failures for root \\[preauth\\]", "E5"},
+	//{"error: Received disconnect from .*: .*: com.jcraft.jsch.JSchException: Auth fail \\[preauth\\]", "E6"},
+	//{"error: Received disconnect from .*: .*: No more user authentication methods available\\. \\[preauth\\]", "E7"},
+	//{"Failed none for invalid user .* from .* port .* ssh2", "E8"},
+	//
+	//{"Failed password for invalid user .* from .* port .* ssh2", "E10"},
+	//{"fatal: Write failed: Connection reset by peer \\[preauth\\]", "E11"},
+	//
+	//{"Invalid user .* from .*", "E13"},
+	//{"message repeated .* times: \\[ Failed password for root from .* port .*\\]", "E14"},
+	//{"PAM .* more authentication failure; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*", "E15"},
+	//{"PAM .* more authentication failures; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*", "E16"},
+	//{"PAM .* more authentication failures; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*  user=root", "E17"},
+	//{"PAM service\\(sshd\\) ignoring max retries; .* > .*", "E18"},
+	//
+	//{"pam_unix\\(sshd:auth\\): authentication failure; logname= uid=.* euid=.* tty=ssh ruser= rhost=.* user=.*", "E20"},
+	//
+	//{"pam_unix\\(sshd:session\\): session closed for user .*", "E22"},
+	//{"pam_unix\\(sshd:session\\): session opened for user .* by \\(uid=.*\\)", "E23"},
+	//
+	//{"Received disconnect from .*: .*: Closed due to user request\\. \\[preauth\\]", "E25"},
+	//{"Received disconnect from .*: .*: disconnected by user", "E26"},
+	//}
 
 	pipe := core.NewPipe(
 		core.PipeToken(),
