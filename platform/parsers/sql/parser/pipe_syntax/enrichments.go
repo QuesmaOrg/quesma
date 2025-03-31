@@ -183,7 +183,7 @@ func enrichIpMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, i int, 
 	}
 
 	for j := 5; j < len(pipeNodeList.Nodes); j++ {
-		core.Add(ipColumn, pipeNodeList.Nodes[j])
+		core.Add(&ipColumn, pipeNodeList.Nodes[j])
 	}
 
 	copiedNode.Pipes = copiedNode.Pipes[:i]
@@ -520,8 +520,8 @@ func buildIpPipe(ipColumn []core.Node) core.Pipe {
 		core.Equals(),
 		core.Space(),
 	)
-	core.Add(pipe, ipColumn...)
-	core.Add(pipe,
+	core.Add(&pipe, ipColumn...)
+	core.Add(&pipe,
 		core.Space(),
 		core.And(),
 		core.Space(),
@@ -550,8 +550,8 @@ func buildEnrichLLMPipe(inputColumn []core.Node) core.Pipe {
 		core.Equals(),
 		core.Space(),
 	)
-	core.Add(pipe, inputColumn...)
-	core.Add(pipe,
+	core.Add(&pipe, inputColumn...)
+	core.Add(&pipe,
 		core.Space(),
 		core.And(),
 		core.Space(),
