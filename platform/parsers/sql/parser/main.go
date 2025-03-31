@@ -84,7 +84,14 @@ func main() {
 
 	tokens := lexer_core.Lex(
 		`FROM openssh_logs
-|> EXTEND ENRICH_IP_BOTS(muj_ip_column) AS is_it_bot --ble bla blu
+|> ORDER BY timestamp DESC
+
+-- Filter out sshd logs, break-in attempts logs
+|> WHERE source = 'sshd'
+|> WHERE msg ILIKE '%break-in attempt!%'
+
+-- Parse IP, hostname from loglines
+|> EXTEND ENRICH_LLM('extract IP address from logline', msg) AS output
 `, dialect_sqlparse.SqlparseRules)
 
 	node := core.TokensToNode(tokens)
