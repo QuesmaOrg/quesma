@@ -22,6 +22,10 @@ const (
 
 func ExpandMacros(node core.Node) {
 	TransformPipeNodes(node, func(pipeNode *PipeNode) core.Node {
+		var minimumUnixTime, maximumUnixTime int64
+		minimumUnixTime = 0
+		maximumUnixTime = 0
+
 		for i := 0; i < len(pipeNode.Pipes); i++ {
 			pipeNodeList, ok := pipeNode.Pipes[i].(core.NodeListNode)
 			if !ok {
@@ -31,7 +35,7 @@ func ExpandMacros(node core.Node) {
 				continue
 			}
 
-			if newPipes, handled := handleMacroOperator(pipeNodeList); handled {
+			if newPipes, handled := handleMacroOperator(pipeNodeList, &minimumUnixTime, &maximumUnixTime); handled {
 				var convertedNewPipes []core.Node
 				for _, np := range newPipes {
 					convertedNewPipes = append(convertedNewPipes, np)
@@ -45,7 +49,7 @@ func ExpandMacros(node core.Node) {
 	})
 }
 
-func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, bool) {
+func handleMacroOperator(pipeNodeList core.NodeListNode, minimumUnixTime *int64, maximumUnixTime *int64) ([]core.NodeListNode, bool) {
 	// Support both "CALL" and "EXTEND" macros.
 	tokenNode, ok := pipeNodeList.Nodes[2].(core.TokenNode)
 	if !ok {
@@ -62,7 +66,7 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 			return []core.NodeListNode{pipeNodeList}, false
 		}
 		switch macroToken.ValueUpper() {
-		case "TIMEBUCKET":
+		case "TIME_BUCKET":
 			return expandCallTimebucket(pipeNodeList), true
 		default:
 			// Macro not recognized; do nothing.
@@ -88,11 +92,79 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 		default:
 			return []core.NodeListNode{pipeNodeList}, false
 		}
+	} else if operator == "AGGREGATE" {
+		for i := 0; i < len(pipeNodeList.Nodes)-1; i++ {
+			if token, ok := pipeNodeList.Nodes[i].(core.TokenNode); ok && token.ValueUpper() == "TIME_BUCKET" {
+				if innerList, ok := pipeNodeList.Nodes[i+1].(*core.NodeListNode); ok {
+					innerContents := tokensToString(innerList.Nodes[1 : len(innerList.Nodes)-1])
+					replacementToken := core.NewTokenNode(" time_bucket_" + innerContents)
+
+					// Build a new pipe using buildTimebucketPipe with:
+					// - timestampTokens as innerContents,
+					// - intervalTokens hardcoded as "1 DAY",
+					// - and nameTokens as replacementToken.
+					timestampTokens := []core.Node{core.NewTokenNode(innerContents)}
+					intervalTokens := []core.Node{core.NewTokenNode(" 1 DAY ")}
+					if *maximumUnixTime != 0 && *minimumUnixTime != 0 {
+						if *maximumUnixTime-*minimumUnixTime <= 60*60*25 {
+							intervalTokens = []core.Node{core.NewTokenNode(" 1 HOUR ")}
+						} else if *maximumUnixTime-*minimumUnixTime <= 60*60*50 {
+							intervalTokens = []core.Node{core.NewTokenNode(" 2 HOUR ")}
+						} else if *maximumUnixTime-*minimumUnixTime < 60*60*24*16 {
+							intervalTokens = []core.Node{core.NewTokenNode(" 1 DAY ")}
+						} else {
+							intervalTokens = []core.Node{core.NewTokenNode(" 1 WEEK ")}
+						}
+					}
+					nameTokens := []core.Node{replacementToken}
+					newPipeNodes := buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens)
+					newPipe := core.NodeListNode{Nodes: newPipeNodes}
+
+					// Replace the TIME_BUCKET and its following node with the new pipe and the replacement token.
+					pipeNodeList.Nodes = append(pipeNodeList.Nodes[:i], append([]core.Node{replacementToken}, pipeNodeList.Nodes[i+2:]...)...)
+					return []core.NodeListNode{newPipe, pipeNodeList}, true
+				}
+			}
+		}
+	} else if operator == "WHERE" {
+		for i := 0; i < len(pipeNodeList.Nodes)-1; i++ {
+			if token, ok := pipeNodeList.Nodes[i].(core.TokenNode); ok && token.ValueUpper() == "FROM_UNIXTIME" {
+				if innerList, ok := pipeNodeList.Nodes[i+1].(*core.NodeListNode); ok && len(innerList.Nodes) == 3 {
+					if openParen, ok := innerList.Nodes[0].(core.TokenNode); ok && openParen.Token.RawValue == "(" {
+						if numberToken, ok := innerList.Nodes[1].(core.TokenNode); ok {
+							if closeParen, ok := innerList.Nodes[2].(core.TokenNode); ok && closeParen.Token.RawValue == ")" {
+								if parsed, err := strconv.ParseInt(strings.TrimSpace(numberToken.Token.RawValue), 10, 64); err == nil {
+									if *minimumUnixTime != 0 {
+										*minimumUnixTime = min(*minimumUnixTime, parsed)
+									} else {
+										*minimumUnixTime = parsed
+									}
+									if *maximumUnixTime != 0 {
+										*maximumUnixTime = max(*maximumUnixTime, parsed)
+									} else {
+										*maximumUnixTime = parsed
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	} else {
+		for i := len(pipeNodeList.Nodes) - 2; i >= 0; i-- {
+			if tokenNode, ok := pipeNodeList.Nodes[i].(core.TokenNode); ok && tokenNode.ValueUpper() == "TIME_BUCKET" {
+				if innerList, ok := pipeNodeList.Nodes[i+1].(*core.NodeListNode); ok && len(innerList.Nodes) >= 2 {
+					innerContents := tokensToString(innerList.Nodes[1 : len(innerList.Nodes)-1])
+					replacementToken := core.NewTokenNode(" time_bucket_" + innerContents)
+					pipeNodeList.Nodes = append(pipeNodeList.Nodes[:i], append([]core.Node{replacementToken}, pipeNodeList.Nodes[i+2:]...)...)
+				}
+			}
+		}
 	}
 	// Operator not recognized.
 	return []core.NodeListNode{pipeNodeList}, false
 }
-
 func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	// Expected form: |> CALL TIMEBUCKET <timestamp> BY <interval tokens> AS <alias tokens>
 	var timestampTokens, intervalTokens, nameTokens core.Pipe
@@ -118,23 +190,19 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		}
 	}
 
-	// Build a new pipe representing:
-	// |> EXTEND concat(
-	//       formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>), '%Y-%m-%d %H:00'),
-	//       ' - ',
-	//       formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>) + INTERVAL <interval>, '%Y-%m-%d %H:00')
-	//    ) AS <alias>
+	pipe := buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens)
+	return []core.NodeListNode{{Nodes: pipe}}
+}
+
+// buildTimebucketPipe extracts the pipe-building logic for the TIME_BUCKET macro.
+func buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens core.Pipe) []core.Node {
 	pipe := core.NewPipe(
 		core.PipeToken(),
 		core.Space(),
 		// "EXTEND"
 		core.Extend(),
 		core.Space(),
-		// "concat"
-		core.Concat(),
-		// "("
-		core.LeftBracket(),
-		// First argument: formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>), '%Y-%m-%d %H:00')
+		// First argument: formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>), '%m-%d %H:00')
 		core.FormatDateTime(),
 		core.LeftBracket(),
 		core.ToStartOfInterval(),
@@ -148,42 +216,15 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	core.Add(&pipe, core.RightBracket())
 	// End first argument list for formatDateTime: add comma and the format string.
 	core.Add(&pipe, core.Comma())
-	core.Add(&pipe, core.NewTokenNodeSingleQuote("%Y-%m-%d %H:00"))
+	core.Add(&pipe, core.NewTokenNodeSingleQuote("%m-%d %H:00"))
 	// Close formatDateTime call.
-	core.Add(&pipe, core.RightBracket())
-	// Separator for concat arguments.
-	core.Add(&pipe, core.Comma())
-	// Second argument: the literal separator ' - '
-	core.Add(&pipe, core.NewTokenNodeSingleQuote(" - "))
-	core.Add(&pipe, core.Comma())
-	// Second argument: formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>) + INTERVAL <interval>, '%Y-%m-%d %H:00')
-	core.Add(&pipe, core.FormatDateTime())
-	core.Add(&pipe, core.LeftBracket())
-	core.Add(&pipe, core.ToStartOfInterval())
-	core.Add(&pipe, core.LeftBracket())
-	core.Add(&pipe, timestampTokens...)
-	core.Add(&pipe, core.Comma())
-	core.Add(&pipe, core.Interval())
-	core.Add(&pipe, intervalTokens...)
-	// Close the first toStartOfInterval call.
-	core.Add(&pipe, core.RightBracket())
-	// Add the plus operator and the second "INTERVAL" for addition.
-	core.Add(&pipe, core.Plus())
-	core.Add(&pipe, core.Interval())
-	core.Add(&pipe, intervalTokens...)
-	// Add comma and the format string.
-	core.Add(&pipe, core.Comma())
-	core.Add(&pipe, core.NewTokenNodeSingleQuote("%Y-%m-%d %H:00"))
-	// Close the second formatDateTime call.
-	core.Add(&pipe, core.RightBracket())
-	// Close the concat call.
 	core.Add(&pipe, core.RightBracket())
 	// Add "AS" and the alias tokens.
 	core.Add(&pipe, core.Space())
 	core.Add(&pipe, core.As())
 	core.Add(&pipe, nameTokens...)
 
-	return []core.NodeListNode{{Nodes: pipe}}
+	return pipe
 }
 
 func expandExtendEnrichIP(pipeNodeList core.NodeListNode) []core.NodeListNode {
@@ -557,7 +598,7 @@ func expandExtendLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode
 		core.Space(),
 		core.Else(),
 		core.Space(),
-		core.NewTokenNodeSingleQuote("Unknown"),
+		core.NewTokenNodeSingleQuote("Others"),
 	)
 	core.Add(&pipe,
 		core.Space(),

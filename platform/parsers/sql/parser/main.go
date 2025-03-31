@@ -84,7 +84,9 @@ func main() {
 
 	tokens := lexer_core.Lex(
 		`FROM openssh_logs
-|> EXTEND ENRICH_LOG_CATEGORY(msg) AS category
+|> WHERE timestamp BETWEEN FROM_UNIXTIME(1743170004) AND FROM_UNIXTIME(1743429204)
+|> AGGREGATE COUNT(*) AS category_cnt GROUP BY TIME_BUCKET(timestamp)
+|> ORDER BY TIME_BUCKET(timestamp)
 `, dialect_sqlparse.SqlparseRules)
 
 	node := core.TokensToNode(tokens)
