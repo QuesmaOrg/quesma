@@ -101,6 +101,10 @@ func Case() TokenNode {
 	return NewTokenNode("CASE")
 }
 
+func Then() TokenNode {
+	return NewTokenNode("THEN")
+}
+
 func Else() TokenNode {
 	return NewTokenNode("ELSE")
 }
