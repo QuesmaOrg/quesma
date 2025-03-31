@@ -64,8 +64,6 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 		switch macroToken.ValueUpper() {
 		case "TIMEBUCKET":
 			return expandCallTimebucket(pipeNodeList), true
-		case "LOGCATEGORY":
-			return expandCallLogCategory(pipeNodeList), true
 		default:
 			// Macro not recognized; do nothing.
 			return []core.NodeListNode{pipeNodeList}, false
@@ -83,6 +81,8 @@ func handleMacroOperator(pipeNodeList core.NodeListNode) ([]core.NodeListNode, b
 			return expandExtendEnrichIP(pipeNodeList), true
 		case "ENRICH_IP_BOTS":
 			return expandExtendEnrichIPBots(pipeNodeList), true
+		case "ENRICH_LOG_CATEGORY":
+			return expandExtendLogCategory(pipeNodeList), true
 		case "PARSE_PATTERN":
 			return expandExtendParsePattern(pipeNodeList), true
 		default:
@@ -452,8 +452,8 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 	return []core.NodeListNode{{Nodes: firstPipe}, {Nodes: secondPipe}}
 }
 
-func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
-	// Expected form: |> CALL LOGCATEGORY <log_line> AS <alias tokens>
+func expandExtendLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
+	// Expected form: |> EXTEND ENRICH_LOG_CATEGORY(<log_line>) AS <alias tokens>
 	var logLineTokens []core.Node
 	var aliasTokens []core.Node
 	phase := 0
@@ -479,15 +479,39 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		}
 	}
 
-	// Build a new pipe representing:
-	// |> extend CASE
-	//     WHEN <log_line> REGEXP '\\{"code":200,"message":"success"\\}' THEN 'JSON API Response'
-	//     WHEN <log_line> REGEXP '\\[\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}\\] \\[ info\\] \\[output:http:http\\.\\d+\\] .+?, HTTP status=200' THEN 'HTTP Output'
-	//     WHEN <log_line> REGEXP 'action ''action-\\d+-builtin:omfile'' \\(module ''builtin:omfile''\\) message lost, could not be processed\\. Check for additional error messages before this one\\.' THEN 'Rsyslog Message Lost'
-	//     WHEN <log_line> REGEXP '(no space left on device|write error - see https://www\\.rsyslog\\.com/solving-rsyslog-write-errors/)' THEN 'Disk Space Error'
-	//     WHEN <log_line> REGEXP '(Failed password for|Invalid user|Disconnected from) .+? port \\d+' THEN 'SSH Authentication Error'
-	//     ELSE 'Unknown'
-	// END AS <alias tokens>
+	regexClauses := []struct {
+		regex    string
+		thenText string
+	}{
+		{"Accepted password for .* from .* port .* ssh2", "E1"},
+		{"Connection closed by .* \\[preauth\\]", "E2"},
+		{"Did not receive identification string from .*", "E3"},
+		{"Disconnecting: Too many authentication failures for admin \\[preauth\\]", "E4"},
+		{"Disconnecting: Too many authentication failures for root \\[preauth\\]", "E5"},
+		{"error: Received disconnect from .*: .*: com.jcraft.jsch.JSchException: Auth fail \\[preauth\\]", "E6"},
+		{"error: Received disconnect from .*: .*: No more user authentication methods available\\. \\[preauth\\]", "E7"},
+		{"Failed none for invalid user .* from .* port .* ssh2", "E8"},
+		{"Failed password for .* from .* port .* ssh2", "E9"},
+		{"Failed password for invalid user .* from .* port .* ssh2", "E10"},
+		{"fatal: Write failed: Connection reset by peer \\[preauth\\]", "E11"},
+		{"input_userauth_request: invalid user .* \\[preauth\\]", "E12"},
+		{"Invalid user .* from .*", "E13"},
+		{"message repeated .* times: \\[ Failed password for root from .* port .*\\]", "E14"},
+		{"PAM .* more authentication failure; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*", "E15"},
+		{"PAM .* more authentication failures; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*", "E16"},
+		{"PAM .* more authentication failures; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*  user=root", "E17"},
+		{"PAM service\\(sshd\\) ignoring max retries; .* > .*", "E18"},
+		{"pam_unix\\(sshd:auth\\): authentication failure; logname= uid=.* euid=.* tty=ssh ruser= rhost=.*", "E19"},
+		{"pam_unix\\(sshd:auth\\): authentication failure; logname= uid=.* euid=.* tty=ssh ruser= rhost=.* user=.*", "E20"},
+		{"pam_unix\\(sshd:auth\\): check pass; user unknown", "E21"},
+		{"pam_unix\\(sshd:session\\): session closed for user .*", "E22"},
+		{"pam_unix\\(sshd:session\\): session opened for user .* by \\(uid=.*\\)", "E23"},
+		{"Received disconnect from .*: .*: Bye Bye \\[preauth\\]", "E24"},
+		{"Received disconnect from .*: .*: Closed due to user request\\. \\[preauth\\]", "E25"},
+		{"Received disconnect from .*: .*: disconnected by user", "E26"},
+		{"reverse mapping checking getaddrinfo for .* \\[.*\\] failed - POSSIBLE BREAK-IN ATTEMPT!", "E27"},
+	}
+
 	pipe := core.NewPipe(
 		core.PipeToken(),
 		core.Space(),
@@ -495,83 +519,36 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.Space(),
 		core.Case(),
 	)
-	// Clause 1
-	core.Add(&pipe,
-		core.Space(),
-		core.When(),
-		core.Space(),
-	)
-	core.Add(&pipe, logLineTokens...)
-	core.Add(&pipe,
-		core.Space(),
-		core.Regexp(),
-		core.Space(),
-		core.NewTokenNodeSingleQuote("\\\\{\"code\":200,\"message\":\"success\"\\\\}"),
-		core.Space(),
-		core.Then(),
-		core.Space(),
-		core.NewTokenNodeSingleQuote("JSON API Response"),
-	)
-	// Clause 2
-	core.Add(&pipe, spaceWhenSpace()...)
-	core.Add(&pipe, logLineTokens...)
-	core.Add(&pipe,
-		core.Space(),
-		core.Regexp(),
-		core.Space(),
-		core.NewTokenNodeSingleQuote("\\\\[\\\\d{4}/\\\\d{2}/\\\\d{2} \\\\d{2}:\\\\d{2}:\\\\d{2}\\\\] \\\\[ info\\\\] \\\\[output:http:http\\\\.\\\\d+\\\\] .+?, HTTP status=200"),
-		core.Space(),
-		core.Then(),
-		core.Space(),
-		core.NewTokenNodeSingleQuote("HTTP Output"),
-	)
-	// Clause 3
-	core.Add(&pipe, spaceWhenSpace()...)
-	core.Add(&pipe, logLineTokens...)
-	core.Add(&pipe,
-		core.Space(),
-		core.Regexp(),
-		core.Space(),
-		core.NewTokenNodeSingleQuote("action ''action-\\\\d+-builtin:omfile'' \\(module ''builtin:omfile''\\) message lost, could not be processed\\. Check for additional error messages before this one\\."),
-		core.Space(),
-		core.Then(),
-		core.Space(),
-		core.NewTokenNodeSingleQuote("Rsyslog Message Lost"),
-	)
-	// Clause 4
-	core.Add(&pipe, spaceWhenSpace()...)
-	core.Add(&pipe, logLineTokens...)
-	core.Add(&pipe,
-		core.Space(),
-		core.Regexp(),
-		core.Space(),
-		core.NewTokenNodeSingleQuote("no space left on device|write error - see https://www\\\\.rsyslog\\\\.com/solving-rsyslog-write-errors/)"),
-		core.Space(),
-		core.Then(),
-		core.Space(),
-		core.NewTokenNodeSingleQuote("Disk Space Error"),
-	)
-	// Clause 5
-	core.Add(&pipe, spaceWhenSpace()...)
-	core.Add(&pipe, logLineTokens...)
-	core.Add(&pipe,
-		core.Space(),
-		core.Regexp(),
-		core.Space(),
-		core.NewTokenNodeSingleQuote("Failed password for|Invalid user|Disconnected from) .+? port \\d+"),
-		core.Space(),
-		core.Then(),
-		core.Space(),
-		core.NewTokenNodeSingleQuote("SSH Authentication Error"),
-	)
-	// ELSE clause
+
+	for i, clause := range regexClauses {
+		if i == 0 {
+			core.Add(&pipe,
+				core.Space(),
+				core.When(),
+				core.Space(),
+			)
+		} else {
+			core.Add(&pipe, spaceWhenSpace()...)
+		}
+		core.Add(&pipe, logLineTokens...)
+		core.Add(&pipe,
+			core.Space(),
+			core.Regexp(),
+			core.Space(),
+			core.NewTokenNodeSingleQuote(clause.regex),
+			core.Space(),
+			core.Then(),
+			core.Space(),
+			core.NewTokenNodeSingleQuote(clause.thenText),
+		)
+	}
+
 	core.Add(&pipe,
 		core.Space(),
 		core.Else(),
 		core.Space(),
 		core.NewTokenNodeSingleQuote("Unknown"),
 	)
-	// End clause: END AS <alias tokens>
 	core.Add(&pipe,
 		core.Space(),
 		core.NewTokenNode("END"),
