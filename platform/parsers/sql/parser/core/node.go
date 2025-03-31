@@ -78,6 +78,6 @@ func NewPipe(nodes ...Node) Pipe {
 	return nodes
 }
 
-func Add(pipe Pipe, nodes ...Node) {
-	pipe = append(pipe, nodes...)
+func Add(pipe *Pipe, nodes ...Node) {
+	*pipe = append(*pipe, nodes...)
 }

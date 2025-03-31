@@ -84,8 +84,18 @@ func main() {
 
 	tokens := lexer_core.Lex(
 		`FROM openssh_logs
+-- OpenSSH logs (FIXME: this comment can't be in line above)
+|> ORDER BY timestamp DESC
+|> WHERE timestamp BETWEEN $start AND $end
+
+-- Filter out sshd logs, break-in attempts logs
+|> WHERE source = 'sshd'
+|> WHERE msg ILIKE '%break-in attempt!%'
+
+-- Parse IP, hostname from loglines
+|> WHERE msg ILIKE 'reverse mapping checking getaddrinfo for % [%] failed - POSSIBLE BREAK-IN ATTEMPT!'
 |> EXTEND PARSE_PATTERN(msg, 'reverse mapping checking getaddrinfo for % [%] failed - POSSIBLE BREAK-IN ATTEMPT!') AS extracted_host, extracted_ip
-|> EXTEND ENRICH_IP(extracted_ip) AS enriched_ip`, dialect_sqlparse.SqlparseRules)
+`, dialect_sqlparse.SqlparseRules)
 
 	node := core.TokensToNode(tokens)
 
