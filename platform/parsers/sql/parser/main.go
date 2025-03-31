@@ -87,9 +87,9 @@ func main() {
 |> WHERE timestamp BETWEEN $start AND $end
 |> ORDER BY timestamp DESC
 |> EXTEND ENRICH_LOG_CATEGORY(msg) AS category
-|> WHERE category <> 'Unknown'
+|> WHERE category <> 'Others'
 |> AGGREGATE COUNT(*) AS category_cnt GROUP BY TIME_BUCKET(timestamp), category
-|> ORDER BY TIME_BUCKET(timestamp) DESC`, dialect_sqlparse.SqlparseRules)
+|> ORDER BY TIME_BUCKET(timestamp) ASC, category_cnt DESC`, dialect_sqlparse.SqlparseRules)
 
 	node := core.TokensToNode(tokens)
 

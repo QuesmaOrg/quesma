@@ -152,15 +152,18 @@ func handleMacroOperator(pipeNodeList core.NodeListNode, minimumUnixTime *int64,
 			}
 		}
 	} else {
+		applied := false
 		for i := len(pipeNodeList.Nodes) - 2; i >= 0; i-- {
 			if tokenNode, ok := pipeNodeList.Nodes[i].(core.TokenNode); ok && tokenNode.ValueUpper() == "TIME_BUCKET" {
 				if innerList, ok := pipeNodeList.Nodes[i+1].(*core.NodeListNode); ok && len(innerList.Nodes) >= 2 {
 					innerContents := tokensToString(innerList.Nodes[1 : len(innerList.Nodes)-1])
 					replacementToken := core.NewTokenNode(" time_bucket_" + innerContents)
 					pipeNodeList.Nodes = append(slices.Clone(pipeNodeList.Nodes[:i]), append([]core.Node{replacementToken}, pipeNodeList.Nodes[i+2:]...)...)
+					applied = true
 				}
 			}
 		}
+		return []core.NodeListNode{pipeNodeList}, applied
 	}
 	// Operator not recognized.
 	return []core.NodeListNode{pipeNodeList}, false
