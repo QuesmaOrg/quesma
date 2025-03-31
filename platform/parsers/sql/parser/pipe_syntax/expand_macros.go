@@ -106,11 +106,11 @@ func handleMacroOperator(pipeNodeList core.NodeListNode, minimumUnixTime *int64,
 					timestampTokens := []core.Node{core.NewTokenNode(innerContents)}
 					intervalTokens := []core.Node{core.NewTokenNode(" 1 DAY ")}
 					if *maximumUnixTime != 0 && *minimumUnixTime != 0 {
-						if *maximumUnixTime-*minimumUnixTime <= 60*60*25 {
+						if (*maximumUnixTime-*minimumUnixTime)/(60*60) <= 26 {
 							intervalTokens = []core.Node{core.NewTokenNode(" 1 HOUR ")}
-						} else if *maximumUnixTime-*minimumUnixTime <= 60*60*50 {
-							intervalTokens = []core.Node{core.NewTokenNode(" 2 HOUR ")}
-						} else if *maximumUnixTime-*minimumUnixTime < 60*60*24*16 {
+						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*4) <= 26 {
+							intervalTokens = []core.Node{core.NewTokenNode(" 4 HOUR ")}
+						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*24) <= 26 {
 							intervalTokens = []core.Node{core.NewTokenNode(" 1 DAY ")}
 						} else {
 							intervalTokens = []core.Node{core.NewTokenNode(" 1 WEEK ")}
