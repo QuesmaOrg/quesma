@@ -8,12 +8,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/util"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/QuesmaOrg/quesma/platform/util"
 
 	"github.com/goccy/go-json"
 
@@ -122,14 +123,14 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 				// Replace the old macro pipe with the two new pipes
 				pipeNode.Pipes[i] = core.NodeListNode{Nodes: ipPipe}
 				pipeNode.Pipes = append(pipeNode.Pipes[:i+1], append([]core.Node{core.NodeListNode{Nodes: extendPipe}}, pipeNode.Pipes[i+1:]...)...)
-			} else if macroType == "ENRICH_LLM" {
-				// Parse out the tokens following "CALL ENRICH_LLM":
-				// Expected form: |> CALL ENRICH_LLM <prompt> , <input_column>
+			} else if macroType, _ := validateExtendPipe(pipeNodeList); macroType == "ENRICH_LLM" {
+				// Parse out the tokens following "EXTEND ENRICH_LLM":
+				// Expected form: |> EXTEND ENRICH_LLM (<prompt> , <input_column>) AS <output_column>
 
 				// Build two new pipes:
 				// 1.
 				// |> LEFT JOIN quesma_enrich ON quesma_enrich.key = <input_column> AND enrich_type = 'llm'
-				// |> EXTEND quesma_enrich.value AS llm_result
+				// |> EXTEND quesma_enrich.value AS <output_column>
 				// 2.
 				// Second pipe for EXTEND
 				enrichPipe, extendPipe := enrichLLMMacro(pipeNodeList, clone.Clone(pipeNode).(*PipeNode), i, conn)
@@ -156,6 +157,26 @@ func validatePipe(pipeNodeList core.NodeListNode) (macroType string, ok bool) {
 	// Verify we have a "CALL" operator.
 	tokenNode, ok := pipeNodeList.Nodes[2].(core.TokenNode)
 	if !ok || tokenNode.ValueUpper() != "CALL" {
+		return
+	}
+
+	// Determine the macro type from the 5th token.
+	macroToken, ok := pipeNodeList.Nodes[macroTokenIdx].(core.TokenNode)
+	if !ok {
+		return
+	}
+
+	return macroToken.ValueUpper(), true
+}
+
+func validateExtendPipe(pipeNodeList core.NodeListNode) (macroType string, ok bool) {
+	if len(pipeNodeList.Nodes) < 5 {
+		return
+	}
+
+	// Verify we have a "EXTEND" operator.
+	tokenNode, ok := pipeNodeList.Nodes[2].(core.TokenNode)
+	if !ok || tokenNode.ValueUpper() != "EXTEND" {
 		return
 	}
 
@@ -335,25 +356,39 @@ func enrichLLMMacro(pipeNodeList core.NodeListNode, copiedNode *PipeNode, lastPi
 
 	var promptNodes []core.Node
 	var inputColumn []core.Node
+	var outputColumn string
 
 	end := func() (core.Pipe, core.Pipe) {
-		return buildEnrichLLMPipe(inputColumn), buildExtendLLMPipe()
+		return buildEnrichLLMPipe(inputColumn), buildExtendLLMPipe(outputColumn)
+	}
+
+	insideParens, ok := pipeNodeList.Nodes[5].(*core.NodeListNode)
+	if !ok {
+		return end()
 	}
 
 	commaFound := false
-	for j := 5; j < len(pipeNodeList.Nodes); j++ {
-		if token, ok := pipeNodeList.Nodes[j].(core.TokenNode); ok && token.Token.RawValue == "," {
+	for j := 1; j < len(insideParens.Nodes)-1; j++ {
+		if token, ok := insideParens.Nodes[j].(core.TokenNode); ok && token.Token.RawValue == "," {
 			commaFound = true
 			continue
 		}
 		if !commaFound {
-			promptNodes = append(promptNodes, pipeNodeList.Nodes[j])
+			promptNodes = append(promptNodes, insideParens.Nodes[j])
 		} else {
-			inputColumn = append(inputColumn, pipeNodeList.Nodes[j])
+			inputColumn = append(inputColumn, insideParens.Nodes[j])
 		}
 	}
 	if len(promptNodes) == 0 || len(inputColumn) == 0 {
 		return end()
+	}
+
+	fmt.Println(pipeNodeList.Nodes)
+	for j := 5; j+2 < len(pipeNodeList.Nodes); j++ {
+		if token, ok := pipeNodeList.Nodes[j].(core.TokenNode); ok && token.ValueUpper() == "AS" {
+			outputColumn = pipeNodeList.Nodes[j+2].(core.TokenNode).Token.RawValue
+			break
+		}
 	}
 
 	// Build the aggregated query for enrichment using inputColumn
@@ -579,7 +614,7 @@ func buildExtendIpPipe() core.Pipe {
 	)
 }
 
-func buildExtendLLMPipe() core.Pipe {
+func buildExtendLLMPipe(output string) core.Pipe {
 	return core.NewPipe(
 		core.PipeToken(),
 		core.Space(),
@@ -589,6 +624,6 @@ func buildExtendLLMPipe() core.Pipe {
 		core.Space(),
 		core.As(),
 		core.Space(),
-		core.NewTokenNode("llm_result"),
+		core.NewTokenNode(output),
 	)
 }
