@@ -107,11 +107,11 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		}
 		switch phase {
 		case 0:
-			core.Add(&timestampTokens, pipeNodeList.Nodes[j])
+			core.Add(timestampTokens, pipeNodeList.Nodes[j])
 		case 1:
-			core.Add(&intervalTokens, pipeNodeList.Nodes[j])
+			core.Add(intervalTokens, pipeNodeList.Nodes[j])
 		case 2:
-			core.Add(&nameTokens, pipeNodeList.Nodes[j])
+			core.Add(nameTokens, pipeNodeList.Nodes[j])
 		}
 	}
 
@@ -137,50 +137,50 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.ToStartOfInterval(),
 		core.LeftBracket(),
 	)
-	core.Add(&pipe, timestampTokens...)
-	core.Add(&pipe, core.Comma())
-	core.Add(&pipe, core.Interval())
-	core.Add(&pipe, intervalTokens...)
+	core.AddPipe(pipe, intervalTokens)
+	core.Add(pipe, core.Comma())
+	core.Add(pipe, core.Interval())
+	core.AddPipe(pipe, intervalTokens)
 	// Close toStartOfInterval call.
-	core.Add(&pipe, core.RightBracket())
+	core.Add(pipe, core.RightBracket())
 	// End first argument list for formatDateTime: add comma and the format string.
-	core.Add(&pipe, core.Comma())
-	core.Add(&pipe, core.NewTokenNodeSingleQuote("%Y-%m-%d %H:00"))
+	core.Add(pipe, core.Comma())
+	core.Add(pipe, core.NewTokenNodeSingleQuote("%Y-%m-%d %H:00"))
 	// Close formatDateTime call.
-	core.Add(&pipe, core.RightBracket())
+	core.Add(pipe, core.RightBracket())
 	// Separator for concat arguments.
-	core.Add(&pipe, core.Comma())
+	core.Add(pipe, core.Comma())
 	// Second argument: the literal separator ' - '
-	core.Add(&pipe, core.NewTokenNodeSingleQuote(" - "))
-	core.Add(&pipe, core.Comma())
+	core.Add(pipe, core.NewTokenNodeSingleQuote(" - "))
+	core.Add(pipe, core.Comma())
 	// Second argument: formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>) + INTERVAL <interval>, '%Y-%m-%d %H:00')
-	core.Add(&pipe, core.FormatDateTime())
-	core.Add(&pipe, core.LeftBracket())
-	core.Add(&pipe, core.ToStartOfInterval())
-	core.Add(&pipe, core.LeftBracket())
-	core.Add(&pipe, timestampTokens...)
-	core.Add(&pipe, core.Comma())
-	core.Add(&pipe, core.Interval())
-	core.Add(&pipe, intervalTokens...)
+	core.Add(pipe, core.FormatDateTime())
+	core.Add(pipe, core.LeftBracket())
+	core.Add(pipe, core.ToStartOfInterval())
+	core.Add(pipe, core.LeftBracket())
+	core.AddPipe(pipe, timestampTokens)
+	core.Add(pipe, core.Comma())
+	core.Add(pipe, core.Interval())
+	core.AddPipe(pipe, intervalTokens)
 	// Close the first toStartOfInterval call.
-	core.Add(&pipe, core.RightBracket())
+	core.Add(pipe, core.RightBracket())
 	// Add the plus operator and the second "INTERVAL" for addition.
-	core.Add(&pipe, core.Plus())
-	core.Add(&pipe, core.Interval())
-	core.Add(&pipe, intervalTokens...)
+	core.Add(pipe, core.Plus())
+	core.Add(pipe, core.Interval())
+	core.AddPipe(pipe, intervalTokens)
 	// Add comma and the format string.
-	core.Add(&pipe, core.Comma())
-	core.Add(&pipe, core.NewTokenNodeSingleQuote("%Y-%m-%d %H:00"))
+	core.Add(pipe, core.Comma())
+	core.Add(pipe, core.NewTokenNodeSingleQuote("%Y-%m-%d %H:00"))
 	// Close the second formatDateTime call.
-	core.Add(&pipe, core.RightBracket())
+	core.Add(pipe, core.RightBracket())
 	// Close the concat call.
-	core.Add(&pipe, core.RightBracket())
+	core.Add(pipe, core.RightBracket())
 	// Add "AS" and the alias tokens.
-	core.Add(&pipe, core.Space())
-	core.Add(&pipe, core.As())
-	core.Add(&pipe, nameTokens...)
+	core.Add(pipe, core.Space())
+	core.Add(pipe, core.As())
+	core.AddPipe(pipe, nameTokens)
 
-	return []core.NodeListNode{{Nodes: pipe}}
+	return []core.NodeListNode{{Nodes: *pipe}}
 }
 
 func expandExtendEnrichIP(pipeNodeList core.NodeListNode) []core.NodeListNode {
@@ -371,9 +371,9 @@ func expandExtendParsePattern(pipeNodeList core.NodeListNode) []core.NodeListNod
 	secondPipe := buildSecondExtendPipe(aliasParts, extractedAlias)
 
 	// Combine both pipe commands into a single node list, separating them with a newline.
-	core.Add(&firstPipe, core.NewLine())
+	core.Add(firstPipe, core.NewLine())
 
-	return []core.NodeListNode{{Nodes: firstPipe}, {Nodes: secondPipe}}
+	return []core.NodeListNode{{Nodes: *firstPipe}, {Nodes: *secondPipe}}
 }
 
 func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
@@ -420,13 +420,13 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.Case(),
 	)
 	// Clause 1
-	core.Add(&pipe,
+	core.Add(pipe,
 		core.Space(),
 		core.When(),
 		core.Space(),
 	)
-	core.Add(&pipe, logLineTokens...)
-	core.Add(&pipe,
+	core.Add(pipe, logLineTokens...)
+	core.Add(pipe,
 		core.Space(),
 		core.Regexp(),
 		core.Space(),
@@ -437,9 +437,9 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.NewTokenNodeSingleQuote("JSON API Response"),
 	)
 	// Clause 2
-	core.Add(&pipe, spaceWhenSpace()...)
-	core.Add(&pipe, logLineTokens...)
-	core.Add(&pipe,
+	core.Add(pipe, spaceWhenSpace()...)
+	core.Add(pipe, logLineTokens...)
+	core.Add(pipe,
 		core.Space(),
 		core.Regexp(),
 		core.Space(),
@@ -450,9 +450,9 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.NewTokenNodeSingleQuote("HTTP Output"),
 	)
 	// Clause 3
-	core.Add(&pipe, spaceWhenSpace()...)
-	core.Add(&pipe, logLineTokens...)
-	core.Add(&pipe,
+	core.Add(pipe, spaceWhenSpace()...)
+	core.Add(pipe, logLineTokens...)
+	core.Add(pipe,
 		core.Space(),
 		core.Regexp(),
 		core.Space(),
@@ -463,9 +463,9 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.NewTokenNodeSingleQuote("Rsyslog Message Lost"),
 	)
 	// Clause 4
-	core.Add(&pipe, spaceWhenSpace()...)
-	core.Add(&pipe, logLineTokens...)
-	core.Add(&pipe,
+	core.Add(pipe, spaceWhenSpace()...)
+	core.Add(pipe, logLineTokens...)
+	core.Add(pipe,
 		core.Space(),
 		core.Regexp(),
 		core.Space(),
@@ -476,9 +476,9 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.NewTokenNodeSingleQuote("Disk Space Error"),
 	)
 	// Clause 5
-	core.Add(&pipe, spaceWhenSpace()...)
-	core.Add(&pipe, logLineTokens...)
-	core.Add(&pipe,
+	core.Add(pipe, spaceWhenSpace()...)
+	core.Add(pipe, logLineTokens...)
+	core.Add(pipe,
 		core.Space(),
 		core.Regexp(),
 		core.Space(),
@@ -489,26 +489,26 @@ func expandCallLogCategory(pipeNodeList core.NodeListNode) []core.NodeListNode {
 		core.NewTokenNodeSingleQuote("SSH Authentication Error"),
 	)
 	// ELSE clause
-	core.Add(&pipe,
+	core.Add(pipe,
 		core.Space(),
 		core.Else(),
 		core.Space(),
 		core.NewTokenNodeSingleQuote("Unknown"),
 	)
 	// End clause: END AS <alias tokens>
-	core.Add(&pipe,
+	core.Add(pipe,
 		core.Space(),
 		core.NewTokenNode("END"),
 		core.Space(),
 		core.As(),
 		core.Space(),
 	)
-	core.Add(&pipe, aliasTokens...)
+	core.Add(pipe, aliasTokens...)
 
-	return []core.NodeListNode{{Nodes: pipe}}
+	return []core.NodeListNode{{Nodes: *pipe}}
 }
 
-func buildFirstExtendPipe(msgTokens []core.Node, finalRegexLiteral, extractedAlias string) []core.Node {
+func buildFirstExtendPipe(msgTokens []core.Node, finalRegexLiteral, extractedAlias string) core.Pipe {
 	firstPipe := core.NewPipe(
 		core.PipeToken(),
 		core.Space(),
@@ -517,8 +517,8 @@ func buildFirstExtendPipe(msgTokens []core.Node, finalRegexLiteral, extractedAli
 		core.NewTokenNode("extractGroups"),
 		core.LeftBracket(),
 	)
-	core.Add(&firstPipe, msgTokens...)
-	core.Add(&firstPipe,
+	core.Add(firstPipe, msgTokens...)
+	core.Add(firstPipe,
 		core.Comma(),
 		core.Space(),
 		core.NewTokenNode(finalRegexLiteral),
@@ -532,22 +532,23 @@ func buildFirstExtendPipe(msgTokens []core.Node, finalRegexLiteral, extractedAli
 	return firstPipe
 }
 
-func buildSecondExtendPipe(aliasParts []string, extractedAlias string) []core.Node {
+func buildSecondExtendPipe(aliasParts []string, extractedAlias string) core.Pipe {
 	secondPipe := core.NewPipe(
 		core.PipeToken(),
 		core.Space(),
 		core.Extend(),
 		core.Space(),
 	)
+
 	for i, alias := range aliasParts {
 		if i > 0 {
-			core.Add(&secondPipe,
+			core.Add(secondPipe,
 				core.Comma(),
 				core.Space(),
 			)
 		}
 		// Build tokens for: extracted_<msg>[<i+1>] AS <alias>
-		core.Add(&secondPipe,
+		core.Add(secondPipe,
 			core.NewTokenNode(extractedAlias),
 			core.NewTokenNode("["),
 			core.NewTokenNode(strconv.Itoa(i+1)),
