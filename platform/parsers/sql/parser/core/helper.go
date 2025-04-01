@@ -75,6 +75,13 @@ func LeftBracket() TokenNode {
 	return NewTokenNode("(")
 }
 
+func IsLeftBracket(n Node) bool {
+	if t, ok := n.(TokenNode); ok {
+		return t.Value() == "("
+	}
+	return false
+}
+
 func NewLine() TokenNode {
 	return NewTokenNode("\n")
 }
@@ -85,6 +92,13 @@ func Plus() TokenNode {
 
 func RightBracket() TokenNode {
 	return NewTokenNode(")")
+}
+
+func IsRightBracket(n Node) bool {
+	if t, ok := n.(TokenNode); ok {
+		return t.Value() == ")"
+	}
+	return false
 }
 
 func Space() TokenNode {
