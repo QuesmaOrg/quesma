@@ -20,3 +20,19 @@ func Distinct[T cmp.Ordered](elems []T) []T {
 	slices.Sort(result)
 	return result
 }
+
+// AppendFromIdx1 returns "append(to, from[1:]...) if len(from) >= 1 else to"
+func AppendFromIdx1[T any](to, from []T) []T {
+	if len(from) >= 1 {
+		return append(to, from[1:]...)
+	}
+	return to
+}
+
+// AppendFromIdx2 returns "append(to, from[2:]...) if len(from) >= 2 else to"
+func AppendFromIdx2[T any](to, from []T) []T {
+	if len(from) >= 2 {
+		return append(to, from[2:]...)
+	}
+	return to
+}
