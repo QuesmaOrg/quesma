@@ -104,28 +104,30 @@ func handleMacroOperator(pipeNodeList core.NodeListNode, minimumUnixTime *int64,
 					// - intervalTokens hardcoded as "1 DAY",
 					// - and nameTokens as replacementToken.
 					timestampTokens := []core.Node{core.NewTokenNode(innerContents)}
-					intervalTokens := []core.Node{core.NewTokenNode(" 1 DAY ")}
+					interval := "1 DAY"
 					if *maximumUnixTime != 0 && *minimumUnixTime != 0 {
-						if (*maximumUnixTime-*minimumUnixTime)/(60*5) <= 26 {
-							intervalTokens = []core.Node{core.NewTokenNode(" 5 MINUTE ")}
+						diff := *maximumUnixTime - *minimumUnixTime
+						if diff/(60*5) <= 26 {
+							interval = "5 MINUTE"
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60) <= 26 {
-							intervalTokens = []core.Node{core.NewTokenNode(" 1 HOUR ")}
+							interval = "1 HOUR"
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*2) <= 26 {
-							intervalTokens = []core.Node{core.NewTokenNode(" 2 HOUR ")}
+							interval = "2 HOUR"
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*4) <= 26 {
-							intervalTokens = []core.Node{core.NewTokenNode(" 4 HOUR ")}
+							interval = "4 HOUR"
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*8) <= 26 {
-							intervalTokens = []core.Node{core.NewTokenNode(" 8 HOUR ")}
+							interval = "8 HOUR"
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*24) <= 26 {
-							intervalTokens = []core.Node{core.NewTokenNode(" 1 DAY ")}
+							interval = "1 DAY"
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*24*2) <= 26 {
-							intervalTokens = []core.Node{core.NewTokenNode(" 2 DAY ")}
+							interval = "2 DAY"
 						} else if (*maximumUnixTime-*minimumUnixTime)/(60*60*24*4) <= 48 {
-							intervalTokens = []core.Node{core.NewTokenNode(" 4 DAY ")}
+							interval = "4 DAY"
 						} else {
-							intervalTokens = []core.Node{core.NewTokenNode(" 1 WEEK ")}
+							interval = "1 WEEK"
 						}
 					}
+					intervalTokens := []core.Node{core.NewTokenNode(fmt.Sprintf(" %s ", interval))}
 					nameTokens := []core.Node{replacementToken}
 					newPipeNodes := buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens)
 					newPipe := core.NodeListNode{Nodes: newPipeNodes}
