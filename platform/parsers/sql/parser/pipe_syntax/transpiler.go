@@ -1,9 +1,13 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
+
 package pipe_syntax
 
 import (
 	"fmt"
 	lexer_core "github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"slices"
 	"strings"
 )
@@ -155,9 +159,7 @@ func renderState(state TranspileState, parens bool) core.Node {
 		nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: "*"}})
 	} else {
 		selectNode := state.selectNode.(core.NodeListNode)
-		for _, node := range selectNode.Nodes {
-			nodes = append(nodes, node)
-		}
+		nodes = append(nodes, selectNode.Nodes...)
 	}
 	nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: "\n"}})
 	nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: "FROM"}})
@@ -166,47 +168,29 @@ func renderState(state TranspileState, parens bool) core.Node {
 	if state.join != nil {
 		nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: "\n"}})
 		join := state.join.(core.NodeListNode)
-		for i, node := range join.Nodes {
-			if i > 1 {
-				nodes = append(nodes, node)
-			}
-		}
+		nodes = util.AppendFromIdx2(nodes, join.Nodes)
 	}
 	if state.where != nil {
 		nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: "\n"}})
 		where := state.where.(core.NodeListNode)
-		for i, node := range where.Nodes {
-			if i > 1 {
-				nodes = append(nodes, node)
-			}
-		}
+		nodes = util.AppendFromIdx2(nodes, where.Nodes)
 	}
 	if state.groupby != nil {
 		nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: "\n"}})
 		nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: "GROUP BY"}})
 		nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
 		groupby := state.groupby.(core.NodeListNode)
-		for _, node := range groupby.Nodes {
-			nodes = append(nodes, node)
-		}
+		nodes = append(nodes, groupby.Nodes...)
 	}
 	if state.orderby != nil {
 		nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: "\n"}})
 		orderby := state.orderby.(core.NodeListNode)
-		for i, node := range orderby.Nodes {
-			if i > 1 {
-				nodes = append(nodes, node)
-			}
-		}
+		nodes = util.AppendFromIdx2(nodes, orderby.Nodes)
 	}
 	if state.limit != nil {
 		nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: "\n"}})
 		limit := state.limit.(core.NodeListNode)
-		for i, node := range limit.Nodes {
-			if i > 1 {
-				nodes = append(nodes, node)
-			}
-		}
+		nodes = util.AppendFromIdx2(nodes, limit.Nodes)
 	}
 	if parens {
 		nodes = append(nodes, core.TokenNode{Token: lexer_core.Token{RawValue: ")"}})
