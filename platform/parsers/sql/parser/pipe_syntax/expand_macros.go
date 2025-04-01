@@ -252,35 +252,21 @@ func expandCallTimeshift(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	// Expected form: |> CALL TIMESHIFT(<interval>)
 	// (at least for simplest POC/now). (AS <alias tokens> optional? what more?)
 	// e.g. |> CALL TIMESHIFT(1 DAY) or (1 WEEK)
-	var timestampTokens, intervalTokens, nameTokens core.Pipe
-	phase := 0
-	for j := minimumCallNodes; j < len(pipeNodeList.Nodes); j++ {
-		if tokenNode, ok := pipeNodeList.Nodes[j].(core.TokenNode); ok {
-			switch strings.ToUpper(tokenNode.Token.RawValue) {
-			case "BY":
-				phase = 1
-				continue
-			case "AS":
-				phase = 2
-				continue
-			}
-		}
-		switch phase {
-		case 0:
-			core.Add(&timestampTokens, pipeNodeList.Nodes[j])
-		case 1:
-			core.Add(&intervalTokens, pipeNodeList.Nodes[j])
-		case 2:
-			core.Add(&nameTokens, pipeNodeList.Nodes[j])
-		}
+	const minimumTimeshiftNodes = expandStartNode + 2 // heuristics :D, not important. 2 for ( and )
+
+	if len(pipeNodeList.Nodes) < minimumTimeshiftNodes {
+		return []core.NodeListNode{pipeNodeList}
+	}
+	if !core.IsLeftBracket(pipeNodeList.Nodes[expandStartNode+1]) || !core.IsRightBracket(pipeNodeList.Nodes[pipeNodeList.N()-1]) {
+		return []core.NodeListNode{pipeNodeList}
 	}
 
-	pipe := buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens)
+	pipe := buildTimeshiftPipe(pipeNodeList.Nodes[expandStartNode+1 : pipeNodeList.N()-1])
 	return []core.NodeListNode{{Nodes: pipe}}
 }
 
 // buildTimeshiftPipe extracts the pipe-building logic for the TIMESHIFT macro.
-func buildTimeshiftPipe(timestampTokens, intervalTokens, nameTokens core.Pipe) []core.Node {
+func buildTimeshiftPipe(intervalTokens []core.Node) []core.Node {
 	pipe := core.NewPipe(
 		core.PipeToken(),
 		core.Space(),
@@ -293,21 +279,24 @@ func buildTimeshiftPipe(timestampTokens, intervalTokens, nameTokens core.Pipe) [
 		core.ToStartOfInterval(),
 		core.LeftBracket(),
 	)
-	core.Add(&pipe, timestampTokens...)
-	core.Add(&pipe, core.Comma())
-	core.Add(&pipe, core.Interval())
-	core.Add(&pipe, intervalTokens...)
-	// Close toStartOfInterval call.
-	core.Add(&pipe, core.RightBracket())
-	// End first argument list for formatDateTime: add comma and the format string.
-	core.Add(&pipe, core.Comma())
-	core.Add(&pipe, core.NewTokenNodeSingleQuote("%m-%d %H:%i"))
-	// Close formatDateTime call.
-	core.Add(&pipe, core.RightBracket())
-	// Add "AS" and the alias tokens.
-	core.Add(&pipe, core.Space())
-	core.Add(&pipe, core.As())
-	core.Add(&pipe, nameTokens...)
+	/*
+		core.Add(&pipe, timestampTokens...)
+		core.Add(&pipe, core.Comma())
+		core.Add(&pipe, core.Interval())
+		core.Add(&pipe, intervalTokens...)
+		// Close toStartOfInterval call.
+		core.Add(&pipe, core.RightBracket())
+		// End first argument list for formatDateTime: add comma and the format string.
+		core.Add(&pipe, core.Comma())
+		core.Add(&pipe, core.NewTokenNodeSingleQuote("%m-%d %H:%i"))
+		// Close formatDateTime call.
+		core.Add(&pipe, core.RightBracket())
+		// Add "AS" and the alias tokens.
+		core.Add(&pipe, core.Space())
+		core.Add(&pipe, core.As())
+		core.Add(&pipe, nameTokens...)
+
+	*/
 
 	return pipe
 }

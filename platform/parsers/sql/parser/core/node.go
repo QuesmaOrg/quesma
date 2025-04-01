@@ -34,6 +34,10 @@ func (n NodeListNode) Children() []Node {
 	return n.Nodes
 }
 
+func (n NodeListNode) N() int {
+	return len(n.Nodes)
+}
+
 type TokenNode struct {
 	Token core.Token
 }
@@ -50,8 +54,12 @@ func NewTokenNodeSingleQuote(value string) TokenNode {
 	return NewTokenNode(util.SingleQuote(value))
 }
 
+func (n TokenNode) Value() string {
+	return n.Token.RawValue
+}
+
 func (n TokenNode) ValueUpper() string {
-	return strings.ToUpper(n.Token.RawValue)
+	return strings.ToUpper(n.Value())
 }
 
 func (n TokenNode) String() string {
