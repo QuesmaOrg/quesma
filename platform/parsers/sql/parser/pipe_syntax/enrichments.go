@@ -123,7 +123,7 @@ func ExpandEnrichments(node core.Node, conn *sql.DB) {
 				// Replace the old macro pipe with the two new pipes
 				pipeNode.Pipes[i] = core.NodeListNode{Nodes: ipPipe}
 				pipeNode.Pipes = append(pipeNode.Pipes[:i+1], append([]core.Node{core.NodeListNode{Nodes: extendPipe}}, pipeNode.Pipes[i+1:]...)...)
-			} else if macroType, _ := validateExtendPipe(pipeNodeList); macroType == "ENRICH_LLM" {
+			} else if macroType, _ = validateExtendPipe(pipeNodeList); macroType == "ENRICH_LLM" {
 				// Parse out the tokens following "EXTEND ENRICH_LLM":
 				// Expected form: |> EXTEND ENRICH_LLM (<prompt> , <input_column>) AS <output_column>
 

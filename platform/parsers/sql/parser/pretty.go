@@ -23,45 +23,39 @@ func prettyPrintNode(node core.Node, indent int) string {
 		return s
 	}
 
+	handleNodeListNode := func(n core.NodeListNode) string {
+		s := "(\n" + pad(indent)
+		for _, child := range n.Nodes {
+			s += prettyPrintNode(child, indent+1)
+		}
+		s += "\n)"
+		return s
+	}
+	handlePipeNode := func(n pipe_syntax.PipeNode) string {
+		s := pad(indent) + "PipeNode {\n"
+		s += pad(indent+1) + "BeforePipe:\n" + prettyPrintNode(n.BeforePipe, indent+2) + "\n"
+		s += pad(indent+1) + "Pipes: [\n"
+		for _, p := range n.Pipes {
+			s += prettyPrintNode(p, indent+2) + "\n"
+		}
+		s += pad(indent+1) + "]\n"
+		s += pad(indent) + "}"
+		return s
+	}
+
 	// Handle different node types.
 	switch n := node.(type) {
 	// For NodeListNode (both pointer and non-pointer versions), iterate through the child nodes.
 	case core.NodeListNode:
-		s := "(\n" + pad(indent)
-		for _, child := range n.Nodes {
-			s += prettyPrintNode(child, indent+1)
-		}
-		s += "\n)"
-		return s
+		return handleNodeListNode(n)
 	case *core.NodeListNode:
-		s := "(\n" + pad(indent)
-		for _, child := range n.Nodes {
-			s += prettyPrintNode(child, indent+1)
-		}
-		s += "\n)"
-		return s
+		return handleNodeListNode(*n)
 
 	// For PipeNode (both pointer and non-pointer versions), show BeforePipe and Pipes fields.
 	case pipe_syntax.PipeNode:
-		s := pad(indent) + "PipeNode {\n"
-		s += pad(indent+1) + "BeforePipe:\n" + prettyPrintNode(n.BeforePipe, indent+2) + "\n"
-		s += pad(indent+1) + "Pipes: [\n"
-		for _, p := range n.Pipes {
-			s += prettyPrintNode(p, indent+2) + "\n"
-		}
-		s += pad(indent+1) + "]\n"
-		s += pad(indent) + "}"
-		return s
+		return handlePipeNode(n)
 	case *pipe_syntax.PipeNode:
-		s := pad(indent) + "PipeNode {\n"
-		s += pad(indent+1) + "BeforePipe:\n" + prettyPrintNode(n.BeforePipe, indent+2) + "\n"
-		s += pad(indent+1) + "Pipes: [\n"
-		for _, p := range n.Pipes {
-			s += prettyPrintNode(p, indent+2) + "\n"
-		}
-		s += pad(indent+1) + "]\n"
-		s += pad(indent) + "}"
-		return s
+		return handlePipeNode(*n)
 
 	// For TokenNode (both pointer and non-pointer), print the token's raw value.
 	case core.TokenNode:
