@@ -71,6 +71,8 @@ func handleMacroOperator(pipeNodeList core.NodeListNode, minimumUnixTime *int64,
 		switch macroToken.ValueUpper() {
 		case "TIME_BUCKET":
 			return expandCallTimebucket(pipeNodeList), true
+		case "TIMESHIFT":
+			return expandCallTimeshift(pipeNodeList), true
 		default:
 			// Macro not recognized; do nothing.
 			return []core.NodeListNode{pipeNodeList}, false
@@ -183,6 +185,7 @@ func handleMacroOperator(pipeNodeList core.NodeListNode, minimumUnixTime *int64,
 	// Operator not recognized.
 	return []core.NodeListNode{pipeNodeList}, false
 }
+
 func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 	// Expected form: |> CALL TIMEBUCKET <timestamp> BY <interval tokens> AS <alias tokens>
 	var timestampTokens, intervalTokens, nameTokens core.Pipe
@@ -214,6 +217,70 @@ func expandCallTimebucket(pipeNodeList core.NodeListNode) []core.NodeListNode {
 
 // buildTimebucketPipe extracts the pipe-building logic for the TIME_BUCKET macro.
 func buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens core.Pipe) []core.Node {
+	pipe := core.NewPipe(
+		core.PipeToken(),
+		core.Space(),
+		// "EXTEND"
+		core.Extend(),
+		core.Space(),
+		// First argument: formatDateTime(toStartOfInterval(timestamp, INTERVAL <interval>), '%m-%d %H:00')
+		core.FormatDateTime(),
+		core.LeftBracket(),
+		core.ToStartOfInterval(),
+		core.LeftBracket(),
+	)
+	core.Add(&pipe, timestampTokens...)
+	core.Add(&pipe, core.Comma())
+	core.Add(&pipe, core.Interval())
+	core.Add(&pipe, intervalTokens...)
+	// Close toStartOfInterval call.
+	core.Add(&pipe, core.RightBracket())
+	// End first argument list for formatDateTime: add comma and the format string.
+	core.Add(&pipe, core.Comma())
+	core.Add(&pipe, core.NewTokenNodeSingleQuote("%m-%d %H:%i"))
+	// Close formatDateTime call.
+	core.Add(&pipe, core.RightBracket())
+	// Add "AS" and the alias tokens.
+	core.Add(&pipe, core.Space())
+	core.Add(&pipe, core.As())
+	core.Add(&pipe, nameTokens...)
+
+	return pipe
+}
+
+func expandCallTimeshift(pipeNodeList core.NodeListNode) []core.NodeListNode {
+	// Expected form: |> CALL TIMESHIFT(<interval>)
+	// (at least for simplest POC/now). (AS <alias tokens> optional? what more?)
+	// e.g. |> CALL TIMESHIFT(1 DAY) or (1 WEEK)
+	var timestampTokens, intervalTokens, nameTokens core.Pipe
+	phase := 0
+	for j := minimumCallNodes; j < len(pipeNodeList.Nodes); j++ {
+		if tokenNode, ok := pipeNodeList.Nodes[j].(core.TokenNode); ok {
+			switch strings.ToUpper(tokenNode.Token.RawValue) {
+			case "BY":
+				phase = 1
+				continue
+			case "AS":
+				phase = 2
+				continue
+			}
+		}
+		switch phase {
+		case 0:
+			core.Add(&timestampTokens, pipeNodeList.Nodes[j])
+		case 1:
+			core.Add(&intervalTokens, pipeNodeList.Nodes[j])
+		case 2:
+			core.Add(&nameTokens, pipeNodeList.Nodes[j])
+		}
+	}
+
+	pipe := buildTimebucketPipe(timestampTokens, intervalTokens, nameTokens)
+	return []core.NodeListNode{{Nodes: pipe}}
+}
+
+// buildTimeshiftPipe extracts the pipe-building logic for the TIMESHIFT macro.
+func buildTimeshiftPipe(timestampTokens, intervalTokens, nameTokens core.Pipe) []core.Node {
 	pipe := core.NewPipe(
 		core.PipeToken(),
 		core.Space(),
