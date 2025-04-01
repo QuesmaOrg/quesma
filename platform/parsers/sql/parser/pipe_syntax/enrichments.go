@@ -8,7 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"sync"
@@ -46,7 +46,7 @@ func llmCall(request string, input string) (string, error) {
 	modelName := "openai/gpt-4o-mini-2024-07-18"
 	apiEndpoint := "https://openrouter.ai/api/v1/chat/completions"
 
-	systemPrompt := fmt.Sprintf("You are a helpful assistant. You are helping a user, which uses you through a CALL ENRICH_LLM() operator. For example, the user is trying to enrich a table with a new column, like a country description based on the existing country code column.\nExample: Request: description of country.\nInput: PL\nYour output: Poland is a country in central Europe.\n \nExample: Request: area of country.\nInput: France\nYour output: 551,695 square kilometers.\n Provide a direct answer, without any additional information or small-talk. DO NOT respond with a full sentence. The response should be very concise - it should fit in 100 characters ideally. For example, if a user asks you for country population, just give him a number, not a full sentence 'The population of X is Y' - just give Y!")
+	systemPrompt := "You are a helpful assistant. You are helping a user, which uses you through a CALL ENRICH_LLM() operator. For example, the user is trying to enrich a table with a new column, like a country description based on the existing country code column.\nExample: Request: description of country.\nInput: PL\nYour output: Poland is a country in central Europe.\n \nExample: Request: area of country.\nInput: France\nYour output: 551,695 square kilometers.\n Provide a direct answer, without any additional information or small-talk. DO NOT respond with a full sentence. The response should be very concise - it should fit in 100 characters ideally. For example, if a user asks you for country population, just give him a number, not a full sentence 'The population of X is Y' - just give Y!"
 
 	userPrompt := fmt.Sprintf("Request: %s.\nInput: %s", request, input)
 
@@ -84,7 +84,7 @@ func llmCall(request string, input string) (string, error) {
 		return "", fmt.Errorf("received non-OK HTTP status: %d", resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("error reading response body: %w", err)
 	}
