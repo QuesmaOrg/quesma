@@ -170,7 +170,7 @@ func TranspileCTE(node core.Node) {
 
 				case "LIMIT":
 					elements = append(elements, pipeElement{
-						limit: pipeNodeList,
+						limit: pipeNodeList.TrimRight(),
 					})
 
 				default:
