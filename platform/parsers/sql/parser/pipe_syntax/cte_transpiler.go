@@ -12,15 +12,40 @@ import (
 )
 
 type pipeElement struct {
-	name         string
-	selectNode   core.Node
-	from         core.Node
-	join         core.Node
-	where        core.Node
-	orderby      core.Node
-	limit        core.Node
-	groupby      core.Node
-	lastPriority int
+	name       string
+	selectNode core.Node
+	from       core.Node
+	join       core.Node
+	where      core.Node
+	orderby    core.Node
+	limit      core.Node
+	groupby    core.Node
+}
+
+func foldIf(elems []pipeElement, fn func(current, next pipeElement) (pipeElement, bool)) []pipeElement {
+	if len(elems) < 2 {
+		return elems
+	}
+
+	var res []pipeElement
+	i := 0
+
+	for i < len(elems)-1 {
+		el, ok := fn(elems[i], elems[i+1])
+		if ok {
+			res = append(res, el)
+			i += 2
+		} else {
+			res = append(res, elems[i])
+			i++
+		}
+	}
+
+	if i == len(elems)-1 {
+		res = append(res, elems[i])
+	}
+
+	return res
 }
 
 func TranspileCTE(node core.Node) {
@@ -82,6 +107,7 @@ func TranspileCTE(node core.Node) {
 				pipeNodeList = pipeNodeList.TrimLeft()
 
 				switch name {
+
 				case "WHERE":
 					elements = append(elements, pipeElement{
 						where: pipeNodeList.TrimRight(),
@@ -158,6 +184,28 @@ func TranspileCTE(node core.Node) {
 			elements[k].name = fmt.Sprintf("_oql_pipe_%d", k+1)
 		}
 
+		elements = foldIf(elements, func(current, next pipeElement) (pipeElement, bool) {
+
+			if current.orderby == nil && next.orderby != nil && next.from == nil && next.join == nil && next.where == nil && next.groupby == nil && next.limit == nil && next.selectNode == nil {
+				current.orderby = next.orderby
+				return current, true
+
+			}
+
+			return current, false
+		})
+
+		elements = foldIf(elements, func(current, next pipeElement) (pipeElement, bool) {
+
+			if current.limit == nil && next.limit != nil && next.from == nil && next.join == nil && next.where == nil && next.groupby == nil && next.orderby == nil && next.selectNode == nil {
+				current.limit = next.limit
+				return current, true
+
+			}
+
+			return current, false
+		})
+
 		// TODO add compaction ORDER BY, LIMIT, WHERE, COLUMNS
 
 		// rendering
@@ -220,7 +268,7 @@ func (builder *NodeBuilder) Add(nodes ...any) *NodeBuilder {
 			builder.nodes = append(builder.nodes, t.Nodes...)
 
 		default:
-			fmt.Println("Unknown node type:", t)
+			fmt.Printf("Unknown node type: %T\n", t)
 			panic("Unknown node type")
 		}
 

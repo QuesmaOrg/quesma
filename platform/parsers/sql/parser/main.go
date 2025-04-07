@@ -98,6 +98,7 @@ func main() {
 |> WHERE client IS NOT NULL 
 |> AGGREGATE count(*) as client_count, any(msg) as sample_msg group by client
 |> ORDER BY client_count DESC
+|> LIMIT 10
 `
 
 	tokens := lexer_core.Lex(query, dialect_sqlparse.SqlparseRules)
