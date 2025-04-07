@@ -30,6 +30,24 @@ func TranspileCTE(node core.Node) {
 		firstElement := pipeElement{}
 
 		if pipeNodeList, ok := pipeNode.BeforePipe.(core.NodeListNode); ok {
+
+			// eat spaces and new lines
+		LOOP:
+			for {
+				if len(pipeNodeList.Nodes) == 0 {
+					break
+				}
+
+				switch n := pipeNodeList.Nodes[0].(type) {
+				case core.TokenNode:
+					if n.Token.RawValue == " " || n.Token.RawValue == "\n" {
+						pipeNodeList.Nodes = pipeNodeList.Nodes[1:]
+						continue LOOP
+					}
+				}
+				break
+			}
+
 			if strings.ToUpper(pipeNodeList.Nodes[0].(core.TokenNode).Token.RawValue) == "FROM" {
 				firstElement.from = core.NodeListNode{Nodes: pipeNodeList.Nodes[1:]}
 			} else {
