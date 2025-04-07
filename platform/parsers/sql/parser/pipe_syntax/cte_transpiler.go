@@ -181,13 +181,14 @@ func TranspileCTE(node core.Node) {
 
 		// name them
 		for k := range elements {
-			elements[k].name = fmt.Sprintf("_oql_pipe_%d", k+1)
+			elements[k].name = fmt.Sprintf("%d", k+1)
 		}
 
 		elements = foldIf(elements, func(current, next pipeElement) (pipeElement, bool) {
 
 			if current.orderby == nil && next.orderby != nil && next.from == nil && next.join == nil && next.where == nil && next.groupby == nil && next.limit == nil && next.selectNode == nil {
 				current.orderby = next.orderby
+				current.name = fmt.Sprintf("%s_%s", current.name, next.name)
 				return current, true
 
 			}
@@ -199,6 +200,7 @@ func TranspileCTE(node core.Node) {
 
 			if current.limit == nil && next.limit != nil && next.from == nil && next.join == nil && next.where == nil && next.groupby == nil && next.orderby == nil && next.selectNode == nil {
 				current.limit = next.limit
+				current.name = fmt.Sprintf("%s_%s", current.name, next.name)
 				return current, true
 
 			}
@@ -207,6 +209,11 @@ func TranspileCTE(node core.Node) {
 		})
 
 		// TODO add compaction ORDER BY, LIMIT, WHERE, COLUMNS
+
+		// prefix the names
+		for k := range elements {
+			elements[k].name = fmt.Sprintf("_oql_pipe_%s", elements[k].name)
+		}
 
 		// rendering
 		b := NewNodeBuilder()
