@@ -38,6 +38,58 @@ func (n NodeListNode) N() int {
 	return len(n.Nodes)
 }
 
+func (n NodeListNode) TrimLeft() NodeListNode {
+	// eat spaces and new lines
+LOOP:
+	for {
+		if len(n.Nodes) == 0 {
+			break
+		}
+
+		switch node := n.Nodes[0].(type) {
+		case TokenNode:
+			if node.Token.RawValue == " " || node.Token.RawValue == "\n" {
+				n.Nodes = n.Nodes[1:]
+				continue LOOP
+			}
+		}
+		break
+	}
+	return n
+}
+
+func (n NodeListNode) TrimRight() NodeListNode {
+	// eat spaces and new lines
+	for {
+		if len(n.Nodes) == 0 {
+			break
+		}
+
+		lastIndex := len(n.Nodes) - 1
+		switch node := n.Nodes[lastIndex].(type) {
+		case TokenNode:
+			if node.Token.RawValue == " " || node.Token.RawValue == "\n" {
+				n.Nodes = n.Nodes[:lastIndex]
+				continue
+			}
+		}
+		break
+	}
+	return n
+}
+
+func (n NodeListNode) Trim() NodeListNode {
+	return n.TrimLeft().TrimRight()
+}
+
+func (n NodeListNode) EatFirst() NodeListNode {
+
+	if len(n.Nodes) == 0 {
+		return n
+	}
+	return NodeListNode{Nodes: n.Nodes[1:]}
+}
+
 type TokenNode struct {
 	Token core.Token
 }
