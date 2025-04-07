@@ -149,7 +149,7 @@ func TranspileCTE(node core.Node) {
 			b.Add(el.name, " ", "AS", " ", el.render(true))
 			b.Add("\n")
 			prevName = el.name
-			addComma = false
+			addComma = true
 		}
 		b.Add("\n", "-- main query", "\n")
 
