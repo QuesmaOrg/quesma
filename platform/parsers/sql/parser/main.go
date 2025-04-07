@@ -86,10 +86,11 @@ func main() {
 		`FROM openssh_logs
 |> WHERE timestamp BETWEEN $start AND $end
 |> ORDER BY timestamp DESC
-|> EXTEND ENRICH_LOG_CATEGORY(msg) AS category
+-- |> EXTEND ENRICH_LOG_CATEGORY(msg) AS category
 |> WHERE category <> 'Others'
 |> AGGREGATE COUNT(*) AS category_cnt GROUP BY TIME_BUCKET(timestamp), category
-|> ORDER BY TIME_BUCKET(timestamp) ASC, category_cnt DESC`, dialect_sqlparse.SqlparseRules)
+--|> ORDER BY TIME_BUCKET(timestamp) ASC, category_cnt DESC`,
+		dialect_sqlparse.SqlparseRules)
 
 	node := core.TokensToNode(tokens)
 
@@ -97,7 +98,7 @@ func main() {
 	pipe_syntax.GroupPipeSyntax(node)
 	pipe_syntax.ExpandMacros(node)
 	pipe_syntax.ExpandEnrichments(node, DefaultDB)
-	pipe_syntax.Transpile(node)
+	pipe_syntax.TranspileCTE(node)
 
 	fmt.Println(transforms.ConcatTokenNodes(node))
 }
