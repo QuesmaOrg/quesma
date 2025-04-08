@@ -109,7 +109,7 @@ func main() {
 	pipe_syntax.GroupPipeSyntax(node)
 	pipe_syntax.ExpandMacros(node)
 	pipe_syntax.ExpandEnrichments(node, DefaultDB)
-	pipe_syntax.TranspileCTE(node)
+	pipe_syntax.TranspileToCTE(node)
 
 	fmt.Println(transforms.ConcatTokenNodes(node))
 }

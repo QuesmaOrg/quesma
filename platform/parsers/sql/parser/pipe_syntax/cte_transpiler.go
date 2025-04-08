@@ -5,29 +5,29 @@ package pipe_syntax
 
 import (
 	"fmt"
-	lexer_core "github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
+	lexercore "github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
 	"slices"
 	"strings"
 )
 
-type pipeElement struct {
+type parsedQuery struct {
 	name       string
 	selectNode core.Node
 	from       core.Node
 	join       core.Node
 	where      core.Node
-	orderby    core.Node
+	orderBy    core.Node
 	limit      core.Node
-	groupby    core.Node
+	groupBy    core.Node
 }
 
-func foldIf(elems []pipeElement, fn func(current, next pipeElement) (pipeElement, bool)) []pipeElement {
+func compactIf(elems []parsedQuery, fn func(current, next parsedQuery) (parsedQuery, bool)) []parsedQuery {
 	if len(elems) < 2 {
 		return elems
 	}
 
-	var res []pipeElement
+	var res []parsedQuery
 	i := 0
 
 	for i < len(elems)-1 {
@@ -48,29 +48,29 @@ func foldIf(elems []pipeElement, fn func(current, next pipeElement) (pipeElement
 	return res
 }
 
-func TranspileCTE(node core.Node) {
+func TranspileToCTE(node core.Node) {
 	TransformPipeNodes(node, func(pipeNode *PipeNode) core.Node {
 
 		// The first element is special.
 
-		firstElement := pipeElement{}
+		firstQuery := parsedQuery{}
 
 		if pipeNodeList, ok := pipeNode.BeforePipe.(core.NodeListNode); ok {
 
 			pipeNodeList = pipeNodeList.TrimLeft()
 
 			if strings.ToUpper(pipeNodeList.Nodes[0].(core.TokenNode).Token.RawValue) == "FROM" {
-				firstElement.from = core.NodeListNode{Nodes: pipeNodeList.Nodes[1:]}.Trim()
+				firstQuery.from = core.NodeListNode{Nodes: pipeNodeList.Nodes[1:]}.Trim()
 			} else {
-				firstElement.from = pipeNodeList.Trim()
+				firstQuery.from = pipeNodeList.Trim()
 			}
 		} else {
-			firstElement.from = core.NodeListNode{Nodes: []core.Node{pipeNode.BeforePipe}}.Trim()
+			firstQuery.from = core.NodeListNode{Nodes: []core.Node{pipeNode.BeforePipe}}.Trim()
 		}
 
-		var elements []pipeElement
+		var queries []parsedQuery
 
-		elements = append(elements, firstElement)
+		queries = append(queries, firstQuery)
 
 		for _, pipe := range pipeNode.Pipes {
 			if pipeNodeList, ok := pipe.(core.NodeListNode); ok {
@@ -81,7 +81,8 @@ func TranspileCTE(node core.Node) {
 
 				// TODO add proper error handling
 				if firstToken != "|>" {
-					panic("It should be a pipe operator")
+					continue
+					// here we should return an error
 				}
 
 				pipeNodeList = pipeNodeList.EatFirst()
@@ -96,7 +97,7 @@ func TranspileCTE(node core.Node) {
 
 				// JOIN, CROSS JOIN, LEFT OUTER JOIN etc.
 				if strings.HasSuffix(name, "JOIN") {
-					elements = append(elements, pipeElement{
+					queries = append(queries, parsedQuery{
 						join: pipeNode,
 					})
 					continue
@@ -109,85 +110,86 @@ func TranspileCTE(node core.Node) {
 				switch name {
 
 				case "WHERE":
-					elements = append(elements, pipeElement{
+					queries = append(queries, parsedQuery{
 						where: pipeNodeList.TrimRight(),
 					})
 
 				case "AGGREGATE":
 
-					var groupby []core.Node
+					var groupBy []core.Node
 					var selectNodes []core.Node
 
-					groupbyPart := false
+					groupByPart := false
 					pipeNodeList = pipeNodeList.TrimRight()
 					for _, groupByNode := range pipeNodeList.Nodes {
 						if tokenNode, ok := groupByNode.(core.TokenNode); ok && strings.ToUpper(tokenNode.Token.RawValue) == "GROUP BY" {
-							groupbyPart = true
+							groupByPart = true
 							continue
 						}
 
-						if !groupbyPart {
+						if !groupByPart {
 							selectNodes = append(selectNodes, groupByNode)
 						} else {
-							groupby = append(groupby, groupByNode)
+							groupBy = append(groupBy, groupByNode)
 						}
 					}
 
-					groupByNodeList := core.NodeListNode{Nodes: groupby}.Trim()
+					groupByNodeList := core.NodeListNode{Nodes: groupBy}.Trim()
 
-					element := pipeElement{
-						groupby: groupByNodeList,
+					element := parsedQuery{
+						groupBy: groupByNodeList,
 					}
 
 					var allNodes []core.Node
 					allNodes = slices.Clone(groupByNodeList.Nodes)
-					allNodes = append(allNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
-					allNodes = append(allNodes, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
+					allNodes = append(allNodes, core.TokenNode{Token: lexercore.Token{RawValue: ","}})
+					allNodes = append(allNodes, core.TokenNode{Token: lexercore.Token{RawValue: " "}})
 					allNodes = append(allNodes, selectNodes...)
 					element.selectNode = core.NodeListNode{Nodes: allNodes}
 
-					elements = append(elements, element)
+					queries = append(queries, element)
 
 				case "ORDER BY":
-					elements = append(elements, pipeElement{
-						orderby: pipeNodeList.TrimRight(),
+					queries = append(queries, parsedQuery{
+						orderBy: pipeNodeList.TrimRight(),
 					})
 
 				case "SELECT":
-					elements = append(elements, pipeElement{
+					queries = append(queries, parsedQuery{
 						selectNode: pipeNodeList.TrimRight(),
 					})
 
 				case "EXTEND":
 					var allNodes []core.Node
-					allNodes = []core.Node{core.TokenNode{Token: lexer_core.Token{RawValue: "*"}}}
-					allNodes = append(allNodes, core.TokenNode{Token: lexer_core.Token{RawValue: ","}})
-					allNodes = append(allNodes, core.TokenNode{Token: lexer_core.Token{RawValue: " "}})
+					allNodes = []core.Node{core.TokenNode{Token: lexercore.Token{RawValue: "*"}}}
+					allNodes = append(allNodes, core.TokenNode{Token: lexercore.Token{RawValue: ","}})
+					allNodes = append(allNodes, core.TokenNode{Token: lexercore.Token{RawValue: " "}})
 					allNodes = append(allNodes, pipeNodeList.Nodes...)
-					elements = append(elements, pipeElement{
+					queries = append(queries, parsedQuery{
 						selectNode: core.NodeListNode{Nodes: allNodes},
 					})
 
 				case "LIMIT":
-					elements = append(elements, pipeElement{
+					queries = append(queries, parsedQuery{
 						limit: pipeNodeList.TrimRight(),
 					})
 
 				default:
 					fmt.Println("Unknown pipe command: ", name)
+					// TODO we should return an error here
 				}
 			}
 		}
 
 		// name them
-		for k := range elements {
-			elements[k].name = fmt.Sprintf("%d", k+1)
+		for k := range queries {
+			queries[k].name = fmt.Sprintf("%d", k+1)
 		}
 
-		elements = foldIf(elements, func(current, next pipeElement) (pipeElement, bool) {
+		queries = compactIf(queries, func(current, next parsedQuery) (parsedQuery, bool) {
 
-			if current.orderby == nil && next.orderby != nil && next.from == nil && next.join == nil && next.where == nil && next.groupby == nil && next.limit == nil && next.selectNode == nil {
-				current.orderby = next.orderby
+			if current.orderBy == nil && next.orderBy != nil && next.from == nil && next.join == nil && next.where == nil && next.groupBy == nil && next.limit == nil && next.selectNode == nil {
+				current.orderBy = next.orderBy
 				current.name = fmt.Sprintf("%s_%s", current.name, next.name)
 				return current, true
 
@@ -196,9 +198,9 @@ func TranspileCTE(node core.Node) {
 			return current, false
 		})
 
-		elements = foldIf(elements, func(current, next pipeElement) (pipeElement, bool) {
+		queries = compactIf(queries, func(current, next parsedQuery) (parsedQuery, bool) {
 
-			if current.limit == nil && next.limit != nil && next.from == nil && next.join == nil && next.where == nil && next.groupby == nil && next.orderby == nil && next.selectNode == nil {
+			if current.limit == nil && next.limit != nil && next.from == nil && next.join == nil && next.where == nil && next.groupBy == nil && next.orderBy == nil && next.selectNode == nil {
 				current.limit = next.limit
 				current.name = fmt.Sprintf("%s_%s", current.name, next.name)
 				return current, true
@@ -208,11 +210,11 @@ func TranspileCTE(node core.Node) {
 			return current, false
 		})
 
-		// TODO add compaction ORDER BY, LIMIT, WHERE, COLUMNS
+		// TODO add compaction  WHERE, COLUMNS
 
 		// prefix the names
-		for k := range elements {
-			elements[k].name = fmt.Sprintf("_oql_pipe_%s", elements[k].name)
+		for k := range queries {
+			queries[k].name = fmt.Sprintf("_oql_pipe_%s", queries[k].name)
 		}
 
 		// rendering
@@ -222,13 +224,13 @@ func TranspileCTE(node core.Node) {
 
 		var prevName string
 		var addComma bool
-		for _, el := range elements {
+		for _, el := range queries {
 			if addComma {
 				b.Add(",", "\n")
 			}
 
 			if prevName != "" {
-				el.from = core.NodeListNode{Nodes: []core.Node{core.TokenNode{Token: lexer_core.Token{RawValue: prevName}}}}
+				el.from = core.NodeListNode{Nodes: []core.Node{core.TokenNode{Token: lexercore.Token{RawValue: prevName}}}}
 			}
 
 			b.Add("\n", el.name, " ", "AS", "\n", el.render())
@@ -238,7 +240,7 @@ func TranspileCTE(node core.Node) {
 		}
 		b.Add("\n\n", "-- main query", "\n")
 
-		b.Add("SELECT", " ", "*", " ", "FROM", " ", elements[len(elements)-1].name)
+		b.Add("SELECT", " ", "*", " ", "FROM", " ", queries[len(queries)-1].name)
 
 		return core.NodeListNode{Nodes: b.Nodes()}
 	})
@@ -265,7 +267,7 @@ func (builder *NodeBuilder) Add(nodes ...any) *NodeBuilder {
 		switch t := node.(type) {
 
 		case string:
-			builder.nodes = append(builder.nodes, core.TokenNode{Token: lexer_core.Token{RawValue: t}})
+			builder.nodes = append(builder.nodes, core.TokenNode{Token: lexercore.Token{RawValue: t}})
 		case core.Node:
 			builder.nodes = append(builder.nodes, t)
 		default:
@@ -278,7 +280,7 @@ func (builder *NodeBuilder) Add(nodes ...any) *NodeBuilder {
 	return builder
 }
 
-func (state pipeElement) render() core.Node {
+func (state parsedQuery) render() core.Node {
 
 	b := NewNodeBuilder()
 
@@ -303,14 +305,14 @@ func (state pipeElement) render() core.Node {
 		b.Add(" ", "WHERE", " ", state.where)
 	}
 
-	if state.groupby != nil {
+	if state.groupBy != nil {
 		b.Add("\n")
-		b.Add(" ", "GROUP BY", " ", state.groupby)
+		b.Add(" ", "GROUP BY", " ", state.groupBy)
 	}
 
-	if state.orderby != nil {
+	if state.orderBy != nil {
 		b.Add("\n")
-		b.Add(" ", "ORDER BY", " ", state.orderby)
+		b.Add(" ", "ORDER BY", " ", state.orderBy)
 	}
 
 	if state.limit != nil {
