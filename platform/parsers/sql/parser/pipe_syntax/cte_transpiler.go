@@ -266,10 +266,8 @@ func (builder *NodeBuilder) Add(nodes ...any) *NodeBuilder {
 
 		case string:
 			builder.nodes = append(builder.nodes, core.TokenNode{Token: lexer_core.Token{RawValue: t}})
-			
 		case core.Node:
 			builder.nodes = append(builder.nodes, t)
-
 		default:
 			fmt.Printf("Unknown node type: %T\n", t)
 			panic("Unknown node type")
