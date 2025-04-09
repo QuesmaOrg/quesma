@@ -59,18 +59,11 @@ func (n NodeListNode) TrimLeft() NodeListNode {
 
 func (n NodeListNode) TrimRight() NodeListNode {
 	// eat spaces and new lines
-	for {
-		if len(n.Nodes) == 0 {
-			break
-		}
-
-		lastIndex := len(n.Nodes) - 1
-		switch node := n.Nodes[lastIndex].(type) {
-		case TokenNode:
-			if node.Token.RawValue == " " || node.Token.RawValue == "\n" {
+	for len(n.Nodes) > 0 {
+	    lastIndex := len(n.Nodes) - 1
+		if node, ok := n.Nodes[lastIndex].(TokenNode); ok && (node.Value() == " " || node.Value() == "\n") {
 				n.Nodes = n.Nodes[:lastIndex]
 				continue
-			}
 		}
 		break
 	}
