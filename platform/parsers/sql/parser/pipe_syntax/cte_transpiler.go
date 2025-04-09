@@ -5,7 +5,6 @@ package pipe_syntax
 
 import (
 	"fmt"
-	lexercore "github.com/QuesmaOrg/quesma/platform/parsers/sql/lexer/core"
 	"github.com/QuesmaOrg/quesma/platform/parsers/sql/parser/core"
 	"slices"
 	"strings"
@@ -20,6 +19,32 @@ type parsedQuery struct {
 	orderBy    core.Node
 	limit      core.Node
 	groupBy    core.Node
+}
+
+func (q parsedQuery) nonNil() []string {
+	nonNil := make([]string, 0, 7)
+	if q.selectNode != nil {
+		nonNil = append(nonNil, "selectNode")
+	}
+	if q.from != nil {
+		nonNil = append(nonNil, "from")
+	}
+	if q.join != nil {
+		nonNil = append(nonNil, "join")
+	}
+	if q.where != nil {
+		nonNil = append(nonNil, "where")
+	}
+	if q.orderBy != nil {
+		nonNil = append(nonNil, "orderBy")
+	}
+	if q.limit != nil {
+		nonNil = append(nonNil, "limit")
+	}
+	if q.groupBy != nil {
+		nonNil = append(nonNil, "groupBy")
+	}
+	return nonNil
 }
 
 func compactIf(elems []parsedQuery, fn func(current, next parsedQuery) (parsedQuery, bool)) []parsedQuery {
@@ -59,7 +84,7 @@ func TranspileToCTE(node core.Node) {
 
 			pipeNodeList = pipeNodeList.TrimLeft()
 
-			if strings.ToUpper(pipeNodeList.Nodes[0].(core.TokenNode).Token.RawValue) == "FROM" {
+			if core.ToTokenNodeMust(pipeNodeList.Nodes[0]).ValueUpper() == "FROM" {
 				firstQuery.from = core.NodeListNode{Nodes: pipeNodeList.Nodes[1:]}.Trim()
 			} else {
 				firstQuery.from = pipeNodeList.Trim()
@@ -77,7 +102,7 @@ func TranspileToCTE(node core.Node) {
 
 				pipeNodeList = pipeNodeList.TrimLeft()
 
-				firstToken := pipeNodeList.Nodes[0].(core.TokenNode).Token.RawValue
+				firstToken := core.ToTokenNodeMust(pipeNodeList.Nodes[0]).Value()
 
 				// TODO add proper error handling
 				if firstToken != "|>" {
@@ -93,7 +118,7 @@ func TranspileToCTE(node core.Node) {
 					continue
 				}
 
-				name := strings.ToUpper(pipeNodeList.Nodes[0].(core.TokenNode).Token.RawValue)
+				name := core.ToTokenNodeMust(pipeNodeList.Nodes[0]).ValueUpper()
 
 				// JOIN, CROSS JOIN, LEFT OUTER JOIN etc.
 				if strings.HasSuffix(name, "JOIN") {
@@ -122,7 +147,7 @@ func TranspileToCTE(node core.Node) {
 					groupByPart := false
 					pipeNodeList = pipeNodeList.TrimRight()
 					for _, groupByNode := range pipeNodeList.Nodes {
-						if tokenNode, ok := groupByNode.(core.TokenNode); ok && strings.ToUpper(tokenNode.Token.RawValue) == "GROUP BY" {
+						if tokenNode, ok := groupByNode.(core.TokenNode); ok && tokenNode.ValueUpper() == "GROUP BY" {
 							groupByPart = true
 							continue
 						}
@@ -142,8 +167,8 @@ func TranspileToCTE(node core.Node) {
 
 					var allNodes []core.Node
 					allNodes = slices.Clone(groupByNodeList.Nodes)
-					allNodes = append(allNodes, core.TokenNode{Token: lexercore.Token{RawValue: ","}})
-					allNodes = append(allNodes, core.TokenNode{Token: lexercore.Token{RawValue: " "}})
+					allNodes = append(allNodes, core.Comma())
+					allNodes = append(allNodes, core.Space())
 					allNodes = append(allNodes, selectNodes...)
 					element.selectNode = core.NodeListNode{Nodes: allNodes}
 
@@ -161,9 +186,9 @@ func TranspileToCTE(node core.Node) {
 
 				case "EXTEND":
 					var allNodes []core.Node
-					allNodes = []core.Node{core.TokenNode{Token: lexercore.Token{RawValue: "*"}}}
-					allNodes = append(allNodes, core.TokenNode{Token: lexercore.Token{RawValue: ","}})
-					allNodes = append(allNodes, core.TokenNode{Token: lexercore.Token{RawValue: " "}})
+					allNodes = []core.Node{core.NewTokenNode("*")}
+					allNodes = append(allNodes, core.Comma())
+					allNodes = append(allNodes, core.Space())
 					allNodes = append(allNodes, pipeNodeList.Nodes...)
 					queries = append(queries, parsedQuery{
 						selectNode: core.NodeListNode{Nodes: allNodes},
@@ -188,7 +213,7 @@ func TranspileToCTE(node core.Node) {
 
 		queries = compactIf(queries, func(current, next parsedQuery) (parsedQuery, bool) {
 
-			if current.orderBy == nil && next.orderBy != nil && next.from == nil && next.join == nil && next.where == nil && next.groupBy == nil && next.limit == nil && next.selectNode == nil {
+			if current.orderBy == nil && slices.Equal(next.nonNil(), []string{"orderBy"}) {
 				current.orderBy = next.orderBy
 				current.name = fmt.Sprintf("%s_%s", current.name, next.name)
 				return current, true
@@ -200,7 +225,7 @@ func TranspileToCTE(node core.Node) {
 
 		queries = compactIf(queries, func(current, next parsedQuery) (parsedQuery, bool) {
 
-			if current.limit == nil && next.limit != nil && next.from == nil && next.join == nil && next.where == nil && next.groupBy == nil && next.orderBy == nil && next.selectNode == nil {
+			if current.limit == nil && slices.Equal(next.nonNil(), []string{"limit"}) {
 				current.limit = next.limit
 				current.name = fmt.Sprintf("%s_%s", current.name, next.name)
 				return current, true
@@ -230,7 +255,7 @@ func TranspileToCTE(node core.Node) {
 			}
 
 			if prevName != "" {
-				el.from = core.NodeListNode{Nodes: []core.Node{core.TokenNode{Token: lexercore.Token{RawValue: prevName}}}}
+				el.from = core.NodeListNode{Nodes: []core.Node{core.NewTokenNode(prevName)}}
 			}
 
 			b.Add("\n", el.name, " ", "AS", "\n", el.render())
@@ -267,7 +292,7 @@ func (builder *NodeBuilder) Add(nodes ...any) *NodeBuilder {
 		switch t := node.(type) {
 
 		case string:
-			builder.nodes = append(builder.nodes, core.TokenNode{Token: lexercore.Token{RawValue: t}})
+			builder.nodes = append(builder.nodes, core.NewTokenNode(t))
 		case core.Node:
 			builder.nodes = append(builder.nodes, t)
 		default:

@@ -14,6 +14,13 @@ type Node interface {
 	Children() []Node
 }
 
+func ToTokenNodeMust(n Node) TokenNode {
+	if tokenNode, ok := n.(TokenNode); ok {
+		return tokenNode
+	}
+	panic("not a TokenNode")
+}
+
 type NodeListNode struct {
 	Nodes []Node
 }
