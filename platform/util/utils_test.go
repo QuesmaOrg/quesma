@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
+	"math"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -145,7 +146,7 @@ func TestMapDifference(t *testing.T) {
 		},
 	}
 
-	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, []string{}, false, true)
+	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, []string{}, false, true, math.MaxInt)
 	assert.Equal(t, wantedActualMinusExpected, actualMinusExpected)
 	assert.Equal(t, wantedExpectedMinusActual, expectedMinusActual)
 }
@@ -202,7 +203,7 @@ func TestMapDifference_arraysTypeDifference(t *testing.T) {
 			"sum_other_doc_count":         0.000000,
 		},
 	}
-	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, []string{}, true, true)
+	actualMinusExpected, expectedMinusActual := MapDifferenceCompareEverything(mActual, mExpected)
 	assert.Empty(t, actualMinusExpected)
 	assert.Equal(t, JsonMap{
 		"0": JsonMap{
@@ -218,12 +219,12 @@ func TestMapDifference_compareValues_different(t *testing.T) {
 	mExpected := JsonMap{"key": 102}
 
 	// if we don't compare values, maps are equal
-	mdiff1, mdiff2 := MapDifference(mActual, mExpected, []string{}, false, true)
+	mdiff1, mdiff2 := MapDifference(mActual, mExpected, []string{}, false, true, math.MaxInt)
 	assert.Empty(t, mdiff1)
 	assert.Empty(t, mdiff2)
 
 	// if we compare values, maps are different
-	mdiff1, mdiff2 = MapDifference(mActual, mExpected, []string{}, true, true)
+	mdiff1, mdiff2 = MapDifferenceCompareEverything(mActual, mExpected)
 	assert.Equal(t, mActual, mdiff1)
 	assert.Equal(t, mExpected, mdiff2)
 }
@@ -231,7 +232,7 @@ func TestMapDifference_compareValues_different(t *testing.T) {
 func TestMapDifference_compareValues_floatEqualsInt(t *testing.T) {
 	mActual := JsonMap{"key": 101}
 	mExpected := JsonMap{"key": 101.00}
-	mdiff1, mdiff2 := MapDifference(mActual, mExpected, []string{}, true, true)
+	mdiff1, mdiff2 := MapDifferenceCompareEverything(mActual, mExpected)
 	assert.Empty(t, mdiff1)
 	assert.Empty(t, mdiff2)
 }
@@ -288,8 +289,7 @@ func TestMapDifference_compareFullArrays(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		actualMinusExpected, expectedMinusActual := MapDifference(tt.actual, tt.expected,
-			[]string{}, true, true)
+		actualMinusExpected, expectedMinusActual := MapDifferenceCompareEverything(tt.actual, tt.expected)
 		assert.True(t, reflect.DeepEqual(tt.wantedActualMinusExpected, actualMinusExpected))
 		assert.True(t, reflect.DeepEqual(tt.wantedExpectedMinusActual, expectedMinusActual))
 	}
@@ -388,7 +388,7 @@ func TestJsonDifference(t *testing.T) {
 		},
 	}
 
-	actualMinusExpected, expectedMinusActual, err := JsonDifference(actual, expected)
+	actualMinusExpected, expectedMinusActual, err := JsonDifferenceWeak(actual, expected)
 	assert.NoError(t, err)
 	assert.Empty(t, actualMinusExpected)
 	assert.Equal(t, wantedExpectedMinusActual, expectedMinusActual)
