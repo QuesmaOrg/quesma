@@ -87,7 +87,8 @@ type agent struct {
 	recent            diag.PhoneHomeStats
 	telemetryEndpoint *config.Url
 
-	httpClient *http.Client
+	httpClient              *http.Client
+	elasticsearchHttpClient *http.Client
 }
 
 func generateInstanceID() string {
@@ -114,9 +115,7 @@ func NewPhoneHomeAgent(configuration *config.QuesmaConfiguration, clickHouseDb q
 	// TODO
 	// this is a question, maybe we should inherit context from the caller
 	// maybe the main function should be the one to cancel the context
-
 	ctx, cancel := context.WithCancel(context.Background())
-
 	return &agent{
 		ctx:                       ctx,
 		cancel:                    cancel,
@@ -141,6 +140,7 @@ func NewPhoneHomeAgent(configuration *config.QuesmaConfiguration, clickHouseDb q
 			},
 			Timeout: time.Minute,
 		},
+		elasticsearchHttpClient: elasticsearch.NewHttpsClient(&config.ElasticsearchConfiguration{}, time.Minute),
 	}
 }
 
@@ -395,7 +395,7 @@ func (a *agent) callElastic(ctx context.Context, url *url.URL, response interfac
 		return err
 	}
 
-	resp, err := a.httpClient.Do(request)
+	resp, err := a.elasticsearchHttpClient.Do(request)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error getting info from elasticsearch. ")
 		return err

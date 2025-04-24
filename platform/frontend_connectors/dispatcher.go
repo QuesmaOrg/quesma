@@ -5,7 +5,6 @@ package frontend_connectors
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
@@ -90,14 +89,9 @@ func (r *Dispatcher) SetDependencies(deps quesma_api.Dependencies) {
 	r.debugInfoCollector = deps.DebugInfoCollector()
 	r.phoneHomeAgent = deps.PhoneHomeAgent()
 }
+
 func NewDispatcher(config *config.QuesmaConfiguration) *Dispatcher {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{
-		Transport: tr,
-		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
-	}
+	client := elasticsearch.NewHttpsClient(&config.Elasticsearch, time.Minute)
 	requestProcessors := quesma_api.ProcessorChain{}
 	requestProcessors = append(requestProcessors, quesma_api.NewTraceIdPreprocessor())
 
