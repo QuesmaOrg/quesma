@@ -3,8 +3,13 @@
 package config
 
 type ElasticsearchConfiguration struct {
-	Url      *Url   `koanf:"url"`
+	Url      *Url `koanf:"url"`
+	AdminUrl *Url `koanf:"adminUrl"`
+
 	User     string `koanf:"user"`
 	Password string `koanf:"password"`
-	AdminUrl *Url   `koanf:"adminUrl"`
+
+	ClientCertPath string `koanf:"clientCertPath"`
+	ClientKeyPath  string `koanf:"clientKeyPath"`
+	CACertPath     string `koanf:"caCertPath"`
 }

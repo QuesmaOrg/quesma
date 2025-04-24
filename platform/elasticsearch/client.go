@@ -6,10 +6,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -17,6 +19,9 @@ const (
 	esRequestTimeout              = 5 * time.Second
 	elasticsearchSecurityEndpoint = "_security/_authenticate"
 	openSearchSecurityEndpoint    = "_plugins/_security/api/account"
+
+	tlsCertFile = "TLS_CERT_FILE"
+	tlsKeyFile  = "TLS_KEY_FILE"
 )
 
 type SimpleClient struct {
@@ -24,18 +29,52 @@ type SimpleClient struct {
 	config *config.ElasticsearchConfiguration
 }
 
-func NewSimpleClient(configuration *config.ElasticsearchConfiguration) *SimpleClient {
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-		Timeout: esRequestTimeout,
+func NewHttpsClient(configuration *config.ElasticsearchConfiguration, timeout time.Duration) *http.Client {
+	var cert = tls.Certificate{}
+	if configuration.ClientCertPath != "" && configuration.ClientKeyPath != "" {
+		var err error
+		cert, err = tls.LoadX509KeyPair(configuration.ClientCertPath, configuration.ClientKeyPath)
+		if err != nil {
+			panic(fmt.Sprintf("failed to load client certificate/key: %v", err))
+		}
 	}
+
+	var caCertPool *x509.CertPool
+	var insecureSkipVerify = true
+	if configuration.CACertPath != "" {
+		caCert, err := os.ReadFile(configuration.CACertPath)
+		if err != nil {
+			panic(fmt.Sprintf("failed to read CA certificate: %v", err))
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		insecureSkipVerify = false
+	}
+
+	tlsConfig := &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            caCertPool,
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: insecureSkipVerify,
+	}
+
+	// Create HTTP client with custom transport
+	return &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
+		Timeout: timeout,
+	}
+}
+
+func NewSimpleClient(configuration *config.ElasticsearchConfiguration) *SimpleClient {
+	client := NewHttpsClient(configuration, esRequestTimeout)
 	return &SimpleClient{
 		client: client,
 		config: configuration,
 	}
 }
+
 func (es *SimpleClient) Request(ctx context.Context, method, endpoint string, body []byte) (*http.Response, error) {
 	return es.doRequest(ctx, method, endpoint, body, nil)
 }

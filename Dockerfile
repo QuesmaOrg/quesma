@@ -3,7 +3,8 @@ FROM golang:alpine AS builder
 COPY platform /platform
 COPY cmd /cmd
 
-ENV GOCACHE=/root/.cache/go-build
+ENV GOOS=linux
+ENV GOARCH=amd64
 ARG QUESMA_BUILD_SHA
 ARG QUESMA_VERSION
 ARG QUESMA_BUILD_DATE
