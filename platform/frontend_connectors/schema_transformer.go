@@ -1001,6 +1001,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
 		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
+		{TransformationName: "ClusterFunction", Transformation: s.applyClusterFunction},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
@@ -1184,4 +1185,20 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	}
 	return query, nil
 
+}
+
+func (s *SchemaCheckPass) applyClusterFunction(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	if s.cfg.ClusterName == "" {
+		return query, nil
+	}
+	visitor := model.NewBaseVisitor()
+	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
+		return model.NewFunction("cluster", model.NewLiteral(s.cfg.ClusterName), e)
+	}
+	logger.Info().Msgf("applyClusterFunction: %s", s.cfg.ClusterName)
+	expr := query.SelectCommand.Accept(visitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
 }
