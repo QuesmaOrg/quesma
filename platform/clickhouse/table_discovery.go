@@ -217,6 +217,9 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 			configuredTables = td.configureTables(tables, databaseName)
 		}
 	}
+	tablePresence, err := td.getTablePresenceAcrossClusters()
+	_ = err
+	_ = tablePresence
 	configuredTables = td.readVirtualTables(configuredTables)
 
 	td.ReloadTablesError = nil
@@ -697,6 +700,74 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 		}
 	}
 	return outputTable
+}
+
+type TablePresence struct {
+	Database         string
+	Table            string
+	FoundNodes       int
+	TotalNodes       int
+	ExistsOnAllNodes bool
+}
+
+func (td *tableDiscovery) getTablePresenceAcrossClusters() (map[string][]TablePresence, error) {
+	// Step 1: Get all cluster names
+	clusterQuery := `SELECT DISTINCT cluster FROM system.clusters ORDER BY cluster`
+	rows, err := td.dbConnPool.Query(context.Background(), clusterQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query cluster list: %w", err)
+	}
+	defer rows.Close()
+
+	var clusters []string
+	for rows.Next() {
+		var cluster string
+		if err := rows.Scan(&cluster); err != nil {
+			return nil, fmt.Errorf("failed to scan cluster name: %w", err)
+		}
+		clusters = append(clusters, cluster)
+	}
+
+	// Step 2: For each cluster, run the consistency check
+	presenceData := make(map[string][]TablePresence)
+
+	for _, cluster := range clusters {
+		query := fmt.Sprintf(`
+            WITH (
+                SELECT count(DISTINCT host_name)
+                FROM system.clusters
+                WHERE cluster = '%s'
+            ) AS total_nodes
+
+            SELECT
+                database,
+                name AS table_name,
+                count(DISTINCT hostName()) AS found_nodes,
+                total_nodes,
+                count(DISTINCT hostName()) = total_nodes AS exists_on_all_nodes
+            FROM cluster('%s', system.tables)
+            GROUP BY database, name, total_nodes
+        `, cluster, cluster)
+
+		rows, err := td.dbConnPool.Query(context.Background(), query)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query tables for cluster %s: %w", cluster, err)
+		}
+		defer rows.Close()
+
+		var tables []TablePresence
+		for rows.Next() {
+			var tp TablePresence
+			if err := rows.Scan(&tp.Database, &tp.Table, &tp.FoundNodes, &tp.TotalNodes, &tp.ExistsOnAllNodes); err != nil {
+				return nil, fmt.Errorf("failed to scan table row: %w", err)
+			}
+			tables = append(tables, tp)
+		}
+
+		presenceData[cluster] = tables
+	}
+
+	return presenceData, nil
 }
 
 func (td *tableDiscovery) readTables(database string) (map[string]map[string]columnMetadata, error) {
