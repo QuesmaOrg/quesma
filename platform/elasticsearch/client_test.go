@@ -4,13 +4,21 @@ package elasticsearch
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/stretchr/testify/assert"
 	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
+	"time"
 )
 
 const testPayload = "{'test': 'test'}"
@@ -107,4 +115,128 @@ func TestSimpleClient_RequestWithHeaders_OverwritesContentType(t *testing.T) {
 	resp, err := esClient.RequestWithHeaders(context.Background(), "POST", "test-endpoint", []byte(testPayload), headers)
 	assert.NoError(t, err)
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
+}
+
+func writeTempPEM(t *testing.T, prefix string, pemBytes []byte) string {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp("", prefix+"-*.pem")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.Write(pemBytes); err != nil {
+		t.Fatalf("failed to write to temp file: %v", err)
+	}
+
+	t.Cleanup(func() {
+		os.Remove(tmpFile.Name())
+	})
+
+	return tmpFile.Name()
+}
+
+func generateTestCertAndKey(t *testing.T) (certPath, keyPath string) {
+	t.Helper()
+
+	private, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("failed to generate private key: %v", err)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test Certificate"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &private.PublicKey, private)
+	if err != nil {
+		t.Fatalf("failed to create certificate: %v", err)
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(private)})
+
+	certPath = writeTempPEM(t, "test-cert", certPEM)
+	keyPath = writeTempPEM(t, "test-key", keyPEM)
+	return certPath, keyPath
+}
+
+func TestNewHttpsClient_NoCerts(t *testing.T) {
+	conf := &config.ElasticsearchConfiguration{}
+	client := NewHttpsClient(conf, 5*time.Second)
+
+	tlsConfig := client.Transport.(*http.Transport).TLSClientConfig
+	if tlsConfig == nil {
+		t.Fatal("expected TLSClientConfig to be set")
+	}
+	if !tlsConfig.InsecureSkipVerify {
+		t.Error("expected InsecureSkipVerify to be true")
+	}
+}
+
+func TestNewHttpsClient_WithCACert(t *testing.T) {
+	caPath, _ := generateTestCertAndKey(t)
+
+	conf := &config.ElasticsearchConfiguration{
+		CACertPath: caPath,
+	}
+	client := NewHttpsClient(conf, 5*time.Second)
+
+	tlsConfig := client.Transport.(*http.Transport).TLSClientConfig
+	if tlsConfig.RootCAs == nil {
+		t.Error("expected RootCAs to be set")
+	}
+	if tlsConfig.InsecureSkipVerify {
+		t.Error("expected InsecureSkipVerify to be false")
+	}
+}
+
+func TestNewHttpsClient_WithClientCert(t *testing.T) {
+	certPath, keyPath := generateTestCertAndKey(t) // real cert and key
+
+	conf := &config.ElasticsearchConfiguration{
+		ClientCertPath: certPath,
+		ClientKeyPath:  keyPath,
+	}
+	client := NewHttpsClient(conf, 5*time.Second)
+
+	tlsConfig := client.Transport.(*http.Transport).TLSClientConfig
+	if len(tlsConfig.Certificates) == 0 {
+		t.Error("expected client certificate to be set")
+	}
+}
+
+func TestNewHttpsClient_InvalidCAPath(t *testing.T) {
+	conf := &config.ElasticsearchConfiguration{
+		CACertPath: "/nonexistent/file.pem",
+	}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid CA path")
+		}
+	}()
+	NewHttpsClient(conf, 5*time.Second)
+}
+
+func TestNewHttpsClient_InvalidClientCertPath(t *testing.T) {
+	conf := &config.ElasticsearchConfiguration{
+		ClientCertPath: "/invalid/cert.pem",
+		ClientKeyPath:  "/invalid/key.pem",
+	}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid client cert path")
+		}
+	}()
+	NewHttpsClient(conf, 5*time.Second)
 }

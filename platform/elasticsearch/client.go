@@ -27,35 +27,33 @@ type SimpleClient struct {
 }
 
 func NewHttpsClient(configuration *config.ElasticsearchConfiguration, timeout time.Duration) *http.Client {
-	var cert = tls.Certificate{}
-	if configuration.ClientCertPath != "" && configuration.ClientKeyPath != "" {
-		var err error
-		cert, err = tls.LoadX509KeyPair(configuration.ClientCertPath, configuration.ClientKeyPath)
-		if err != nil {
-			panic(fmt.Sprintf("failed to load client certificate/key: %v", err))
-		}
+	tlsConfig := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true,
 	}
 
-	var caCertPool *x509.CertPool
-	var insecureSkipVerify = true
 	if configuration.CACertPath != "" {
 		caCert, err := os.ReadFile(configuration.CACertPath)
 		if err != nil {
 			panic(fmt.Sprintf("failed to read CA certificate: %v", err))
 		}
 		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caCert)
-		insecureSkipVerify = false
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			panic("failed to append CA certificate")
+		}
+
+		tlsConfig.RootCAs = caCertPool
+		tlsConfig.InsecureSkipVerify = false
 	}
 
-	tlsConfig := &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		RootCAs:            caCertPool,
-		MinVersion:         tls.VersionTLS12,
-		InsecureSkipVerify: insecureSkipVerify,
+	if configuration.ClientCertPath != "" && configuration.ClientKeyPath != "" {
+		cert, err := tls.LoadX509KeyPair(configuration.ClientCertPath, configuration.ClientKeyPath)
+		if err != nil {
+			panic(fmt.Sprintf("failed to load client certificate/key: %v", err))
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	// Create HTTP client with custom transport
 	return &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
