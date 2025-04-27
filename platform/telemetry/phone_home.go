@@ -140,7 +140,7 @@ func NewPhoneHomeAgent(configuration *config.QuesmaConfiguration, clickHouseDb q
 			},
 			Timeout: time.Minute,
 		},
-		elasticsearchHttpClient: elasticsearch.NewHttpsClient(&config.ElasticsearchConfiguration{}, time.Minute),
+		elasticsearchHttpClient: elasticsearch.NewHttpsClient(&configuration.Elasticsearch, time.Minute),
 	}
 }
 
