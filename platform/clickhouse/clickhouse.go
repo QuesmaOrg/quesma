@@ -137,6 +137,7 @@ type discoveredTable struct {
 	createTableQuery   string
 	timestampFieldName string
 	virtualTable       bool
+	existsOnAllNodes   bool // cluster from is allowed
 }
 
 func (lm *LogManager) ReloadTables() {

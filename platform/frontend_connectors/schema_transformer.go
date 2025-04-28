@@ -1192,6 +1192,11 @@ func (s *SchemaCheckPass) applyClusterFunction(currentSchema schema.Schema, quer
 		return query, nil
 	}
 	visitor := model.NewBaseVisitor()
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	_ = table
 	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
 		return model.NewFunction("cluster", model.NewLiteral(s.cfg.ClusterName), e)
 	}

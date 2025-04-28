@@ -217,9 +217,14 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 			configuredTables = td.configureTables(tables, databaseName)
 		}
 	}
-	tablePresence, err := td.getTablePresenceAcrossClusters()
-	_ = err
-	_ = tablePresence
+	tablePresence, err := td.getTablePresenceAcrossClusters(databaseName)
+	if err != nil {
+		logger.Warn().Msgf("could not get table presence across clusters: %v", err)
+	}
+	logger.Info().Msgf("table presence across clusters: %v", tablePresence)
+
+	configuredTables = td.populateClusterNodes(configuredTables, databaseName, tablePresence)
+
 	configuredTables = td.readVirtualTables(configuredTables)
 
 	td.ReloadTablesError = nil
@@ -331,7 +336,7 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]columnMet
 				comment := td.tableComment(databaseName, table)
 				createTableQuery := td.createTableQuery(databaseName, table)
 				// we assume here that @timestamp field is always present in the table, or it's explicitly configured
-				configuredTables[table] = discoveredTable{table, databaseName, columns, indexConfig, comment, createTableQuery, "", false}
+				configuredTables[table] = discoveredTable{table, databaseName, columns, indexConfig, comment, createTableQuery, "", false, false}
 			}
 		} else {
 			notConfiguredTables = append(notConfiguredTables, table)
@@ -361,7 +366,7 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]colum
 			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
 		}
 		const isVirtualTable = false
-		configuredTables[table] = discoveredTable{table, databaseName, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, isVirtualTable}
+		configuredTables[table] = discoveredTable{table, databaseName, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, isVirtualTable, false}
 
 	}
 	for tableName, table := range configuredTables {
@@ -418,6 +423,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				CreateTableQuery:             resTable.createTableQuery,
 				DiscoveredTimestampFieldName: timestampFieldName,
 				VirtualTable:                 resTable.virtualTable,
+				ExistsOnAllNodes:             resTable.existsOnAllNodes,
 			}
 			if containsAttributes(resTable.columnTypes) {
 				table.Config.Attributes = []Attribute{NewDefaultStringAttribute()}
@@ -710,7 +716,7 @@ type TablePresence struct {
 	ExistsOnAllNodes bool
 }
 
-func (td *tableDiscovery) getTablePresenceAcrossClusters() (map[string][]TablePresence, error) {
+func (td *tableDiscovery) getTablePresenceAcrossClusters(database string) (map[string][]TablePresence, error) {
 	// Step 1: Get all cluster names
 	clusterQuery := `SELECT DISTINCT cluster FROM system.clusters ORDER BY cluster`
 	rows, err := td.dbConnPool.Query(context.Background(), clusterQuery)
@@ -728,7 +734,7 @@ func (td *tableDiscovery) getTablePresenceAcrossClusters() (map[string][]TablePr
 		clusters = append(clusters, cluster)
 	}
 
-	// Step 2: For each cluster, run the consistency check
+	// Step 2: For each cluster, query only for the given database
 	presenceData := make(map[string][]TablePresence)
 
 	for _, cluster := range clusters {
@@ -746,8 +752,9 @@ func (td *tableDiscovery) getTablePresenceAcrossClusters() (map[string][]TablePr
                 total_nodes,
                 count(DISTINCT hostName()) = total_nodes AS exists_on_all_nodes
             FROM cluster('%s', system.tables)
+            WHERE database = '%s'
             GROUP BY database, name, total_nodes
-        `, cluster, cluster)
+        `, cluster, cluster, database)
 
 		rows, err := td.dbConnPool.Query(context.Background(), query)
 		if err != nil {
@@ -764,10 +771,26 @@ func (td *tableDiscovery) getTablePresenceAcrossClusters() (map[string][]TablePr
 			tables = append(tables, tp)
 		}
 
-		presenceData[cluster] = tables
+		// Only add clusters that have matching tables
+		if len(tables) > 0 {
+			presenceData[cluster] = tables
+		}
 	}
 
 	return presenceData, nil
+}
+
+func (td *tableDiscovery) populateClusterNodes(configuredTables map[string]discoveredTable, databaseName string, tablePresence map[string][]TablePresence) map[string]discoveredTable {
+	for _, tables := range tablePresence {
+		for _, table := range tables {
+			if table.Database == databaseName {
+				if discoTable, ok := configuredTables[table.Table]; ok {
+					discoTable.existsOnAllNodes = table.ExistsOnAllNodes
+				}
+			}
+		}
+	}
+	return configuredTables
 }
 
 func (td *tableDiscovery) readTables(database string) (map[string]map[string]columnMetadata, error) {
