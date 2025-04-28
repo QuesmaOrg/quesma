@@ -734,15 +734,15 @@ func (td *tableDiscovery) getTablePresenceAcrossClusters(database string) (map[s
 		clusters = append(clusters, cluster)
 	}
 
-	// Step 2: For each cluster, query only for the given database
+	// Step 2: For each cluster, safely query for the given database
 	presenceData := make(map[string][]TablePresence)
 
 	for _, cluster := range clusters {
-		query := fmt.Sprintf(`
+		query := `
             WITH (
                 SELECT count(DISTINCT host_name)
                 FROM system.clusters
-                WHERE cluster = '%s'
+                WHERE cluster = ?
             ) AS total_nodes
 
             SELECT
@@ -751,12 +751,12 @@ func (td *tableDiscovery) getTablePresenceAcrossClusters(database string) (map[s
                 count(DISTINCT hostName()) AS found_nodes,
                 total_nodes,
                 count(DISTINCT hostName()) = total_nodes AS exists_on_all_nodes
-            FROM cluster('%s', system.tables)
-            WHERE database = '%s'
+            FROM cluster(?, system.tables)
+            WHERE database = ?
             GROUP BY database, name, total_nodes
-        `, cluster, cluster, database)
+        `
 
-		rows, err := td.dbConnPool.Query(context.Background(), query)
+		rows, err := td.dbConnPool.Query(context.Background(), query, cluster, cluster, database)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query tables for cluster %s: %w", cluster, err)
 		}
@@ -771,7 +771,6 @@ func (td *tableDiscovery) getTablePresenceAcrossClusters(database string) (map[s
 			tables = append(tables, tp)
 		}
 
-		// Only add clusters that have matching tables
 		if len(tables) > 0 {
 			presenceData[cluster] = tables
 		}
