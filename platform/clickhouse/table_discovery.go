@@ -221,7 +221,7 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 	if err != nil {
 		logger.Warn().Msgf("could not get table presence across clusters: %v", err)
 	}
-	logger.Info().Msgf("table presence across clusters: %v", tablePresence)
+	logger.Info().Msgf("Table presence across clusters: %v", tablePresence)
 
 	configuredTables = td.populateClusterNodes(configuredTables, databaseName, tablePresence)
 
