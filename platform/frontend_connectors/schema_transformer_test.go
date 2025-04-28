@@ -1698,7 +1698,9 @@ func Test_cluster(t *testing.T) {
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 	for indexName := range indexConfig {
-		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+		table := clickhouse.NewEmptyTable(indexName)
+		table.ExistsOnAllNodes = true
+		tableMap.Store(indexName, table)
 	}
 
 	clickhouseUrl := &config.Url{
