@@ -1001,7 +1001,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
 		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
-		{TransformationName: "ClusterFunction", Transformation: s.applyClusterFunction},
+		{TransformationName: "ClusterFunction", Transformation: s.applyFromClusterExpression},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
