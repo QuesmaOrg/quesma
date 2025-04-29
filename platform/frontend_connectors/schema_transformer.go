@@ -1203,7 +1203,7 @@ func (s *SchemaCheckPass) applyFromClusterExpression(currentSchema schema.Schema
 	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
 		return model.NewFunction("cluster", model.NewLiteral(s.cfg.ClusterName), e)
 	}
-	logger.Info().Msgf("applyClusterFunction: %s", s.cfg.ClusterName)
+	logger.Debug().Msgf("applyClusterFunction: %s", s.cfg.ClusterName)
 	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
