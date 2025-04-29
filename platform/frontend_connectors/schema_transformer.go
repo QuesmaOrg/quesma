@@ -1187,7 +1187,8 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 }
 
-func (s *SchemaCheckPass) applyClusterFunction(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
+// applyFromClusterExpression transforms query so that `FROM table` becomes `FROM cluster(clusterName,table)` if applicable
+func (s *SchemaCheckPass) applyFromClusterExpression(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
 	if s.cfg.ClusterName == "" {
 		return query, nil
 	}
