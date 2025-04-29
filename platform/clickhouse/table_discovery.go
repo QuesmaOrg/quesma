@@ -217,13 +217,16 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 			configuredTables = td.configureTables(tables, databaseName)
 		}
 	}
-	tablePresence, err := td.getTablePresenceAcrossClusters(databaseName)
-	if err != nil {
-		logger.Warn().Msgf("could not get table presence across clusters: %v", err)
+	var tablePresence map[string][]TablePresence
+	if td.cfg.ClusterName != "" {
+		var err error
+		tablePresence, err = td.getTablePresenceAcrossClusters(databaseName)
+		if err != nil {
+			logger.Warn().Msgf("could not get table presence across clusters: %v", err)
+		}
+		logger.Info().Msgf("Table presence across clusters: %v", tablePresence)
+		configuredTables = td.populateClusterNodes(configuredTables, databaseName, tablePresence)
 	}
-	logger.Info().Msgf("Table presence across clusters: %v", tablePresence)
-
-	configuredTables = td.populateClusterNodes(configuredTables, databaseName, tablePresence)
 
 	configuredTables = td.readVirtualTables(configuredTables)
 
