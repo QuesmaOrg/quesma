@@ -25,6 +25,92 @@ func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 func (f fixedTableProvider) AutodiscoveryEnabled() bool                              { return false }
 func (f fixedTableProvider) RegisterTablesReloadListener(chan<- types.ReloadMessage) {}
 
+func TestApplyTimestampField(t *testing.T) {
+	indexConfig := map[string]config.IndexConfiguration{
+		"test": {},
+	}
+
+	fields := map[schema.FieldName]schema.Field{
+		"@timestamp":  {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+		"other_field": {PropertyName: "other_field", InternalPropertyName: "other_field", InternalPropertyType: "String", Type: schema.QuesmaTypeText},
+	}
+
+	indexSchema := schema.Schema{
+		Fields: fields,
+	}
+
+	tableMap := clickhouse.NewTableMap()
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
+
+	tableMap.Store("test", &clickhouse.Table{
+		Name: "test",
+		DiscoveredTimestampFieldName: func() *string {
+			field := "discovered_timestamp"
+			return &field
+		}(),
+	})
+
+	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
+
+	tests := []struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}{
+		{
+			name: "replace @timestamp with discovered timestamp",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					Columns: []model.Expr{
+						model.NewColumnRef("@timestamp"),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					Columns: []model.Expr{
+						model.NewColumnRef("discovered_timestamp"),
+					},
+				},
+			},
+		},
+		{
+			name: "no replacement needed",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					Columns: []model.Expr{
+						model.NewColumnRef("other_field"),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					Columns: []model.Expr{
+						model.NewColumnRef("other_field"),
+					},
+				},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
+			tt.query.Schema = indexSchema
+			tt.query.Indexes = []string{tt.query.TableName}
+
+			actual, err := transform.applyTimestampField(indexSchema, tt.query)
+			assert.NoError(t, err)
+
+			assert.Equal(t, model.AsString(tt.expected.SelectCommand), model.AsString(actual.SelectCommand))
+		})
+	}
+}
+
 func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
