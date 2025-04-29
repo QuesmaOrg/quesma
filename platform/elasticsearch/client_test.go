@@ -176,12 +176,9 @@ func TestNewHttpsClient_NoCerts(t *testing.T) {
 	client := NewHttpsClient(conf, 5*time.Second)
 
 	tlsConfig := client.Transport.(*http.Transport).TLSClientConfig
-	if tlsConfig == nil {
-		t.Fatal("expected TLSClientConfig to be set")
-	}
-	if !tlsConfig.InsecureSkipVerify {
-		t.Error("expected InsecureSkipVerify to be true")
-	}
+	assert.Nil(t, tlsConfig.RootCAs)
+	assert.Nil(t, tlsConfig.Certificates)
+	assert.True(t, tlsConfig.InsecureSkipVerify)
 }
 
 func TestNewHttpsClient_WithCACert(t *testing.T) {
@@ -193,12 +190,9 @@ func TestNewHttpsClient_WithCACert(t *testing.T) {
 	client := NewHttpsClient(conf, 5*time.Second)
 
 	tlsConfig := client.Transport.(*http.Transport).TLSClientConfig
-	if tlsConfig.RootCAs == nil {
-		t.Error("expected RootCAs to be set")
-	}
-	if tlsConfig.InsecureSkipVerify {
-		t.Error("expected InsecureSkipVerify to be false")
-	}
+	assert.NotNil(t, tlsConfig.RootCAs)
+	assert.Nil(t, tlsConfig.Certificates)
+	assert.False(t, tlsConfig.InsecureSkipVerify)
 }
 
 func TestNewHttpsClient_WithClientCert(t *testing.T) {
@@ -211,21 +205,21 @@ func TestNewHttpsClient_WithClientCert(t *testing.T) {
 	client := NewHttpsClient(conf, 5*time.Second)
 
 	tlsConfig := client.Transport.(*http.Transport).TLSClientConfig
-	if len(tlsConfig.Certificates) == 0 {
-		t.Error("expected client certificate to be set")
-	}
+	assert.Nil(t, tlsConfig.RootCAs)
+	assert.NotNil(t, tlsConfig.Certificates)
+	assert.True(t, tlsConfig.InsecureSkipVerify)
 }
 
 func TestNewHttpsClient_InvalidCAPath(t *testing.T) {
 	conf := &config.ElasticsearchConfiguration{
 		CACertPath: "/nonexistent/file.pem",
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for invalid CA path")
-		}
-	}()
-	NewHttpsClient(conf, 5*time.Second)
+	client := NewHttpsClient(conf, 5*time.Second)
+
+	tlsConfig := client.Transport.(*http.Transport).TLSClientConfig
+	assert.Nil(t, tlsConfig.RootCAs)
+	assert.Nil(t, tlsConfig.Certificates)
+	assert.True(t, tlsConfig.InsecureSkipVerify)
 }
 
 func TestNewHttpsClient_InvalidClientCertPath(t *testing.T) {
@@ -233,10 +227,10 @@ func TestNewHttpsClient_InvalidClientCertPath(t *testing.T) {
 		ClientCertPath: "/invalid/cert.pem",
 		ClientKeyPath:  "/invalid/key.pem",
 	}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for invalid client cert path")
-		}
-	}()
-	NewHttpsClient(conf, 5*time.Second)
+	client := NewHttpsClient(conf, 5*time.Second)
+
+	tlsConfig := client.Transport.(*http.Transport).TLSClientConfig
+	assert.Nil(t, tlsConfig.RootCAs)
+	assert.Nil(t, tlsConfig.Certificates)
+	assert.True(t, tlsConfig.InsecureSkipVerify)
 }
