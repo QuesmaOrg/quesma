@@ -26,6 +26,7 @@ type SimpleClient struct {
 	config *config.ElasticsearchConfiguration
 }
 
+// NewHttpsClient should be merged with NewSimpleClient at some point -> TODO!
 func NewHttpsClient(configuration *config.ElasticsearchConfiguration, timeout time.Duration) *http.Client {
 	tlsConfig := &tls.Config{
 		MinVersion:         tls.VersionTLS12,
