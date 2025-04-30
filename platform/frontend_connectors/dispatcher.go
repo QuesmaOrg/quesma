@@ -31,6 +31,8 @@ import (
 	"time"
 )
 
+const httpClientTimeout = time.Minute
+
 func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
 	if id, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
 		logger.Debug().Str(logger.RID, id).Msgf("responding from Elasticsearch, status_code=%d", elkResponse.StatusCode)
@@ -91,7 +93,7 @@ func (r *Dispatcher) SetDependencies(deps quesma_api.Dependencies) {
 }
 
 func NewDispatcher(config *config.QuesmaConfiguration) *Dispatcher {
-	client := elasticsearch.NewHttpsClient(&config.Elasticsearch, time.Minute)
+	client := elasticsearch.NewHttpsClient(&config.Elasticsearch, httpClientTimeout)
 	requestProcessors := quesma_api.ProcessorChain{}
 	requestProcessors = append(requestProcessors, quesma_api.NewTraceIdPreprocessor())
 
