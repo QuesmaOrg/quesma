@@ -656,6 +656,13 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 	if column, ok := indexSchema.Fields[model.TimestampFieldName]; ok {
 		timestampColumnName = column.InternalPropertyName.AsString()
 	}
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	if table.DiscoveredTimestampFieldName != nil {
+		timestampColumnName = *table.DiscoveredTimestampFieldName
+	}
 
 	// if not found, check if the table has a timestamp field discovered somehow
 	// This is commented out for now.
