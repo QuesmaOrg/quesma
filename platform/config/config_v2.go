@@ -94,6 +94,11 @@ type RelationalDbConfiguration struct {
 	ClusterName   string `koanf:"clusterName"` // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
 	AdminUrl      *Url   `koanf:"adminUrl"`
 	DisableTLS    bool   `koanf:"disableTLS"`
+
+	// This supports es backend only.
+	ClientCertPath string `koanf:"clientCertPath"`
+	ClientKeyPath  string `koanf:"clientKeyPath"`
+	CACertPath     string `koanf:"caCertPath"`
 }
 
 func (c *RelationalDbConfiguration) IsEmpty() bool {
@@ -1069,9 +1074,12 @@ func (c *QuesmaNewConfiguration) getRelationalDBBackendConnector() (*BackendConn
 func (c *QuesmaNewConfiguration) getElasticsearchConfig() (ElasticsearchConfiguration, error) {
 	if esBackendConn := c.getElasticsearchBackendConnector(); esBackendConn != nil {
 		return ElasticsearchConfiguration{
-			Url:      esBackendConn.Config.Url,
-			User:     esBackendConn.Config.User,
-			Password: esBackendConn.Config.Password,
+			Url:            esBackendConn.Config.Url,
+			User:           esBackendConn.Config.User,
+			Password:       esBackendConn.Config.Password,
+			ClientCertPath: esBackendConn.Config.ClientCertPath,
+			ClientKeyPath:  esBackendConn.Config.ClientKeyPath,
+			CACertPath:     esBackendConn.Config.CACertPath,
 		}, nil
 	}
 	return ElasticsearchConfiguration{}, fmt.Errorf("elasticsearch backend connector must be configured")
