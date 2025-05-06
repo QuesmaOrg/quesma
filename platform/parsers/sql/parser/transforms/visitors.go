@@ -16,6 +16,9 @@ func TransformListNodes(node core.Node, visitor func(nodeListNode *core.NodeList
 }
 
 func VisitTokenNodes(node core.Node, visitor func(tokenNode core.TokenNode)) {
+	if node == nil {
+		panic("nil node")
+	}
 	for _, child := range node.Children() {
 		VisitTokenNodes(child, visitor)
 	}

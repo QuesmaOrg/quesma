@@ -14,6 +14,13 @@ type Node interface {
 	Children() []Node
 }
 
+func ToTokenNodeMust(n Node) TokenNode {
+	if tokenNode, ok := n.(TokenNode); ok {
+		return tokenNode
+	}
+	panic("not a TokenNode")
+}
+
 type NodeListNode struct {
 	Nodes []Node
 }
@@ -36,6 +43,43 @@ func (n NodeListNode) Children() []Node {
 
 func (n NodeListNode) N() int {
 	return len(n.Nodes)
+}
+
+func (n NodeListNode) TrimLeft() NodeListNode {
+	// eat spaces and new lines
+	for len(n.Nodes) > 0 {
+		if node, ok := n.Nodes[0].(TokenNode); ok && (node.Value() == " " || node.Value() == "\n") {
+				n.Nodes = n.Nodes[1:]
+		}
+	}
+		break
+	}
+	return n
+}
+
+func (n NodeListNode) TrimRight() NodeListNode {
+	// eat spaces and new lines
+	for len(n.Nodes) > 0 {
+	    lastIndex := len(n.Nodes) - 1
+		if node, ok := n.Nodes[lastIndex].(TokenNode); ok && (node.Value() == " " || node.Value() == "\n") {
+				n.Nodes = n.Nodes[:lastIndex]
+				continue
+		}
+		break
+	}
+	return n
+}
+
+func (n NodeListNode) Trim() NodeListNode {
+	return n.TrimLeft().TrimRight()
+}
+
+func (n NodeListNode) EatFirst() NodeListNode {
+
+	if len(n.Nodes) == 0 {
+		return n
+	}
+	return NodeListNode{Nodes: n.Nodes[1:]}
 }
 
 type TokenNode struct {
