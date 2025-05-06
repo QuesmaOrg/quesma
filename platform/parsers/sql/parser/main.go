@@ -82,14 +82,26 @@ func connectClickhouse() *sql.DB {
 func main() {
 	connectClickhouse()
 
-	tokens := lexer_core.Lex(
-		`FROM openssh_logs
-|> WHERE timestamp BETWEEN $start AND $end
+	query := `FROM openssh_logs
+	|> WHERE timestamp BETWEEN $start AND $end
+	|> ORDER BY timestamp DESC
+	|> EXTEND ENRICH_LOG_CATEGORY(msg) AS category
+	|> WHERE category <> 'Others'
+	|> AGGREGATE COUNT(*) AS category_cnt GROUP BY TIME_BUCKET(timestamp), category
+	|> ORDER BY TIME_BUCKET(timestamp) ASC, category_cnt DESC
+`
+
+	query = `FROM apache_logs
+|> WHERE timestamp BETWEEN '2000-01-01' AND '2100-01-01'
 |> ORDER BY timestamp DESC
-|> EXTEND ENRICH_LOG_CATEGORY(msg) AS category
-|> WHERE category <> 'Others'
-|> AGGREGATE COUNT(*) AS category_cnt GROUP BY TIME_BUCKET(timestamp), category
-|> ORDER BY TIME_BUCKET(timestamp) ASC, category_cnt DESC`, dialect_sqlparse.SqlparseRules)
+|> SELECT timestamp, severity, msg, client
+|> WHERE client IS NOT NULL 
+|> AGGREGATE count(*) as client_count, any(msg) as sample_msg group by client
+|> ORDER BY client_count DESC
+|> LIMIT 10
+`
+
+	tokens := lexer_core.Lex(query, dialect_sqlparse.SqlparseRules)
 
 	node := core.TokensToNode(tokens)
 
@@ -97,7 +109,7 @@ func main() {
 	pipe_syntax.GroupPipeSyntax(node)
 	pipe_syntax.ExpandMacros(node)
 	pipe_syntax.ExpandEnrichments(node, DefaultDB)
-	pipe_syntax.Transpile(node)
+	pipe_syntax.TranspileToCTE(node)
 
 	fmt.Println(transforms.ConcatTokenNodes(node))
 }
