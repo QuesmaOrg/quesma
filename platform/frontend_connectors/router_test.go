@@ -25,6 +25,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/telemetry"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/ui"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/routes"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
@@ -390,7 +391,8 @@ func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *cl
 				return nil, errors.New("invalid request body, expecting JSON")
 			}
 
-			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, sr, console); err != nil {
+			const isFieldMapSyntaxEnabled = false
+			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, sr, isFieldMapSyntaxEnabled, console); err != nil {
 				return nil, err
 			} else {
 				return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
@@ -518,8 +520,8 @@ func Test_matchedAgainstConfig(t *testing.T) {
 
 	resolver := table_resolver.NewEmptyTableResolver()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			req := &quesma_api.Request{Params: map[string]string{"index": tt.index}, Body: tt.body}
 			res := matchedExactQueryPath(resolver).Matches(req)
@@ -658,8 +660,8 @@ func Test_matchedAgainstPattern(t *testing.T) {
 
 	resolver := table_resolver.NewEmptyTableResolver()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			req := &quesma_api.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
 			assert.Equalf(t, tt.want, matchedAgainstPattern(resolver).Matches(req).Matched, "matchedAgainstPattern(%v)", tt.configuration)
@@ -753,10 +755,10 @@ func TestConfigureRouter(t *testing.T) {
 		{routes.QuesmaTableResolverPath, "DELETE", false},
 	}
 
-	for _, tt := range tests {
+	for i, tt := range tests {
 		tt.path = strings.Replace(tt.path, ":id", "quesma_async_absurd_test_id", -1)
 		tt.path = strings.Replace(tt.path, ":index", testIndexName, -1)
-		t.Run(tt.method+"-at-"+tt.path, func(t *testing.T) {
+		t.Run(util.PrettyTestName(fmt.Sprintf("%s-at-%s", tt.method, tt.path), i), func(t *testing.T) {
 			req := &quesma_api.Request{Path: tt.path, Method: tt.method}
 			reqHandler, _ := testRouter.Matches(req)
 			assert.Equal(t, tt.shouldReturnHandler, reqHandler != nil, "Expected route match result for path: %s and method: %s", tt.path, tt.method)

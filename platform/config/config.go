@@ -47,14 +47,16 @@ type QuesmaConfiguration struct {
 	DisableAuth                bool
 	AutodiscoveryEnabled       bool
 
-	EnableIngest              bool // this is computed from the configuration 2.0
-	CreateCommonTable         bool
-	ClusterName               string // When creating tables Quesma will append `ON CLUSTER ClusterName` clause
-	UseCommonTableForWildcard bool   //the meaning of this is to use a common table for wildcard (default) indexes
-	DefaultIngestTarget       []string
-	DefaultQueryTarget        []string
-	DefaultIngestOptimizers   map[string]OptimizerConfiguration
-	DefaultQueryOptimizers    map[string]OptimizerConfiguration
+	DefaultPartitioningStrategy PartitionStrategy // applied from the "*" index configuration
+	EnableIngest                bool              // this is computed from the configuration 2.0
+	CreateCommonTable           bool
+	ClusterName                 string // When creating tables Quesma will append `ON CLUSTER ClusterName` clause
+	UseCommonTableForWildcard   bool   //the meaning of this is to use a common table for wildcard (default) indexes
+	DefaultIngestTarget         []string
+	DefaultQueryTarget          []string
+	DefaultIngestOptimizers     map[string]OptimizerConfiguration
+	DefaultQueryOptimizers      map[string]OptimizerConfiguration
+	MapFieldsDiscoveringEnabled bool
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
@@ -263,6 +265,7 @@ Quesma Configuration:
 	UseCommonTableForWildcard: %t,
 	DefaultIngestTarget: %v,
 	DefaultQueryTarget: %v,
+	MapFieldsDiscoveringEnabled: %t
 `,
 		c.TransparentProxy,
 		elasticUrl,
@@ -284,6 +287,7 @@ Quesma Configuration:
 		c.UseCommonTableForWildcard,
 		c.DefaultIngestTarget,
 		c.DefaultQueryTarget,
+		c.MapFieldsDiscoveringEnabled,
 	)
 }
 

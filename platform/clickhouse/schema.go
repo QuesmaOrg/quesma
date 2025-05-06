@@ -4,10 +4,13 @@ package clickhouse
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
+	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,7 +21,10 @@ const (
 	DeprecatedAttributesValueColumn = "attributes_string_value"
 	DeprecatedAttributesValueType   = "attributes_string_type"
 
-	attributesColumnType     = "Map(String, String)" // ClickHouse type of AttributesValuesColumn, AttributesMetadataColumn
+	// ClickHouse type of AttributesValuesColumn, AttributesMetadataColumn
+	// Important: If we ever introduce attributes with values of no-String type,
+	// consider updating SchemaCheckPass.applyMatchOperator as well.
+	attributesColumnType     = "Map(String, String)"
 	AttributesValuesColumn   = "attributes_values"
 	AttributesMetadataColumn = "attributes_metadata"
 
@@ -58,6 +64,7 @@ type (
 		Modifiers string
 		Codec     Codec // TODO currently not used, it's part of Modifiers
 		Comment   string
+		Origin    schema.FieldSource // TODO this field is just added to have way to forward information to the schema registry and should be considered as a technical debt
 	}
 	DateTimeType int
 )
@@ -233,7 +240,7 @@ func ResolveType(clickHouseTypeName string) reflect.Type {
 		return reflect.TypeOf(true)
 	case "JSON":
 		return reflect.TypeOf(map[string]interface{}{})
-	case "Map(String, Nullable(String))", "Map(String, String)", "Map(LowCardinality(String), String)":
+	case "Map(String, Nullable(String))", "Map(String, String)", "Map(LowCardinality(String), String)", "Map(LowCardinality(String), Nullable(String))":
 		return reflect.TypeOf(map[string]string{})
 	case "Unknown":
 		return reflect.TypeOf(UnknownType{})
@@ -342,8 +349,8 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 	if config.OrderBy != "" {
 		s += "ORDER BY " + config.OrderBy + "\n"
 	}
-	if config.PartitionBy != "" {
-		s += "PARTITION BY " + config.PartitionBy + "\n"
+	if partitioningFunc := getPartitioningFunc(config.PartitionStrategy); config.PartitionStrategy != "" && partitioningFunc != "" {
+		s += "PARTITION BY " + partitioningFunc + "(" + strconv.Quote(timestampFieldName) + ")" + "\n"
 	}
 	if config.PrimaryKey != "" {
 		s += "PRIMARY KEY " + config.PrimaryKey + "\n"
@@ -356,6 +363,24 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 		s += "SETTINGS " + config.Settings + "\n"
 	}
 	return s
+}
+
+func getPartitioningFunc(strategy config.PartitionStrategy) string {
+	switch strategy {
+	case config.Hourly:
+		return "toStartOfHour"
+	case config.Daily:
+		return "toYYYYMMDD"
+	case config.Monthly:
+		return "toYYYYMM"
+	case config.Yearly:
+		return "toYYYY"
+	case config.None:
+		return ""
+	default:
+		logger.Error().Msgf("Unknown partitioning strategy '%v'", strategy)
+		return ""
+	}
 }
 
 func NewDefaultStringAttribute() Attribute {
@@ -404,4 +429,8 @@ func NewDefaultBoolAttribute() Attribute {
 
 func (dt DateTimeType) String() string {
 	return []string{"DateTime64", "DateTime", "Invalid"}[dt]
+}
+
+func IsColumnAttributes(colName string) bool {
+	return colName == AttributesValuesColumn || colName == AttributesMetadataColumn
 }

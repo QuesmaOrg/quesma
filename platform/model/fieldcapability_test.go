@@ -52,8 +52,8 @@ func TestFieldCapability_Concat(t *testing.T) {
 			merged: false,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			got, got1 := tt.fc1.Concat(tt.fc2)
 			if got1 != tt.merged {
 				t.Errorf("Concat() got1 = %v, want %v", got1, tt.merged)

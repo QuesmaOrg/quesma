@@ -4,6 +4,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
@@ -61,8 +62,8 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 		{"example-elastic-index", []string{ElasticsearchTarget}, []string{ElasticsearchTarget}},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			ic := findIndexConfig(tt.name)
 			assert.NotNil(t, ic)
 			assert.Equal(t, tt.queryTarget, ic.QueryTarget)
@@ -223,8 +224,8 @@ func TestMatchName(t *testing.T) {
 		{args: args{"logs-custom-specific-123", "logs-custom-*"}, want: true},
 		{args: args{"logs-custom-abc", "logs-custom-*"}, want: true},
 	}
-	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%s->%s[%v]", tt.args.indexName, tt.args.indexNamePattern, tt.want), func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("%s->%s[%v](%d)", tt.args.indexName, tt.args.indexNamePattern, tt.want, i), func(t *testing.T) {
 			assert.Equalf(t, tt.want, MatchName(tt.args.indexNamePattern, tt.args.indexName), "matches(%v, %v)", tt.args.indexName, tt.args.indexNamePattern)
 		})
 	}
@@ -338,4 +339,23 @@ func TestIngestOptimizers(t *testing.T) {
 
 	_, ok = legacyConf.DefaultIngestOptimizers["query_only"]
 	assert.False(t, ok)
+}
+
+func TestPartitionBy(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/partition_by.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+
+	assert.Equal(t, 2, len(legacyConf.IndexConfig))
+
+	ecommerce := legacyConf.IndexConfig["kibana_sample_data_ecommerce"]
+	assert.Equal(t, Daily, ecommerce.PartitioningStrategy)
+
+	flights := legacyConf.IndexConfig["kibana_sample_data_flights"]
+	assert.Equal(t, None, flights.PartitioningStrategy)
+
+	assert.Equal(t, Hourly, legacyConf.DefaultPartitioningStrategy)
 }

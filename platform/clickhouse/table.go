@@ -28,7 +28,8 @@ type Table struct {
 
 	DiscoveredTimestampFieldName *string
 
-	VirtualTable bool
+	VirtualTable     bool
+	ExistsOnAllNodes bool
 }
 
 func (t *Table) createTableOurFieldsString() []string {

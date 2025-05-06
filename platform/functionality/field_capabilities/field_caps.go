@@ -73,10 +73,6 @@ func handleFieldCapsIndex(cfg map[string]config.IndexConfiguration, schemaRegist
 				case "keyword", "text":
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldKeywordSuffix), schema.QuesmaTypeKeyword, resolvedIndex)
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.QuesmaTypeText, resolvedIndex)
-				case "map":
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldTextSuffix), schema.QuesmaTypeText, resolvedIndex)
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapKeysSuffix), schema.QuesmaTypeText, resolvedIndex)
-					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s%s", fieldName.AsString(), types.MultifieldMapValuesSuffix), schema.QuesmaTypeText, resolvedIndex)
 				}
 			}
 
@@ -142,6 +138,8 @@ func asElasticType(t schema.QuesmaType) string {
 		return elasticsearch_field_types.FieldTypeGeoPoint
 	case schema.QuesmaTypeInteger.Name:
 		return elasticsearch_field_types.FieldTypeInteger
+	case schema.QuesmaTypeMap.Name:
+		return elasticsearch_field_types.FieldTypeObject
 	default:
 		return elasticsearch_field_types.FieldTypeText
 	}

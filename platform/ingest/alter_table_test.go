@@ -19,7 +19,6 @@ func TestAlterTable(t *testing.T) {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(timestamp)",
-		PartitionBy:          "",
 		PrimaryKey:           "",
 		Ttl:                  "",
 		Attributes: []clickhouse.Attribute{
@@ -77,7 +76,6 @@ func TestAlterTableHeuristic(t *testing.T) {
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(timestamp)",
-		PartitionBy:          "",
 		PrimaryKey:           "",
 		Ttl:                  "",
 		Attributes: []clickhouse.Attribute{

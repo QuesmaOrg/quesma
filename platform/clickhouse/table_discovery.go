@@ -16,6 +16,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/goccy/go-json"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -67,6 +68,7 @@ type columnMetadata struct {
 	// we use it as persistent storage and load it
 	// in the case when we don't control ingest
 	comment string
+	origin  schema.FieldSource // TODO this field is just added to have way to forward information to the schema registry and should be considered as a technical debt
 }
 
 func NewTableDiscovery(cfg *config.QuesmaConfiguration, dbConnPool quesma_api.BackendConnector, virtualTablesDB persistence.JSONDatabase) TableDiscovery {
@@ -115,6 +117,7 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 				Name:    column.Name,
 				Type:    column.Type.String(),
 				Comment: column.Comment,
+				Origin:  column.Origin,
 			}
 		}
 		table.DatabaseName = value.DatabaseName
@@ -205,12 +208,26 @@ func (td *tableDiscovery) ReloadTableDefinitions() {
 		td.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 		return
 	} else {
+		if td.cfg.MapFieldsDiscoveringEnabled {
+			tables = td.enrichTableWithMapFields(tables)
+		}
 		if td.AutodiscoveryEnabled() {
 			configuredTables = td.autoConfigureTables(tables, databaseName)
 		} else {
 			configuredTables = td.configureTables(tables, databaseName)
 		}
 	}
+	var tablePresence map[string][]TablePresence
+	if td.cfg.ClusterName != "" {
+		var err error
+		tablePresence, err = td.getTablePresenceAcrossClusters(databaseName)
+		if err != nil {
+			logger.Warn().Msgf("could not get table presence across clusters: %v", err)
+		}
+		logger.Info().Msgf("Table presence across clusters: %v", tablePresence)
+		configuredTables = td.populateClusterNodes(configuredTables, databaseName, tablePresence)
+	}
+
 	configuredTables = td.readVirtualTables(configuredTables)
 
 	td.ReloadTablesError = nil
@@ -322,7 +339,7 @@ func (td *tableDiscovery) configureTables(tables map[string]map[string]columnMet
 				comment := td.tableComment(databaseName, table)
 				createTableQuery := td.createTableQuery(databaseName, table)
 				// we assume here that @timestamp field is always present in the table, or it's explicitly configured
-				configuredTables[table] = discoveredTable{table, databaseName, columns, indexConfig, comment, createTableQuery, "", false}
+				configuredTables[table] = discoveredTable{table, databaseName, columns, indexConfig, comment, createTableQuery, "", false, false}
 			}
 		} else {
 			notConfiguredTables = append(notConfiguredTables, table)
@@ -352,7 +369,7 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]colum
 			maybeTimestampField = td.tableTimestampField(databaseName, table, ClickHouse)
 		}
 		const isVirtualTable = false
-		configuredTables[table] = discoveredTable{table, databaseName, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, isVirtualTable}
+		configuredTables[table] = discoveredTable{table, databaseName, columns, config.IndexConfiguration{}, comment, createTableQuery, maybeTimestampField, isVirtualTable, false}
 
 	}
 	for tableName, table := range configuredTables {
@@ -379,6 +396,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 			column := resolveColumn(col, columnMeta.colType)
 			if column != nil {
 				column.Comment = columnMeta.comment
+				column.Origin = columnMeta.origin
 				columnsMap[col] = column
 			} else {
 				logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, columnMeta.colType)
@@ -408,6 +426,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				CreateTableQuery:             resTable.createTableQuery,
 				DiscoveredTimestampFieldName: timestampFieldName,
 				VirtualTable:                 resTable.virtualTable,
+				ExistsOnAllNodes:             resTable.existsOnAllNodes,
 			}
 			if containsAttributes(resTable.columnTypes) {
 				table.Config.Attributes = []Attribute{NewDefaultStringAttribute()}
@@ -604,6 +623,176 @@ func removePrecision(str string) string {
 	} else {
 		return str
 	}
+}
+
+// extractMapValueType extracts the value type from a ClickHouse Map definition
+// extractMapValueType extracts the value type from a ClickHouse Map definition.
+func extractMapValueType(mapType string) (string, error) {
+	// Regular expression to match "Map(String, <valueType>)"
+	re := regexp.MustCompile(`Map\((?:LowCardinality\()?String\)?,\s*(.+)\)$`)
+
+	matches := re.FindStringSubmatch(mapType)
+	if len(matches) < 2 {
+		return "", errors.New("invalid map type format: " + mapType)
+	}
+
+	// Trim spaces and return the full value type
+	return strings.TrimSpace(matches[1]), nil
+}
+
+func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[string]columnMetadata) map[string]map[string]columnMetadata {
+	outputTable := make(map[string]map[string]columnMetadata)
+	for table, columns := range inputTable {
+		for colName, columnMeta := range columns {
+			columnType := strings.TrimSpace(columnMeta.colType)
+			if strings.HasPrefix(columnType, "Map(String") ||
+				strings.HasPrefix(columnType, "Map(LowCardinality(String") {
+				logger.Debug().Msgf("Discovered map column: %s.%s", table, colName)
+				// Ensure the table exists in outputTable
+				if _, ok := outputTable[table]; !ok {
+					outputTable[table] = make(map[string]columnMetadata)
+				}
+				if _, ok := outputTable[table][colName]; !ok {
+					// Update origin for incoming map column
+					columnMeta.origin = schema.FieldSourceIngest
+					outputTable[table][colName] = columnMeta
+					logger.Debug().Msgf("Added column: %s.%s", table, colName)
+				}
+
+				// Query ClickHouse for map keys in the given column
+				rows, err := td.dbConnPool.Query(context.Background(), fmt.Sprintf("SELECT DISTINCT arrayJoin(mapKeys(%s)) FROM %s", colName, table))
+				if err != nil {
+					logger.Error().Msgf("Error querying map keys for table, column: %s, %s, %v", table, colName, err)
+					continue
+				}
+				foundKeys := false
+				for rows.Next() {
+					foundKeys = true
+					var key string
+					if err := rows.Scan(&key); err != nil {
+						logger.Error().Msgf("Error scanning key for table, column: %s, %s, %v", table, colName, err)
+						continue
+					}
+					// Add virtual column for each key in the map
+					// with origin set to mapping
+					mapKeyCol := colName + "." + key
+					var valueType string
+					valueType, err = extractMapValueType(columnType)
+					if err != nil {
+						logger.Error().Msgf("Error extracting value type for table, column: %s, %s, %v", table, colName, err)
+						continue
+					} else {
+						outputTable[table][mapKeyCol] = columnMetadata{
+							colType: valueType,
+							origin:  schema.FieldSourceMapping,
+						}
+						logger.Debug().Msgf("Added map key column: %s.%s", table, mapKeyCol)
+					}
+				}
+				if !foundKeys {
+					logger.Debug().Msgf("No map keys found for table, column: %s, %s", table, colName)
+				}
+				if err := rows.Err(); err != nil {
+					logger.Error().Msgf("Error iterating map keys for %s.%s: %v", table, colName, err)
+				}
+				err = rows.Close() // Close after processing
+				if err != nil {
+					logger.Error().Msgf("Error closing rows for table, column: %s, %s, %v", table, colName, err)
+				}
+			} else {
+				// Copy other columns as-is
+				if _, ok := outputTable[table]; !ok {
+					outputTable[table] = make(map[string]columnMetadata)
+				}
+				outputTable[table][colName] = columnMeta
+			}
+		}
+	}
+	return outputTable
+}
+
+type TablePresence struct {
+	Database         string
+	Table            string
+	FoundNodes       int
+	TotalNodes       int
+	ExistsOnAllNodes bool
+}
+
+func (td *tableDiscovery) getTablePresenceAcrossClusters(database string) (map[string][]TablePresence, error) {
+	// Step 1: Get all cluster names
+	clusterQuery := `SELECT DISTINCT cluster FROM system.clusters ORDER BY cluster`
+	rows, err := td.dbConnPool.Query(context.Background(), clusterQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query cluster list: %w", err)
+	}
+	defer rows.Close()
+
+	var clusters []string
+	for rows.Next() {
+		var cluster string
+		if err := rows.Scan(&cluster); err != nil {
+			return nil, fmt.Errorf("failed to scan cluster name: %w", err)
+		}
+		clusters = append(clusters, cluster)
+	}
+
+	// Step 2: For each cluster, safely query for the given database
+	presenceData := make(map[string][]TablePresence)
+
+	for _, cluster := range clusters {
+		query := `
+            WITH (
+                SELECT count(DISTINCT host_name)
+                FROM system.clusters
+                WHERE cluster = ?
+            ) AS total_nodes
+
+            SELECT
+                database,
+                name AS table_name,
+                count(DISTINCT hostName()) AS found_nodes,
+                total_nodes,
+                count(DISTINCT hostName()) = total_nodes AS exists_on_all_nodes
+            FROM cluster(?, system.tables)
+            WHERE database = ?
+            GROUP BY database, name, total_nodes
+        `
+
+		rows, err := td.dbConnPool.Query(context.Background(), query, cluster, cluster, database)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query tables for cluster %s: %w", cluster, err)
+		}
+		defer rows.Close()
+
+		var tables []TablePresence
+		for rows.Next() {
+			var tp TablePresence
+			if err := rows.Scan(&tp.Database, &tp.Table, &tp.FoundNodes, &tp.TotalNodes, &tp.ExistsOnAllNodes); err != nil {
+				return nil, fmt.Errorf("failed to scan table row: %w", err)
+			}
+			tables = append(tables, tp)
+		}
+
+		if len(tables) > 0 {
+			presenceData[cluster] = tables
+		}
+	}
+
+	return presenceData, nil
+}
+
+func (td *tableDiscovery) populateClusterNodes(configuredTables map[string]discoveredTable, databaseName string, tablePresence map[string][]TablePresence) map[string]discoveredTable {
+	for _, tables := range tablePresence {
+		for _, table := range tables {
+			if table.Database == databaseName {
+				if discoTable, ok := configuredTables[table.Table]; ok {
+					discoTable.existsOnAllNodes = table.ExistsOnAllNodes
+				}
+			}
+		}
+	}
+	return configuredTables
 }
 
 func (td *tableDiscovery) readTables(database string) (map[string]map[string]columnMetadata, error) {

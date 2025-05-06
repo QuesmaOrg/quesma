@@ -23,7 +23,7 @@ func calcHowMuchNextStmtWillTake(tokens []sqllexer.Token) int {
 	result := 0
 	stack := []string{}
 	for _, token := range tokens {
-		if token.Type == sqllexer.WS {
+		if token.Type == sqllexer.SPACE {
 			result += 1
 			continue
 		}
@@ -48,19 +48,30 @@ func calcHowMuchNextStmtWillTake(tokens []sqllexer.Token) int {
 }
 
 func SqlPrettyPrint(sqlData []byte) string {
-	lexer := sqllexer.New(string(sqlData))
-	tokens := lexer.ScanAll()
-	var sb strings.Builder
-	lineLength := 0
-	subQueryIndent := 0
-	isBreakIndent := false
-	stack := []string{}
+	var (
+		sb                         strings.Builder
+		stack                      []string
+		isBreakIndent              bool
+		lineLength, subQueryIndent int
+		tokens                     []sqllexer.Token
+		lexer                      = sqllexer.New(string(sqlData))
+	)
+
+	// below: replacement for deprecated lexer.ScanAll()
+	for {
+		tok := lexer.Scan()
+		if tok == nil || tok.Type == sqllexer.EOF {
+			break
+		}
+		tokens = append(tokens, *tok)
+	}
+
 	for tokenIdx, token := range tokens {
 		// Super useful, uncomment to debug and run go test ./...
 		// fmt.Print(token, ", ")
 
 		// Skip original whitespace
-		if token.Type == sqllexer.WS {
+		if token.Type == sqllexer.SPACE {
 			token.Value = " "
 			if tokenIdx > 0 && tokens[tokenIdx-1].Value == "(" {
 				continue
@@ -124,7 +135,7 @@ func SqlPrettyPrint(sqlData []byte) string {
 
 		// Break line if needed
 		if lineLength > 0 && len(token.Value)+lineLength > lineLengthLimit {
-			if token.Type == sqllexer.WS && tokenIdx+1 < len(tokens) && newLineKeywords[tokens[tokenIdx+1].Value] {
+			if token.Type == sqllexer.SPACE && tokenIdx+1 < len(tokens) && newLineKeywords[tokens[tokenIdx+1].Value] {
 				continue // we will break line in next token anyway, no need to double break
 			}
 			lineLength = 0
@@ -142,7 +153,7 @@ func SqlPrettyPrint(sqlData []byte) string {
 				sb.WriteString(" ")
 			}
 			lineLength += currentIndentLevel
-			if token.Type == sqllexer.WS {
+			if token.Type == sqllexer.SPACE {
 				continue
 			}
 		}
@@ -165,7 +176,7 @@ func SqlPrettyPrint(sqlData []byte) string {
 				lineLength = 0
 				isBreakIndent = false
 			} else {
-				if tokenIdx+1 < len(tokens) && tokens[tokenIdx+1].Type != sqllexer.WS {
+				if tokenIdx+1 < len(tokens) && tokens[tokenIdx+1].Type != sqllexer.SPACE {
 					sb.WriteString(" ")
 					lineLength += 1
 				}
