@@ -1430,6 +1430,33 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "match operator transformation for Attributes map (2/2)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("message"),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("'%%'", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("message"),
+						"IS",
+						model.NewLiteral("NOT NULL"),
+					),
+				},
+			},
+		},
 	}
 
 	for i, tt := range tests {
