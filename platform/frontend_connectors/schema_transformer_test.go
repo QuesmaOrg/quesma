@@ -1431,7 +1431,7 @@ func Test_applyMatchOperator(t *testing.T) {
 			},
 		},
 		{
-			name: "match operator transformation for Attributes map (2/2)",
+			name: "match operator should change `ILIKE '%%'` TO `IS NOT NULL`",
 			query: &model.Query{
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
