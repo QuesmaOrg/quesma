@@ -164,9 +164,8 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		dbType := resolver.dbColumnType(e.ColumnName)
 		if strings.HasPrefix(dbType, "Array") {
-			anyError = true
 			// add context to log line below (already introduced in unmerged Krzysiek's PR)
-			logger.ErrorWithReason("unhandled array column ref").Msgf("column '%v' ('%v')", e.ColumnName, dbType)
+			logger.WarnWithReason("unhandled array column ref").Msgf("column '%v' ('%v')", e.ColumnName, dbType)
 		}
 		return e
 	}
