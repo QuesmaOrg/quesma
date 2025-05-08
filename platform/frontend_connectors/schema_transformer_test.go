@@ -1226,13 +1226,15 @@ func TestFullTextFields(t *testing.T) {
 }
 
 func Test_applyMatchOperator(t *testing.T) {
+	const messageAsKeyword = "messageAsKeyword"
 	schemaTable := schema.Table{
 		Columns: map[string]schema.Column{
-			"message":     {Name: "message", Type: "String"},
-			"easy":        {Name: "easy", Type: "Bool"},
-			"map_str_str": {Name: "map_str_str", Type: "Map(String, String)"},
-			"map_str_int": {Name: "map_str_int", Type: "Map(String, Int)"},
-			"count":       {Name: "count", Type: "Int64"},
+			"message":        {Name: "message", Type: "String"},
+			messageAsKeyword: {Name: messageAsKeyword, Type: "String"},
+			"easy":           {Name: "easy", Type: "Bool"},
+			"map_str_str":    {Name: "map_str_str", Type: "Map(String, String)"},
+			"map_str_int":    {Name: "map_str_int", Type: "Map(String, Int)"},
+			"count":          {Name: "count", Type: "Int64"},
 		},
 	}
 
@@ -1430,6 +1432,60 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "match operator should change `ILIKE '%%'` TO `IS NOT NULL`",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("message"),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("'%%'", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("message"),
+						"IS",
+						model.NewLiteral("NOT NULL"),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for Keyword (equals)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef(messageAsKeyword)},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef(messageAsKeyword),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("needle", model.NormalNotEscaped),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef(messageAsKeyword)},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef(messageAsKeyword),
+						"=",
+						model.NewLiteralWithEscapeType("needle", model.NormalNotEscaped),
+					),
+				},
+			},
+		},
 	}
 
 	for i, tt := range tests {
@@ -1457,7 +1513,12 @@ func Test_applyMatchOperator(t *testing.T) {
 			if !ok {
 				t.Fatal("schema not found")
 			}
-
+			indexSchema.Fields[messageAsKeyword] = schema.Field{
+				PropertyName:         messageAsKeyword,
+				InternalPropertyName: messageAsKeyword,
+				InternalPropertyType: "String",
+				Type:                 schema.QuesmaTypeKeyword,
+			}
 			actual, err := transform.applyMatchOperator(indexSchema, tt.query)
 			if err != nil {
 				t.Fatal(err)
