@@ -94,6 +94,11 @@ type RelationalDbConfiguration struct {
 	ClusterName   string `koanf:"clusterName"` // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
 	AdminUrl      *Url   `koanf:"adminUrl"`
 	DisableTLS    bool   `koanf:"disableTLS"`
+
+	// This supports es backend only.
+	ClientCertPath string `koanf:"clientCertPath"`
+	ClientKeyPath  string `koanf:"clientKeyPath"`
+	CACertPath     string `koanf:"caCertPath"`
 }
 
 func (c *RelationalDbConfiguration) IsEmpty() bool {
@@ -450,7 +455,7 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 }
 
 func (c *QuesmaNewConfiguration) validatePipeline(pipeline Pipeline) error {
-	var _, errAcc error
+	var errAcc error
 	if len(pipeline.Name) == 0 {
 		errAcc = multierror.Append(errAcc, fmt.Errorf("pipeline must have a non-empty name"))
 	}
@@ -594,421 +599,13 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	isSinglePipeline, isDualPipeline := c.getPipelinesType()
 
 	if isSinglePipeline {
-		processor := c.GetProcessorByName(c.Pipelines[0].Processors[0])
-		procType := processor.Type
-		if procType == QuesmaV1ProcessorNoOp {
-			conf.TransparentProxy = true
-		} else if procType == QuesmaV1ProcessorQuery {
-
-			queryProcessor := processor
-
-			// this a COPY-PASTE from the dual pipeline case, but we need to do it here as well
-			// TODO refactor this to a separate function
-
-			conf.IndexConfig = make(map[string]IndexConfiguration)
-
-			// Handle default index configuration
-			defaultConfig := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]
-			targets, errTarget := c.getTargetsExtendedConfig(defaultConfig.Target)
-			if errTarget != nil {
-				errAcc = multierror.Append(errAcc, errTarget)
-			}
-			for _, target := range targets {
-				if targetType, found := c.getTargetType(target.target); found {
-					if !slices.Contains(defaultConfig.QueryTarget, targetType) {
-						defaultConfig.QueryTarget = append(defaultConfig.QueryTarget, targetType)
-					}
-				} else {
-					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
-				}
-				if val, exists := target.properties["useCommonTable"]; exists {
-					conf.CreateCommonTable = val == "true"
-					conf.UseCommonTableForWildcard = val == "true"
-				} else {
-					// inherit setting from the processor level
-					conf.CreateCommonTable = queryProcessor.Config.UseCommonTable
-					conf.UseCommonTableForWildcard = queryProcessor.Config.UseCommonTable
-				}
-			}
-
-			if defaultConfig.UseCommonTable {
-				// We set both flags to true here
-				// as creating common table depends on the first one
-				conf.CreateCommonTable = true
-				conf.UseCommonTableForWildcard = true
-			}
-			if defaultConfig.SchemaOverrides != nil {
-				errAcc = multierror.Append(errAcc, fmt.Errorf("schema overrides of default index ('%s') are not currently supported (only supported in configuration of a specific index)", DefaultWildcardIndexName))
-			}
-			if len(defaultConfig.QueryTarget) > 1 {
-				errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
-			}
-			conf.DefaultIngestTarget = []string{}
-			conf.DefaultQueryTarget = defaultConfig.QueryTarget
-			conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
-
-			// safe to call per validation earlier
-			if targts, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {
-				conn := c.GetBackendConnectorByName(targts[0].(string))
-				queryProcessor.Config.DefaultTargetConnectorType = conn.Type
-				for indexName, indexCfg := range queryProcessor.Config.IndexConfig {
-					var targetType string
-					indexTarget, ok2 := indexCfg.Target.([]interface{})
-					if len(indexTarget) > 0 && ok2 {
-						tgt := indexTarget[0]
-						var indexTargetType *BackendConnector
-						if targetMap, ok := tgt.(map[string]interface{}); ok {
-							for name := range targetMap {
-								indexTargetType = c.GetBackendConnectorByName(name)
-								break
-							}
-						} else {
-							indexTargetType = c.GetBackendConnectorByName(indexTarget[0].(string))
-						}
-
-						if indexTargetType.Type == "elasticsearch" {
-							targetType = "elasticsearch"
-						} else { // clickhouse-os, hydrolix included
-							targetType = "clickhouse"
-						}
-						indexCfg.QueryTarget = []string{targetType}
-						queryProcessor.Config.IndexConfig[indexName] = indexCfg
-					}
-				}
-				queryProcessor.Config.DefaultTargetConnectorType = conn.Type
-				c.updateProcessorConfig(queryProcessor.Name, queryProcessor.Config)
-			}
-			if defaultQueryConfig, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
-				conf.DefaultQueryOptimizers = defaultQueryConfig.Optimizers
-			} else {
-				conf.DefaultQueryOptimizers = nil
-			}
-			delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
-
-			for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
-				processedConfig := indexConfig
-				targets, errTarget := c.getTargetsExtendedConfig(indexConfig.Target)
-				if errTarget != nil {
-					errAcc = multierror.Append(errAcc, errTarget)
-				}
-				for _, target := range targets {
-					if targetType, found := c.getTargetType(target.target); found {
-						if !slices.Contains(processedConfig.QueryTarget, targetType) {
-							processedConfig.QueryTarget = append(processedConfig.QueryTarget, targetType)
-						}
-					} else {
-						errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
-					}
-					if val, exists := target.properties["useCommonTable"]; exists {
-						processedConfig.UseCommonTable = val == "true"
-					} else {
-						// inherit setting from the processor level
-						processedConfig.UseCommonTable = queryProcessor.Config.UseCommonTable
-					}
-					if val, exists := target.properties["tableName"]; exists {
-						processedConfig.Override = val.(string)
-					}
-
-				}
-				if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
-					(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
-					errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration", indexName))
-					continue
-				}
-
-				if len(processedConfig.QueryTarget) == 2 {
-					// Turn on A/B testing
-					if processedConfig.Optimizers == nil {
-						processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
-					}
-					processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
-						Disabled:   false,
-						Properties: map[string]string{},
-					}
-				}
-
-				conf.IndexConfig[indexName] = processedConfig
-			}
-		} else {
-			errAcc = multierror.Append(errAcc, fmt.Errorf("unsupported processor %s in single pipeline", procType))
-		}
+		conf.translateAndAddSinglePipeline(c, errAcc)
 	}
 
 	if isDualPipeline {
-		fc1 := c.GetFrontendConnectorByName(c.Pipelines[0].FrontendConnectors[0])
-		var queryPipeline, ingestPipeline Pipeline
-		if fc1.Type == ElasticsearchFrontendQueryConnectorName {
-			queryPipeline, ingestPipeline = c.Pipelines[0], c.Pipelines[1]
-		} else {
-			queryPipeline, ingestPipeline = c.Pipelines[1], c.Pipelines[0]
-		}
-		queryProcessor, ingestProcessor := c.GetProcessorByName(queryPipeline.Processors[0]), c.GetProcessorByName(ingestPipeline.Processors[0])
-
-		if queryProcessor.Type == QuesmaV1ProcessorNoOp && ingestProcessor.Type == QuesmaV1ProcessorNoOp {
-			conf.TransparentProxy = true
-			goto END
-		}
-
-		conf.IndexConfig = make(map[string]IndexConfiguration)
-
-		// Handle default index configuration
-		defaultConfig := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]
-		targets, errTarget := c.getTargetsExtendedConfig(defaultConfig.Target)
-		if errTarget != nil {
-			errAcc = multierror.Append(errAcc, errTarget)
-		}
-		for _, target := range targets {
-			if targetType, found := c.getTargetType(target.target); found {
-				if !slices.Contains(defaultConfig.QueryTarget, targetType) {
-					defaultConfig.QueryTarget = append(defaultConfig.QueryTarget, targetType)
-				}
-			} else {
-				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
-			}
-			if val, exists := target.properties["useCommonTable"]; exists {
-				conf.CreateCommonTable = val == "true"
-				conf.UseCommonTableForWildcard = val == "true"
-			} else {
-				// inherit setting from the processor level
-				conf.CreateCommonTable = queryProcessor.Config.UseCommonTable
-				conf.UseCommonTableForWildcard = queryProcessor.Config.UseCommonTable
-			}
-		}
-		if defaultConfig.SchemaOverrides != nil {
-			errAcc = multierror.Append(errAcc, fmt.Errorf("schema overrides of default index ('%s') are not currently supported (only supported in configuration of a specific index)", DefaultWildcardIndexName))
-		}
-		if defaultConfig.UseCommonTable {
-			// We set both flags to true here
-			// as creating common table depends on the first one
-			conf.CreateCommonTable = true
-			conf.UseCommonTableForWildcard = true
-		}
-
-		ingestProcessorDefaultIndexConfig := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]
-		targets, errTarget = c.getTargetsExtendedConfig(ingestProcessorDefaultIndexConfig.Target)
-		if errTarget != nil {
-			errAcc = multierror.Append(errAcc, errTarget)
-		}
-		for _, target := range targets {
-			if targetType, found := c.getTargetType(target.target); found {
-				if !slices.Contains(defaultConfig.IngestTarget, targetType) {
-					defaultConfig.IngestTarget = append(defaultConfig.IngestTarget, targetType)
-				}
-			} else {
-				errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of %s", target, DefaultWildcardIndexName))
-			}
-			if val, exists := target.properties["useCommonTable"]; exists {
-				conf.CreateCommonTable = val == "true"
-				conf.UseCommonTableForWildcard = val == "true"
-			} else {
-				// inherit setting from the processor level
-				conf.CreateCommonTable = ingestProcessor.Config.UseCommonTable
-				conf.UseCommonTableForWildcard = ingestProcessor.Config.UseCommonTable
-			}
-		}
-		if ingestProcessorDefaultIndexConfig.SchemaOverrides != nil {
-			errAcc = multierror.Append(errAcc, fmt.Errorf("schema overrides of default index ('%s') are not currently supported (only supported in configuration of a specific index)", DefaultWildcardIndexName))
-		}
-		if ingestProcessorDefaultIndexConfig.UseCommonTable {
-			// We set both flags to true here
-			// as creating common table depends on the first one
-			conf.CreateCommonTable = true
-			conf.UseCommonTableForWildcard = true
-		}
-
-		if len(defaultConfig.QueryTarget) > 1 {
-			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
-		}
-
-		if defaultConfig.UseCommonTable != ingestProcessorDefaultIndexConfig.UseCommonTable {
-			errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor and ingest processor should consistently use quesma common table property", DefaultWildcardIndexName))
-		}
-
-		// No restrictions for ingest target!
-		conf.DefaultIngestTarget = defaultConfig.IngestTarget
-		conf.DefaultQueryTarget = defaultConfig.QueryTarget
-		conf.AutodiscoveryEnabled = slices.Contains(conf.DefaultQueryTarget, ClickhouseTarget)
-
-		// we're calling this here because we don't allow having one ingest-only pipeline.
-		if relationalDBErr == nil && relDBConn != nil {
-			conf.ClusterName = relDBConn.ClusterName
-		}
-
-		// safe to call per validation earlier
-		if targts, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {
-			conn := c.GetBackendConnectorByName(targts[0].(string))
-			queryProcessor.Config.DefaultTargetConnectorType = conn.Type
-			for indexName, indexCfg := range queryProcessor.Config.IndexConfig {
-				var targetType string
-				indexTarget, ok2 := indexCfg.Target.([]interface{})
-				if len(indexTarget) > 0 && ok2 {
-					tgt := indexTarget[0]
-					var indexTargetType *BackendConnector
-					if targetMap, ok := tgt.(map[string]interface{}); ok {
-						for name := range targetMap {
-							indexTargetType = c.GetBackendConnectorByName(name)
-							break
-						}
-					} else {
-						indexTargetType = c.GetBackendConnectorByName(indexTarget[0].(string))
-					}
-
-					if indexTargetType.Type == "elasticsearch" {
-						targetType = "elasticsearch"
-					} else { // clickhouse-os, hydrolix included
-						targetType = "clickhouse"
-					}
-					indexCfg.QueryTarget = []string{targetType}
-					queryProcessor.Config.IndexConfig[indexName] = indexCfg
-				}
-			}
-			c.updateProcessorConfig(queryProcessor.Name, queryProcessor.Config)
-		}
-		if defaultQueryConfig, ok := queryProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
-			conf.DefaultQueryOptimizers = defaultQueryConfig.Optimizers
-			conf.DefaultPartitioningStrategy = queryProcessor.Config.IndexConfig[DefaultWildcardIndexName].PartitioningStrategy
-		} else {
-			conf.DefaultQueryOptimizers = nil
-		}
-		delete(queryProcessor.Config.IndexConfig, DefaultWildcardIndexName)
-
-		for indexName, indexConfig := range queryProcessor.Config.IndexConfig {
-			processedConfig := indexConfig
-
-			processedConfig.IngestTarget = defaultConfig.IngestTarget
-			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
-			if errTarget != nil {
-				errAcc = multierror.Append(errAcc, errTarget)
-			}
-			for _, target := range targets {
-				if targetType, found := c.getTargetType(target.target); found {
-					if !slices.Contains(processedConfig.QueryTarget, targetType) {
-						processedConfig.QueryTarget = append(processedConfig.QueryTarget, targetType)
-					}
-				} else {
-					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
-				}
-				if val, exists := target.properties["useCommonTable"]; exists {
-					processedConfig.UseCommonTable = val == true
-				} else {
-					// inherit setting from the processor level
-					processedConfig.UseCommonTable = queryProcessor.Config.UseCommonTable
-				}
-				if val, exists := target.properties["tableName"]; exists {
-					processedConfig.Override = val.(string)
-				}
-			}
-			if len(processedConfig.QueryTarget) == 2 && !((processedConfig.QueryTarget[0] == ClickhouseTarget && processedConfig.QueryTarget[1] == ElasticsearchTarget) ||
-				(processedConfig.QueryTarget[0] == ElasticsearchTarget && processedConfig.QueryTarget[1] == ClickhouseTarget)) {
-				errAcc = multierror.Append(errAcc, fmt.Errorf("index %s has invalid dual query target configuration", indexName))
-				continue
-			}
-
-			if len(processedConfig.QueryTarget) == 2 {
-				// Turn on A/B testing
-				if processedConfig.Optimizers == nil {
-					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
-				}
-				processedConfig.Optimizers[ElasticABOptimizerName] = OptimizerConfiguration{
-					Disabled:   false,
-					Properties: map[string]string{},
-				}
-			}
-
-			conf.IndexConfig[indexName] = processedConfig
-		}
-
-		conf.EnableIngest = true
-		conf.IngestStatistics = c.IngestStatistics
-
-		if defaultIngestConfig, ok := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName]; ok {
-			conf.DefaultIngestOptimizers = defaultIngestConfig.Optimizers
-		} else {
-			conf.DefaultIngestOptimizers = nil
-		}
-
-		// safe to call per validation earlier
-		if targts, ok := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {
-			conn := c.GetBackendConnectorByName(targts[0].(string))
-			ingestProcessor.Config.DefaultTargetConnectorType = conn.Type
-			// In order to maintain compat with v1 code we have to fill QueryTarget and IngestTarget for each index
-			for indexName, indexCfg := range ingestProcessor.Config.IndexConfig {
-				var targetType string
-				indexTarget, ok2 := indexCfg.Target.([]interface{})
-				if len(indexTarget) > 0 && ok2 {
-					tgt := indexTarget[0]
-					var indexTargetType *BackendConnector
-					if targetMap, ok := tgt.(map[string]interface{}); ok {
-						for name := range targetMap {
-							indexTargetType = c.GetBackendConnectorByName(name)
-							break
-						}
-					} else {
-						indexTargetType = c.GetBackendConnectorByName(indexTarget[0].(string))
-					}
-
-					if indexTargetType.Type == "elasticsearch" {
-						targetType = "elasticsearch"
-					} else { // clickhouse-os, hydrolix included
-						targetType = "clickhouse"
-					}
-					indexCfg.IngestTarget = []string{targetType}
-					ingestProcessor.Config.IndexConfig[indexName] = indexCfg
-				}
-			}
-			c.updateProcessorConfig(ingestProcessor.Name, ingestProcessor.Config)
-		}
-		delete(ingestProcessor.Config.IndexConfig, DefaultWildcardIndexName)
-
-		for indexName, indexConfig := range ingestProcessor.Config.IndexConfig {
-			processedConfig, found := conf.IndexConfig[indexName]
-			if !found {
-				// Index is only configured in ingest processor, not in query processor,
-				// use the ingest processor's configuration as the base (similarly as in the previous loop)
-				processedConfig = indexConfig
-				processedConfig.QueryTarget = defaultConfig.QueryTarget
-			}
-
-			processedConfig.IngestTarget = make([]string, 0) // reset previously set defaultConfig.IngestTarget
-			targets, errTarget = c.getTargetsExtendedConfig(indexConfig.Target)
-			if errTarget != nil {
-				errAcc = multierror.Append(errAcc, errTarget)
-			}
-			for _, target := range targets {
-				if targetType, found := c.getTargetType(target.target); found {
-					if !slices.Contains(processedConfig.IngestTarget, targetType) {
-						processedConfig.IngestTarget = append(processedConfig.IngestTarget, targetType)
-					}
-				} else {
-					errAcc = multierror.Append(errAcc, fmt.Errorf("invalid target %s in configuration of index %s", target, indexName))
-				}
-				if val, exists := target.properties["useCommonTable"]; exists {
-					processedConfig.UseCommonTable = val == true
-				} else {
-					// inherit setting from the processor level
-					processedConfig.UseCommonTable = ingestProcessor.Config.UseCommonTable
-				}
-				if val, exists := target.properties["tableName"]; exists {
-					processedConfig.Override = val.(string)
-				}
-			}
-
-			// copy ingest optimizers to the destination
-			if indexConfig.Optimizers != nil {
-				if processedConfig.Optimizers == nil {
-					processedConfig.Optimizers = make(map[string]OptimizerConfiguration)
-				}
-				for optName, optConf := range indexConfig.Optimizers {
-					processedConfig.Optimizers[optName] = optConf
-				}
-			}
-
-			conf.IndexConfig[indexName] = processedConfig
-		}
-
+		conf.translateAndAddDualPipeline(c, errAcc, relationalDBErr, relDBConn)
 	}
 
-END:
 	for _, idxCfg := range conf.IndexConfig {
 		if idxCfg.UseCommonTable {
 			conf.CreateCommonTable = true
@@ -1069,9 +666,12 @@ func (c *QuesmaNewConfiguration) getRelationalDBBackendConnector() (*BackendConn
 func (c *QuesmaNewConfiguration) getElasticsearchConfig() (ElasticsearchConfiguration, error) {
 	if esBackendConn := c.getElasticsearchBackendConnector(); esBackendConn != nil {
 		return ElasticsearchConfiguration{
-			Url:      esBackendConn.Config.Url,
-			User:     esBackendConn.Config.User,
-			Password: esBackendConn.Config.Password,
+			Url:            esBackendConn.Config.Url,
+			User:           esBackendConn.Config.User,
+			Password:       esBackendConn.Config.Password,
+			ClientCertPath: esBackendConn.Config.ClientCertPath,
+			ClientKeyPath:  esBackendConn.Config.ClientKeyPath,
+			CACertPath:     esBackendConn.Config.CACertPath,
 		}, nil
 	}
 	return ElasticsearchConfiguration{}, fmt.Errorf("elasticsearch backend connector must be configured")

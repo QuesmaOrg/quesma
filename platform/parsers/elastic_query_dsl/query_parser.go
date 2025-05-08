@@ -347,9 +347,14 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		}
 	}
 
-	// TODO replace with cw.Schema
 	var idToSql func(string) (model.Expr, error)
-	timestampColumnName := model.TimestampFieldName
+	var timestampColumnName string
+	if cw.Table.DiscoveredTimestampFieldName != nil {
+		timestampColumnName = *cw.Table.DiscoveredTimestampFieldName
+	} else {
+		timestampColumnName = model.TimestampFieldName
+	}
+
 	if column, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch column.Type.String() {
 		case clickhouse.DateTime64.String():
