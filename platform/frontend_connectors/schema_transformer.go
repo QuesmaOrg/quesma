@@ -987,41 +987,6 @@ func (s *SchemaCheckPass) applyTimestampFieldd(ctx context.Context, indexSchema 
 	return query, nil
 }
 
-func (s *SchemaCheckPass) applyFieldMapSyntax(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
-	visitor := model.NewBaseVisitor()
-
-	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
-		// we don't want to resolve our well know technical fields
-		if e.ColumnName == model.FullTextFieldNamePlaceHolder || e.ColumnName == common_table.IndexNameColumn {
-			return e
-		}
-		// 1. we check if the field name point to the map
-		if s.isFieldMapSyntaxEnabled(query) {
-			elements := strings.Split(e.ColumnName, ".")
-			if len(elements) > 1 {
-				if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
-					// check if we have map type, especially  Map(String, any) here
-					if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
-						(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
-							strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
-						return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
-					}
-				}
-			}
-		}
-		return e
-	}
-
-	expr := query.SelectCommand.Accept(visitor)
-
-	if _, ok := expr.(*model.SelectCommand); ok {
-		query.SelectCommand = *expr.(*model.SelectCommand)
-	}
-	return query, nil
-
-}
-
 func (s *SchemaCheckPass) applyFieldEncoding(ctx context.Context, indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
