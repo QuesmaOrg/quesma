@@ -15,8 +15,19 @@ import (
 	"testing"
 )
 
-type fixedTableProvider struct {
-	tables map[string]schema.Table
+type (
+	fixedTableProvider struct {
+		tables map[string]schema.Table
+	}
+	transformTest struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}
+)
+
+func newFixedTableProvider(tables map[string]schema.Table) *fixedTableProvider {
+	return &fixedTableProvider{tables: tables}
 }
 
 func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
@@ -145,9 +156,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			}},
 		},
 	}
-	cfg := config.QuesmaConfiguration{
-		IndexConfig: indexConfig,
-	}
+	cfg := config.NewQuesmaConfigurationIndexConfigOnly(indexConfig)
 
 	tableMap := clickhouse.NewTableMap()
 
@@ -535,11 +544,7 @@ func Test_arrayType(t *testing.T) {
 
 	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
 
-	tests := []struct {
-		name     string
-		query    *model.Query
-		expected *model.Query
-	}{
+	tests := []transformTest{
 		{
 			name: "simple array",
 			query: &model.Query{
@@ -1196,14 +1201,12 @@ func TestFullTextFields(t *testing.T) {
 				},
 			}
 
-			cfg := config.QuesmaConfiguration{
-				IndexConfig: indexConfig,
-			}
+			cfg := config.NewQuesmaConfigurationIndexConfigOnly(indexConfig)
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
-			transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
+			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
 
 			indexSchema, ok := s.FindSchema("test")
 			if !ok {
@@ -1238,11 +1241,7 @@ func Test_applyMatchOperator(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
-		name     string
-		query    *model.Query
-		expected *model.Query
-	}{
+	tests := []transformTest{
 		{
 			name: "match operator transformation for String (ILIKE)",
 			query: &model.Query{
@@ -1499,9 +1498,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				"test": {},
 			}
 
-			cfg := config.QuesmaConfiguration{
-				IndexConfig: indexConfig,
-			}
+			cfg := config.NewQuesmaConfigurationIndexConfigOnly(indexConfig)
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 			s.Start()
@@ -1538,11 +1535,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
-		name     string
-		query    *model.Query
-		expected *model.Query
-	}{
+	tests := []transformTest{
 		{
 			name: "String",
 			query: &model.Query{
@@ -1607,9 +1600,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 				"test": {},
 			}
 
-			cfg := config.QuesmaConfiguration{
-				IndexConfig: indexConfig,
-			}
+			cfg := config.NewQuesmaConfigurationIndexConfigOnly(indexConfig)
 
 			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
 			s.Start()
@@ -1670,12 +1661,7 @@ func Test_mapKeys(t *testing.T) {
 	transformPass := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig, MapFieldsDiscoveringEnabled: true}, tableDiscovery, defaultSearchAfterStrategy)
 	noTransformPass := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig, MapFieldsDiscoveringEnabled: false}, tableDiscovery, defaultSearchAfterStrategy)
 
-	tests := []struct {
-		name     string
-		query    *model.Query
-		expected *model.Query
-	}{
-
+	tests := []transformTest{
 		{
 			name: "match operator transformation for String (ILIKE)",
 			query: &model.Query{
@@ -1908,6 +1894,252 @@ func Test_cluster(t *testing.T) {
 			actualJson := asString(actual[0])
 
 			assert.Equal(t, expectedJson, actualJson)
+		})
+	}
+}
+
+func Test_acceptIntsAsTimestamps(t *testing.T) {
+	schemaTable := schema.Table{
+		Columns: map[string]schema.Column{
+			"@timestamp":   {Name: "@timestamp", Type: "DateTime64"},
+			"timestampInt": {Name: "timestampInt", Type: "DateTime64"}, // datetime in schema (and Quesma config), UInt64 in Clickhouse
+			"normalInt":    {Name: "normalInt", Type: "Int"},
+		},
+	}
+
+	tests := []transformTest{
+		{
+			name: "replace string datetime with unix millis timestamp",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("timestampInt"),
+						">=",
+						model.NewLiteralWithFormat("2025-03-25T12:32:51.527Z", "epoch_millis"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("timestampInt"),
+						">=",
+						model.NewLiteral(1742905971527),
+					),
+				},
+			},
+		},
+		{
+			name: "query e.g. from date_histogram. need to erase toUnixTimestamp() when column is already int",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						model.NewFunction(
+							"toInt64",
+							model.NewFunction(
+								"toUnixTimestamp64Milli",
+								model.NewColumnRef("timestampInt"),
+							),
+						),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						model.NewFunction(
+							"toInt64",
+							model.NewColumnRef("timestampInt"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name: "query e.g. from date_histogram with time_zone. need to erase toUnixTimestamp() + add fromUnixTimestamp() when column is already int",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						// toInt64(
+						//	(
+						//    toUnixTimestamp64Milli("timestampInt")
+						//    +
+						//      timeZoneOffset(toTimezone("timestampInt", 'Europe/Warsaw'))
+						//      *
+						//      1000
+						//  )
+						//  / 43200000
+						// )
+						model.NewFunction(
+							"toInt64",
+							model.NewInfixExpr(
+								model.NewParenExpr(
+									model.NewInfixExpr(
+										model.NewFunction("toUnixTimestamp64Milli", model.NewColumnRef("timestampInt")),
+										"+",
+										model.NewInfixExpr(
+											model.NewFunction("timeZoneOffset", model.NewFunction(
+												"toTimezone",
+												model.NewColumnRef("timestampInt"),
+												model.NewLiteral("'Europe/Warsaw'")),
+											),
+											"*",
+											model.NewLiteral(1000),
+										),
+									),
+								),
+								"/",
+								model.NewLiteral(43200000),
+							),
+						),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						// toInt64(
+						//	(
+						//    "timestampInt"
+						//    +
+						//      timeZoneOffset(toTimezone(fromUnixTimestamp64Milli("timestampInt"), 'Europe/Warsaw'))
+						//      *
+						//      1000
+						//  )
+						//  / 43200000
+						// )
+						model.NewFunction(
+							"toInt64",
+							model.NewInfixExpr(
+								model.NewParenExpr(
+									model.NewInfixExpr(
+										model.NewColumnRef("timestampInt"),
+										"+",
+										model.NewInfixExpr(
+											model.NewFunction("timeZoneOffset", model.NewFunction(
+												"toTimezone",
+												model.NewFunction("fromUnixTimestamp64Milli", model.NewColumnRef("timestampInt")),
+												model.NewLiteral("'Europe/Warsaw'")),
+											),
+											"*",
+											model.NewLiteral(1000),
+										),
+									),
+								),
+								"/",
+								model.NewLiteral(43200000),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name: "int but not as timestamp",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+		},
+		{
+			name: "int but not as timestamp, came as string",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral("50"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
+			tableDiscovery := newFixedTableProvider(map[string]schema.Table{
+				"test": schemaTable,
+			})
+			cfg := config.NewQuesmaConfigurationIndexConfigOnly(map[string]config.IndexConfiguration{
+				"test": {},
+			})
+
+			tableMap := clickhouse.NewTableMap()
+
+			// timestampInt is datetime in schema (and Quesma config), UInt64 in Clickhouse
+			tab, _ := clickhouse.NewTable(`
+				CREATE TABLE table (
+					"timestampInt" UInt64
+				) ENGINE = Memory`, clickhouse.NewChTableConfigTimestampStringAttr())
+			tableMap.Store("test", tab)
+			td := clickhouse.NewEmptyTableDiscovery()
+			td.TableMap = tableMap
+
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s.Start()
+			defer s.Stop()
+			transform := NewSchemaCheckPass(&cfg, td, defaultSearchAfterStrategy)
+
+			indexSchema, ok := s.FindSchema("test")
+			if !ok {
+				t.Fatal("schema not found")
+			}
+
+			actual, err := transform.acceptIntsAsTimestamps(indexSchema, tt.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, model.AsString(tt.expected.SelectCommand), model.AsString(actual.SelectCommand))
 		})
 	}
 }
