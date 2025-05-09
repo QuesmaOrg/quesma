@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Elastic-2.0
 package telemetry
 
-import "testing"
+import (
+	"github.com/QuesmaOrg/quesma/platform/util"
+	"testing"
+)
 
 func TestProcessUserAgent(t *testing.T) {
 
@@ -20,8 +23,8 @@ func TestProcessUserAgent(t *testing.T) {
 			"Mozilla/* (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/* (KHTML, like Gecko) Chrome/* Safari/*"},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.given, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.given, i), func(t *testing.T) {
 			actual := processUserAgent(tt.given)
 			if actual != tt.expected {
 				t.Errorf("Expected %s, got %s", tt.expected, actual)

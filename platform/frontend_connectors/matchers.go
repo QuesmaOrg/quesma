@@ -21,17 +21,13 @@ func matchedAgainstAsyncId() quesma_api.RequestMatcher {
 	})
 }
 
-// Query path only (looks at QueryTarget)
 func matchedAgainstPattern(indexRegistry table_resolver.TableResolver) quesma_api.RequestMatcher {
 	return matchAgainstTableResolver(indexRegistry, quesma_api.QueryPipeline)
 }
 
-// check whether exact index name is enabled
 func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipelineName string) quesma_api.RequestMatcher {
 	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
-
 		indexName := req.Params["index"]
-
 		decision := indexRegistry.Resolve(pipelineName, indexName)
 		if decision.Err != nil {
 			return quesma_api.MatchResult{Matched: false, Decision: decision}
@@ -42,6 +38,46 @@ func matchAgainstTableResolver(indexRegistry table_resolver.TableResolver, pipel
 			}
 		}
 		return quesma_api.MatchResult{Matched: false, Decision: decision}
+	})
+}
+
+// getPitIdFromRequest gets the PIT ID from the request body,
+// depending on request kind it can be either at root or under `pit` key, e.g.:
+// {"id": "pit_id"} or {"pit": {"id": "pit_id"}}
+func getPitIdFromRequest(req *quesma_api.Request, pitAtRoot bool) string {
+	var payload struct {
+		ID  string `json:"id,omitempty"`
+		Pit struct {
+			ID string `json:"id"`
+		} `json:"pit,omitempty"`
+	}
+	if err := json.Unmarshal([]byte(req.Body), &payload); err != nil {
+		return ""
+	}
+	if pitAtRoot {
+		return payload.ID
+	}
+	return payload.Pit.ID
+}
+
+func matchPitId(getPitFn func(*quesma_api.Request) string) quesma_api.RequestMatcher {
+	return quesma_api.RequestMatcherFunc(func(req *quesma_api.Request) quesma_api.MatchResult {
+		if strings.HasPrefix(getPitFn(req), quesmaPitPrefix) {
+			return quesma_api.MatchResult{Matched: true}
+		}
+		return quesma_api.MatchResult{Matched: false}
+	})
+}
+
+func isSearchRequestWithQuesmaPit() quesma_api.RequestMatcher {
+	return matchPitId(func(req *quesma_api.Request) string {
+		return getPitIdFromRequest(req, false)
+	})
+}
+
+func hasQuesmaPitId() quesma_api.RequestMatcher {
+	return matchPitId(func(req *quesma_api.Request) string {
+		return getPitIdFromRequest(req, true)
 	})
 }
 

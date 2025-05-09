@@ -7,6 +7,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"reflect"
@@ -46,7 +47,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
-				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "String"},
+				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText, InternalPropertyType: "String"},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 				true, ""),
@@ -262,8 +263,8 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			found:     false,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			s := schema.NewSchemaRegistry(tt.tableDiscovery, &tt.cfg, clickhouse.SchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
@@ -308,7 +309,7 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 	defer s.Stop()
 
 	expectedSchema := schema.NewSchema(map[schema.FieldName]schema.Field{
-		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "String"},
+		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText, InternalPropertyType: "String"},
 		"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 		"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"}},
 		true, "")
@@ -328,7 +329,7 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 	})
 
 	expectedSchema = schema.NewSchema(map[schema.FieldName]schema.Field{
-		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword, InternalPropertyType: "String"},
+		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText, InternalPropertyType: "String"},
 		"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.QuesmaTypeTimestamp, InternalPropertyType: "DateTime64"},
 		"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.QuesmaTypeLong, InternalPropertyType: "Int64"},
 		"new_column": {PropertyName: "new_column", InternalPropertyName: "new_column", Type: schema.QuesmaTypeText, Origin: schema.FieldSourceMapping}},

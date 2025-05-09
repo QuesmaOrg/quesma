@@ -24,9 +24,9 @@ var (
 	QuesmaTypeDate         = QuesmaType{Name: "date", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
 	QuesmaTypeFloat        = QuesmaType{Name: "float", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
 	QuesmaTypeBoolean      = QuesmaType{Name: "boolean", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
-	QuesmaTypeObject       = QuesmaType{Name: "object", Properties: []QuesmaTypeProperty{Searchable}}
+	QuesmaTypeObject       = QuesmaType{Name: "object", Properties: []QuesmaTypeProperty{}}
 	QuesmaTypeArray        = QuesmaType{Name: "array", Properties: []QuesmaTypeProperty{Searchable}}
-	QuesmaTypeMap          = QuesmaType{Name: "map", Properties: []QuesmaTypeProperty{Searchable}}
+	QuesmaTypeMap          = QuesmaType{Name: "map", Properties: []QuesmaTypeProperty{}}
 	QuesmaTypeIp           = QuesmaType{Name: "ip", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
 	QuesmaTypePoint        = QuesmaType{Name: "point", Properties: []QuesmaTypeProperty{Searchable, Aggregatable}}
 	QuesmaTypeUnknown      = QuesmaType{Name: "unknown", Properties: []QuesmaTypeProperty{Searchable}}
@@ -60,6 +60,8 @@ func (t QuesmaType) String() string {
 
 func ParseQuesmaType(t string) (QuesmaType, bool) {
 	switch t {
+	case QuesmaTypeInteger.Name:
+		return QuesmaTypeInteger, true
 	case QuesmaTypeText.Name:
 		return QuesmaTypeText, true
 	case QuesmaTypeKeyword.Name:

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Elastic-2.0
 package elasticsearch
 
-import "testing"
+import (
+	"github.com/QuesmaOrg/quesma/platform/util"
+	"testing"
+)
 
 func TestIsValidIndexName(t *testing.T) {
 
@@ -24,8 +27,8 @@ func TestIsValidIndexName(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			if err := IsValidIndexName(tt.name); (err != nil) != tt.wantErr {
 				t.Errorf("IsValidIndexName() error = %v, wantErr %v", err, tt.wantErr)
 			}

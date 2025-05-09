@@ -9,6 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"strconv"
 	"testing"
@@ -23,6 +24,92 @@ func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 }
 func (f fixedTableProvider) AutodiscoveryEnabled() bool                              { return false }
 func (f fixedTableProvider) RegisterTablesReloadListener(chan<- types.ReloadMessage) {}
+
+func TestApplyTimestampField(t *testing.T) {
+	indexConfig := map[string]config.IndexConfiguration{
+		"test": {},
+	}
+
+	fields := map[schema.FieldName]schema.Field{
+		"@timestamp":  {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+		"other_field": {PropertyName: "other_field", InternalPropertyName: "other_field", InternalPropertyType: "String", Type: schema.QuesmaTypeText},
+	}
+
+	indexSchema := schema.Schema{
+		Fields: fields,
+	}
+
+	tableMap := clickhouse.NewTableMap()
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
+
+	tableMap.Store("test", &clickhouse.Table{
+		Name: "test",
+		DiscoveredTimestampFieldName: func() *string {
+			field := "discovered_timestamp"
+			return &field
+		}(),
+	})
+
+	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
+
+	tests := []struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}{
+		{
+			name: "replace @timestamp with discovered timestamp",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					Columns: []model.Expr{
+						model.NewColumnRef("@timestamp"),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					Columns: []model.Expr{
+						model.NewColumnRef("discovered_timestamp"),
+					},
+				},
+			},
+		},
+		{
+			name: "no replacement needed",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					Columns: []model.Expr{
+						model.NewColumnRef("other_field"),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					Columns: []model.Expr{
+						model.NewColumnRef("other_field"),
+					},
+				},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
+			tt.query.Schema = indexSchema
+			tt.query.Indexes = []string{tt.query.TableName}
+
+			actual, err := transform.applyTimestampField(indexSchema, tt.query)
+			assert.NoError(t, err)
+
+			assert.Equal(t, model.AsString(tt.expected.SelectCommand), model.AsString(actual.SelectCommand))
+		})
+	}
+}
 
 func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
@@ -648,8 +735,8 @@ func Test_arrayType(t *testing.T) {
 		return query.SelectCommand.String()
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
 			actual, err := transform.Transform([]*model.Query{tt.query})
@@ -718,8 +805,8 @@ func TestApplyWildCard(t *testing.T) {
 		t.Fatal("schema not found")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			query := &model.Query{
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
@@ -959,8 +1046,8 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 		t.Fatal("schema not found")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			indexes := tt.indexes
 			if len(indexes) == 0 {
@@ -1064,8 +1151,8 @@ func TestFullTextFields(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			query := &model.Query{
 				TableName:     "test",
 				SelectCommand: tt.input,
@@ -1076,7 +1163,7 @@ func TestFullTextFields(t *testing.T) {
 			var schemaColumns []schema.Column
 
 			for _, col := range columns {
-				schemaColumns = append(schemaColumns, schema.Column{Name: col, Type: "String"})
+				schemaColumns = append(schemaColumns, schema.Column{Name: col, Type: "LowCardinality(String)"})
 			}
 
 			columnMap := make(map[string]schema.Column)
@@ -1139,10 +1226,15 @@ func TestFullTextFields(t *testing.T) {
 }
 
 func Test_applyMatchOperator(t *testing.T) {
+	const messageAsKeyword = "messageAsKeyword"
 	schemaTable := schema.Table{
 		Columns: map[string]schema.Column{
-			"message": {Name: "message", Type: "String"},
-			"count":   {Name: "count", Type: "Int64"},
+			"message":        {Name: "message", Type: "String"},
+			messageAsKeyword: {Name: messageAsKeyword, Type: "String"},
+			"easy":           {Name: "easy", Type: "Bool"},
+			"map_str_str":    {Name: "map_str_str", Type: "Map(String, String)"},
+			"map_str_int":    {Name: "map_str_int", Type: "Map(String, Int)"},
+			"count":          {Name: "count", Type: "Int64"},
 		},
 	}
 
@@ -1205,10 +1297,199 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "match operator transformation for Bool",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("easy"),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("true", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("easy"),
+						"=",
+						model.TrueExpr,
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for map(string, string) (ILIKE)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef("map_str_str"), model.NewLiteral("'warsaw'")),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("'needle'", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef("map_str_str"), model.NewLiteral("'warsaw'")),
+						"ILIKE",
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for map(string, int) (=)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef("map_str_int"), model.NewLiteral("'warsaw'")),
+						model.MatchOperator,
+						model.NewLiteral(50),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef("map_str_int"), model.NewLiteral("'warsaw'")),
+						"=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for Attributes map (1/2)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral("'warsaw'")),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral("'warsaw'")),
+						"ILIKE",
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for Attributes map (2/2)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesMetadataColumn), model.NewLiteral("'warsaw'")),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesMetadataColumn), model.NewLiteral("'warsaw'")),
+						"ILIKE",
+						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator should change `ILIKE '%%'` TO `IS NOT NULL`",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("message"),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("'%%'", model.NotEscapedLikeFull),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("message")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("message"),
+						"IS",
+						model.NewLiteral("NOT NULL"),
+					),
+				},
+			},
+		},
+		{
+			name: "match operator transformation for Keyword (equals)",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef(messageAsKeyword)},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef(messageAsKeyword),
+						model.MatchOperator,
+						model.NewLiteralWithEscapeType("needle", model.NormalNotEscaped),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef(messageAsKeyword)},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef(messageAsKeyword),
+						"=",
+						model.NewLiteralWithEscapeType("needle", model.NormalNotEscaped),
+					),
+				},
+			},
+		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tableDiscovery :=
 				fixedTableProvider{tables: map[string]schema.Table{
 					"test": schemaTable,
@@ -1232,7 +1513,12 @@ func Test_applyMatchOperator(t *testing.T) {
 			if !ok {
 				t.Fatal("schema not found")
 			}
-
+			indexSchema.Fields[messageAsKeyword] = schema.Field{
+				PropertyName:         messageAsKeyword,
+				InternalPropertyName: messageAsKeyword,
+				InternalPropertyType: "String",
+				Type:                 schema.QuesmaTypeKeyword,
+			}
 			actual, err := transform.applyMatchOperator(indexSchema, tt.query)
 			if err != nil {
 				t.Fatal(err)
@@ -1310,8 +1596,8 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tableDiscovery :=
 				fixedTableProvider{tables: map[string]schema.Table{
 					"test": schemaTable,
@@ -1347,6 +1633,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 
 func Test_mapKeys(t *testing.T) {
 
+	// logger.InitSimpleLoggerForTestsWarnLevel()
 	indexConfig := map[string]config.IndexConfiguration{
 		"test":  {EnableFieldMapSyntax: true},
 		"test2": {EnableFieldMapSyntax: false},
@@ -1367,10 +1654,21 @@ func Test_mapKeys(t *testing.T) {
 	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 	for indexName := range indexConfig {
-		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+		tab := &clickhouse.Table{
+			Name:   indexName,
+			Config: clickhouse.NewDefaultCHConfig(),
+			Cols: map[string]*clickhouse.Column{
+				"foo": {
+					Name: "foo",
+					Type: clickhouse.NewBaseType("Map(String, Nullable(String))"),
+				},
+			},
+		}
+		tableMap.Store(indexName, tab)
 	}
 
-	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
+	transformPass := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig, MapFieldsDiscoveringEnabled: true}, tableDiscovery, defaultSearchAfterStrategy)
+	noTransformPass := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig, MapFieldsDiscoveringEnabled: false}, tableDiscovery, defaultSearchAfterStrategy)
 
 	tests := []struct {
 		name     string
@@ -1399,8 +1697,8 @@ func Test_mapKeys(t *testing.T) {
 					Columns:    []model.Expr{model.NewColumnRef("foo")},
 					WhereClause: model.NewInfixExpr(
 						model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
-						"iLIKE",
-						model.NewLiteral("'%baz%'"),
+						"ILIKE",
+						model.NewLiteral("'baz'"),
 					),
 				},
 			},
@@ -1416,7 +1714,7 @@ func Test_mapKeys(t *testing.T) {
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("sizes.bar"),
 						model.MatchOperator,
-						model.NewLiteral("1"),
+						model.NewLiteralWithEscapeType("1", model.FullyEscaped),
 					),
 				},
 			},
@@ -1427,8 +1725,8 @@ func Test_mapKeys(t *testing.T) {
 					Columns:    []model.Expr{model.NewColumnRef("foo")},
 					WhereClause: model.NewInfixExpr(
 						model.NewFunction("arrayElement", model.NewColumnRef("sizes"), model.NewLiteral("'bar'")),
-						"=",
-						model.NewLiteral("1"),
+						"ILIKE",
+						model.NewLiteralWithEscapeType("1", model.FullyEscaped),
 					),
 				},
 			},
@@ -1461,14 +1759,140 @@ func Test_mapKeys(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			name: "map syntax transformation",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewColumnRef("foo.bar")},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("foo.bar"),
+						"IS",
+						model.NewLiteral("NOT NULL"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						model.NewAliasedExpr(
+							model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
+							"column_0",
+						),
+					},
+					WhereClause: model.NewInfixExpr(
+						model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
+						"IS",
+						model.NewLiteral("NOT NULL"),
+					),
+				},
+			},
+		},
 	}
 
 	asString := func(query *model.Query) string {
 		return query.SelectCommand.String()
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
+			tt.query.Schema = indexSchema
+			tt.query.Indexes = []string{tt.query.TableName}
+			var actual []*model.Query
+			var err error
+			if indexConfig[tt.query.TableName].EnableFieldMapSyntax {
+				actual, err = transformPass.Transform([]*model.Query{tt.query})
+			} else {
+				actual, err = noTransformPass.Transform([]*model.Query{tt.query})
+			}
+			assert.NoError(t, err)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.True(t, len(actual) == 1, "len queries == 1")
+
+			expectedJson := asString(tt.expected)
+			actualJson := asString(actual[0])
+
+			assert.Equal(t, expectedJson, actualJson)
+		})
+	}
+
+}
+
+func Test_cluster(t *testing.T) {
+	indexConfig := map[string]config.IndexConfiguration{
+		"kibana_sample_data_ecommerce": {},
+	}
+	fields := map[schema.FieldName]schema.Field{
+		"@timestamp":         {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+		"order_date":         {PropertyName: "order_date", InternalPropertyName: "order_date", InternalPropertyType: "DateTime64", Type: schema.QuesmaTypeDate},
+		"taxful_total_price": {PropertyName: "taxful_total_price", InternalPropertyName: "taxful_total_price", InternalPropertyType: "Float64", Type: schema.QuesmaTypeFloat},
+	}
+
+	indexSchema := schema.Schema{
+		Fields: fields,
+	}
+
+	tableMap := clickhouse.NewTableMap()
+
+	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery.TableMap = tableMap
+	for indexName := range indexConfig {
+		table := clickhouse.NewEmptyTable(indexName)
+		table.ExistsOnAllNodes = true
+		tableMap.Store(indexName, table)
+	}
+
+	clickhouseUrl := &config.Url{
+		Scheme: "clickhouse",
+		Host:   "localhost:9000",
+	}
+
+	clusterName := "my_cluster"
+
+	clickhouseConnector := config.RelationalDbConfiguration{
+		ConnectorType: "clickhouse-os",
+		Url:           clickhouseUrl,
+		ClusterName:   clusterName,
+	}
+	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig, ClickHouse: clickhouseConnector, ClusterName: clusterName}, tableDiscovery, defaultSearchAfterStrategy)
+
+	tests := []struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}{
+		{
+			name: "simple array",
+			query: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns:    []model.Expr{model.NewWildcardExpr},
+				},
+			},
+			expected: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewFunction("cluster", model.NewLiteral(clusterName), model.NewLiteral("kibana_sample_data_ecommerce")),
+					Columns:    []model.Expr{model.NewColumnRef("@timestamp"), model.NewColumnRef("order_date"), model.NewColumnRef("taxful_total_price")},
+				},
+			},
+		},
+	}
+	asString := func(query *model.Query) string {
+		return query.SelectCommand.String()
+	}
+
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
 			actual, err := transform.Transform([]*model.Query{tt.query})
@@ -1486,5 +1910,4 @@ func Test_mapKeys(t *testing.T) {
 			assert.Equal(t, expectedJson, actualJson)
 		})
 	}
-
 }

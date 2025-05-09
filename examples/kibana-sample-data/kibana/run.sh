@@ -61,7 +61,7 @@ add_sample_dataset() {
 wait_until_available
 
 add_sample_dataset "flights"
-#add_sample_dataset "logs"
+add_sample_dataset "logs"
 add_sample_dataset "ecommerce"
 
 echo -n "Adding data view logs-generic... "

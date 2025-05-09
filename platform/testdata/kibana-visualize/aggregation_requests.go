@@ -3652,4 +3652,558 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  "range_1__aggr__2__count"
 			FROM __quesma_table_name`,
 	},
+	{ // [29]
+		TestName: `Simplest Rate aggregation: only 'unit' present (all possible units), with date_histogram's calendar_interval,
+			You can notice slightly different results in 2 buckets, because of different nr of days in a month`,
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"aggs": {
+						"second": {
+							"rate": {
+								"unit": "second"
+							}
+						},
+						"minute": {
+							"rate": {
+								"unit": "minute"
+							}
+						},
+						"hour": {
+							"rate": {
+								"unit": "hour"
+							}
+						},
+						"day": {
+							"rate": {
+								"unit": "day"
+							}
+						},
+						"week": {
+							"rate": {
+								"unit": "week"
+							}
+						},
+						"month": {
+							"rate": {
+								"unit": "month"
+							}
+						},
+						"quarter": {
+							"rate": {
+								"unit": "quarter"
+							}
+						},
+						"year": {
+							"rate": {
+								"unit": "year"
+							}
+						}
+					},
+					"date_histogram": {
+						"calendar_interval": "month",
+						"field": "timestamp",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		// Omitting "_shards", "hits", "timed_out" and "took" fields for brevity.
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"doc_count": 5011,
+							"key": 1727733600000,
+							"key_as_string": "2024-09-30T22:00:00.000",
+							"second": {
+								"value": 0.001871
+							},
+							"minute": {
+								"value": 0.112254
+							},
+							"hour": {
+								"value": 6.735215
+							},
+							"day": {
+								"value": 161.645161
+							},
+							"week": {
+								"value": 1131.516129
+							},
+							"month": {
+								"value": 5011
+							},
+							"quarter": {
+								"value": 15033
+							},
+							"year": {
+								"value": 60132
+							}
+						},
+						{
+							"doc_count": 5011,
+							"key": 1730415600000,
+							"key_as_string": "2024-10-31T23:00:00.000",
+							"second": {
+								"value": 0.001933
+							},
+							"minute": {
+								"value": 0.115995
+							},
+							"hour": {
+								"value": 6.959722
+							},
+							"day": {
+								"value": 167.033333
+							},
+							"week": {
+								"value": 1169.233333
+							},
+							"month": {
+								"value": 5011
+							},
+							"quarter": {
+								"value": 15033
+							},
+							"year": {
+								"value": 60132
+							}
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1727740800000)),
+				model.NewQueryResultCol("aggr__2__count", 5011),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1730419200000)),
+				model.NewQueryResultCol("aggr__2__count", 5011),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
+			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0", count(*) AS "aggr__2__count"
+			FROM __quesma_table_name
+			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
+			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [30]
+		TestName: "Rate aggregation: all possible units with date_histogram's fixed_interval ('field' present)",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"aggs": {
+						"week": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "week"
+							}
+						},
+						"day": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "day"
+							}
+						},
+						"hour": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "hour"
+							}
+						},
+						"minute": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "minute"
+							}
+						},
+						"second": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "second"
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "timestamp",
+						"fixed_interval": "30s",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-11-14T11:35:41.864Z",
+									"lte": "2024-11-14T11:50:41.864Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		// Omitting "_shards", "hits", "timed_out" and "took" fields for brevity.
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"second": {
+								"value": 65.27122395833334
+							},
+							"minute": {
+								"value": 3916.2734375
+							},
+							"hour": {
+								"value": 234976.40625
+							},
+							"day": {
+								"value": 5639433.75
+							},
+							"week": {
+								"value": 39476036.25
+							},
+							"key": 1731584220000,
+							"key_as_string": "2024-11-14T11:37:00.000",
+							"doc_count": 1
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1731587820000/30000)),
+				model.NewQueryResultCol("aggr__2__count", 1),
+				model.NewQueryResultCol("metric__2__day_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__hour_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__minute_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__second_col_0", 1958.13671875),
+				model.NewQueryResultCol("metric__2__week_col_0", 1958.13671875),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  sumOrNull("DistanceKilometers") AS "metric__2__day_col_0",
+			  sumOrNull("DistanceKilometers") AS "metric__2__hour_col_0",
+			  sumOrNull("DistanceKilometers") AS "metric__2__minute_col_0",
+			  sumOrNull("DistanceKilometers") AS "metric__2__second_col_0",
+			  sumOrNull("DistanceKilometers") AS "metric__2__week_col_0"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1731584141864) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1731585041864))
+			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
+			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [31]
+		TestName: "Rate aggregation: all possible units with date_histogram's calendar_interval ('field' present)",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"2": {
+					"aggs": {
+						"second": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "second",
+								"mode": "value_count"
+							}
+						},
+						"minute": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "minute",
+								"mode": "value_count"
+							}
+						},
+						"hour": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "hour",
+								"mode": "value_count"
+							}
+						},
+						"day": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "day",
+								"mode": "value_count"
+							}
+						},
+						"week": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "week"
+							}
+						},
+						"month": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "month",
+								"mode": "value_count"
+							}
+						},
+						"quarter": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "quarter",
+								"mode": "value_count"
+							}
+						},
+						"year": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "year",
+								"mode": "value_count"
+							}
+						}
+					},
+					"date_histogram": {
+						"calendar_interval": "1M",
+						"field": "timestamp",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2022-11-14T12:05:53.316Z",
+									"lte": "2024-11-14T12:05:53.316Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		// Omitting "_shards", "hits", "timed_out" and "took" fields for brevity.
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"doc_count": 3345,
+							"key": 1730415600000,
+							"key_as_string": "2024-10-31T23:00:00.000",
+							"second": {
+								"value": 0.001933
+							},
+							"minute": {
+								"value": 0.115995
+							},
+							"hour": {
+								"value": 6.959722
+							},
+							"day": {
+								"value": 167.033333
+							},
+							"week": {
+								"value": 5566264.498700
+							},
+							"month": {
+								"value": 5011
+							},
+							"quarter": {
+								"value": 15033
+							},
+							"year": {
+								"value": 60132
+							}
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1730419200000)),
+				model.NewQueryResultCol("aggr__2__count", 3345),
+				model.NewQueryResultCol("metric__2__day_col_0", 5011),
+				model.NewQueryResultCol("metric__2__hour_col_0", 5011),
+				model.NewQueryResultCol("metric__2__minute_col_0", 5011),
+				model.NewQueryResultCol("metric__2__month_col_0", 5011),
+				model.NewQueryResultCol("metric__2__quarter_col_0", 5011),
+				model.NewQueryResultCol("metric__2__second_col_0", 5011),
+				model.NewQueryResultCol("metric__2__week_col_0", 23855419.280143738),
+				model.NewQueryResultCol("metric__2__year_col_0", 5011),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
+			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0", count(*) AS "aggr__2__count",
+			  count("DistanceKilometers") AS "metric__2__day_col_0",
+			  count("DistanceKilometers") AS "metric__2__hour_col_0",
+			  count("DistanceKilometers") AS "metric__2__minute_col_0",
+			  count("DistanceKilometers") AS "metric__2__month_col_0",
+			  count("DistanceKilometers") AS "metric__2__quarter_col_0",
+			  count("DistanceKilometers") AS "metric__2__second_col_0",
+			  sumOrNull("DistanceKilometers") AS "metric__2__week_col_0",
+			  count("DistanceKilometers") AS "metric__2__year_col_0"
+			FROM __quesma_table_name
+			WHERE ("timestamp">=fromUnixTimestamp64Milli(1668427553316) AND "timestamp"<=
+			  fromUnixTimestamp64Milli(1731585953316))
+			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
+			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0"
+			ORDER BY "aggr__2__key_0" ASC`,
+	},
+	{ // [32]
+		TestName: "Rate aggregation with some bigger aggregation tree",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"dh1": {
+					"aggs": {
+						"rate1": {
+							"rate": {
+								"field": "DistanceKilometers",
+								"unit": "week",
+								"mode": "value_count"
+							}
+						},
+						"dh2": {
+							"date_histogram": {
+								"field": "timestamp",
+								"fixed_interval": "1h"
+							},
+							"aggs": {
+								"rate2": {
+									"rate": {
+										"unit": "day"
+									}
+								}
+							}
+						}
+					},
+					"date_histogram": {
+						"fixed_interval": "1d",
+						"field": "timestamp",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		// Omitting "_shards", "hits", "timed_out" and "took" fields for brevity.
+		ExpectedResponse: `
+		{
+			"aggregations": {
+				"dh1": {
+					"buckets": [
+						{
+							"key_as_string": "2024-12-12T23:00:00.000",
+							"key": 1734044400000,
+							"doc_count": 327,
+							"rate1": {
+								"value": 2289
+							},
+							"dh2": {
+								"buckets": [
+									{
+										"key_as_string": "2024-12-15T00:00:00.000",
+										"key": 1734220800000,
+										"doc_count": 2,
+										"rate2": {
+											"value": 48
+										}
+									},
+									{
+										"key_as_string": "2024-12-15T01:00:00.000",
+										"key": 1734224400000,
+										"doc_count": 9,
+										"rate2": {
+											"value": 216
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__dh1__key_0", int64(1734130800000/86400000)),
+				model.NewQueryResultCol("aggr__dh1__count", 327),
+				model.NewQueryResultCol("metric__dh1__rate1_col_0", 327),
+				model.NewQueryResultCol("aggr__dh1__dh2__key_0", int64(1734220800000/3600000)),
+				model.NewQueryResultCol("aggr__dh1__dh2__count", 2),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__dh1__key_0", int64(1734130800000/86400000)),
+				model.NewQueryResultCol("aggr__dh1__count", 327),
+				model.NewQueryResultCol("metric__dh1__rate1_col_0", 327),
+				model.NewQueryResultCol("aggr__dh1__dh2__key_0", int64(1734224400000/3600000)),
+				model.NewQueryResultCol("aggr__dh1__dh2__count", 9),
+			}},
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__dh1__key_0", "aggr__dh1__count", "metric__dh1__rate1_col_0",
+			  "aggr__dh1__dh2__key_0", "aggr__dh1__dh2__count"
+			FROM (
+			  SELECT "aggr__dh1__key_0", "aggr__dh1__count", "metric__dh1__rate1_col_0",
+				"aggr__dh1__dh2__key_0", "aggr__dh1__dh2__count",
+				dense_rank() OVER (ORDER BY "aggr__dh1__key_0" ASC) AS
+				"aggr__dh1__order_1_rank",
+				dense_rank() OVER (PARTITION BY "aggr__dh1__key_0" ORDER BY
+				"aggr__dh1__dh2__key_0" ASC) AS "aggr__dh1__dh2__order_1_rank"
+			  FROM (
+				SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
+				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 86400000) AS
+				  "aggr__dh1__key_0",
+				  sum(count(*)) OVER (PARTITION BY "aggr__dh1__key_0") AS "aggr__dh1__count"
+				  ,
+				  sum(count("DistanceKilometers")) OVER (PARTITION BY "aggr__dh1__key_0") AS
+				  "metric__dh1__rate1_col_0",
+				  toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
+				  "aggr__dh1__dh2__key_0", count(*) AS "aggr__dh1__dh2__count"
+				FROM __quesma_table_name
+				GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
+				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 86400000) AS
+				  "aggr__dh1__key_0",
+				  toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
+				  "aggr__dh1__dh2__key_0"))
+			ORDER BY "aggr__dh1__order_1_rank" ASC, "aggr__dh1__dh2__order_1_rank" ASC`,
+	},
 }

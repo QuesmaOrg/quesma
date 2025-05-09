@@ -138,7 +138,8 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			if err != nil {
 				return metadata, nil, err
 			}
-			res, err := frontend_connectors.HandleTermsEnum(ctx, indexPattern, query, p.queryRunner.GetLogManager(), p.queryRunner.GetSchemaRegistry(), p.legacyDependencies)
+			isFieldMapSyntaxEnabled := p.config.IsFieldMapSyntaxEnabled(indexPattern)
+			res, err := frontend_connectors.HandleTermsEnum(ctx, indexPattern, query, isFieldMapSyntaxEnabled, p.queryRunner)
 			return metadata, res, err
 		case es_to_ch_common.IndexPath:
 			if indexNotInConfig {

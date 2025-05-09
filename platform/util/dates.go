@@ -13,6 +13,12 @@ func ParseTime(asString string) time.Time {
 	return t
 }
 
+// DaysInMonth returns number of days in month of given time.
+func DaysInMonth(t time.Time) int {
+	// a bit of a heuristic, but it should work + I evade some edge cases by doing so
+	return int(t.AddDate(0, 1, 0).Sub(t).Hours()+0.1) / 24
+}
+
 // FindTimestampPrecision returns the number of digits after the dot in the seconds part of the timestamp.
 // e.g. '2024-12-21 07:29:03.123456789' -> 9, as it has 9 digits after the dot.
 // It only works for timestamps looking like this: '2024-12-21 07:29:03[.digit+]'
@@ -54,4 +60,9 @@ func FindTimestampPrecision(timestamp string) (precision int, success bool) {
 		}
 		return precision, true
 	}
+}
+
+// Day returns 1 day (24 hours) as time.Duration
+func Day() time.Duration {
+	return 24 * time.Hour
 }

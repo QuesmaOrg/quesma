@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
 	"strconv"
 	"testing"
@@ -38,7 +39,7 @@ func Test_validateAndParse(t *testing.T) {
 	strategies := []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)}
 	for _, strategy := range strategies {
 		for i, tc := range testcases {
-			t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
+			t.Run(util.PrettyTestName(fmt.Sprintf("%v", tc.searchAfter), i), func(t *testing.T) {
 				query := &model.Query{}
 				query.SelectCommand.OrderBy = []model.OrderByExpr{model.NewOrderByExprWithoutOrder(model.NewColumnRef("@timestamp"))}
 				if arr, ok := tc.searchAfter.([]any); ok && len(arr) == 2 {
@@ -150,7 +151,7 @@ func Test_applySearchAfterParameter(t *testing.T) {
 	strategies := []searchAfterStrategyType{basicAndFast}
 	for _, strategy := range strategies {
 		for i, tc := range testcases {
-			t.Run(fmt.Sprintf("%v (testNr:%d)", tc.searchAfter, i), func(t *testing.T) {
+			t.Run(util.PrettyTestName(fmt.Sprintf("%v", tc.searchAfter), i), func(t *testing.T) {
 				// apply search_after parameter, easier to do here than in all the testcases
 				tc.query.SearchAfter = tc.searchAfter
 				tc.transformedQueryExpected.SearchAfter = tc.searchAfter

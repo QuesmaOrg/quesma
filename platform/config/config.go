@@ -56,6 +56,7 @@ type QuesmaConfiguration struct {
 	DefaultQueryTarget          []string
 	DefaultIngestOptimizers     map[string]OptimizerConfiguration
 	DefaultQueryOptimizers      map[string]OptimizerConfiguration
+	MapFieldsDiscoveringEnabled bool
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]string {
@@ -264,6 +265,7 @@ Quesma Configuration:
 	UseCommonTableForWildcard: %t,
 	DefaultIngestTarget: %v,
 	DefaultQueryTarget: %v,
+	MapFieldsDiscoveringEnabled: %t
 `,
 		c.TransparentProxy,
 		elasticUrl,
@@ -285,6 +287,7 @@ Quesma Configuration:
 		c.UseCommonTableForWildcard,
 		c.DefaultIngestTarget,
 		c.DefaultQueryTarget,
+		c.MapFieldsDiscoveringEnabled,
 	)
 }
 

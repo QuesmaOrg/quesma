@@ -50,8 +50,8 @@ func (v *mapTypeResolver) isMap(fieldName string) (exists bool, scope searchScop
 	if !ok {
 		return false, scope, fieldName
 	}
-	col, ok := v.indexSchema.Fields[schema.FieldName(tableColumnName.InternalPropertyName.AsString())]
 
+	col, ok := v.indexSchema.Fields[schema.FieldName(tableColumnName.InternalPropertyName.AsString())]
 	if ok {
 		if strings.HasPrefix(col.InternalPropertyType, "Map") {
 			return true, scope, tableColumnName.InternalPropertyName.AsString()
@@ -72,12 +72,10 @@ func NewMapTypeVisitor(resolver mapTypeResolver) model.ExprVisitor {
 	visitor := model.NewBaseVisitor()
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-		isMap, _, realName := resolver.isMap(e.ColumnName)
-		if !isMap {
-			return e
+		if isMap, _, realName := resolver.isMap(e.ColumnName); isMap {
+			return model.NewColumnRefWithTable(realName, e.TableAlias)
 		}
-
-		return model.NewColumnRef(realName)
+		return e.Clone()
 	}
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {

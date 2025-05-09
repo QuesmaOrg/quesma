@@ -288,8 +288,24 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 			}
 		}
 
+		// TODO uncomment this in order to enable A/B testing
+		/*
+			connectors := []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
+				ClickhouseTableName: common_table.TableName,
+				ClickhouseIndexes:   []string{part},
+				IsCommonTable:       true,
+			}}
+			enableABTesting := false
+			if optCfg, ok := r.conf.DefaultQueryOptimizers[config.ElasticABOptimizerName]; ok {
+				if !optCfg.Disabled {
+					enableABTesting = true
+					//connectors = append(connectors, &quesma_api.ConnectorDecisionElastic{})
+				}
+			}
+		*/
 		if idxConfig, ok := cfg[part]; (ok && idxConfig.UseCommonTable) || (virtualTableExists) {
 			return &quesma_api.Decision{
+				//EnableABTesting: enableABTesting,
 				UseConnectors: []quesma_api.ConnectorDecision{&quesma_api.ConnectorDecisionClickhouse{
 					ClickhouseTableName: common_table.TableName,
 					ClickhouseIndexes:   []string{part},

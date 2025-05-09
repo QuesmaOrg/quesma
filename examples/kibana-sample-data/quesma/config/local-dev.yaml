@@ -54,6 +54,21 @@ processors:
                 type: geo_point
               "OriginLocation":
                 type: geo_point
+        kibana_sample_data_logs:
+          target: [ my-clickhouse-data-source ]
+          schemaOverrides:
+            fields:
+              timestamp:
+                type: alias
+                targetColumnName: "@timestamp"
+              ip:
+                type: ip
+              clientip:
+                type: ip
+              "geo.coordinates":
+                type: geo_point
+              "geo.src":
+                type: keyword
         logs-generic-default:
           target:
             - my-clickhouse-data-source
@@ -103,6 +118,21 @@ processors:
                 type: geo_point
               "OriginLocation":
                 type: geo_point
+        kibana_sample_data_logs:
+          target: [ my-clickhouse-data-source ]
+          schemaOverrides:
+            fields:
+              timestamp:
+                type: alias
+                targetColumnName: "@timestamp"
+              ip:
+                type: ip
+              clientip:
+                type: ip
+              "geo.coordinates":
+                type: geo_point
+              "geo.src":
+                type: keyword
         logs-generic-default:
           target:
             - my-clickhouse-data-source

@@ -13,7 +13,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -47,7 +46,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: currentSchema}
 
 	for i, test := range allAggregationTests() {
-		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
+		t.Run(util.PrettyTestName(test.TestName, i), func(t *testing.T) {
 			// sample_ecommerce
 			if test.TestName == "TODO Top products this/last week(file:kibana-sample-data-ecommerce,nr:9)" {
 				t.Skip("works IRL, need to update test's schema. It's already WIP https://github.com/QuesmaOrg/quesma/pull/1255. Let's wait for merge.")
@@ -287,8 +286,8 @@ LIMIT 4`, // we increased limit by 1 to allow filtering of nulls druing json ren
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
 			jsonp, err := types.ParseJSON(tt.json)
 			assert.NoError(t, err)

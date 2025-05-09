@@ -3,6 +3,8 @@
 package elasticsearch
 
 import (
+	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"net/http"
 	"net/url"
 	"testing"
@@ -20,8 +22,8 @@ func TestIsWriteRequest(t *testing.T) {
 		{method: http.MethodPut, url: "/_create", want: true},
 		{method: http.MethodPost, url: "/_search", want: false},
 	}
-	for _, tt := range tests {
-		t.Run(tt.method+" "+tt.url, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(fmt.Sprintf("%s %s", tt.method, tt.url), i), func(t *testing.T) {
 			if got := IsWriteRequest(&http.Request{
 				Method: tt.method,
 				URL:    &url.URL{Path: tt.url},

@@ -4,6 +4,7 @@ package model
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"strconv"
 	"testing"
 	"time"
@@ -62,8 +63,8 @@ func TestQueryResultCol_String(t *testing.T) {
 		{map[string]any{"a": map[string]any{"int": 1}}, `"name": {"a":{"int":1}}`},
 	}
 	ctx := context.Background()
-	for _, tt := range testcases {
-		t.Run(tt.expected, func(t *testing.T) {
+	for i, tt := range testcases {
+		t.Run(util.PrettyTestName(tt.expected, i), func(t *testing.T) {
 			col := QueryResultCol{ColName: "name", Value: tt.value}
 			got := col.String(ctx)
 			if got != tt.expected {

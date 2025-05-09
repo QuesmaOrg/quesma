@@ -4,6 +4,7 @@
 package core
 
 import (
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"strings"
 	"testing"
 
@@ -175,8 +176,8 @@ func BenchmarkLexWhitespaceAndTestKeyword(b *testing.B) {
 		"quesma",
 	}
 
-	for _, tc := range testCases {
-		b.Run(tc, func(b *testing.B) {
+	for i, tc := range testCases {
+		b.Run(util.PrettyTestName(tc, i), func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				Lex(tc, whitespaceAndTestKeywordRuleList)
