@@ -10,12 +10,13 @@ import (
 	"time"
 )
 
-// TODO: only bucketsNr=1 is supported for now. Implement other cases.
 type AutoDateHistogram struct {
-	ctx       context.Context
-	field     model.ColumnRef // name of the field, e.g. timestamp
-	bucketsNr int
-	key       int64
+	ctx            context.Context
+	field          model.ColumnRef // name of the field, e.g. timestamp
+	bucketsNr      int
+	lowerBoundInMs *int64 // nil == no bound
+	upperBoundInMs *int64 // nil == no bound
+	key            int64  // needed still? check
 }
 
 // NewAutoDateHistogram creates a new AutoDateHistogram aggregation, during parsing.
@@ -54,6 +55,6 @@ func (query *AutoDateHistogram) GetField() model.ColumnRef {
 	return query.field
 }
 
-func (query *AutoDateHistogram) SetKey(key int64) {
+func (query *AutoDateHistogram) SetBounds(key int64) {
 	query.key = key
 }
