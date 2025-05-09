@@ -3,7 +3,7 @@
 package model
 
 import (
-	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"strconv"
 )
 
@@ -14,9 +14,10 @@ type Expr interface {
 
 var (
 	InvalidExpr = Expr(nil)
-	TrueExpr    = NewLiteral(true)
-	FalseExpr   = NewLiteral(false)
-	NullExpr    = NewLiteral("NULL")
+	TrueExpr    = NewLiteralWithEscapeType("true", ZeroEscaping)
+	FalseExpr   = NewLiteralWithEscapeType("false", ZeroEscaping)
+	NullExpr    = NewLiteralWithEscapeType("NULL", ZeroEscaping)
+	NotNullExpr = NewLiteralWithEscapeType("NOT NULL", ZeroEscaping)
 )
 
 // ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go
@@ -101,13 +102,22 @@ type (
 
 const (
 	NormalNotEscaped     EscapeType = "normal"        // used in 90% cases, everywhere but not in 'LIKE' exprs
+	ZeroEscaping         EscapeType = "zero_escaping" // rendered as is, e.g. for NULL (we don't add any quoting or escaping)
 	NotEscapedLikePrefix EscapeType = "like_prefix"   // used in 'LIKE' exprs, will be rendered 'value%'
 	NotEscapedLikeFull   EscapeType = "like_full"     // used in 'LIKE' exprs, will be rendered '%value%'
-	FullyEscaped         EscapeType = "fully_escaped" // will be rendered as is, as Lucene parser did all the escaping
+	FullyEscaped         EscapeType = "fully_escaped" // will be rendered as is (with single quotes added if needed for strings), as Lucene parser did all the escaping
 )
 
-func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitLiteral(e)
+func (l LiteralExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitLiteral(l)
+}
+
+// MatchToOperator returns what operator should replace MatchOperator (__quesma_match) for string literals
+func (l LiteralExpr) MatchToOperator() string {
+	if l.EscapeType == NormalNotEscaped || l.EscapeType == ZeroEscaping {
+		return "="
+	}
+	return "ILIKE"
 }
 
 type TupleExpr struct {
@@ -143,7 +153,7 @@ func NewCountFunc(args ...Expr) FunctionExpr {
 	return NewFunction("count", args...)
 }
 
-var NewWildcardExpr = NewLiteral("*")
+var NewWildcardExpr = NewLiteralWithEscapeType("*", ZeroEscaping)
 
 func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value, EscapeType: NormalNotEscaped}
@@ -153,7 +163,7 @@ func NewLiteral(value any) LiteralExpr {
 func NewLiteralSingleQuoteString(value any) LiteralExpr {
 	switch v := value.(type) {
 	case string:
-		return LiteralExpr{Value: fmt.Sprintf("'%s'", v)}
+		return NewLiteral(util.SingleQuote(v))
 	default:
 		return LiteralExpr{Value: v}
 	}
