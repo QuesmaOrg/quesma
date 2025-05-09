@@ -3,7 +3,6 @@
 package frontend_connectors
 
 import (
-	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
@@ -15,6 +14,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/ui"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	mux "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"testing"
@@ -381,7 +381,7 @@ func TestSearchCommonTable(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 
 			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)

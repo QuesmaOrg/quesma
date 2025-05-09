@@ -7,4 +7,8 @@ type ElasticsearchConfiguration struct {
 	User     string `koanf:"user"`
 	Password string `koanf:"password"`
 	AdminUrl *Url   `koanf:"adminUrl"`
+
+	ClientCertPath string `koanf:"clientCertPath"`
+	ClientKeyPath  string `koanf:"clientKeyPath"`
+	CACertPath     string `koanf:"caCertPath"`
 }

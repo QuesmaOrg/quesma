@@ -10,12 +10,13 @@ import (
 type ContextKey string
 
 const (
-	RequestIdCtxKey ContextKey = "RequestId"
-	ReasonCtxKey    ContextKey = "Reason"
-	RequestPath     ContextKey = "RequestPath"
-	AsyncIdCtxKey   ContextKey = "AsyncId"
-	TraceEndCtxKey  ContextKey = "TraceEnd"
 	OpaqueIdCtxKey  ContextKey = "OpaqueId"
+	AsyncIdCtxKey   ContextKey = "AsyncId"
+	ErrorCtxKey     ContextKey = "Error"
+	ReasonCtxKey    ContextKey = "Reason"
+	RequestIdCtxKey ContextKey = "RequestId"
+	RequestPath     ContextKey = "RequestPath"
+	TraceEndCtxKey  ContextKey = "TraceEnd"
 
 	AsyncIdPrefix = "quesma_async_"
 )
@@ -55,16 +56,9 @@ type ContextValues struct {
 }
 
 func ExtractValues(ctx context.Context) ContextValues {
-
 	str := func(key ContextKey) string {
-		if value := ctx.Value(key); value != nil {
-			if str, ok := value.(string); ok {
-				return str
-			}
-		}
-		return ""
+		return ExtractValueString(ctx, key, "")
 	}
-
 	return ContextValues{
 		RequestId:   str(RequestIdCtxKey),
 		AsyncId:     str(AsyncIdCtxKey),
@@ -72,4 +66,13 @@ func ExtractValues(ctx context.Context) ContextValues {
 		RequestPath: str(RequestPath),
 		OpaqueId:    str(OpaqueIdCtxKey),
 	}
+}
+
+func ExtractValueString(ctx context.Context, key ContextKey, defaultValue string) string {
+	if val := ctx.Value(key); val != nil {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return defaultValue
 }

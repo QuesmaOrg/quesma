@@ -7,6 +7,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
 	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,8 +33,8 @@ func Test_unmarshalElasticResponse(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			bulkResponse := &BulkResponse{}
 			if err := json.Unmarshal([]byte(tt.bulkResponseFromElastic), bulkResponse); err != nil {
 				t.Errorf("error while unmarshaling elastic response: %v", err)
