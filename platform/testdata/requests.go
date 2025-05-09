@@ -1254,7 +1254,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"exception-list-agnostic.list_id" __quesma_match '%endpoint\_event\_filters%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id" ILIKE '%endpoint\\_event\\_filters%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id"='%endpoint\\_event\\_filters%'`},
 		[]string{},
 	},
 	{ // [10]

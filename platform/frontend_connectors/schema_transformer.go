@@ -660,6 +660,13 @@ func (s *SchemaCheckPass) applyTimestampField(ctx context.Context, indexSchema s
 	if column, ok := indexSchema.Fields[model.TimestampFieldName]; ok {
 		timestampColumnName = column.InternalPropertyName.AsString()
 	}
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	if table.DiscoveredTimestampFieldName != nil {
+		timestampColumnName = *table.DiscoveredTimestampFieldName
+	}
 
 	// if not found, check if the table has a timestamp field discovered somehow
 	// This is commented out for now.
@@ -1307,6 +1314,7 @@ func (s *SchemaCheckPass) Transform(ctx context.Context, queries []*model.Query)
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
 		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
+		{TransformationName: "ClusterFunction", Transformation: s.applyFromClusterExpression},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
@@ -1434,7 +1442,13 @@ func (s *SchemaCheckPass) applyMatchOperator(ctx context.Context, indexSchema sc
 				rhs.Value = strings.Trim(rhsValue, "%")
 				rhs.EscapeType = model.NormalNotEscaped
 				return equal()
+			case schema.QuesmaTypeKeyword.Name:
+				return equal()
 			default:
+				// ILIKE '%%' has terrible performance, but semantically means "is not null", hence this transformation
+				if rhsValue == "%%" {
+					return model.NewInfixExpr(lhs, "IS", model.NewLiteral("NOT NULL"))
+				}
 				return ilike()
 			}
 		}
@@ -1493,4 +1507,28 @@ func (s *SchemaCheckPass) applyMatchOperator(ctx context.Context, indexSchema sc
 	}
 	return query, nil
 
+}
+
+// applyFromClusterExpression transforms query so that `FROM table` becomes `FROM cluster(clusterName,table)` if applicable
+func (s *SchemaCheckPass) applyFromClusterExpression(ctx context.Context, currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	if s.cfg.ClusterName == "" {
+		return query, nil
+	}
+	visitor := model.NewBaseVisitor()
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	if !table.ExistsOnAllNodes {
+		return query, nil
+	}
+	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
+		return model.NewFunction("cluster", model.NewLiteral(s.cfg.ClusterName), e)
+	}
+	logger.Debug().Msgf("applyClusterFunction: %s", s.cfg.ClusterName)
+	expr := query.SelectCommand.Accept(visitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
 }
