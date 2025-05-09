@@ -712,8 +712,8 @@ func (td *tableDiscovery) enrichTableWithMapFields(inputTable map[string]map[str
 }
 
 type TablePresence struct {
-	Database         string
-	Table            string
+	Database         string // string?
+	Table            string // czemu tu string?
 	FoundNodes       int
 	TotalNodes       int
 	ExistsOnAllNodes bool
