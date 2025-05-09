@@ -133,14 +133,23 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		return HandleResolveIndex(ctx, req.Params["index"], sr, cfg.Elasticsearch)
 	})
 
+	router.Register(routes.IndexPatternPitPath, and(method("POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		indexPattern := req.Params["index"]
+		logger.Debug().Msgf("Quesma-managed PIT request, targeting indexPattern=%s", indexPattern)
+		return HandlePitStore(indexPattern)
+	})
+
+	router.Register(routes.PitPath, and(method("DELETE"), hasQuesmaPitId()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		return PitDeletedResponse()
+	})
+
 	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 		return HandleIndexCount(ctx, req.Params["index"], queryRunner)
 	})
 
-	// TODO: This endpoint is currently disabled (mux.Never()) as it's pretty much used only by internal Kibana requests,
-	// it's error-prone to detect them in matchAgainstKibanaInternal() and Quesma can't handle well the cases of wildcard
-	// matching many indices either way.
-	router.Register(routes.GlobalSearchPath, and(quesma_api.Never(), method("GET", "POST"), matchAgainstKibanaInternal()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(routes.GlobalSearchPath, and(method("GET", "POST"), isSearchRequestWithQuesmaPit()), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+		pitId := getPitIdFromRequest(req, false)
+		indexPattern := strings.TrimPrefix(pitId, quesmaPitPrefix)
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
@@ -148,7 +157,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		}
 
 		// TODO we should pass JSON here instead of []byte
-		responseBody, err := queryRunner.HandleSearch(ctx, "*", body)
+		responseBody, err := queryRunner.HandleSearch(ctx, indexPattern, body)
 		if err != nil {
 			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
@@ -242,7 +251,12 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		if err != nil {
 			return nil, errors.New("invalid request body, expecting JSON")
 		}
-		return HandleTermsEnum(ctx, indexPattern, body, lm, sr, dependencies)
+
+		var isFieldMapSyntaxEnabled bool
+		if indexCfg, exists := cfg.IndexConfig[indexPattern]; exists {
+			isFieldMapSyntaxEnabled = indexCfg.EnableFieldMapSyntax
+		}
+		return HandleTermsEnum(ctx, indexPattern, body, isFieldMapSyntaxEnabled, queryRunner)
 	})
 
 	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {

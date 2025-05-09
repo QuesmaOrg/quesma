@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"github.com/QuesmaOrg/quesma/platform/transformations"
 	"sort"
 	"strings"
 )
@@ -316,17 +317,24 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 		return query, nil
 	}
 
-	var visitor model.ExprVisitor
+	var (
+		visitor         model.ExprVisitor
+		visitorHadError bool
+	)
 
 	if checkIfGroupingByArrayColumn(query.SelectCommand, arrayTypeResolver) {
 		visitor = NewArrayJoinVisitor(arrayTypeResolver)
 	} else {
-		visitor = NewArrayTypeVisitor(arrayTypeResolver)
+		visitor, visitorHadError = NewArrayTypeVisitor(arrayTypeResolver)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	if visitorHadError {
+		selectAsStr := model.AsString(query.SelectCommand)
+		logger.ErrorWithReason("array transformation error").Msgf("Query: %s", selectAsStr)
 	}
 	return query, nil
 }
@@ -592,8 +600,8 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 	var err error
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
 		// full text field should be used only in where clause
+
 		if e.ColumnName == model.FullTextFieldNamePlaceHolder {
 			err = fmt.Errorf("full text field name placeholder found in query")
 		}
@@ -647,6 +655,13 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 	// check if the schema has a timestamp field configured
 	if column, ok := indexSchema.Fields[model.TimestampFieldName]; ok {
 		timestampColumnName = column.InternalPropertyName.AsString()
+	}
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	if table.DiscoveredTimestampFieldName != nil {
+		timestampColumnName = *table.DiscoveredTimestampFieldName
 	}
 
 	// if not found, check if the table has a timestamp field discovered somehow
@@ -730,24 +745,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			return model.NewColumnRefWithTable(resolvedField.InternalPropertyName.AsString(), e.TableAlias)
 		} else {
 			// here we didn't find a column by field name,
-			// we try some other options
-
-			// 1. we check if the field name point to the map
-			if s.isFieldMapSyntaxEnabled(query) {
-				elements := strings.Split(e.ColumnName, ".")
-				if len(elements) > 1 {
-					if mapField, ok := indexSchema.ResolveField(elements[0]); ok {
-						// check if we have map type, especially  Map(String, any) here
-						if mapField.Type.Name == schema.QuesmaTypeMap.Name &&
-							(strings.HasPrefix(mapField.InternalPropertyType, "Map(String") ||
-								strings.HasPrefix(mapField.InternalPropertyType, "Map(LowCardinality(String")) {
-							return model.NewFunction("arrayElement", model.NewColumnRef(elements[0]), model.NewLiteral(fmt.Sprintf("'%s'", strings.Join(elements[1:], "."))))
-						}
-					}
-				}
-			}
-
-			// 2. maybe we should use attributes
+			// maybe we should use attributes
 
 			if hasAttributesValuesColumn {
 				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
@@ -986,6 +984,9 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
 		{TransformationName: "RuntimeMappings", Transformation: s.applyRuntimeMappings},
+		{TransformationName: "AllNecessaryCommonTransformations", Transformation: func(schema schema.Schema, query *model.Query) (*model.Query, error) {
+			return transformations.ApplyAllNecessaryCommonTransformations(query, schema, s.cfg.MapFieldsDiscoveringEnabled)
+		}},
 		{TransformationName: "AliasColumnsTransformation", Transformation: s.applyAliasColumns},
 
 		// Section 2: generic schema based transformations
@@ -1007,6 +1008,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
 		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
+		{TransformationName: "ClusterFunction", Transformation: s.applyFromClusterExpression},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
@@ -1050,31 +1052,99 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 	visitor := model.NewBaseVisitor()
 
-	var err error
-
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
-		lhs, ok := e.Left.(model.ColumnRef)
-		rhs, ok2 := e.Right.(model.LiteralExpr)
+		var (
+			lhs                                       = e.Left
+			rhs, okRight                              = e.Right.(model.LiteralExpr)
+			lhsCol                                    model.ColumnRef
+			okLeft, lhsIsArrayAccess, colIsAttributes bool
+		)
 
-		if ok && ok2 && e.Op == model.MatchOperator {
-			field, found := indexSchema.ResolveFieldByInternalName(lhs.ColumnName)
-			if !found {
-				logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhs.ColumnName, query.TableName)
+		// try to extract column from lhs
+		switch lhsT := lhs.(type) {
+		case model.ColumnRef:
+			lhsCol = lhsT
+			okLeft = true
+		case model.FunctionExpr:
+			if len(lhsT.Args) >= 1 {
+				if col, ok := lhsT.Args[0].(model.ColumnRef); ok {
+					lhsCol = col
+					okLeft = true
+				} else if f2, ok := lhsT.Args[0].(model.FunctionExpr); ok && len(f2.Args) == 1 {
+					if col, ok := f2.Args[0].(model.ColumnRef); ok {
+						lhsCol = col
+						okLeft = true
+					}
+				}
 			}
+		case model.ArrayAccess:
+			lhsIsArrayAccess = true
+			okLeft = true
+			lhsCol = lhsT.ColumnRef
+		default:
+			return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+		}
 
-			rhsValue := rhs.Value.(string)
-			rhsValue = strings.TrimPrefix(rhsValue, "'")
-			rhsValue = strings.TrimSuffix(rhsValue, "'")
-
-			switch field.Type.String() {
-			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
-				rhsValue = strings.Trim(rhsValue, "%")
-				return model.NewInfixExpr(lhs, "=", model.NewLiteral(rhsValue))
-			default:
-				return model.NewInfixExpr(lhs, "ILIKE", model.NewLiteralWithEscapeType(rhsValue, rhs.EscapeType))
+		rhsValue, ok := rhs.Value.(string)
+		if !ok {
+			if e.Op == model.MatchOperator {
+				// only strings can be ILIKEd, everything else is a simple =
+				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), "=", e.Right.Accept(b).(model.Expr))
+			} else {
+				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 			}
 		}
 
+		if okLeft && okRight && e.Op == model.MatchOperator {
+			field, found := indexSchema.ResolveFieldByInternalName(lhsCol.ColumnName)
+			if !found {
+				// indexSchema won't find attributes columns, that's why this check
+				if clickhouse.IsColumnAttributes(lhsCol.ColumnName) {
+					colIsAttributes = true
+				} else {
+					logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsCol.ColumnName, query.TableName)
+					goto experimental
+				}
+			}
+
+			rhsValue = strings.TrimPrefix(rhsValue, "'")
+			rhsValue = strings.TrimSuffix(rhsValue, "'")
+
+			ilike := func() model.Expr {
+				return model.NewInfixExpr(lhs, "ILIKE", rhs.Clone())
+			}
+			equal := func() model.Expr {
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
+			}
+
+			// handling case when e.Left is an array access
+			if lhsIsArrayAccess {
+				if colIsAttributes || field.IsMapWithStringValues() { // attributes always have string values, so ilike
+					return ilike()
+				} else {
+					return equal()
+				}
+			}
+
+			// handling case when e.Left is a simple column ref
+			// TODO: improve? we seem to be `ilike'ing` too much
+			switch field.Type.String() {
+			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+				rhs.Value = strings.Trim(rhsValue, "%")
+				rhs.EscapeType = model.NormalNotEscaped
+				return equal()
+			case schema.QuesmaTypeKeyword.Name:
+				return equal()
+			default:
+				// ILIKE '%%' has terrible performance, but semantically means "is not null", hence this transformation
+				if rhsValue == "%%" {
+					return model.NewInfixExpr(lhs, "IS", model.NewLiteral("NOT NULL"))
+				}
+				return ilike()
+			}
+		}
+
+	experimental:
 		if s.isFieldMapSyntaxEnabled(query) {
 			// special case where left side is arrayElement,
 			// arrayElement comes from applyFieldEncoding function
@@ -1115,18 +1185,41 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			}
 		}
 
+		if e.Op == model.MatchOperator {
+			logger.Error().Msgf("Match operator is not supported for column %v (expr: %v)", lhsCol, e)
+		}
 		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
-
-	if err != nil {
-		return nil, err
-	}
 
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
 	return query, nil
 
+}
+
+// applyFromClusterExpression transforms query so that `FROM table` becomes `FROM cluster(clusterName,table)` if applicable
+func (s *SchemaCheckPass) applyFromClusterExpression(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	if s.cfg.ClusterName == "" {
+		return query, nil
+	}
+	visitor := model.NewBaseVisitor()
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	if !table.ExistsOnAllNodes {
+		return query, nil
+	}
+	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
+		return model.NewFunction("cluster", model.NewLiteral(s.cfg.ClusterName), e)
+	}
+	logger.Debug().Msgf("applyClusterFunction: %s", s.cfg.ClusterName)
+	expr := query.SelectCommand.Accept(visitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
 }

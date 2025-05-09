@@ -6,7 +6,6 @@ package backend_connectors
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
@@ -32,32 +31,29 @@ type ElasticsearchBackendConnector struct {
 
 // NewElasticsearchBackendConnector is a constructor which uses old (v1) configuration object
 func NewElasticsearchBackendConnector(cfg config.ElasticsearchConfiguration) *ElasticsearchBackendConnector {
+	client := elasticsearch.NewHttpsClient(&cfg, esRequestTimeout)
 	conn := &ElasticsearchBackendConnector{
 		config: cfg,
-		client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-			Timeout: esRequestTimeout,
-		},
+		client: client,
 	}
 	return conn
 }
 
 // NewElasticsearchBackendConnectorFromDbConfig is an alternative constructor which uses the generic database configuration object
 func NewElasticsearchBackendConnectorFromDbConfig(cfg config.RelationalDbConfiguration) *ElasticsearchBackendConnector {
+	esConfig := config.ElasticsearchConfiguration{
+		Url:            cfg.Url,
+		User:           cfg.User,
+		Password:       cfg.Password,
+		ClientCertPath: cfg.ClientCertPath,
+		ClientKeyPath:  cfg.ClientKeyPath,
+		CACertPath:     cfg.CACertPath,
+	}
+
+	client := elasticsearch.NewHttpsClient(&esConfig, esRequestTimeout)
 	conn := &ElasticsearchBackendConnector{
-		config: config.ElasticsearchConfiguration{
-			Url:      cfg.Url,
-			User:     cfg.User,
-			Password: cfg.Password,
-		},
-		client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-			Timeout: esRequestTimeout,
-		},
+		config: esConfig,
+		client: client,
 	}
 	return conn
 }

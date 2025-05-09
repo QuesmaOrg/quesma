@@ -6,10 +6,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -24,18 +26,53 @@ type SimpleClient struct {
 	config *config.ElasticsearchConfiguration
 }
 
-func NewSimpleClient(configuration *config.ElasticsearchConfiguration) *SimpleClient {
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-		Timeout: esRequestTimeout,
+// NewHttpsClient should be merged with NewSimpleClient at some point -> TODO!
+func NewHttpsClient(configuration *config.ElasticsearchConfiguration, timeout time.Duration) *http.Client {
+	tlsConfig := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true,
 	}
+
+	if configuration.CACertPath != "" {
+		caCert, err := os.ReadFile(configuration.CACertPath)
+		if err != nil {
+			logger.Warn().Msgf("failed to read CA certificate: %v. Fallback to skipping tls.", err)
+		} else {
+			caCertPool := x509.NewCertPool()
+			if !caCertPool.AppendCertsFromPEM(caCert) {
+				logger.Warn().Msgf("failed to append CA certificate: %v. Fallback to skipping tls.", err)
+			} else {
+				tlsConfig.RootCAs = caCertPool
+				tlsConfig.InsecureSkipVerify = false
+			}
+		}
+	}
+
+	if configuration.ClientCertPath != "" && configuration.ClientKeyPath != "" {
+		cert, err := tls.LoadX509KeyPair(configuration.ClientCertPath, configuration.ClientKeyPath)
+		if err != nil {
+			logger.Warn().Msgf("failed to load client certificate/key: %v. Fallback to certificate-less client.", err)
+		} else {
+			tlsConfig.Certificates = []tls.Certificate{cert}
+		}
+	}
+
+	return &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
+		Timeout: timeout,
+	}
+}
+
+func NewSimpleClient(configuration *config.ElasticsearchConfiguration) *SimpleClient {
+	client := NewHttpsClient(configuration, esRequestTimeout)
 	return &SimpleClient{
 		client: client,
 		config: configuration,
 	}
 }
+
 func (es *SimpleClient) Request(ctx context.Context, method, endpoint string, body []byte) (*http.Response, error) {
 	return es.doRequest(ctx, method, endpoint, body, nil)
 }

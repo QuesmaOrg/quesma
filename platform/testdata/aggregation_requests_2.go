@@ -4658,38 +4658,35 @@ var AggregationTests2 = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_1", 20.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_2", 44.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 20.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 44.0),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(12)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_1", 20.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_2", 45.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 20.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 45.0),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(22)),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__my_buckets__key_0", 8.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_1", 21.0),
-				model.NewQueryResultCol("aggr__my_buckets__key_2", 49.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_0", 21.0),
+				model.NewQueryResultCol("aggr__my_buckets__key_1", 49.0),
 				model.NewQueryResultCol("aggr__my_buckets__count", int64(1)),
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT CAST(8.000000 AS Float32) AS "aggr__my_buckets__key_0",
-			  FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8))
-			  AS "aggr__my_buckets__key_1",
+			SELECT FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8))
+              AS "aggr__my_buckets__key_0",
 			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
 			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8))
-			  AS "aggr__my_buckets__key_2", count(*) AS "aggr__my_buckets__count"
+			  AS "aggr__my_buckets__key_1", count(*) AS "aggr__my_buckets__count"
 			FROM __quesma_table_name
-			GROUP BY CAST(8.000000 AS Float32) AS "aggr__my_buckets__key_0",
-			  FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8))
-			  AS "aggr__my_buckets__key_1",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(
-			  RADIANS(__quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8))
-			  AS "aggr__my_buckets__key_2"
+			GROUP BY FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8))
+			  AS "aggr__my_buckets__key_0",
+			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
+			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8))
+			  AS "aggr__my_buckets__key_1"
+			ORDER BY "aggr__my_buckets__count" DESC, "aggr__my_buckets__key_0" ASC,
+  			  "aggr__my_buckets__key_1" ASC
 			LIMIT 10`,
 	},
 	{ // [69]
