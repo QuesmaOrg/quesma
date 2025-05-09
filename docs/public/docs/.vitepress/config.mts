@@ -1,11 +1,21 @@
-import { defineConfig } from 'vitepress'
+import {defineConfig, HeadConfig} from 'vitepress'
 import { withMermaid } from "vitepress-plugin-mermaid";
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "Quesma",
-  description: "Quesma Database Gateway Early Access Program",
+  description: "Quesma Database Gateway Official Documentation",
   head: [['link', { rel: 'icon', href: 'favicon.ico' }]],
+  transformHead: ({ pageData }) => {
+    const head: HeadConfig[] = []
+    if (pageData.frontmatter.description) {
+      head.push([
+        'meta',
+        { name: 'description', content: pageData.frontmatter.description }
+      ])
+    }
+    return head
+  },
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: {
