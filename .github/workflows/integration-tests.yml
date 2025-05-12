@@ -15,8 +15,6 @@ on:
         required: true
   issue_comment:
     types: [created]
-  issues:
-    types: [opened]
 
 jobs:
   check-comment:
@@ -151,18 +149,3 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             ${{ github.api_url }}/repos/${{ github.repository }}/statuses/${{ needs.check-comment.outputs.ref }} \
             -d '{"state":"failure","target_url":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}","description":"Integration tests failed","context":"integration-tests"}'
-  notify-on-new-issue:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send Slack notification for new issue
-        uses: slackapi/slack-github-action@v2.1.0
-        with:
-          method: chat.postMessage
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          payload: |
-            channel: ${{ secrets.SLACK_CHANNEL_ID }}
-            text: |
-              :wave: *New GitHub issue created!*
-              *Title:* ${{ github.event.issue.title }}
-              *Author:* ${{ github.event.issue.user.login }}
-              *URL:* ${{ github.event.issue.html_url }}
