@@ -1136,8 +1136,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			case schema.QuesmaTypeKeyword.Name:
 				return equal()
 			default:
-				// ILIKE '%%' has terrible performance, but semantically means "is not null", hence this transformation
-				if rhsValue == "%%" {
+				if rhsValue == "%%" { // ILIKE '%%' has terrible performance, but semantically means "is not null", hence this transformation
 					return model.NewInfixExpr(lhs, "IS", model.NewLiteral("NOT NULL"))
 				}
 				if strings.Contains(rhsValue, "%") {
