@@ -49,6 +49,11 @@ func (v termValue) toExpression(fieldName string) model.Expr {
 		if alreadyQuoted(v.term) {
 			termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
 		}
+		if strings.Contains(termAsStringToClickhouse, "*") { // Lucene wildcard search kicks in
+			if !util.IsSurroundedWithPercents(termAsStringToClickhouse) {
+				termAsStringToClickhouse = util.SurroundWithPercents(termAsStringToClickhouse)
+			}
+		}
 		if !util.IsSingleQuoted(termAsStringToClickhouse) {
 			termAsStringToClickhouse = util.SingleQuote(termAsStringToClickhouse)
 		}
