@@ -1140,7 +1140,10 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				if rhsValue == "%%" {
 					return model.NewInfixExpr(lhs, "IS", model.NewLiteral("NOT NULL"))
 				}
-				return ilike()
+				if strings.Contains(rhsValue, "%") {
+					return ilike()
+				}
+				return equal()
 			}
 		}
 
