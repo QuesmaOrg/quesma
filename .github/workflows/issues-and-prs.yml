@@ -1,0 +1,30 @@
+name: Issues and PRs Notification
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+  issues: read
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+jobs:
+  notify-slack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Slack notification for new issue or PR
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_ISSUES_AND_PRS_CHANNEL_ID }}
+            text: >
+              ${{ github.event_name == 'issues' && ':memo: *New Issue Created!*' || ':twisted_rightwards_arrows: *New Pull Request Opened!*' }}
+              *Title:* ${{ github.event_name == 'issues' && github.event.issue.title || github.event.pull_request.title }}
+              *Author:* ${{ github.event_name == 'issues' && github.event.issue.user.login || github.event.pull_request.user.login }}
+              *URL:* ${{ github.event_name == 'issues' && github.event.issue.html_url || github.event.pull_request.html_url }}
