@@ -6,6 +6,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	"strconv"
 	"strings"
 )
 
@@ -101,10 +102,13 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 				case (opUpperCase == "ILIKE" || opUpperCase == "LIKE" || op == model.MatchOperator) && dbType == "Array(String)":
 
 					if op == model.MatchOperator {
-						op = "ILIKE"
+						op = "="
+						if l, ok := e.Right.(model.LiteralExpr); ok {
+							op = l.MatchToOperator()
+						}
 					}
 					variableName := "x"
-					lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(b).(model.Expr)))
+					lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteralWithEscapeType(strconv.Quote(variableName), model.ZeroEscaping), op, e.Right.Accept(b).(model.Expr)))
 					return model.NewFunction("arrayExists", lambda, e.Left)
 
 				case op == "=":

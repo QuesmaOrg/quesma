@@ -66,5 +66,5 @@ func ParseScript(s string) (model.Expr, painful.Expr, error) {
 	// TODO here we can transform the parsed expression to an SQL
 
 	// we return an empty SQL expression for given field, it'll make a column in the result set
-	return model.NewLiteral("NULL"), expr, nil
+	return model.NullExpr, expr, nil
 }
