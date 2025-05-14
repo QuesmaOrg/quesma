@@ -858,11 +858,11 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			SELECT toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count",
-			  countIf(("products.product_name" __quesma_match '%%cocktail%' OR
-			  "__quesma_fulltext_field_name" __quesma_match '%dress%%')) AS
+			  countIf(("products.product_name" __quesma_match '%cocktail' OR
+			  "__quesma_fulltext_field_name" __quesma_match 'dress%')) AS
 			  "aggr__0__1-bucket__count",
-			  sumOrNullIf("taxful_total_price", ("products.product_name" __quesma_match '%%cocktail%'
-			  OR "__quesma_fulltext_field_name" __quesma_match '%dress%%')) AS
+			  sumOrNullIf("taxful_total_price", ("products.product_name" __quesma_match '%cocktail'
+			  OR "__quesma_fulltext_field_name" __quesma_match 'dress%')) AS
 			  "metric__0__1-bucket__1-metric_col_0"
 			FROM __quesma_table_name
 			WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=

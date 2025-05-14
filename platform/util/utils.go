@@ -1047,6 +1047,16 @@ func ReadResponseBody(resp *http.Response) ([]byte, error) {
 	return respBody, nil
 }
 
-func PrettyTestName(name string, idx int) string {
-	return fmt.Sprintf("%s(%d)", name, idx)
+func UnquoteIfQuoted(s string) string {
+	if len(s) > 1 && (s[0] == '\'' || s[0] == '"') && s[0] == s[len(s)-1] {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
+
+func PrintfIfErr(err error, msg string, args ...any) {
+	if err != nil {
+		fmt.Printf(msg, args...)
+		fmt.Println(err)
+	}
 }
