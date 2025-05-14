@@ -2,9 +2,6 @@ ci/it/configs/*.yml
 elasticsearch-data
 .idea
 __pycache__
-mitmproxy/requests/*.txt
-mitmproxy/requests/*.mitm
-mitmproxy/query/*.txt
 .env
 .env*
 .DS_Store
@@ -17,6 +14,7 @@ heap.out
 **/terraform.tfstate*
 **/.terraform.tfstate*
 **/.terraform
+docker/mitmproxy/requests
 docker/security/ca
 docker/security/es.local
 docker/security/certificate-bundle.zip
