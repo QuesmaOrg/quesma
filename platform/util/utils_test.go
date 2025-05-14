@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 )
 
 func TestJsonPrettifyShortenArrays(t *testing.T) {
@@ -663,7 +664,7 @@ func TestMergeMaps(t *testing.T) {
 		},
 	}
 	for i, tt := range cases {
-		t.Run("TestMergeMaps_"+strconv.Itoa(i), func(t *testing.T) {
+		t.Run(PrettyTestName("TestMergeMaps", i), func(t *testing.T) {
 			// simple == or Equal doesn't work on nested maps => need DeepEqual
 			mergeRes, err := MergeMaps(tt.m1, tt.m2)
 			assert.NoError(t, err)
@@ -695,7 +696,7 @@ func TestIsSqlEqual(t *testing.T) {
 		},
 	}
 	for i, tt := range cases {
-		t.Run("TestIsSqlEqual_"+strconv.Itoa(i), func(t *testing.T) {
+		t.Run(PrettyTestName("TestIsSqlEqual", i), func(t *testing.T) {
 			assert.Equal(t, tt.isEqual, IsSqlEqual(tt.sql1, tt.sql2))
 		})
 	}
@@ -724,7 +725,7 @@ func TestAlmostEmpty(t *testing.T) {
 		},
 	}
 	for i, tt := range cases {
-		t.Run("TestAlmostEmpty_"+strconv.Itoa(i), func(t *testing.T) {
+		t.Run(PrettyTestName("TestAlmostEmpty", i), func(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, AlmostEmpty(tt.jsonMap, tt.acceptableDifference))
 		})
 	}
@@ -892,8 +893,8 @@ func TestExtractUsernameFromBasicAuthHeader(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(PrettyTestName(tt.name, i), func(t *testing.T) {
 			req := &http.Request{
 				Header: http.Header{
 					"Authorization": {tt.authHeader},
@@ -934,6 +935,28 @@ func TestTableNamePatternRegexp(t *testing.T) {
 		t.Run(fmt.Sprintf("%s into %s", tt.input, tt.output), func(t *testing.T) {
 			if got := TableNamePatternRegexp(tt.input); !reflect.DeepEqual(got.String(), tt.output) {
 				t.Errorf("TableNamePatternRegexp() = %v, want %v", got, tt.output)
+			}
+		})
+	}
+}
+
+func TestDaysInMonth(t *testing.T) {
+	paris, _ := time.LoadLocation("Europe/Paris")
+	tests := []struct {
+		time     time.Time
+		expected int
+	}{
+		{time.Date(2024, time.February, 1, 0, 0, 0, 0, time.UTC), 29},
+		{time.Date(2024, time.March, 1, 0, 0, 0, 0, time.UTC), 31},
+		{time.Date(2024, time.April, 1, 0, 0, 0, 0, time.UTC), 30},
+		{time.Date(2024, time.May, 1, 0, 0, 0, 0, paris), 31},
+		{time.Date(2022, time.February, 1, 0, 0, 0, 0, time.UTC), 28},
+		{time.Date(2022, time.February, 5, 0, 0, 0, 0, time.UTC), 28},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d-%d", tt.time.Year(), tt.time.Month()), func(t *testing.T) {
+			if got := DaysInMonth(tt.time); got != tt.expected {
+				t.Errorf("DaysInMonth() = %v, want %v", got, tt.expected)
 			}
 		})
 	}

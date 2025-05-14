@@ -15,83 +15,77 @@ import (
 
 func TestFieldCaps(t *testing.T) {
 	expected := []byte(`{
-  "fields": {
-    "arrayOfArraysOfStrings": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
-        "type": "keyword",
-		"metadata_field": false,
-		"indices": ["logs-generic-default"]
+   "fields":{
+      "arrayOfArraysOfStrings":{
+         "keyword":{
+            "aggregatable":true,
+            "indices":[
+               "logs-generic-default"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"keyword"
+         }
+      },
+      "arrayOfArraysOfStrings.text":{
+         "text":{
+            "aggregatable":false,
+            "indices":[
+               "logs-generic-default"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"text"
+         }
+      },
+      "arrayOfTuples":{
+         "object":{
+            "aggregatable":false,
+            "indices":[
+               "logs-generic-default"
+            ],
+            "metadata_field":false,
+            "searchable":false,
+            "type":"object"
+         }
+      },
+      "host.name":{
+         "object":{
+            "aggregatable":false,
+            "indices":[
+               "logs-generic-default"
+            ],
+            "metadata_field":false,
+            "searchable":false,
+            "type":"object"
+         }
+      },
+      "service.name":{
+         "keyword":{
+            "aggregatable":true,
+            "indices":[
+               "logs-generic-default"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"keyword"
+         }
+      },
+      "service.name.text":{
+         "text":{
+            "aggregatable":false,
+            "indices":[
+               "logs-generic-default"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"text"
+         }
       }
-    },
-	"arrayOfArraysOfStrings.keyword": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
-        "type": "keyword",
-		"metadata_field": false,
-		"indices": ["logs-generic-default"]
-      }
-    },
-    "arrayOfArraysOfStrings.text": {
-      "text": {
-        "type": "text",
-        "metadata_field": false,
-        "searchable": true,
-        "aggregatable": false,
-        "indices": ["logs-generic-default"] 
-      }
-    },
-    "arrayOfTuples": {
-      "object": {
-        "aggregatable": false,
-        "metadata_field": false,
-        "searchable": true,
-        "type": "object",
-		"indices": ["logs-generic-default"]
-      }
-    },
-    "host.name": {
-      "object": {
-        "aggregatable": false,
-        "metadata_field": false,
-        "searchable": true,
-        "type": "object",
-		"indices": ["logs-generic-default"]
-      }
-    },
-    "service.name": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
-        "metadata_field": false,
-		"type": "keyword",
-		"indices": ["logs-generic-default"]
-      }
-    },
-	"service.name.keyword": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
-        "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-generic-default"]
-      }
-    },
-    "service.name.text": {
-      "text": {
-        "aggregatable": false,
-        "searchable": true,
-        "metadata_field": false,
-        "type": "text",
-		"indices": ["logs-generic-default"]
-      }
-    }
-  },
-  "indices": [
-    "logs-generic-default"
-  ]
+   },
+   "indices":[
+      "logs-generic-default"
+   ]
 }
 `)
 	resp, err := handleFieldCapsIndex(
@@ -122,7 +116,6 @@ func TestFieldCaps(t *testing.T) {
 		string(resp),
 		string(expectedResp),
 	)
-
 	assert.NoError(t, err)
 	assert.Empty(t, difference1)
 	assert.Empty(t, difference2)
@@ -211,82 +204,68 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 			Tables: map[schema.IndexName]schema.Schema{
 				"logs-1": {
 					Fields: map[schema.FieldName]schema.Field{
-						"foo.bar1": {PropertyName: "foo.bar1", InternalPropertyName: "foo.bar1", Type: schema.QuesmaTypeKeyword},
+						"foo.bar1": {PropertyName: "foo.bar1", InternalPropertyName: "foo.bar1", Type: schema.QuesmaTypeText},
 					},
 				},
 				"logs-2": {
 					Fields: map[schema.FieldName]schema.Field{
-						"foo.bar2": {PropertyName: "foo.bar2", InternalPropertyName: "foo.bar2", Type: schema.QuesmaTypeKeyword},
+						"foo.bar2": {PropertyName: "foo.bar2", InternalPropertyName: "foo.bar2", Type: schema.QuesmaTypeText},
 					},
 				},
 			},
 		}, []string{"logs-1", "logs-2"})
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent([]byte(`{
-  "fields": {
-    "foo.bar1": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
-        "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-1"]
+   "fields":{
+      "foo.bar1":{
+         "text":{
+            "aggregatable":false,
+            "indices":[
+               "logs-1"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"text"
+         }
+      },
+      "foo.bar1.keyword":{
+         "keyword":{
+            "aggregatable":true,
+            "indices":[
+               "logs-1"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"keyword"
+         }
+      },
+      "foo.bar2":{
+         "text":{
+            "aggregatable":false,
+            "indices":[
+               "logs-2"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"text"
+         }
+      },
+      "foo.bar2.keyword":{
+         "keyword":{
+            "aggregatable":true,
+            "indices":[
+               "logs-2"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"keyword"
+         }
       }
-    },
-	"foo.bar1.keyword": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
-        "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-1"]
-      }
-    },
-    "foo.bar1.text": {
-      "text": {
-        "aggregatable": false,
-        "indices": [
-          "logs-1"
-        ],
-        "metadata_field": false,
-        "searchable": true,
-        "type": "text"
-      }
-    },
-    "foo.bar2": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
-        "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-2"]
-      }
-    },
-	"foo.bar2.keyword": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
-        "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-2"]
-      }
-    },
-    "foo.bar2.text": {
-      "text": {
-        "aggregatable": false,
-        "indices": [
-          "logs-2"
-        ],
-        "metadata_field": false,
-        "searchable": true,
-        "type": "text"
-      }
-    }
-  },
-  "indices": [
-    "logs-1",
-	"logs-2"
-  ]
+   },
+   "indices":[
+      "logs-1",
+      "logs-2"
+   ]
 }
 `), "", "  ")
 	assert.NoError(t, err)
@@ -297,7 +276,6 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 		string(resp),
 		string(expectedResp),
 	)
-
 	assert.NoError(t, err)
 	assert.Empty(t, difference1)
 	assert.Empty(t, difference2)
@@ -358,54 +336,51 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 		}, []string{"logs-1", "logs-2", "logs-3"})
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent([]byte(`{
-  "fields": {
-    "foo.bar": {
-      "keyword": {
-        "aggregatable": true,
-        "searchable": true,
-        "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-1"]
+   "fields":{
+      "foo.bar":{
+         "boolean":{
+            "aggregatable":true,
+            "indices":[
+               "logs-2",
+               "logs-3"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"boolean"
+         },
+         "keyword":{
+            "aggregatable":true,
+            "indices":[
+               "logs-1"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"keyword"
+         }
       },
-		"boolean": {
-		  "aggregatable": false,
-		  "searchable": true,
-          "metadata_field": false,
-          "type": "boolean",
-		  "indices": ["logs-2", "logs-3"]
+      "foo.bar.text":{
+         "text":{
+            "aggregatable":false,
+            "indices":[
+               "logs-1"
+            ],
+            "metadata_field":false,
+            "searchable":true,
+            "type":"text"
+         }
       }
-    },
-	"foo.bar.keyword": {
-      "keyword": {
-        "aggregatable": false,
-        "searchable": true,
-        "metadata_field": false,
-        "type": "keyword",
-		"indices": ["logs-1"]
-      }
-    },
-    "foo.bar.text": {
-      "text": {
-        "aggregatable": false,
-        "searchable": true,
-        "metadata_field": false,
-        "type": "text",
-		"indices": ["logs-1"]
-      }
-    }
-  },
-  "indices": [
-    "logs-1",
-	"logs-2",
-	"logs-3"
-  ]
+   },
+   "indices":[
+      "logs-1",
+      "logs-2",
+      "logs-3"
+   ]
 }
 `), "", "  ")
 	assert.NoError(t, err)
 	err = json.Unmarshal(expectedResp, &expectedResp)
 	assert.NoError(t, err)
-
-	difference1, difference2, err := util.JsonDifferenceWeak(
+	difference1, difference2, err := util.JsonDifference(
 		string(resp),
 		string(expectedResp),
 	)
@@ -445,8 +420,8 @@ func Test_merge(t *testing.T) {
 			merged: true,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			got, got1 := tt.args.cap1.Concat(tt.args.cap2)
 			assert.Equalf(t, tt.want, got, "merge(%v, %v)", tt.args.cap1, tt.args.cap2)
 			assert.Equalf(t, tt.merged, got1, "merge(%v, %v)", tt.args.cap1, tt.args.cap2)

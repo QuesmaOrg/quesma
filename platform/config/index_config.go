@@ -75,6 +75,7 @@ func (c IndexConfiguration) String(indexName string) string {
 	if c.UseCommonTable {
 		builder.WriteString(", useSingleTable: true")
 	}
+	builder.WriteString(fmt.Sprintf(", enableFieldMapSyntax: %v", c.EnableFieldMapSyntax))
 
 	return builder.String()
 }

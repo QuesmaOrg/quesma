@@ -176,14 +176,14 @@ var PipelineAggregationTests = []AggregationTestCase{}
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + QuotedTableName + ` `,
 			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000), count() " +
-				"FROM " + QuotedTableName + ` WHERE "message" ILIKE '%'  ` +
+				"FROM " + QuotedTableName + ` WHERE "message" ILIKE '%'  ` +   // TODO: when uncommenting, investigate whether this shouldn't be    "message" IS NOT NULL
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000))",
 			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000), count() " +
-				"FROM " + QuotedTableName + ` WHERE "message" ILIKE '%'  ` +
+				"FROM " + QuotedTableName + ` WHERE "message" ILIKE '%'  ` + // TODO: when uncommenting, investigate whether this shouldn't be    "message" IS NOT NULL
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000))",
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE "message" ILIKE '%' `,
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE "message" ILIKE '%' `, // TODO: when uncommenting, investigate whether this shouldn't be    "message" IS NOT NULL
 		},
 	},
 	/*

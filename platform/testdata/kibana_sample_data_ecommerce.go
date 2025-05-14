@@ -858,11 +858,11 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			SELECT toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count",
-			  countIf(("products.product_name" __quesma_match '%%cocktail%' OR
-			  "__quesma_fulltext_field_name" __quesma_match '%dress%%')) AS
+			  countIf(("products.product_name" __quesma_match '%cocktail' OR
+			  "__quesma_fulltext_field_name" __quesma_match 'dress%')) AS
 			  "aggr__0__1-bucket__count",
-			  sumOrNullIf("taxful_total_price", ("products.product_name" __quesma_match '%%cocktail%'
-			  OR "__quesma_fulltext_field_name" __quesma_match '%dress%%')) AS
+			  sumOrNullIf("taxful_total_price", ("products.product_name" __quesma_match '%cocktail'
+			  OR "__quesma_fulltext_field_name" __quesma_match 'dress%')) AS
 			  "metric__0__1-bucket__1-metric_col_0"
 			FROM __quesma_table_name
 			WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
@@ -2446,9 +2446,8 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__gridSplit__key_0", 5.0),
-				model.NewQueryResultCol("aggr__gridSplit__key_1", 20.0),
-				model.NewQueryResultCol("aggr__gridSplit__key_2", 13.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_0", 20.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_1", 13.0),
 				model.NewQueryResultCol("aggr__gridSplit__count", int64(212)),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_0", 25.013679222331188),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_1", 52.11132072843611),
@@ -2456,9 +2455,8 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__gridSplit__sum_of_taxful_total_price_col_0", 17127.015625),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__gridSplit__key_0", 5.0),
-				model.NewQueryResultCol("aggr__gridSplit__key_1", 9.0),
-				model.NewQueryResultCol("aggr__gridSplit__key_2", 12.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_0", 9.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_1", 12.0),
 				model.NewQueryResultCol("aggr__gridSplit__count", int64(200)),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_0", 40.78349998171907),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_1", -74.00000003166497),
@@ -2467,27 +2465,23 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT CAST(5.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((__quesma_geo_lon("geoip.location")+180)/360)*POWER(2, 5))
-			  AS "aggr__gridSplit__key_1",
+			SELECT FLOOR(((__quesma_geo_lon("geoip.location")+180)/360)*POWER(2, 5)) AS "aggr__gridSplit__key_0",
 			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geoip.location")))+(1/COS(RADIANS(
-			  __quesma_geo_lat("geoip.location")))))/PI())/2*POWER(2, 5))
-			  AS "aggr__gridSplit__key_2", count(*) AS "aggr__gridSplit__count",
-			  avgOrNull(__quesma_geo_lat("geoip_location")) AS
-			  "metric__gridSplit__gridCentroid_col_0",
-			  avgOrNull(__quesma_geo_lon("geoip_location")) AS
-			  "metric__gridSplit__gridCentroid_col_1",
+			    __quesma_geo_lat("geoip.location")))))/PI())/2*POWER(2, 5)) AS "aggr__gridSplit__key_1",
+			  count(*) AS "aggr__gridSplit__count",
+			  avgOrNull(__quesma_geo_lat("geoip_location")) AS "metric__gridSplit__gridCentroid_col_0",
+			  avgOrNull(__quesma_geo_lon("geoip_location")) AS "metric__gridSplit__gridCentroid_col_1",
 			  count(*) AS "metric__gridSplit__gridCentroid_col_2",
-			  sumOrNull("taxful_total_price") AS
-			  "metric__gridSplit__sum_of_taxful_total_price_col_0"
+			  sumOrNull("taxful_total_price") AS "metric__gridSplit__sum_of_taxful_total_price_col_0"
 			FROM __quesma_table_name
 			WHERE ("geoip.location" IS NOT NULL AND ("order_date">=fromUnixTimestamp64Milli(
 			  1740143222223) AND "order_date"<=fromUnixTimestamp64Milli(1740748022223)))
-			GROUP BY CAST(5.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((__quesma_geo_lon("geoip.location")+180)/360)*POWER(2, 5))
-			  AS "aggr__gridSplit__key_1",
+			GROUP BY FLOOR(((__quesma_geo_lon("geoip.location")+180)/360)*POWER(2, 5)) AS "aggr__gridSplit__key_0",
 			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geoip.location")))+(1/COS(RADIANS(
-			  __quesma_geo_lat("geoip.location")))))/PI())/2*POWER(2, 5)) AS "aggr__gridSplit__key_2"`,
+			    __quesma_geo_lat("geoip.location")))))/PI())/2*POWER(2, 5)) AS "aggr__gridSplit__key_1"
+			ORDER BY "aggr__gridSplit__count" DESC, "aggr__gridSplit__key_0" ASC,
+              "aggr__gridSplit__key_1" ASC
+            LIMIT 65535`,
 	},
 	{ // [13]
 		TestName: "Orders by Country (request 2/3)",
