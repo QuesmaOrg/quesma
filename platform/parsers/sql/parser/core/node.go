@@ -49,10 +49,8 @@ func (n NodeListNode) TrimLeft() NodeListNode {
 	// eat spaces and new lines
 	for len(n.Nodes) > 0 {
 		if node, ok := n.Nodes[0].(TokenNode); ok && (node.Value() == " " || node.Value() == "\n") {
-				n.Nodes = n.Nodes[1:]
+			n.Nodes = n.Nodes[1:]
 		}
-	}
-		break
 	}
 	return n
 }
@@ -60,10 +58,10 @@ func (n NodeListNode) TrimLeft() NodeListNode {
 func (n NodeListNode) TrimRight() NodeListNode {
 	// eat spaces and new lines
 	for len(n.Nodes) > 0 {
-	    lastIndex := len(n.Nodes) - 1
+		lastIndex := len(n.Nodes) - 1
 		if node, ok := n.Nodes[lastIndex].(TokenNode); ok && (node.Value() == " " || node.Value() == "\n") {
-				n.Nodes = n.Nodes[:lastIndex]
-				continue
+			n.Nodes = n.Nodes[:lastIndex]
+			continue
 		}
 		break
 	}
