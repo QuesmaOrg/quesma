@@ -286,7 +286,8 @@ func waitForAsyncQuery(timeout time.Duration) {
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
-			fmt.Printf("async query status is %d %s\n", resp.StatusCode, asyncGetQueryUrlPrefix+asyncQuery.Id)
+			body, _ = io.ReadAll(resp.Body)
+			fmt.Printf("async query status is %d %s, resp body: %s\n", resp.StatusCode, asyncGetQueryUrlPrefix+asyncQuery.Id, body)
 			panic("async query status is not 200")
 		}
 	}
