@@ -20,23 +20,9 @@ import (
 // This optimization therefore splits the time range into parts: a short time range, on which we bet that the query
 // will be fast (and still return LIMIT many results) and a long time range, which will be used to get the rest of the
 // results (in case the short time range didn't return enough results).
-type splitTimeRange struct{}
+type splitTimeRangeExt struct{}
 
-var defaultShorterTimeRangesMinutes = []int64{15}
-
-type timeRangeLimit struct {
-	value    int64
-	funcName string // for example fromUnixTimestamp64Milli
-}
-
-type timeRange struct {
-	columnName string
-	lowerLimit timeRangeLimit
-	upperLimit timeRangeLimit
-	direction  model.OrderByDirection
-}
-
-func (s splitTimeRange) validateSelectedColumns(columns []model.Expr) bool {
+func (s splitTimeRangeExt) validateSelectedColumns(columns []model.Expr) bool {
 	// The main purpose is to disallow window functions for which this optimization might be hard to reason about
 	// (and could be invalid). The allowed Expr types are whitelisted here rather than blacklisted (window functions)
 	// to be less error-prone in the future.
@@ -60,7 +46,7 @@ func (s splitTimeRange) validateSelectedColumns(columns []model.Expr) bool {
 	return true
 }
 
-func (s splitTimeRange) findOrderByColumn(selectCommand *model.SelectCommand) (string, model.OrderByDirection, bool) {
+func (s splitTimeRangeExt) findOrderByColumn(selectCommand *model.SelectCommand) (string, model.OrderByDirection, bool) {
 	if len(selectCommand.OrderBy) != 1 {
 		logger.Debug().Msg("Query not eligible for time range optimization: ORDER BY longer than 1")
 		return "", model.DefaultOrder, false
@@ -74,7 +60,7 @@ func (s splitTimeRange) findOrderByColumn(selectCommand *model.SelectCommand) (s
 	return "", model.DefaultOrder, false
 }
 
-func (s splitTimeRange) checkAndFindTimeLimits(selectCommand *model.SelectCommand, orderByColumnName string) (*timeRangeLimit, *timeRangeLimit) {
+func (s splitTimeRangeExt) checkAndFindTimeLimits(selectCommand *model.SelectCommand, orderByColumnName string) (*timeRangeLimit, *timeRangeLimit) {
 	var lowerLimit, upperLimit *timeRangeLimit
 
 	visitor := model.NewBaseVisitor()
@@ -105,7 +91,7 @@ func (s splitTimeRange) checkAndFindTimeLimits(selectCommand *model.SelectComman
 	return lowerLimit, upperLimit
 }
 
-func (s splitTimeRange) findTimeRange(selectCommand *model.SelectCommand) *timeRange {
+func (s splitTimeRangeExt) findTimeRange(selectCommand *model.SelectCommand) *timeRange {
 	// The optimization is not possible for all queries.
 	// Some of those restrictions are not strictly necessary, but added here conservatively to avoid potential issues.
 	if selectCommand.Limit == 0 {
@@ -156,7 +142,7 @@ func (s splitTimeRange) findTimeRange(selectCommand *model.SelectCommand) *timeR
 	return &timeRange{columnName: orderByColumnName, lowerLimit: *lowerLimit, upperLimit: *upperLimit, direction: direction}
 }
 
-func (s splitTimeRange) getSplitPoints(foundTimeRange timeRange, properties map[string]string) []timeRangeLimit {
+func (s splitTimeRangeExt) getSplitPoints(foundTimeRange timeRange, properties map[string]string) []timeRangeLimit {
 	shorterTimeRangesMinutes := defaultShorterTimeRangesMinutes
 	if shorterTimeRangesMinutesStr, ok := properties["ranges"]; ok {
 		shorterTimeRangesMinutesStrList := strings.Split(shorterTimeRangesMinutesStr, ",")
@@ -193,7 +179,7 @@ func (s splitTimeRange) getSplitPoints(foundTimeRange timeRange, properties map[
 	return result
 }
 
-func (s splitTimeRange) transformQuery(query *model.Query, properties map[string]string) (*model.Query, error) {
+func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[string]string) (*model.Query, error) {
 	foundTimeRange := s.findTimeRange(&query.SelectCommand)
 	if foundTimeRange == nil {
 		return query, nil
@@ -267,7 +253,7 @@ func (s splitTimeRange) transformQuery(query *model.Query, properties map[string
 	return query, nil
 }
 
-func (s splitTimeRange) Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error) {
+func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error) {
 	for i, query := range plan.Queries {
 		transformedQuery, err := s.transformQuery(query, properties)
 		if err != nil {
@@ -278,10 +264,10 @@ func (s splitTimeRange) Transform(plan *model.ExecutionPlan, properties map[stri
 	return plan, nil
 }
 
-func (s splitTimeRange) Name() string {
-	return "split_time_range"
+func (s splitTimeRangeExt) Name() string {
+	return "split_time_range_ext"
 }
 
-func (s splitTimeRange) IsEnabledByDefault() bool {
+func (s splitTimeRangeExt) IsEnabledByDefault() bool {
 	return true
 }

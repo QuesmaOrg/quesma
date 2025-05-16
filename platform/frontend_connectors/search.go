@@ -364,7 +364,7 @@ type AsyncQuery struct {
 
 func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
 	var err error
-	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
+	_, err = q.transformationPipeline.Transform(plan)
 	if err != nil {
 		return fmt.Errorf("error transforming queries: %v", err)
 	}
@@ -517,6 +517,18 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		goto logErrorAndReturn
 	}
 	err = q.transformQueries(plan)
+
+	// TODO only for debug purposes, remove it
+	if len(plan.Queries) > 1 {
+		logger.InfoWithCtx(ctx).Msgf("Parsed queries: %d", len(plan.Queries))
+		bytes, _ := body.Bytes()
+		logger.InfoWithCtx(ctx).Msgf("Body: %s", string(bytes))
+
+		for i, query := range plan.Queries {
+			logger.InfoWithCtx(ctx).Msgf("Parsed query %d: %s", i, query.SelectCommand.String())
+		}
+		logger.InfoWithCtx(ctx).Msg("----------------------------------------")
+	}
 	if err != nil {
 		goto logErrorAndReturn
 	}
@@ -669,19 +681,22 @@ func (q *QueryRunner) isInternalKibanaQuery(query *model.Query) bool {
 	return false
 }
 
-type QueryJob func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error)
+type QueryJob func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResultRow, clickhouse.PerformanceResult, error)
 
 func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 	var results = make([][]model.QueryResultRow, 0)
 	var performance = make([]clickhouse.PerformanceResult, 0)
 	for _, job := range jobs {
-		rows, perf, err := job(ctx)
+		plan, rows, perf, err := job(ctx)
 		performance = append(performance, perf)
 		if err != nil {
 			return nil, performance, err
 		}
 
 		results = append(results, rows)
+		if plan.Interrupt() {
+			break
+		}
 	}
 	return results, performance, nil
 }
@@ -691,6 +706,7 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 	var results = make([][]model.QueryResultRow, len(jobs))
 	var performances = make([]clickhouse.PerformanceResult, len(jobs))
 	type result struct {
+		plan  *model.ExecutionPlan
 		rows  []model.QueryResultRow
 		perf  clickhouse.PerformanceResult
 		err   error
@@ -713,9 +729,12 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 				collector <- result{err: err, jobId: jobId}
 			})
 			start := time.Now()
-			rows, perf, err := j(ctx)
+			plan, rows, perf, err := j(ctx)
 			logger.DebugWithCtx(ctx).Msgf("parallel job %d finished in %v", jobId, time.Since(start))
-			collector <- result{rows: rows, perf: perf, err: err, jobId: jobId}
+			collector <- result{plan: plan, rows: rows, perf: perf, err: err, jobId: jobId}
+			if plan.Interrupt() {
+				cancel()
+			}
 		}(ctx, n, job)
 	}
 
@@ -727,6 +746,9 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 			results[res.jobId] = res.rows
 		} else {
 			return nil, performances, res.err
+		}
+		if res.plan != nil && res.plan.Interrupt() {
+			break
 		}
 	}
 
@@ -762,18 +784,18 @@ func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]mo
 
 }
 
-func (q *QueryRunner) makeJob(table *clickhouse.Table, query *model.Query) QueryJob {
-	return func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error) {
+func (q *QueryRunner) makeJob(plan *model.ExecutionPlan, table *clickhouse.Table, query *model.Query) QueryJob {
+	return func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResultRow, clickhouse.PerformanceResult, error) {
 		var err error
 		rows, performance, err := q.logManager.ProcessQuery(ctx, table, query)
 
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			performance.Error = err
-			return nil, performance, err
+			return plan, nil, performance, err
 		}
 
-		return rows, performance, nil
+		return plan, rows, performance, nil
 	}
 }
 
@@ -790,6 +812,7 @@ func (q *QueryRunner) searchWorkerCommon(
 	var jobs []QueryJob
 	var jobHitsPosition []int // it keeps the position of the hits array for each job
 
+	logger.InfoWithCtx(ctx).Msgf("search worker with query %d %v", len(queries), queries)
 	for i, query := range queries {
 		sql := query.SelectCommand.String()
 
@@ -809,7 +832,7 @@ func (q *QueryRunner) searchWorkerCommon(
 			continue
 		}
 
-		job := q.makeJob(table, query)
+		job := q.makeJob(plan, table, query)
 		jobs = append(jobs, job)
 		jobHitsPosition = append(jobHitsPosition, i)
 	}
