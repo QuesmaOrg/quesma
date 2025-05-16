@@ -101,6 +101,9 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	plan := &model.ExecutionPlan{
 		Queries:               queries,
 		QueryRowsTransformers: queryResultTransformers,
+		Interrupt: func() bool {
+			return false
+		},
 	}
 
 	return plan, err
