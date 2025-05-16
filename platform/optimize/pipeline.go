@@ -11,7 +11,7 @@ import (
 
 // OptimizeTransformer - an interface for query transformers that have a name.
 type OptimizeTransformer interface {
-	Transform(queries []*model.Query, properties map[string]string) ([]*model.Query, error)
+	Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error)
 
 	Name() string             // this name is used to enable/disable the transformer in the configuration
 	IsEnabledByDefault() bool // should return true for "not aggressive" transformers only
@@ -74,14 +74,14 @@ func (s *OptimizePipeline) findConfig(transformer OptimizeTransformer, queries [
 	return !transformer.IsEnabledByDefault(), make(map[string]string)
 }
 
-func (s *OptimizePipeline) Transform(queries []*model.Query) ([]*model.Query, error) {
+func (s *OptimizePipeline) Transform(plan *model.ExecutionPlan) (*model.ExecutionPlan, error) {
 
-	if len(queries) == 0 {
-		return queries, nil
+	if len(plan.Queries) == 0 {
+		return plan, nil
 	}
 
 	// add  hints if not present
-	for _, query := range queries {
+	for _, query := range plan.Queries {
 		if query.OptimizeHints == nil {
 			query.OptimizeHints = model.NewQueryExecutionHints()
 		}
@@ -90,18 +90,18 @@ func (s *OptimizePipeline) Transform(queries []*model.Query) ([]*model.Query, er
 	// run optimizations on queries
 	for _, optimization := range s.optimizations {
 
-		disabled, properties := s.findConfig(optimization, queries)
+		disabled, properties := s.findConfig(optimization, plan.Queries)
 
 		if disabled {
 			continue
 		}
 
 		var err error
-		queries, err = optimization.Transform(queries, properties)
+		plan, err = optimization.Transform(plan, properties)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return queries, nil
+	return plan, nil
 }

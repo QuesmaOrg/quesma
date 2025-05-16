@@ -267,15 +267,15 @@ func (s splitTimeRange) transformQuery(query *model.Query, properties map[string
 	return query, nil
 }
 
-func (s splitTimeRange) Transform(queries []*model.Query, properties map[string]string) ([]*model.Query, error) {
-	for i, query := range queries {
+func (s splitTimeRange) Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error) {
+	for i, query := range plan.Queries {
 		transformedQuery, err := s.transformQuery(query, properties)
 		if err != nil {
 			return nil, err
 		}
-		queries[i] = transformedQuery
+		plan.Queries[i] = transformedQuery
 	}
-	return queries, nil
+	return plan, nil
 }
 
 func (s splitTimeRange) Name() string {
