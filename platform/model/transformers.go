@@ -5,7 +5,7 @@ package model
 import "context"
 
 type QueryTransformer interface {
-	Transform(query []*Query) ([]*Query, error)
+	Transform(plan *ExecutionPlan) (*ExecutionPlan, error)
 }
 
 type ResultTransformer interface {

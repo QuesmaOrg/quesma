@@ -364,7 +364,7 @@ type AsyncQuery struct {
 
 func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
 	var err error
-	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
+	plan, err = q.transformationPipeline.Transform(plan)
 	if err != nil {
 		return fmt.Errorf("error transforming queries: %v", err)
 	}
@@ -517,6 +517,18 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		goto logErrorAndReturn
 	}
 	err = q.transformQueries(plan)
+
+	// TODO only for debug purposes, remove it
+	if len(plan.Queries) > 1 {
+		logger.InfoWithCtx(ctx).Msgf("Parsed queries: %d", len(plan.Queries))
+		bytes, _ := body.Bytes()
+		logger.InfoWithCtx(ctx).Msgf("Body: %s", string(bytes))
+
+		for i, query := range plan.Queries {
+			logger.InfoWithCtx(ctx).Msgf("Parsed query %d: %s", i, query.SelectCommand.String())
+		}
+		logger.InfoWithCtx(ctx).Msg("----------------------------------------")
+	}
 	if err != nil {
 		goto logErrorAndReturn
 	}
@@ -790,6 +802,7 @@ func (q *QueryRunner) searchWorkerCommon(
 	var jobs []QueryJob
 	var jobHitsPosition []int // it keeps the position of the hits array for each job
 
+	logger.InfoWithCtx(ctx).Msgf("search worker with query %d %v", len(queries), queries)
 	for i, query := range queries {
 		sql := query.SelectCommand.String()
 
