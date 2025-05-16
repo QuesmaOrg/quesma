@@ -111,6 +111,11 @@ type ExecutionPlan struct {
 	// add more fields here
 	// JSON renderers
 	StartTime time.Time
+
+	// Interrupt function to stop the execution of the plan
+	// if for some reason we need to stop the execution
+	// e.g., there is some condition like enough results
+	Interrupt func(plan *ExecutionPlan) bool
 }
 
 func NewQueryExecutionHints() *QueryOptimizeHints {
