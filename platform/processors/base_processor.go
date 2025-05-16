@@ -68,13 +68,13 @@ func (p *BaseProcessor) Handle(metadata map[string]interface{}, messages ...any)
 		if err != nil {
 			mError = multierror.Append(mError, err)
 		}
-		queries, err := p.QueryTransformationPipeline.Transform(executionPlan.Queries)
+		executionPlan, err = p.QueryTransformationPipeline.Transform(executionPlan)
 		if err != nil {
 			mError = multierror.Append(mError, err)
 		}
 		// Execute the queries
 		var results [][]model.QueryResultRow
-		result, _ := p.executeQueries(queries)
+		result, _ := p.executeQueries(executionPlan.Queries)
 		results = append(results, result)
 		// Transform the results
 		transformedResults, err := p.QueryTransformationPipeline.TransformResults(results)
