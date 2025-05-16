@@ -32,6 +32,7 @@ func NewOptimizePipeline(config *config.QuesmaConfiguration) model.QueryTransfor
 			&cacheQueries{},
 			&materializedViewReplace{},
 			&splitTimeRange{},
+			&splitTimeRangeExt{},
 		},
 	}
 }
