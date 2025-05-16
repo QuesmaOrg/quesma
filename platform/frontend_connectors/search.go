@@ -364,7 +364,7 @@ type AsyncQuery struct {
 
 func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
 	var err error
-	plan, err = q.transformationPipeline.Transform(plan)
+	_, err = q.transformationPipeline.Transform(plan)
 	if err != nil {
 		return fmt.Errorf("error transforming queries: %v", err)
 	}
