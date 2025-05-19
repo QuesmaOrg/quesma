@@ -347,7 +347,7 @@ var CloverTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT count(*) AS "aggr__timeseries__count",
 			  countIf(true) AS "metric__timeseries__a2-denominator_col_0",
-			  countIf(NOT ("table.flower" __quesma_match '%clover%')) AS
+			  countIf(NOT ("table.flower" __quesma_match 'clover')) AS
 			  "metric__timeseries__a2-numerator_col_0"
 			FROM __quesma_table_name
 			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1728640683723) AND "@timestamp"<=
@@ -1115,7 +1115,7 @@ var CloverTests = []testdata.AggregationTestCase{
 			  "aggr__q__time_buckets__key_0", count(*) AS "aggr__q__time_buckets__count",
 			  sumOrNull("count") AS "metric__q__time_buckets__sum(count)_col_0"
 			FROM __quesma_table_name
-			WHERE NOT ("str_field" __quesma_match '%CRASH%')
+			WHERE NOT ("str_field" __quesma_match 'CRASH')
 			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
 			  ("@timestamp", 'Europe/Warsaw'))*1000) / 1800000) AS
 			  "aggr__q__time_buckets__key_0"

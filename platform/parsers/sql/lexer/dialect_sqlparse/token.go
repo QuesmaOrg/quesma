@@ -158,3 +158,8 @@ var ErrorTokenType = core.TokenType{
 	Name:        "Token.Error",
 	Description: "Error token. The input at this position did not match any rule, so this character was skipped",
 }
+
+var PipeTokenType = core.TokenType{
+	Name:        "Token.Keyword.Pipe",
+	Description: "SQL with pipe syntax operator |>",
+}

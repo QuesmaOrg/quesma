@@ -9,7 +9,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
 	"github.com/QuesmaOrg/quesma/platform/async_search_storage"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
-	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
@@ -72,6 +71,7 @@ type QueryRunnerIFace interface {
 	HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON, waitForResultsMs int, keepOnCompletion bool) ([]byte, error)
 	HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error)
 	HandleCount(ctx context.Context, indexPattern string) (int64, error)
+	HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, something bool) ([]byte, error)
 	// Todo: consider removing this getters for these two below, this was required for temporary Field Caps impl in v2 api
 	GetSchemaRegistry() schema.Registry
 	GetLogManager() clickhouse.LogManagerIFace
@@ -345,6 +345,10 @@ func (q *QueryRunner) HandleAsyncSearch(ctx context.Context, indexPattern string
 	return q.handleSearchCommon(ctx, indexPattern, body, &async)
 }
 
+func (q *QueryRunner) HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, isFieldMapSyntaxEnabled bool) ([]byte, error) {
+	return handleTermsEnumInternal(ctx, indexPattern, body, q.logManager, q.schemaRegistry, isFieldMapSyntaxEnabled, q.debugInfoCollector)
+}
+
 type asyncSearchWithError struct {
 	response            *model.SearchResp
 	translatedQueryBody []diag.TranslatedSQLQuery
@@ -455,9 +459,11 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery) (resp []byte, err error) {
+	const (
+		defaultId   = "FAKE_ID"
+		defaultPath = ""
+	)
 	var (
-		id                  = "FAKE_ID"
-		path                = ""
 		startTime           = time.Now()
 		resolvedIndexes     []string
 		queryTranslator     IQueryTranslator
@@ -466,158 +472,30 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		table               *clickhouse.Table // TODO we should use schema here only
 		tables              clickhouse.TableMap
 		currentSchema       schema.Schema
+		respWhenError       []byte
+		weEndSearch         bool
 	)
 
-	if val := ctx.Value(tracing.RequestIdCtxKey); val != nil {
-		if str, ok := val.(string); ok {
-			id = str
-		}
-	}
-	if val := ctx.Value(tracing.RequestPath); val != nil {
-		if str, ok := val.(string); ok {
-			path = str
-		}
-	}
+	id := tracing.ExtractValueString(ctx, tracing.RequestIdCtxKey, defaultId)
+	path := tracing.ExtractValueString(ctx, tracing.RequestPath, defaultPath)
 
 	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, indexPattern)
-
-	if decision.Err != nil {
-		if optAsync != nil {
-			resp, _ = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
-		} else {
-			resp = elastic_query_dsl.EmptySearchResponse(ctx)
-		}
-		err = decision.Err
-		goto logErrorAndReturn
-	}
-
-	if decision.IsEmpty {
-		if optAsync != nil {
-			resp, err = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
-		} else {
-			resp = elastic_query_dsl.EmptySearchResponse(ctx)
-		}
-		goto logErrorAndReturn
-	}
-
-	if decision.IsClosed {
-		err = quesma_errors.ErrIndexNotExists() // TODO
-		goto logErrorAndReturn
-	}
-
-	if len(decision.UseConnectors) == 0 {
-		err = end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
-		goto logErrorAndReturn
-	}
-
-	for _, connector := range decision.UseConnectors {
-		switch c := connector.(type) {
-
-		case *quesma_api.ConnectorDecisionClickhouse:
-			clickhouseConnector = c
-
-		case *quesma_api.ConnectorDecisionElastic:
-			// After https://github.com/QuesmaOrg/quesma/pull/1278 we should never land in this situation,
-			// previously this was an escape hatch for `_msearch` payload containing Elasticsearch-targetted query
-			// This code lives only to postpone bigger refactor of `handleSearchCommon` which also supports async and A/B testing
-
-		default:
-			err = fmt.Errorf("unknown connector type: %T", c)
-			goto logErrorAndReturn
-		}
-	}
-
-	if clickhouseConnector == nil {
-		logger.Warn().Msgf("multi-search payload contains Elasticsearch-targetted query")
-		err = fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
+	if respWhenError, err, weEndSearch = q.checkDecision(ctx, decision, optAsync); err != nil || weEndSearch {
+		resp = respWhenError
 		goto logErrorAndReturn
 	}
 
 	startTime = time.Now()
-	tables, err = q.logManager.GetTableDefinitions()
-	if err != nil {
+	if tables, err = q.logManager.GetTableDefinitions(); err != nil {
 		goto logErrorAndReturn
 	}
 
-	resolvedIndexes = clickhouseConnector.ClickhouseIndexes
-
-	if !clickhouseConnector.IsCommonTable {
-		if len(resolvedIndexes) < 1 {
-			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
-			goto logErrorAndReturn
-		}
-		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
-		resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
-
-		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
-		if !ok {
-			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
-			goto logErrorAndReturn
-		}
-
-		table, _ = tables.Load(resolvedTableName)
-		if table == nil {
-			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
-			goto logErrorAndReturn
-		}
-
-		currentSchema = resolvedSchema
-
-	} else {
-
-		// here we filter out indexes that are not stored in the common table
-		var virtualOnlyTables []string
-		for _, indexName := range resolvedIndexes {
-			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))
-			if table == nil {
-				continue
-			}
-			if table.VirtualTable {
-				virtualOnlyTables = append(virtualOnlyTables, indexName)
-			}
-		}
-		resolvedIndexes = virtualOnlyTables
-
-		if len(resolvedIndexes) == 0 {
-			if optAsync != nil {
-				resp, err = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
-			} else {
-				resp, err = elastic_query_dsl.EmptySearchResponse(ctx), nil
-			}
-			goto logErrorAndReturn
-		}
-
-		commonTable, ok := tables.Load(common_table.TableName)
-		if !ok {
-			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", common_table.TableName)).Details("Table: %s", common_table.TableName)
-			goto logErrorAndReturn
-		}
-
-		// Let's build a  union of schemas
-		resolvedSchema := schema.Schema{
-			Fields:             make(map[schema.FieldName]schema.Field),
-			Aliases:            make(map[schema.FieldName]schema.FieldName),
-			ExistsInDataSource: false,
-			DatabaseName:       "", // it doesn't matter here, common table will be used
-		}
-
-		schemas := q.schemaRegistry.AllSchemas()
-
-		for _, idx := range resolvedIndexes {
-			scm, ok := schemas[schema.IndexName(idx)]
-			if !ok {
-				resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
-				goto logErrorAndReturn
-			}
-
-			for fieldName := range scm.Fields {
-				// here we construct our runtime  schema by merging fields from all resolved indexes
-				resolvedSchema.Fields[fieldName] = scm.Fields[fieldName]
-			}
-		}
-
-		currentSchema = resolvedSchema
-		table = commonTable
+	if clickhouseConnector, err = q.clickhouseConnectorFromDecision(ctx, decision); err != nil || clickhouseConnector == nil {
+		goto logErrorAndReturn
+	}
+	if resolvedIndexes, currentSchema, table, respWhenError, err = q.resolveIndexes(ctx, clickhouseConnector, tables, optAsync); err != nil || table == nil {
+		resp = respWhenError
+		goto logErrorAndReturn
 	}
 
 	queryTranslator = NewQueryTranslator(ctx, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)

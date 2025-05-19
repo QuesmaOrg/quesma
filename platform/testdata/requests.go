@@ -1252,9 +1252,9 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"exception-list-agnostic.list_id" __quesma_match '%endpoint\_event\_filters%'`},
+		[]string{`"exception-list-agnostic.list_id" __quesma_match 'endpoint\_event\_filters'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id" ILIKE '%endpoint\\_event\\_filters%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id"='endpoint\\_event\\_filters'`},
 		[]string{},
 	},
 	{ // [10]
@@ -1279,9 +1279,9 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{fullTextFieldName + ` __quesma_match '%ingest-agent-policies%'`},
+		[]string{fullTextFieldName + ` __quesma_match 'ingest-agent-policies'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ` + fullTextFieldName + ` ILIKE '%ingest-agent-policies%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ` + fullTextFieldName + ` ILIKE 'ingest-agent-policies'`},
 		[]string{},
 	},
 	{ // [11]
@@ -1377,9 +1377,9 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": false,
 			"size": 1
 		}`,
-		[]string{`"message" __quesma_match '%% logged%'`},
+		[]string{`"message" __quesma_match '% logged'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%% logged%'`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '% logged'`},
 		[]string{},
 	},
 	{ // [16]

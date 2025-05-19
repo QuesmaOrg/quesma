@@ -348,8 +348,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			  count(*) AS "aggr__1__2__count"
 			FROM __quesma_table_name
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match '%error%' AND
-			  "tags" __quesma_match '%security%'))
+			  fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
+			  "tags" __quesma_match 'security'))
 			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0"
 			ORDER BY "aggr__1__2__key_0" ASC`,
@@ -362,8 +362,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				count(*) AS "aggr__1__2__count"
 			  FROM __quesma_table_name
 			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match '%error%' AND
-				"tags" __quesma_match '%security%'))
+				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
+				"tags" __quesma_match 'security'))
 			  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 				toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
 				"aggr__1__2__key_0"
@@ -381,8 +381,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 				"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
 			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match '%error%' AND
-				"tags" __quesma_match '%security%')))
+				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
+				"tags" __quesma_match 'security')))
 			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 			  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
 			FROM "quesma_top_hits_join"
@@ -396,8 +396,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				count(*) AS "aggr__1__2__count"
 			  FROM __quesma_table_name
 			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match '%error%' AND
-				"tags" __quesma_match '%security%'))
+				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
+				"tags" __quesma_match 'security'))
 			  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 				toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
 				"aggr__1__2__key_0"
@@ -415,8 +415,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 				"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
 			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match '%error%' AND
-				"tags" __quesma_match '%security%')))
+				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
+				"tags" __quesma_match 'security')))
 			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 			  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
 			FROM "quesma_top_hits_join"

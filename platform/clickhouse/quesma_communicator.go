@@ -69,14 +69,14 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 				}
 			} else {
 				// AliasColumnsTransformation should have handled this
-				logger.Warn().Msgf("Unexpected unaliased literal: %v", col.Value)
+				logger.WarnWithCtx(ctx).Msgf("Unexpected unaliased literal: %v", col.Value)
 				if colName == "" {
 					colName = fmt.Sprintf("column_%d", count)
 				}
 			}
 		default:
 			// AliasColumnsTransformation should have handled this
-			logger.Warn().Msgf("Unexpected unaliased literal: %v", col)
+			logger.WarnWithCtx(ctx).Msgf("Unexpected unaliased literal: %v", col)
 			if colName == "" {
 				colName = fmt.Sprintf("column_%d", count)
 			}

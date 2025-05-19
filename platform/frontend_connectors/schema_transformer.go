@@ -1133,7 +1133,15 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				rhs.Value = strings.Trim(rhsValue, "%")
 				rhs.EscapeType = model.NormalNotEscaped
 				return equal()
+			case schema.QuesmaTypeKeyword.Name:
+				return equal()
 			default:
+				if rhsValue == "%%" { // ILIKE '%%' has terrible performance, but semantically means "is not null", hence this transformation
+					return model.NewInfixExpr(lhs, "IS", model.NewLiteral("NOT NULL"))
+				}
+				// we might investigate the potential performance gain of checking
+				// that if rhsValue doesn't contain '%' we could use '=' instead of 'ILIKE'
+				// *however* that'd require few tweaks in the parser
 				return ilike()
 			}
 		}
