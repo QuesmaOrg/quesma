@@ -3,7 +3,6 @@
 package optimize
 
 import (
-	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"sort"
@@ -179,19 +178,21 @@ func (s splitTimeRangeExt) getSplitPoints(foundTimeRange timeRange, properties m
 	return result
 }
 
-func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[string]string) (*model.Query, error) {
+func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[string]string) ([]*model.Query, error) {
+	var subqueries []model.SelectCommand
 	foundTimeRange := s.findTimeRange(&query.SelectCommand)
 	if foundTimeRange == nil {
-		return query, nil
+		var queries []*model.Query
+		queries = append(queries, query)
+		return queries, nil
 	}
 
 	splitPoints := s.getSplitPoints(*foundTimeRange, properties)
 	if len(splitPoints) <= 2 {
-		return query, nil
+		var queries []*model.Query
+		queries = append(queries, query)
+		return queries, nil
 	}
-
-	var namedCTEs []*model.CTE
-	var subqueries []model.SelectCommand
 
 	for i := 0; i < len(splitPoints)-1; i++ {
 		subquery := query.SelectCommand
@@ -210,58 +211,46 @@ func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[str
 		}
 		subquery.WhereClause = model.NewInfixExpr(whereClause, "AND", subquery.WhereClause)
 
-		namedCTEs = append(namedCTEs, &model.CTE{
-			Name:          fmt.Sprintf("split_time_range_subquery_%d", i),
-			SelectCommand: &subquery,
+		subqueries = append(subqueries, subquery)
+	}
+
+	var queries []*model.Query
+	for i := 0; i < len(subqueries); i++ {
+		queries = append(queries, &model.Query{
+			SelectCommand: subqueries[i],
 		})
-		subqueries = append(subqueries, model.SelectCommand{
-			Columns:    []model.Expr{model.NewLiteral("*")},
-			FromClause: model.NewLiteral(fmt.Sprintf("split_time_range_subquery_%d", i)),
-		})
 	}
-
-	unionExpr := model.NewInfixExpr(subqueries[0], "UNION ALL", subqueries[1])
-	for i := 2; i < len(subqueries); i++ {
-		unionExpr = model.NewInfixExpr(unionExpr, "UNION ALL", subqueries[i])
-	}
-
-	selectedColumns := make([]model.Expr, len(namedCTEs[0].SelectCommand.Columns))
-	for i, column := range namedCTEs[0].SelectCommand.Columns {
-		switch column := (column).(type) {
-		case model.ColumnRef:
-			selectedColumns[i] = column.Clone()
-		case model.LiteralExpr:
-			selectedColumns[i] = model.NewColumnRef(column.Value.(string))
-		case model.AliasedExpr:
-			selectedColumns[i] = model.NewColumnRef(column.Alias)
-		}
-	}
-
-	query.SelectCommand = model.SelectCommand{
-		IsDistinct:  false,
-		Columns:     selectedColumns,
-		FromClause:  unionExpr,
-		WhereClause: nil,
-		GroupBy:     nil,
-		OrderBy:     nil,
-		LimitBy:     nil,
-		Limit:       namedCTEs[0].SelectCommand.Limit,
-		SampleLimit: 0,
-		NamedCTEs:   namedCTEs,
-	}
-
-	return query, nil
+	return queries, nil
 }
 
 func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error) {
-	for i, query := range plan.Queries {
-		transformedQuery, err := s.transformQuery(query, properties)
+
+	var newQueries []*model.Query
+
+	for _, query := range plan.Queries {
+		subqueries, err := s.transformQuery(query, properties)
 		if err != nil {
 			return nil, err
 		}
-		plan.Queries[i] = transformedQuery
+		newQueries = append(newQueries, subqueries...)
+	}
+
+	if len(newQueries) > 0 {
+		plan.Queries[0].SelectCommand = newQueries[0].SelectCommand
+	}
+	for _, subquery := range newQueries {
+		sql := subquery.SelectCommand.String()
+		logger.Info().Msgf("@@@@@@Transformed query: %s", sql)
+	}
+
+	plan.Interrupt = func(rows []model.QueryResultRow) bool {
+		if len(rows) >= 500 {
+			return true
+		}
+		return true
 	}
 	return plan, nil
+
 }
 
 func (s splitTimeRangeExt) Name() string {
