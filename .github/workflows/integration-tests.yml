@@ -75,7 +75,9 @@ jobs:
           docker image ls -a  
 
       - name: Set environment variable
-        run: echo "EXECUTING_ON_GITHUB_CI=true" >> $GITHUB_ENV
+        run: | 
+          echo "EXECUTING_ON_GITHUB_CI=true" >> $GITHUB_ENV
+          echo "QUESMA_IT_VERSION=${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}" >> $GITHUB_ENV
 
       - name: Get last commit author
         id: get_author

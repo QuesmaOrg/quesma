@@ -6,6 +6,7 @@ package testcases
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
@@ -181,8 +182,14 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 	if err != nil {
 		return nil, err
 	}
+
+	quesmaVersion := os.Getenv("QUESMA_IT_VERSION")
+	if quesmaVersion == "" {
+		return nil, errors.New("missing environment variable QUESMA_IT_VERSION")
+	} // TODO remove
+
 	quesmaReq := testcontainers.ContainerRequest{
-		Image:        "quesma/quesma:nightly",
+		Image:        fmt.Sprintf("quesma/quesma:%s", quesmaVersion),
 		ExposedPorts: []string{"0.0.0.0::9999/tcp", "0.0.0.0::8080/tcp"},
 		Env: map[string]string{
 			"QUESMA_CONFIG_FILE": "/configuration/conf.yaml",
