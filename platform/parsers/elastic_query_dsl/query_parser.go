@@ -584,7 +584,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
 				} else {
-					fullLiteral := model.NewLiteralWithEscapeType("'"+subQuery+"'", model.NotEscapedLikeFull)
+					fullLiteral := model.NewLiteral(util.SingleQuote(subQuery))
 					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, fullLiteral)
 					statements = append(statements, simpleStat)
 				}
@@ -819,7 +819,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 					parsed, err := cw.parseDateMathExpression(value)
 					if err == nil {
 						doneParsing = true
-						finalValue = model.NewLiteral(parsed)
+						finalValue = model.NewLiteralWithEscapeType(parsed, model.ZeroEscaping)
 					}
 				}
 				if !doneParsing && isQuoted { // stage 3
@@ -888,7 +888,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			return model.NewSimpleQueryInvalid()
 		}
 
-		sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
+		sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NotNullExpr)
 	}
 
 	return model.NewSimpleQuery(sql, true)

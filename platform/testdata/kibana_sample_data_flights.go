@@ -2311,7 +2311,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			FROM __quesma_table_name
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
 			  fromUnixTimestamp64Milli(1740835408853)) AND NOT ("FlightDelayType"
-			  __quesma_match '%No Delay%'))
+			  __quesma_match 'No Delay'))
 			GROUP BY "FlightDelayType" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC
 			LIMIT 3`,

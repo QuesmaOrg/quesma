@@ -383,7 +383,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 			  count(*) AS "aggr__1__2__count"
 			FROM __quesma_table_name
 			WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250')
+			  fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > 250)
 			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
 			  ("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0"
 			ORDER BY "aggr__1__2__key_0" ASC`,
@@ -395,7 +395,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 					count(*) AS "aggr__1__2__count"
 				  FROM __quesma_table_name
 				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
-					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250')
+					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > 250)
 				  GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(
 					toTimezone("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS
 					"aggr__1__2__key_0"
@@ -413,7 +413,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 					toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 					"order_date", 'Europe/Warsaw'))*1000) / 43200000))
 				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
-					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250'))
+					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > 250))
 				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 				  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
 				FROM "quesma_top_hits_join"
@@ -427,7 +427,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 					count(*) AS "aggr__1__2__count"
 				  FROM __quesma_table_name
 				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
-					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250')
+					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > 250)
 				  GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(
 					toTimezone("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS
 					"aggr__1__2__key_0"
@@ -445,7 +445,7 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 					toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
 					"order_date", 'Europe/Warsaw'))*1000) / 43200000))
 				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
-					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250'))
+					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > 250))
 				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 				  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
 				FROM "quesma_top_hits_join"

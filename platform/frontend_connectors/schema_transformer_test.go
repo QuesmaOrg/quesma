@@ -647,7 +647,7 @@ func Test_arrayType(t *testing.T) {
 					},
 					WhereClause: model.NewFunction(
 						"arrayExists",
-						model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteral("x"), "ILIKE", model.NewLiteral("%foo%"))),
+						model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteralWithEscapeType(strconv.Quote("x"), model.ZeroEscaping), "ILIKE", model.NewLiteral("%foo%"))),
 						model.NewColumnRef("products_name")),
 					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
 				},
@@ -719,7 +719,7 @@ func Test_arrayType(t *testing.T) {
 							model.NewFunction("sumOrNullIf",
 								model.NewColumnRef("taxful_total_price"),
 								model.NewFunction("arrayExists",
-									model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteral("x"), "ILIKE", model.NewLiteralWithEscapeType("%watch%", model.FullyEscaped))),
+									model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteralWithEscapeType(strconv.Quote("x"), model.ZeroEscaping), "ILIKE", model.NewLiteralWithEscapeType("%watch%", model.FullyEscaped))),
 									model.NewColumnRef("products_name"),
 								),
 							),
@@ -1556,7 +1556,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("test"),
-					Columns:    []model.Expr{model.NewFunction("sum", model.NewLiteral("NULL"))},
+					Columns:    []model.Expr{model.NewFunction("sum", model.NullExpr)},
 				},
 			},
 		},
@@ -1590,7 +1590,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 				TableName: "test",
 				SelectCommand: model.SelectCommand{
 					FromClause: model.NewTableRef("test"),
-					Columns:    []model.Expr{model.NewFunction("sum", model.NewLiteral("NULL"))},
+					Columns:    []model.Expr{model.NewFunction("sum", model.NullExpr)},
 				},
 			},
 		},
@@ -1697,7 +1697,7 @@ func Test_mapKeys(t *testing.T) {
 					Columns:    []model.Expr{model.NewColumnRef("foo")},
 					WhereClause: model.NewInfixExpr(
 						model.NewFunction("arrayElement", model.NewColumnRef("foo"), model.NewLiteral("'bar'")),
-						"ILIKE",
+						"=",
 						model.NewLiteral("'baz'"),
 					),
 				},
@@ -1752,7 +1752,7 @@ func Test_mapKeys(t *testing.T) {
 					FromClause: model.NewTableRef("test2"),
 					Columns:    []model.Expr{model.NewColumnRef("foo")},
 					WhereClause: model.NewInfixExpr(
-						model.NewLiteral("NULL"),
+						model.NullExpr,
 						model.MatchOperator,
 						model.NewLiteral("'baz'"),
 					),
