@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
@@ -252,7 +253,10 @@ func setupClickHouse(ctx context.Context) (testcontainers.Container, error) {
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
 		},
-		WaitingFor: wait.ForExposedPort().WithStartupTimeout(2 * time.Minute),
+		WaitingFor: wait.ForSQL("9000", "clickhouse",
+			func(host string, port nat.Port) string {
+				return fmt.Sprintf("clickhouse://%s:%d", host, port.Int())
+			}).WithStartupTimeout(2 * time.Minute),
 	}
 	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
