@@ -1,3 +1,6 @@
+---
+description: Query ClickHouse/Hydrolix tables as Elasticsearch indices
+---
 # Query ClickHouse/Hydrolix tables as Elasticsearch indices
 
 ::: warning

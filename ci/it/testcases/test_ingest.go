@@ -63,8 +63,8 @@ var (
 		"destairportid":       "Nullable(String)",
 		"destcityname":        "Nullable(String)",
 		"destcountry":         "Nullable(String)",
-		"destlocation_lat":    "Nullable(String)",
-		"destlocation_lon":    "Nullable(String)",
+		"destlocation_lat":    "Nullable(Float64)",
+		"destlocation_lon":    "Nullable(Float64)",
 		"destregion":          "Nullable(String)",
 		"destweather":         "Nullable(String)",
 		"distancekilometers":  "Nullable(Float64)",
@@ -79,8 +79,8 @@ var (
 		"originairportid":     "Nullable(String)",
 		"origincityname":      "Nullable(String)",
 		"origincountry":       "Nullable(String)",
-		"originlocation_lat":  "Nullable(String)",
-		"originlocation_lon":  "Nullable(String)",
+		"originlocation_lat":  "Nullable(Float64)",
+		"originlocation_lon":  "Nullable(Float64)",
 		"originregion":        "Nullable(String)",
 		"originweather":       "Nullable(String)",
 		"timestamp":           "DateTime64(3)",
@@ -197,8 +197,8 @@ var (
 		"geoip_city_name":               "Nullable(String)",
 		"geoip_continent_name":          "Nullable(String)",
 		"geoip_country_iso_code":        "Nullable(String)",
-		"geoip_location_lat":            "Nullable(String)",
-		"geoip_location_lon":            "Nullable(String)",
+		"geoip_location_lat":            "Nullable(Float64)",
+		"geoip_location_lon":            "Nullable(Float64)",
 		"geoip_region_name":             "Nullable(String)",
 		"manufacturer":                  "Array(String)",
 		"order_date":                    "DateTime64(3)",
@@ -465,9 +465,6 @@ func (a *IngestTestcase) testKibanaSampleFlightsIngestWithMappingToClickHouse(ct
 
 	// Because of the mappings, some types have changed (compared to ingest with schema inferred solely from JSON)
 	expectedCols["timestamp"] = "Nullable(DateTime64(3))"
-
-	expectedCols["destlocation_lat"] = "Nullable(String)"
-	expectedCols["destlocation_lon"] = "Nullable(String)"
 
 	expectedCols["flighttimehour"] = "Nullable(String)"
 
