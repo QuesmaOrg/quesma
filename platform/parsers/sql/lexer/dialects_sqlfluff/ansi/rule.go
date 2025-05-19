@@ -46,6 +46,12 @@ var ansiRules = []core.Rule{
 	// core.NewRegexRule(`\r\n|\n`, &NewlineTokenType),
 	core.NewRegexRule(`(\r\n|\r|\n)`, &NewlineTokenType),
 
+	// MODIFICATION: New rule for SQL with pipe syntax (|>)
+	// Negative lookahead rule to make sure this doesn't match |>>
+	// (PostGIS |>> operator: https://postgis.net/docs/ST_Geometry_Above.html)
+	// FIXME: this shouldn't be in "vanilla" dialect_sqlfluff, but in a separate dialect
+	dialect_sqlparse.NewNegativeLookaheadRule(`\|>`, `>`, &PipeTokenType),
+
 	core.NewStringRule(`::`, &CodeTokenType),
 	core.NewStringRule(`=`, &CodeTokenType),
 	core.NewStringRule(`>`, &CodeTokenType),

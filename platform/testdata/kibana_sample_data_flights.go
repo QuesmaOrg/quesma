@@ -800,8 +800,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			  count(*) AS "aggr__1__2__count"
 			FROM __quesma_table_name
 			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%' AND
-			  "Cancelled" __quesma_match '%true%'))
+			  fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true' AND
+			  "Cancelled" __quesma_match 'true'))
 			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0"
 			ORDER BY "aggr__1__2__key_0" ASC`,
@@ -813,8 +813,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					count(*) AS "aggr__1__2__count"
 				  FROM __quesma_table_name
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
-					AND "Cancelled" __quesma_match '%true%'))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
+					AND "Cancelled" __quesma_match 'true'))
 				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
 					"aggr__1__2__key_0"
@@ -832,8 +832,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
-					AND "Cancelled" __quesma_match '%true%')))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
+					AND "Cancelled" __quesma_match 'true')))
 				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 				  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
 				FROM "quesma_top_hits_join"
@@ -847,8 +847,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					count(*) AS "aggr__1__2__count"
 				  FROM __quesma_table_name
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
-					AND "Cancelled" __quesma_match '%true%'))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
+					AND "Cancelled" __quesma_match 'true'))
 				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
 					"aggr__1__2__key_0"
@@ -866,8 +866,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
-					AND "Cancelled" __quesma_match '%true%')))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
+					AND "Cancelled" __quesma_match 'true')))
 				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 				  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
 				FROM "quesma_top_hits_join"
@@ -881,8 +881,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					count(*) AS "aggr__1__2__count"
 				  FROM __quesma_table_name
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
-					AND "Cancelled" __quesma_match '%true%'))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
+					AND "Cancelled" __quesma_match 'true'))
 				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
 					"aggr__1__2__key_0"
@@ -900,8 +900,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
-					AND "Cancelled" __quesma_match '%true%')))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
+					AND "Cancelled" __quesma_match 'true')))
 				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 				  "top_metrics__1__2__6_col_0", "top_metrics__1__2__6_col_1", "top_hits_rank"
 				FROM "quesma_top_hits_join"
@@ -915,8 +915,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					count(*) AS "aggr__1__2__count"
 				  FROM __quesma_table_name
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
-					AND "Cancelled" __quesma_match '%true%'))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
+					AND "Cancelled" __quesma_match 'true'))
 				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
 					"aggr__1__2__key_0"
@@ -934,8 +934,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
 				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match '%true%'
-					AND "Cancelled" __quesma_match '%true%')))
+					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
+					AND "Cancelled" __quesma_match 'true')))
 				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 				  "top_metrics__1__2__7_col_0", "top_metrics__1__2__7_col_1", "top_hits_rank"
 				FROM "quesma_top_hits_join"
@@ -1638,7 +1638,7 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__key_0",
 			  count(*) AS "aggr__0__count",
-			  countIf("FlightDelay" __quesma_match '%true%') AS "metric__0__1-bucket_col_0",
+			  countIf("FlightDelay" __quesma_match 'true') AS "metric__0__1-bucket_col_0",
 			  countIf("__quesma_fulltext_field_name" __quesma_match '%') AS "metric__0__2-bucket_col_0"
 			FROM __quesma_table_name
 			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
@@ -2478,9 +2478,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__gridSplit__key_0", 7.0),
-				model.NewQueryResultCol("aggr__gridSplit__key_1", 23.0),
-				model.NewQueryResultCol("aggr__gridSplit__key_2", 41.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_0", 23.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_1", 41.0),
 				model.NewQueryResultCol("aggr__gridSplit__count", int64(25)),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_0", 53.30969999078661),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_1", -113.58000185340643),
@@ -2488,9 +2487,8 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("metric__gridSplit__sum_of_FlightDelayMin_col_0", 870.0),
 			}},
 			{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("aggr__gridSplit__key_0", 7.0),
-				model.NewQueryResultCol("aggr__gridSplit__key_1", 29.0),
-				model.NewQueryResultCol("aggr__gridSplit__key_2", 43.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_0", 29.0),
+				model.NewQueryResultCol("aggr__gridSplit__key_1", 43.0),
 				model.NewQueryResultCol("aggr__gridSplit__count", int64(21)),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_0", 49.909999812953174),
 				model.NewQueryResultCol("metric__gridSplit__gridCentroid_col_1", -97.23989870399237),
@@ -2499,27 +2497,24 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT CAST(7.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 7))
-			  AS "aggr__gridSplit__key_1",
+			SELECT FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 7)) AS "aggr__gridSplit__key_0",
 			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
 			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 7))
-			  AS "aggr__gridSplit__key_2", count(*) AS "aggr__gridSplit__count",
-			  avgOrNull(__quesma_geo_lat("originlocation")) AS
-			  "metric__gridSplit__gridCentroid_col_0",
-			  avgOrNull(__quesma_geo_lon("originlocation")) AS
-			  "metric__gridSplit__gridCentroid_col_1",
+			  AS "aggr__gridSplit__key_1",
+			  count(*) AS "aggr__gridSplit__count",
+			  avgOrNull(__quesma_geo_lat("originlocation")) AS "metric__gridSplit__gridCentroid_col_0",
+			  avgOrNull(__quesma_geo_lon("originlocation")) AS "metric__gridSplit__gridCentroid_col_1",
 			  count(*) AS "metric__gridSplit__gridCentroid_col_2",
-			  sumOrNull("FlightDelayMin") AS
-			  "metric__gridSplit__sum_of_FlightDelayMin_col_0"
+			  sumOrNull("FlightDelayMin") AS "metric__gridSplit__sum_of_FlightDelayMin_col_0"
 			FROM __quesma_table_name
 			WHERE ("OriginLocation" IS NOT NULL AND ("timestamp">=fromUnixTimestamp64Milli(
 			  1740230608853) AND "timestamp"<=fromUnixTimestamp64Milli(1740835408853)))
-			GROUP BY CAST(7.000000 AS Float32) AS "aggr__gridSplit__key_0",
-			  FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 7))
-			  AS "aggr__gridSplit__key_1",
+			GROUP BY FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 7)) AS "aggr__gridSplit__key_0",
 			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
-			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 7)) AS "aggr__gridSplit__key_2"`,
+			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 7)) AS "aggr__gridSplit__key_1"
+			ORDER BY "aggr__gridSplit__count" DESC, "aggr__gridSplit__key_0" ASC,
+              "aggr__gridSplit__key_1" ASC
+            LIMIT 65535`,
 	},
 	{ // [13]
 		TestName: "Delay Buckets",

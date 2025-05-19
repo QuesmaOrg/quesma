@@ -85,7 +85,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 	}
 
 	for i, tt := range testdata.TestsAsyncSearch {
-		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			defer conn.Close()
@@ -139,7 +139,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	}
 
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.TestName, i), func(t *testing.T) {
 			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer conn.Close()
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
@@ -302,7 +302,7 @@ func TestSearchHandler(t *testing.T) {
 	}
 
 	for i, tt := range testdata.TestsSearch {
-		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
@@ -377,7 +377,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 		},
 	}
 	for i, tt := range testdata.TestSearchRuntimeMappings {
-		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
@@ -434,8 +434,8 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 		},
 	}
 
-	for _, tt := range testdata.TestsSearchNoAttrs {
-		t.Run(tt.Name, func(t *testing.T) {
+	for i, tt := range testdata.TestsSearchNoAttrs {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			conn, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer conn.Close()
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
@@ -484,8 +484,8 @@ func TestAsyncSearchFilter(t *testing.T) {
 			},
 		},
 	}
-	for _, tt := range testdata.TestSearchFilter {
-		t.Run(tt.Name, func(t *testing.T) {
+	for i, tt := range testdata.TestSearchFilter {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			var conn *sql.DB
 			var mock sqlmock.Sqlmock
 			if len(tt.WantedRegexes) > 0 {
@@ -685,7 +685,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for i, tt := range testdata.TestsNumericFacets {
 		for _, handlerName := range handlers {
-			t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
+			t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 				conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 				defer conn.Close()
 				db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
@@ -853,7 +853,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for i, tt := range testdata.FullSearchRequests {
 		for _, handlerName := range handlers {
-			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
+			t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 				test(handlerName, tt)
 			})
 		}
@@ -952,7 +952,7 @@ func TestFullQueryTestWIP(t *testing.T) {
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for i, tt := range testdata.FullSearchRequests {
 		for _, handlerName := range handlers {
-			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
+			t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 				if tt.Name != "Turing regression test" {
 					t.Skip(`We need to stop "unit" testing aggregation queries, because e.g. transformations aren't performed in tests whatsoever. Tests pass, but in real world things sometimes break. It's WIP.`)
 				}
@@ -1090,8 +1090,8 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for _, strategy := range []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)} {
-		for _, handlerName := range handlers {
-			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
+		for i, handlerName := range handlers {
+			t.Run(util.PrettyTestName(handlerName, i), func(t *testing.T) {
 				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
 			})
 		}
@@ -1204,8 +1204,8 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for _, strategy := range []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)} {
-		for _, handlerName := range handlers {
-			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
+		for i, handlerName := range handlers {
+			t.Run(util.PrettyTestName(handlerName, i), func(t *testing.T) {
 				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
 			})
 		}
@@ -1366,8 +1366,8 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for _, strategy := range []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)} {
-		for _, handlerName := range handlers {
-			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
+		for i, handlerName := range handlers {
+			t.Run(util.PrettyTestName(handlerName, i), func(t *testing.T) {
 				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
 			})
 		}
@@ -1470,8 +1470,8 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for _, strategy := range []searchAfterStrategy{searchAfterStrategyFactory(basicAndFast)} {
-		for _, handlerName := range handlers {
-			t.Run("TestSearchAfterParameter: "+handlerName, func(t *testing.T) {
+		for i, handlerName := range handlers {
+			t.Run(util.PrettyTestName(handlerName, i), func(t *testing.T) {
 				test(strategy, "todo_add_2_cases_for_datetime_and_datetime64_after_fixing_it", handlerName)
 			})
 		}
