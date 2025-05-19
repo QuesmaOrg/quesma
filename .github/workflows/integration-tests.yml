@@ -45,8 +45,8 @@ jobs:
     if: ${{ always() && (github.event_name != 'issue_comment' || needs.check-comment.result == 'success') }}
     uses: ./.github/workflows/build-quesma-docker-image.yml
     with:
-      REF: ${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
-      VERSION: ${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
+      REF: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.sha || github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
+      VERSION: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.sha || github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
 
   integration-test-run:
     runs-on: ubuntu-latest
