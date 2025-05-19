@@ -243,12 +243,14 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 		logger.Info().Msgf("@@@@@@Transformed query: %s", sql)
 	}
 
-	plan.Interrupt = func(rows []model.QueryResultRow) bool {
-		if len(rows) >= 500 {
+	/*
+		plan.Interrupt = func(rows []model.QueryResultRow) bool {
+			if len(rows) >= 500 {
+				return true
+			}
 			return true
 		}
-		return true
-	}
+	*/
 	return plan, nil
 
 }
