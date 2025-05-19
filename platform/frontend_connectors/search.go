@@ -732,9 +732,6 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 			plan, rows, perf, err := j(ctx)
 			logger.DebugWithCtx(ctx).Msgf("parallel job %d finished in %v", jobId, time.Since(start))
 			collector <- result{plan: plan, rows: rows, perf: perf, err: err, jobId: jobId}
-			if plan.Interrupt(rows) {
-				cancel()
-			}
 		}(ctx, n, job)
 	}
 
