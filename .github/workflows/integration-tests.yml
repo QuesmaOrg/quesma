@@ -46,6 +46,7 @@ jobs:
     uses: ./.github/workflows/build-quesma-docker-image.yml
     with:
       REF: ${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
+      VERSION: ${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
 
   integration-test-run:
     runs-on: ubuntu-latest
