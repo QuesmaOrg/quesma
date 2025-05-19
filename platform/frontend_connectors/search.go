@@ -694,7 +694,7 @@ func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob)
 		}
 
 		results = append(results, rows)
-		if plan.Interrupt() {
+		if plan.Interrupt(rows) {
 			break
 		}
 	}
@@ -732,7 +732,7 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 			plan, rows, perf, err := j(ctx)
 			logger.DebugWithCtx(ctx).Msgf("parallel job %d finished in %v", jobId, time.Since(start))
 			collector <- result{plan: plan, rows: rows, perf: perf, err: err, jobId: jobId}
-			if plan.Interrupt() {
+			if plan.Interrupt(rows) {
 				cancel()
 			}
 		}(ctx, n, job)
@@ -747,7 +747,9 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 		} else {
 			return nil, performances, res.err
 		}
-		if res.plan != nil && res.plan.Interrupt() {
+		logger.InfoWithCtx(ctx).Msg("Collected result")
+		if res.plan != nil && res.plan.Interrupt(res.rows) {
+			logger.InfoWithCtx(ctx).Msg("Interrupting")
 			break
 		}
 	}
