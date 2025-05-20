@@ -48,3 +48,8 @@ var WordTokenType = core.TokenType{
 	Name:        "WordSegment",
 	Description: "Word segment",
 }
+
+var PipeTokenType = core.TokenType{
+	Name:        "PipeKeywordSegment",
+	Description: "SQL with pipe syntax operator |>",
+}

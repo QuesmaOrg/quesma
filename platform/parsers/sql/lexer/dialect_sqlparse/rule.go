@@ -138,6 +138,12 @@ var SQL_REGEX = []core.Rule{
 
 	core.NewRegexRule(`[;:()\[\],\.]`, &PunctuationTokenType),
 
+	// MODIFICATION: New rule for SQL with pipe syntax (|>)
+	// Negative lookahead rule to make sure this doesn't match |>>
+	// (PostGIS |>> operator: https://postgis.net/docs/ST_Geometry_Above.html)
+	// FIXME: this shouldn't be in "vanilla" dialect_sqlparse, but in a separate dialect
+	NewNegativeLookaheadRule(`\|>`, `>`, &PipeTokenType),
+
 	core.NewRegexRule(`(\->>?|#>>?|@>|<@|\?\|?|\?&|\-|#\-)`, &OperatorTokenType),
 	core.NewRegexRule(`[<>=~!]+`, &ComparisonOperatorTokenType),
 	core.NewRegexRule(`[+/@#%^&|^-]+`, &OperatorTokenType),

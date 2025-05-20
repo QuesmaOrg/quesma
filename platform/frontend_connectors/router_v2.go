@@ -256,7 +256,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		if indexCfg, exists := cfg.IndexConfig[indexPattern]; exists {
 			isFieldMapSyntaxEnabled = indexCfg.EnableFieldMapSyntax
 		}
-		return HandleTermsEnum(ctx, indexPattern, body, lm, sr, isFieldMapSyntaxEnabled, dependencies)
+		return HandleTermsEnum(ctx, indexPattern, body, isFieldMapSyntaxEnabled, queryRunner)
 	})
 
 	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {

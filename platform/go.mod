@@ -19,6 +19,8 @@ require (
 	github.com/gorilla/sessions v1.4.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/huandu/go-clone v1.7.2
+	github.com/ip2location/ip2location-go/v9 v9.7.1
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/knadh/koanf/parsers/json v0.1.0
@@ -62,12 +64,13 @@ require (
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/grpc v1.66.2 // indirect
 	google.golang.org/protobuf v1.36.1 // indirect
+	lukechampine.com/uint128 v1.2.0 // indirect
 )
 
 require (

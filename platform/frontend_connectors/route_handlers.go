@@ -16,7 +16,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/functionality/doc"
 	"github.com/QuesmaOrg/quesma/platform/functionality/field_capabilities"
 	"github.com/QuesmaOrg/quesma/platform/functionality/resolve"
-	"github.com/QuesmaOrg/quesma/platform/functionality/terms_enum"
 	"github.com/QuesmaOrg/quesma/platform/ingest"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
@@ -162,9 +161,8 @@ func HandleGetIndex(sr schema.Registry, index string) (*quesma_api.Result, error
 	return getIndexResult(index, mappings)
 }
 
-func HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, lm clickhouse.LogManagerIFace, sr schema.Registry,
-	isFieldMapSyntaxEnabled bool, dependencies quesma_api.Dependencies) (*quesma_api.Result, error) {
-	if responseBody, err := terms_enum.HandleTermsEnum(ctx, indexPattern, body, lm, sr, isFieldMapSyntaxEnabled, dependencies.DebugInfoCollector()); err != nil {
+func HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, isFieldMapSyntaxEnabled bool, queryRunner QueryRunnerIFace) (*quesma_api.Result, error) {
+	if responseBody, err := queryRunner.HandleTermsEnum(ctx, indexPattern, body, isFieldMapSyntaxEnabled); err != nil {
 		return nil, err
 	} else {
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
