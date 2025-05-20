@@ -1237,6 +1237,7 @@ func TestFullTextFields(t *testing.T) {
 }
 
 func Test_applyMatchOperator(t *testing.T) {
+	const messageAsKeyword = "messageAsKeyword"
 	schemaTable := schema.Table{
 		Columns: map[string]schema.Column{
 			"message":     {Name: "message", Type: "String"},
