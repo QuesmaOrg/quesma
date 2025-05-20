@@ -16,7 +16,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
-	"strconv"
 	"testing"
 )
 
@@ -44,7 +43,7 @@ func TestSearchOpensearch(t *testing.T) {
 	}
 
 	for i, tt := range testdata.OpensearchSearchTests {
-		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
+		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			defer conn.Close()
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)

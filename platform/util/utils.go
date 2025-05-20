@@ -686,18 +686,20 @@ func ExtractInt64Maybe(value any) (asInt64 int64, success bool) {
 // * value,  if it's float64/32
 // * *value, if it's *float64/32
 // * -1,     otherwise
-func ExtractFloat64(value any) (float64, error) {
+func ExtractFloat64(value any) float64 {
 	switch valueTyped := value.(type) {
 	case float64:
-		return valueTyped, nil
+		return valueTyped
 	case *float64:
-		return *valueTyped, nil
+		return *valueTyped
 	case float32:
-		return float64(valueTyped), nil
+		return float64(valueTyped)
 	case *float32:
-		return float64(*valueTyped), nil
+		return float64(*valueTyped)
+	default:
+		return -1 // fmt.Errorf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v; type: %T", value, value)
+		// reapply above if needed to change return signature to (float64, error)
 	}
-	return -1, fmt.Errorf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v; type: %T", value, value)
 }
 
 // ExtractFloat64Maybe returns float64 value behind `value`:
@@ -1038,4 +1040,18 @@ func ReadResponseBody(resp *http.Response) ([]byte, error) {
 	}
 	resp.Body = io.NopCloser(bytes.NewBuffer(respBody))
 	return respBody, nil
+}
+
+func UnquoteIfQuoted(s string) string {
+	if len(s) > 1 && (s[0] == '\'' || s[0] == '"') && s[0] == s[len(s)-1] {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
+
+func PrintfIfErr(err error, msg string, args ...any) {
+	if err != nil {
+		fmt.Printf(msg, args...)
+		fmt.Println(err)
+	}
 }

@@ -76,7 +76,7 @@ services:
     command: [ "/bin/bash", "-c", "/local_mount/run.sh" ]
   clickhouse:
     # user: 'default', no password
-    image: clickhouse/clickhouse-server:23.12.2.59-alpine
+    image: clickhouse/clickhouse-server:24.5.3.5-alpine
     ports:
       - "8123:8123"
       - "9000:9000"

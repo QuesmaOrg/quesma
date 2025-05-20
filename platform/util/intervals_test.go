@@ -26,8 +26,8 @@ func Test_ParseInterval(t *testing.T) {
 		{name: "1month", args: args{fixedInterval: "1M"}, want: 30 * 24 * time.Hour},
 		{name: "1year", args: args{fixedInterval: "1y"}, want: 365 * 24 * time.Hour},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(PrettyTestName(tt.name, i), func(t *testing.T) {
 			got, _ := ParseInterval(tt.args.fixedInterval)
 			assert.Equalf(t, tt.want, got, "ParseInterval(%v)", tt.args.fixedInterval)
 		})

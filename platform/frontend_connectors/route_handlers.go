@@ -6,6 +6,7 @@ package frontend_connectors
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
@@ -15,7 +16,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/functionality/doc"
 	"github.com/QuesmaOrg/quesma/platform/functionality/field_capabilities"
 	"github.com/QuesmaOrg/quesma/platform/functionality/resolve"
-	"github.com/QuesmaOrg/quesma/platform/functionality/terms_enum"
 	"github.com/QuesmaOrg/quesma/platform/ingest"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
@@ -26,6 +26,8 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"net/http"
 )
+
+const quesmaPitPrefix = "quesma_"
 
 func HandleDeletingAsyncSearchById(queryRunner QueryRunnerIFace, asyncSearchId string) (*quesma_api.Result, error) {
 	responseBody, err := queryRunner.DeleteAsyncSearch(asyncSearchId)
@@ -159,8 +161,8 @@ func HandleGetIndex(sr schema.Registry, index string) (*quesma_api.Result, error
 	return getIndexResult(index, mappings)
 }
 
-func HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, lm clickhouse.LogManagerIFace, sr schema.Registry, dependencies quesma_api.Dependencies) (*quesma_api.Result, error) {
-	if responseBody, err := terms_enum.HandleTermsEnum(ctx, indexPattern, body, lm, sr, dependencies.DebugInfoCollector()); err != nil {
+func HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, isFieldMapSyntaxEnabled bool, queryRunner QueryRunnerIFace) (*quesma_api.Result, error) {
+	if responseBody, err := queryRunner.HandleTermsEnum(ctx, indexPattern, body, isFieldMapSyntaxEnabled); err != nil {
 		return nil, err
 	} else {
 		return elasticsearchQueryResult(string(responseBody), http.StatusOK), nil
@@ -185,6 +187,36 @@ func HandleGetIndexMapping(sr schema.Registry, index string) (*quesma_api.Result
 	mappings := elasticsearch.GenerateMappings(hierarchicalSchema)
 
 	return getIndexMappingResult(index, mappings)
+}
+
+func HandlePitStore(indexPattern string) (*quesma_api.Result, error) {
+	pitId := fmt.Sprintf("%s%s", quesmaPitPrefix, indexPattern)
+	pitCreatedResponse := fmt.Sprintf(`{
+    "_shards": {
+        "failed": 0,
+        "skipped": 0,
+        "successful": 0,
+        "total": 0
+    },
+    "id": "%s"
+}`, pitId)
+	return &quesma_api.Result{
+		Body:          pitCreatedResponse,
+		StatusCode:    http.StatusOK,
+		GenericResult: []byte(pitCreatedResponse),
+	}, nil
+}
+
+func PitDeletedResponse() (*quesma_api.Result, error) {
+	pitDeletedResponse := `{
+    "num_freed": 1,
+    "succeeded": true
+}`
+	return &quesma_api.Result{
+		Body:          pitDeletedResponse,
+		StatusCode:    http.StatusOK,
+		GenericResult: []byte(pitDeletedResponse),
+	}, nil
 }
 
 func HandleBulkIndex(ctx context.Context, index string, body types.NDJSON, ip *ingest.IngestProcessor, ingestStatsEnabled bool, esConn *backend_connectors.ElasticsearchBackendConnector, dependencies quesma_api.Dependencies, tableResolver table_resolver.TableResolver) (*quesma_api.Result, error) {

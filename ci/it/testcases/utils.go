@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
@@ -181,8 +182,15 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 	if err != nil {
 		return nil, err
 	}
+
+	quesmaVersion := os.Getenv("QUESMA_IT_VERSION")
+	if quesmaVersion == "" {
+		log.Println("No QUESMA_IT_VERSION environment variable set, watch out for stale images!")
+		quesmaVersion = "nightly"
+	}
+
 	quesmaReq := testcontainers.ContainerRequest{
-		Image:        "quesma/quesma:nightly",
+		Image:        fmt.Sprintf("quesma/quesma:%s", quesmaVersion),
 		ExposedPorts: []string{"0.0.0.0::9999/tcp", "0.0.0.0::8080/tcp"},
 		Env: map[string]string{
 			"QUESMA_CONFIG_FILE": "/configuration/conf.yaml",
@@ -245,7 +253,10 @@ func setupClickHouse(ctx context.Context) (testcontainers.Container, error) {
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.ExtraHosts = []string{"localhost-for-github-ci:host-gateway"}
 		},
-		WaitingFor: wait.ForExposedPort().WithStartupTimeout(2 * time.Minute),
+		WaitingFor: wait.ForSQL("9000", "clickhouse",
+			func(host string, port nat.Port) string {
+				return fmt.Sprintf("clickhouse://%s:%d", host, port.Int())
+			}).WithStartupTimeout(2 * time.Minute),
 	}
 	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,

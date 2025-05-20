@@ -118,18 +118,17 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 }
 
 func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.QueryResultRow) {
-	fmt.Println("KK 1 add high", hit, resultRow)
-	toInterfaceArray := func(val interface{}) []interface{} {
+	toProperType := func(val interface{}) any {
 		v := reflect.ValueOf(val)
 		if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
-			return []interface{}{val}
+			return val
 		}
 
-		result := make([]interface{}, v.Len())
+		resultArray := make([]interface{}, v.Len())
 		for i := 0; i < v.Len(); i++ {
-			result[i] = v.Index(i).Interface()
+			resultArray[i] = v.Index(i).Interface()
 		}
-		return result
+		return resultArray
 	}
 
 	for _, col := range resultRow.Cols {
@@ -139,38 +138,75 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 			continue
 		}
 
+		// we don't return empty value
 		if col.Value == nil {
-			continue // We don't return empty value
+			continue
 		}
-		columnName := col.ColName
-		hit.Fields[columnName] = toInterfaceArray(col.Value)
-		// TODO using using util.FieldToColumnEncoder is a workaround
-		// we first build highlighter tokens using internal representation
-		// then we do postprocessing changing columns to public fields
-		// and then highlighter build json using public one
-		// which is incorrect
-		fmt.Println("KK col name", columnName, util.FieldToColumnEncoder(columnName), query.highlighter.ShouldHighlight(util.FieldToColumnEncoder(columnName)))
-		if query.highlighter.ShouldHighlight(columnName) {
-			// check if we have a string here and if so, highlight it
-			switch valueAsString := col.Value.(type) {
-			case string:
-				hit.Highlight[columnName] = query.highlighter.HighlightValue(columnName, valueAsString)
-			case *string:
-				if valueAsString != nil {
-					hit.Highlight[columnName] = query.highlighter.HighlightValue(columnName, *valueAsString)
+
+		// Arrays below introduced only to unify handling for maps and other types.
+		// If it's not a map, suffixes will always simply be [""] (no suffix) and vals will always be [col.Value]
+		suffixes, vals := make([]string, 0), make([]any, 0)
+		var isValueAMap bool
+
+		switch colT := col.Value.(type) {
+		case map[string]*string:
+			isValueAMap = true
+			for key, value := range colT {
+				if value != nil {
+					suffixes = append(suffixes, "."+key)
+					vals = append(vals, *value)
 				}
-			case []string:
-				for _, v := range valueAsString {
-					hit.Highlight[columnName] = append(hit.Highlight[columnName], query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), v)...)
-				}
-			case []*string:
-				for _, v := range valueAsString {
-					if v != nil {
-						hit.Highlight[columnName] = append(hit.Highlight[columnName], query.highlighter.HighlightValue(util.FieldToColumnEncoder(columnName), *v)...)
+			}
+		case map[string]string:
+			isValueAMap = true
+			for key, value := range colT {
+				suffixes = append(suffixes, "."+key)
+				vals = append(vals, value)
+			}
+		default:
+			suffixes = []string{""}
+			vals = []any{colT}
+		}
+
+		columnNameWithoutMapSuffix := col.ColName
+		for i := 0; i < len(vals); i++ {
+			columnName := columnNameWithoutMapSuffix + suffixes[i]
+			hit.Fields[columnName] = append(hit.Fields[columnName], toProperType(vals[i]))
+
+			var fieldName string
+			if isValueAMap {
+				fieldName = columnName // we don't decode, leave "map.key" as is
+			} else {
+				fieldName = util.FieldToColumnEncoder(columnName)
+			}
+
+			// TODO using using util.FieldToColumnEncoder is a workaround
+			// we first build highlighter tokens using internal representation
+			// then we do postprocessing changing columns to public fields
+			// and then highlighter build json using public one
+			// which is incorrect
+			if query.highlighter.ShouldHighlight(fieldName) {
+				// check if we have a string here and if so, highlight it
+				switch valueAsString := vals[i].(type) {
+				case string:
+					hit.Highlight[columnName] = query.highlighter.HighlightValue(fieldName, valueAsString)
+				case *string:
+					if valueAsString != nil {
+						hit.Highlight[columnName] = query.highlighter.HighlightValue(fieldName, *valueAsString)
 					}
+				case []string:
+					for _, v := range valueAsString {
+						hit.Highlight[columnName] = append(hit.Highlight[columnName], query.highlighter.HighlightValue(fieldName, v)...)
+					}
+				case []*string:
+					for _, v := range valueAsString {
+						if v != nil {
+							hit.Highlight[columnName] = append(hit.Highlight[columnName], query.highlighter.HighlightValue(fieldName, *v)...)
+						}
+					}
+				default:
+					logger.WarnWithCtx(query.ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)
 				}
-			default:
-				logger.WarnWithCtx(query.ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)
 			}
 		}
 	}

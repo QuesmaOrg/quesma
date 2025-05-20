@@ -19,7 +19,7 @@ on:
 jobs:
   check-comment:
     runs-on: ubuntu-latest
-    if: ${{ github.event.issue.pull_request && github.event.comment.body == '/run-integration-tests' }}
+    if: ${{ github.event.issue.pull_request && (github.event.comment.body == '/run-integration-tests' || github.event.comment.body == '/run-it') }}
     outputs:
       ref: ${{ steps.get-pr-ref.outputs.ref }}
     steps:
@@ -45,7 +45,8 @@ jobs:
     if: ${{ always() && (github.event_name != 'issue_comment' || needs.check-comment.result == 'success') }}
     uses: ./.github/workflows/build-quesma-docker-image.yml
     with:
-      REF: ${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
+      REF: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.sha || github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
+      VERSION: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.sha || github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
 
   integration-test-run:
     runs-on: ubuntu-latest
@@ -75,7 +76,9 @@ jobs:
           docker image ls -a  
 
       - name: Set environment variable
-        run: echo "EXECUTING_ON_GITHUB_CI=true" >> $GITHUB_ENV
+        run: | 
+          echo "EXECUTING_ON_GITHUB_CI=true" >> $GITHUB_ENV
+          echo "QUESMA_IT_VERSION=${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}" >> $GITHUB_ENV
 
       - name: Get last commit author
         id: get_author
@@ -106,7 +109,7 @@ jobs:
 
       - name: Send Slack notification on failure
         if: ${{ failure() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        uses: slackapi/slack-github-action@v2.0.0
+        uses: slackapi/slack-github-action@v2.1.0
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -116,7 +119,7 @@ jobs:
 
       - name: Send Slack notification on success
         if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        uses: slackapi/slack-github-action@v2.0.0
+        uses: slackapi/slack-github-action@v2.1.0
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
