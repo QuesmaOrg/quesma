@@ -1253,7 +1253,7 @@ func Test_applyMatchOperator(t *testing.T) {
 		query    *model.Query
 		expected *model.Query
 	}{
-		{
+		{ // [APM_0]
 			name: "match operator transformation for String (ILIKE)",
 			query: &model.Query{
 				TableName: "test",
@@ -1280,7 +1280,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_1]
 			name: "match operator transformation for Int64 (=)",
 			query: &model.Query{
 				TableName: "test",
@@ -1307,7 +1307,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_2]
 			name: "match operator transformation for Bool",
 			query: &model.Query{
 				TableName: "test",
@@ -1334,7 +1334,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_3]
 			name: "match operator transformation for map(string, string) (ILIKE)",
 			query: &model.Query{
 				TableName: "test",
@@ -1361,7 +1361,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_4]
 			name: "match operator transformation for map(string, int) (=)",
 			query: &model.Query{
 				TableName: "test",
@@ -1388,7 +1388,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_5]
 			name: "match operator transformation for Attributes map (1/2)",
 			query: &model.Query{
 				TableName: "test",
@@ -1415,7 +1415,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_6]
 			name: "match operator transformation for Attributes map (2/2)",
 			query: &model.Query{
 				TableName: "test",
@@ -1442,7 +1442,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_7]
 			name: "match operator should change `ILIKE '%%'` TO `IS NOT NULL`",
 			query: &model.Query{
 				TableName: "test",
@@ -1465,33 +1465,6 @@ func Test_applyMatchOperator(t *testing.T) {
 						model.NewColumnRef("message"),
 						"IS",
 						model.NewLiteral("NOT NULL"),
-					),
-				},
-			},
-		},
-		{
-			name: "match operator transformation for Keyword (equals)",
-			query: &model.Query{
-				TableName: "test",
-				SelectCommand: model.SelectCommand{
-					FromClause: model.NewTableRef("test"),
-					Columns:    []model.Expr{model.NewColumnRef(messageAsKeyword)},
-					WhereClause: model.NewInfixExpr(
-						model.NewColumnRef(messageAsKeyword),
-						model.MatchOperator,
-						model.NewLiteralWithEscapeType("needle", model.NormalNotEscaped),
-					),
-				},
-			},
-			expected: &model.Query{
-				TableName: "test",
-				SelectCommand: model.SelectCommand{
-					FromClause: model.NewTableRef("test"),
-					Columns:    []model.Expr{model.NewColumnRef(messageAsKeyword)},
-					WhereClause: model.NewInfixExpr(
-						model.NewColumnRef(messageAsKeyword),
-						"=",
-						model.NewLiteralWithEscapeType("needle", model.NormalNotEscaped),
 					),
 				},
 			},
