@@ -73,7 +73,8 @@ type (
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
 		// But it works for the test + our dashboards, so let's fix it later if necessary.
 		// NoMetadataField (nil) is a valid option and means no meta field in the response.
-		Metadata JsonMap
+		Metadata     JsonMap
+		ChildQueries *[]Query
 	}
 	QueryType interface {
 		// TranslateSqlResponseToJson
@@ -116,6 +117,9 @@ type ExecutionPlan struct {
 	// if for some reason we need to stop the execution
 	// e.g., there is some condition like enough results
 	Interrupt func(rows []QueryResultRow) bool
+
+	ShouldBeMerged bool // if true, we should merge the results of this plan with the main plan
+	Merge          func(plan *ExecutionPlan, results [][]QueryResultRow) (*ExecutionPlan, [][]QueryResultRow)
 }
 
 func NewQueryExecutionHints() *QueryOptimizeHints {

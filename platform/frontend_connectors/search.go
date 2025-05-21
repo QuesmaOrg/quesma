@@ -395,6 +395,9 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			doneCh <- asyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 		}
 
+		if plan.Merge != nil && plan.ShouldBeMerged {
+			plan, results = plan.Merge(plan, results)
+		}
 		searchResponse := queryTranslator.MakeSearchResponse(plan.Queries, results)
 
 		doneCh <- asyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
@@ -516,10 +519,15 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 		goto logErrorAndReturn
 	}
+	if len(plan.Queries) > 0 {
+		for i, query := range plan.Queries {
+			logger.InfoWithCtx(ctx).Msgf("Input SQL query %d: %s", i, query.SelectCommand.String())
+		}
+	}
 	err = q.transformQueries(plan)
 
 	// TODO only for debug purposes, remove it
-	if len(plan.Queries) > 1 {
+	if len(plan.Queries) > 0 {
 		logger.InfoWithCtx(ctx).Msgf("Parsed queries: %d", len(plan.Queries))
 		bytes, _ := body.Bytes()
 		logger.InfoWithCtx(ctx).Msgf("Body: %s", string(bytes))
