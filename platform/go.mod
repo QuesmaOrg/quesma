@@ -22,6 +22,7 @@ require (
 	github.com/huandu/go-clone v1.7.2
 	github.com/ip2location/ip2location-go/v9 v9.7.1
 	github.com/jackc/pgx/v5 v5.7.2
+	github.com/jinzhu/copier v0.4.0
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/knadh/koanf/parsers/json v0.1.0
 	github.com/knadh/koanf/parsers/yaml v0.1.0

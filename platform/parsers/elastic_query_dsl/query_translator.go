@@ -229,6 +229,20 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
 	var hits *model.SearchHits
 	var total *model.Total
+
+	if len(queries) != len(ResultSets) {
+		logger.ErrorWithCtx(cw.Ctx).Msgf("queries and resultsets have different length: %d != %d", len(queries), len(ResultSets))
+		return &model.SearchResp{
+			Aggregations: nil,
+			Timeout:      false,
+			Shards: model.ResponseShards{
+				Total:      1,
+				Successful: 1,
+				Failed:     0,
+			},
+		}
+	}
+
 	queries, ResultSets, total = cw.makeTotalCount(queries, ResultSets) // get hits and remove it from queries
 	queries, ResultSets, hits = cw.makeHits(queries, ResultSets)        // get hits and remove it from queries
 

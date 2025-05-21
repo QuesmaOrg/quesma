@@ -5,6 +5,8 @@ package optimize
 import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
+	"github.com/jinzhu/copier"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -237,6 +239,17 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 
 	if len(newQueries) > 0 {
 		plan.Queries[0].SelectCommand = newQueries[0].SelectCommand
+
+		for i := 1; i < len(newQueries); i++ {
+			var queryCopy model.Query
+			err := copier.Copy(&queryCopy, &plan.Queries[0])
+			if err != nil {
+				log.Println("copier.Copy failed:", err)
+			}
+			plan.Queries = append(plan.Queries, &queryCopy)
+			plan.Queries[i].SelectCommand = newQueries[i].SelectCommand
+		}
+		plan.ShouldBeMerged = true
 	}
 	for _, subquery := range newQueries {
 		sql := subquery.SelectCommand.String()
@@ -246,7 +259,15 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 	plan.Interrupt = func(rows []model.QueryResultRow) bool {
 		return len(rows) >= 500
 	}
-
+	plan.Merge = func(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow) {
+		var mergedResults [][]model.QueryResultRow
+		mergedResults = make([][]model.QueryResultRow, 0)
+		mergedResults = append(mergedResults, results[0])
+		if len(plan.Queries) > len(mergedResults) {
+			plan.Queries = plan.Queries[:len(plan.Queries)-1]
+		}
+		return plan, mergedResults
+	}
 	return plan, nil
 
 }
