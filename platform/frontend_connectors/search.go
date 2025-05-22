@@ -395,7 +395,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			doneCh <- asyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 		}
 
-		if plan.Merge != nil && plan.ShouldBeMerged {
+		if plan.Merge != nil {
 			plan, results = plan.Merge(plan, results)
 		}
 		searchResponse := queryTranslator.MakeSearchResponse(plan.Queries, results)

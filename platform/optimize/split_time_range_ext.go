@@ -235,7 +235,7 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 	}
 
 	var newQueries []*model.Query
-
+	nextQueryId := len(plan.Queries)
 	for i := range plan.Queries {
 		subqueries := queriesSubqueriesMapping[i]
 		plan.Queries[i].SelectCommand = subqueries[0].SelectCommand
@@ -243,10 +243,12 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 			newQuery := plan.Queries[0].Clone()
 			newQuery.SelectCommand = subqueries[j].SelectCommand
 			newQueries = append(newQueries, newQuery)
-			plan.Siblings[i] = append(plan.Siblings[i], j)
+			plan.Siblings[i] = append(plan.Siblings[i], nextQueryId)
+			nextQueryId++
 		}
 	}
 	_ = newQueries
+	//plan.Queries = append(plan.Queries, newQueries...)
 	for i, subqueryPerQuery := range queriesSubqueriesMapping {
 		querySQL := plan.Queries[i].SelectCommand
 		logger.Info().Msgf("@@@@@@Original query: %s", querySQL.String())
@@ -262,10 +264,9 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 		return false
 	}
 	plan.Merge = func(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow) {
-		var mergedResults [][]model.QueryResultRow
-		mergedResults = make([][]model.QueryResultRow, 0)
-
-		if len(plan.Queries) > len(mergedResults) {
+		if len(plan.Queries) > len(results) {
+			var mergedResults [][]model.QueryResultRow
+			mergedResults = make([][]model.QueryResultRow, 0)
 			// merge the results of the siblings queries
 			mergedResults = append(mergedResults, results[0])
 			// remove siblings queries from the plan
