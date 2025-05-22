@@ -101,7 +101,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	plan := &model.ExecutionPlan{
 		Queries:               queries,
 		QueryRowsTransformers: queryResultTransformers,
-		Interrupt: func(rows []model.QueryResultRow) bool {
+		Siblings:              make(map[int][]int),
+		Interrupt: func(queryId int, rows []model.QueryResultRow) bool {
 			return false
 		},
 	}
