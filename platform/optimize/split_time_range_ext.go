@@ -247,8 +247,7 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 			nextQueryId++
 		}
 	}
-	_ = newQueries
-	//plan.Queries = append(plan.Queries, newQueries...)
+	plan.Queries = append(plan.Queries, newQueries...)
 	for i, subqueryPerQuery := range queriesSubqueriesMapping {
 		querySQL := plan.Queries[i].SelectCommand
 		logger.Info().Msgf("@@@@@@Original query: %s", querySQL.String())
@@ -264,19 +263,32 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 		return false
 	}
 	plan.Merge = func(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow) {
-		if len(plan.Queries) > len(results) {
-			var mergedResults [][]model.QueryResultRow
-			mergedResults = make([][]model.QueryResultRow, 0)
-			// merge the results of the siblings queries
-			mergedResults = append(mergedResults, results[0])
-			// remove siblings queries from the plan
-			plan.Queries = plan.Queries[:len(plan.Queries)-1]
-			return plan, mergedResults
+		// That's the case when all siblings were executed and there are results for all of them
+		if len(plan.Queries) == len(results) {
+			for k, v := range plan.Siblings {
+				for _, sibling := range v {
+					// remove sibling query from the plan
+					plan.Queries = append(plan.Queries[:sibling], plan.Queries[sibling+1:]...)
+					// merge results of sibling query into the original query
+					results[k] = append(results[k], results[sibling]...)
+					// remove results of sibling query from the results
+					results = append(results[:sibling], results[sibling+1:]...)
+				}
+			}
+			plan.Siblings = make(map[int][]int)
+			return plan, results
 		}
+		// That's the case when some sibling queries were interrupted and we don't have results for them
+		for _, v := range plan.Siblings {
+			for _, sibling := range v {
+				// remove sibling query from the plan
+				plan.Queries = append(plan.Queries[:sibling], plan.Queries[sibling+1:]...)
+			}
+		}
+
 		return plan, results
 	}
 	return plan, nil
-
 }
 
 func (s splitTimeRangeExt) Name() string {
