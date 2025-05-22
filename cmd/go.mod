@@ -3,7 +3,7 @@ module github.com/QuesmaOrg/quesma/quesma-cli
 go 1.24.0
 
 require (
-	github.com/QuesmaOrg/quesma/platform v0.0.0-20250303135300-04f0a4897c30
+	github.com/QuesmaOrg/quesma/platform v0.0.0-20250519105918-0f6942f1a3dd
 	github.com/goccy/go-json v0.10.5
 	github.com/stretchr/testify v1.10.0
 )

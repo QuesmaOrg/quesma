@@ -694,7 +694,7 @@ type QueryJob func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResu
 func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 	var results = make([][]model.QueryResultRow, 0)
 	var performance = make([]clickhouse.PerformanceResult, 0)
-	for _, job := range jobs {
+	for n, job := range jobs {
 		plan, rows, perf, err := job(ctx)
 		performance = append(performance, perf)
 		if err != nil {
@@ -702,7 +702,7 @@ func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob)
 		}
 
 		results = append(results, rows)
-		if plan.Interrupt(rows) {
+		if plan.Interrupt(n, rows) {
 			break
 		}
 	}
@@ -753,7 +753,7 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 			return nil, performances, res.err
 		}
 		logger.InfoWithCtx(ctx).Msg("Collected result")
-		if res.plan != nil && res.plan.Interrupt(res.rows) {
+		if res.plan != nil && res.plan.Interrupt(res.jobId, res.rows) {
 			logger.InfoWithCtx(ctx).Msg("Interrupting")
 			break
 		}

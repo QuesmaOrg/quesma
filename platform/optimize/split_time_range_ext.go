@@ -5,8 +5,6 @@ package optimize
 import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
-	"github.com/jinzhu/copier"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -227,46 +225,54 @@ func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[str
 
 func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error) {
 
-	var newQueries []*model.Query
-
-	for _, query := range plan.Queries {
+	queriesSubqueriesMapping := make(map[int][]*model.Query)
+	for i, query := range plan.Queries {
 		subqueries, err := s.transformQuery(query, properties)
 		if err != nil {
 			return nil, err
 		}
-		newQueries = append(newQueries, subqueries...)
+		queriesSubqueriesMapping[i] = subqueries
 	}
 
-	if len(newQueries) > 0 {
-		plan.Queries[0].SelectCommand = newQueries[0].SelectCommand
+	var newQueries []*model.Query
 
-		for i := 1; i < len(newQueries); i++ {
-			var queryCopy model.Query
-			err := copier.Copy(&queryCopy, &plan.Queries[0])
-			if err != nil {
-				log.Println("copier.Copy failed:", err)
-			}
-			plan.Queries = append(plan.Queries, &queryCopy)
-			plan.Queries[i].SelectCommand = newQueries[i].SelectCommand
+	for i := range plan.Queries {
+		subqueries := queriesSubqueriesMapping[i]
+		plan.Queries[i].SelectCommand = subqueries[0].SelectCommand
+		for j := 1; j < len(subqueries); j++ {
+			newQuery := plan.Queries[0].Clone()
+			newQuery.SelectCommand = subqueries[j].SelectCommand
+			newQueries = append(newQueries, newQuery)
+			plan.Siblings[i] = append(plan.Siblings[i], j)
 		}
-		plan.ShouldBeMerged = true
 	}
-	for _, subquery := range newQueries {
-		sql := subquery.SelectCommand.String()
-		logger.Info().Msgf("@@@@@@Transformed query: %s", sql)
+	_ = newQueries
+	for i, subqueryPerQuery := range queriesSubqueriesMapping {
+		querySQL := plan.Queries[i].SelectCommand
+		logger.Info().Msgf("@@@@@@Original query: %s", querySQL.String())
+		for j := 0; j < len(subqueryPerQuery); j++ {
+			logger.Info().Msgf("@@@@@@Transformed query: %s", subqueryPerQuery[j].SelectCommand.String())
+		}
 	}
 
-	plan.Interrupt = func(rows []model.QueryResultRow) bool {
-		return len(rows) >= 500
+	plan.Interrupt = func(queryId int, rows []model.QueryResultRow) bool {
+		if _, ok := plan.Siblings[queryId]; ok {
+			return len(rows) >= 500
+		}
+		return false
 	}
 	plan.Merge = func(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow) {
 		var mergedResults [][]model.QueryResultRow
 		mergedResults = make([][]model.QueryResultRow, 0)
-		mergedResults = append(mergedResults, results[0])
+
 		if len(plan.Queries) > len(mergedResults) {
+			// merge the results of the siblings queries
+			mergedResults = append(mergedResults, results[0])
+			// remove siblings queries from the plan
 			plan.Queries = plan.Queries[:len(plan.Queries)-1]
+			return plan, mergedResults
 		}
-		return plan, mergedResults
+		return plan, results
 	}
 	return plan, nil
 
