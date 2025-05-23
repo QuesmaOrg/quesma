@@ -12,7 +12,7 @@ type replaceColumNamesWithFieldNames struct {
 	indexSchema schema.Schema
 }
 
-func (t *replaceColumNamesWithFieldNames) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+func (t *replaceColumNamesWithFieldNames) Transform(plan *model.ExecutionPlan, result [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow, error) {
 
 	schemaInstance := t.indexSchema
 	for _, rows := range result {
@@ -25,14 +25,14 @@ func (t *replaceColumNamesWithFieldNames) Transform(result [][]model.QueryResult
 			}
 		}
 	}
-	return result, nil
+	return plan, result, nil
 }
 
 type EvalPainlessScriptOnColumnsTransformer struct {
 	FieldScripts map[string]painful.Expr
 }
 
-func (t *EvalPainlessScriptOnColumnsTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+func (t *EvalPainlessScriptOnColumnsTransformer) Transform(plan *model.ExecutionPlan, result [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow, error) {
 
 	for _, rows := range result {
 		for _, row := range rows {
@@ -50,12 +50,22 @@ func (t *EvalPainlessScriptOnColumnsTransformer) Transform(result [][]model.Quer
 
 					_, err := script.Eval(env)
 					if err != nil {
-						return nil, err
+						return plan, nil, err
 					}
 					row.Cols[j].Value = env.EmitValue
 				}
 			}
 		}
 	}
-	return result, nil
+	return plan, result, nil
+}
+
+type SiblingsTransformer struct {
+}
+
+func (t *SiblingsTransformer) Transform(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow, error) {
+	if plan.Merge != nil {
+		plan, results = plan.Merge(plan, results)
+	}
+	return plan, results, nil
 }
