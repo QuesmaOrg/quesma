@@ -260,36 +260,30 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 	}
 
 	plan.Interrupt = func(queryId int, rows []model.QueryResultRow) bool {
+		const maxRows = 500
 		if _, ok := plan.Siblings[queryId]; ok {
-			return len(rows) >= 500
+			return len(rows) >= maxRows
 		}
 		return false
 	}
 	plan.Merge = func(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow) {
-		// That's the case when all siblings were executed and there are results for all of them
-		if len(plan.Queries) == len(results) {
-			for k, v := range plan.Siblings {
-				for _, sibling := range v {
-					// remove sibling query from the plan
-					plan.Queries = append(plan.Queries[:sibling], plan.Queries[sibling+1:]...)
-					// merge results of sibling query into the original query
-					results[k] = make([]model.QueryResultRow, 0)
-					results[k] = append(results[k], results[sibling]...)
-					// remove results of sibling query from the results
-					results = append(results[:sibling], results[sibling+1:]...)
-				}
-			}
-			plan.Siblings = make(map[int][]int)
-			return plan, results
-		}
-		// That's the case when some sibling queries were interrupted and we don't have results for them
-		for _, v := range plan.Siblings {
+		for k, v := range plan.Siblings {
 			for _, sibling := range v {
 				// remove sibling query from the plan
 				plan.Queries = append(plan.Queries[:sibling], plan.Queries[sibling+1:]...)
+				// merge results of sibling query into the original query
+				if len(results[k]) == 0 && len(results[sibling]) > 0 {
+					results[k] = append(results[k], results[sibling]...)
+				}
+				if len(results[k]) > 0 && len(results[sibling]) > 0 {
+					results[k] = make([]model.QueryResultRow, 0)
+					results[k] = append(results[k], results[sibling]...)
+				}
+				// remove results of sibling query from the results
+				results = append(results[:sibling], results[sibling+1:]...)
 			}
 		}
-
+		plan.Siblings = make(map[int][]int)
 		return plan, results
 	}
 	return plan, nil
