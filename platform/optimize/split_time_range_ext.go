@@ -194,23 +194,26 @@ func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[str
 		return queries, nil
 	}
 
-	for i := 0; i < len(splitPoints)-1; i++ {
+	for i := 1; i < len(splitPoints); i++ {
 		subquery := query.SelectCommand
 
-		var whereClause model.Expr
-		if i == 0 {
-			// (splitPoint[1], inf)
-			whereClause = model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), ">", model.NewFunction(splitPoints[i+1].funcName, model.NewLiteral(splitPoints[i+1].value)))
-		} else if i == len(splitPoints)-2 {
-			// (-inf, splitPoint[i]]
-			whereClause = model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), "<=", model.NewFunction(splitPoints[i].funcName, model.NewLiteral(splitPoints[i].value)))
-		} else {
-			// (splitPoint[i], splitPoint[i+1]]
-			whereClause = model.NewInfixExpr(model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), "<=", model.NewFunction(splitPoints[i].funcName, model.NewLiteral(splitPoints[i].value))), "AND",
-				model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), ">", model.NewFunction(splitPoints[i+1].funcName, model.NewLiteral(splitPoints[i+1].value))))
-		}
-		subquery.WhereClause = model.NewInfixExpr(whereClause, "AND", subquery.WhereClause)
+		start := splitPoints[i].value
+		end := splitPoints[0].value // always ends at "now"
 
+		startExpr := model.NewFunction(splitPoints[i].funcName, model.NewLiteral(start))
+		endExpr := model.NewFunction(splitPoints[0].funcName, model.NewLiteral(end))
+
+		whereClause := model.NewInfixExpr(
+			model.NewInfixExpr(
+				model.NewColumnRef(foundTimeRange.columnName), ">=", startExpr,
+			),
+			"AND",
+			model.NewInfixExpr(
+				model.NewColumnRef(foundTimeRange.columnName), "<", endExpr,
+			),
+		)
+
+		subquery.WhereClause = whereClause
 		subqueries = append(subqueries, subquery)
 	}
 
@@ -270,6 +273,7 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 					// remove sibling query from the plan
 					plan.Queries = append(plan.Queries[:sibling], plan.Queries[sibling+1:]...)
 					// merge results of sibling query into the original query
+					results[k] = make([]model.QueryResultRow, 0)
 					results[k] = append(results[k], results[sibling]...)
 					// remove results of sibling query from the results
 					results = append(results[:sibling], results[sibling+1:]...)
