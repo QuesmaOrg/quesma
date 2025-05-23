@@ -960,6 +960,7 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 
 	}
 
+	pipeline = append(pipeline, pipelineElement{"siblingsTransformer", &SiblingsTransformer{}})
 	var err error
 	for _, t := range pipeline {
 
@@ -967,14 +968,12 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 		// for example if the schema doesn't hava array fields, we should skip the arrayResultTransformer
 		// these transformers can be cpu and mem consuming
 
-		results, err = t.transformer.Transform(results)
+		plan, results, err = t.transformer.Transform(plan, results)
 		if err != nil {
 			return nil, fmt.Errorf("resuls transformer %s has failed: %w", t.name, err)
 		}
 	}
-	if plan.Merge != nil {
-		plan, results = plan.Merge(plan, results)
-	}
+
 	return results, nil
 }
 

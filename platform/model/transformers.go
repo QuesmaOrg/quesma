@@ -9,7 +9,7 @@ type QueryTransformer interface {
 }
 
 type ResultTransformer interface {
-	Transform(result [][]QueryResultRow) ([][]QueryResultRow, error)
+	Transform(plan *ExecutionPlan, result [][]QueryResultRow) (*ExecutionPlan, [][]QueryResultRow, error)
 }
 
 type QueryRowsTransformer interface {
