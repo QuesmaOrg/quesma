@@ -709,10 +709,15 @@ func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob)
 	return results, performance, nil
 }
 
-func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
-
-	var results = make([][]model.QueryResultRow, len(jobs))
-	var performances = make([]clickhouse.PerformanceResult, len(jobs))
+func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob) (
+	[][]model.QueryResultRow,
+	[]clickhouse.PerformanceResult,
+	error,
+) {
+	var (
+		results      = make([][]model.QueryResultRow, len(jobs))
+		performances = make([]clickhouse.PerformanceResult, len(jobs))
+	)
 	type result struct {
 		plan  *model.ExecutionPlan
 		rows  []model.QueryResultRow
@@ -721,47 +726,68 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 		jobId int
 	}
 
-	// this is our context to control the execution of the jobs
-
-	// cancellation is done by the parent context
-	// or by the first goroutine that returns an error
+	// cancelable context to stop jobs early
 	ctx, cancel := context.WithCancel(ctx)
-	// clean up on return
 	defer cancel()
 
 	collector := make(chan result, len(jobs))
+
+	// spawn worker goroutines
 	for n, job := range jobs {
-		// produce
 		go func(ctx context.Context, jobId int, j QueryJob) {
 			defer recovery.LogAndHandlePanic(ctx, func(err error) {
-				collector <- result{err: err, jobId: jobId}
+				select {
+				case collector <- result{err: err, jobId: jobId}:
+				case <-ctx.Done():
+				}
 			})
+
 			start := time.Now()
 			plan, rows, perf, err := j(ctx)
 			logger.DebugWithCtx(ctx).Msgf("parallel job %d finished in %v", jobId, time.Since(start))
-			collector <- result{plan: plan, rows: rows, perf: perf, err: err, jobId: jobId}
+
+			select {
+			case collector <- result{plan: plan, rows: rows, perf: perf, err: err, jobId: jobId}:
+			case <-ctx.Done():
+			}
 		}(ctx, n, job)
 	}
 
-	// consume
-	for range len(jobs) {
+	expected := len(jobs)
+	received := 0
+
+	for received < expected {
 		res := <-collector
+		received++
+
 		performances[res.jobId] = res.perf
-		if res.err == nil {
-			results[res.jobId] = res.rows
-		} else {
+
+		if res.err != nil {
+			logger.WarnWithCtx(ctx).Msgf("Job %d failed: %v", res.jobId, res.err)
+			cancel() // cancel remaining jobs
+
+			// Drain the rest to avoid goroutine leaks
+			for received < len(jobs) {
+				<-collector
+				received++
+			}
 			return nil, performances, res.err
 		}
-		logger.InfoWithCtx(ctx).Msg("Collected result")
+
+		results[res.jobId] = res.rows
+		logger.InfoWithCtx(ctx).Msgf("Collected result from job %d", res.jobId)
+
 		if res.plan != nil && res.plan.Interrupt(res.jobId, res.rows) {
-			logger.InfoWithCtx(ctx).Msg("Interrupting")
-			break
+			logger.InfoWithCtx(ctx).Msgf("Job %d triggered interrupt", res.jobId)
+			expected--
+		}
+		if expected == received {
+			cancel()
 		}
 	}
 
 	return results, performances, nil
 }
-
 func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 
 	numberOfJobs := len(jobs)
