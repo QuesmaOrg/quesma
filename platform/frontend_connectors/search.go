@@ -736,20 +736,13 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 	for n, job := range jobs {
 		go func(ctx context.Context, jobId int, j QueryJob) {
 			defer recovery.LogAndHandlePanic(ctx, func(err error) {
-				select {
-				case collector <- result{err: err, jobId: jobId}:
-				case <-ctx.Done():
-				}
+				collector <- result{err: err, jobId: jobId}
 			})
 
 			start := time.Now()
 			plan, rows, perf, err := j(ctx)
 			logger.DebugWithCtx(ctx).Msgf("parallel job %d finished in %v", jobId, time.Since(start))
-
-			select {
-			case collector <- result{plan: plan, rows: rows, perf: perf, err: err, jobId: jobId}:
-			case <-ctx.Done():
-			}
+			collector <- result{plan: plan, rows: rows, perf: perf, err: err, jobId: jobId}
 		}(ctx, n, job)
 	}
 
