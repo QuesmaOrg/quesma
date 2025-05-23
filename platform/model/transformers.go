@@ -5,11 +5,11 @@ package model
 import "context"
 
 type QueryTransformer interface {
-	Transform(query []*Query) ([]*Query, error)
+	Transform(plan *ExecutionPlan) (*ExecutionPlan, error)
 }
 
 type ResultTransformer interface {
-	Transform(result [][]QueryResultRow) ([][]QueryResultRow, error)
+	Transform(plan *ExecutionPlan, result [][]QueryResultRow) (*ExecutionPlan, [][]QueryResultRow, error)
 }
 
 type QueryRowsTransformer interface {
