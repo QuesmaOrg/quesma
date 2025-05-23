@@ -395,9 +395,6 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			doneCh <- asyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 		}
 
-		if plan.Merge != nil {
-			plan, results = plan.Merge(plan, results)
-		}
 		searchResponse := queryTranslator.MakeSearchResponse(plan.Queries, results)
 
 		doneCh <- asyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
@@ -975,7 +972,9 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 			return nil, fmt.Errorf("resuls transformer %s has failed: %w", t.name, err)
 		}
 	}
-
+	if plan.Merge != nil {
+		plan, results = plan.Merge(plan, results)
+	}
 	return results, nil
 }
 
