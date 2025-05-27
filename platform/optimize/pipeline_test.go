@@ -58,9 +58,7 @@ func Test_cacheQueries(t *testing.T) {
 					TableName:     tt.tableName,
 				},
 			}
-			plan := &model.ExecutionPlan{
-				Queries: queries,
-			}
+			plan := model.NewExecutionPlan(queries, nil)
 			pipeline := NewOptimizePipeline(&cfg)
 			optimized, err := pipeline.Transform(plan)
 			if err != nil {
@@ -214,9 +212,7 @@ func Test_dateTrunc(t *testing.T) {
 					SelectCommand: tt.query,
 				},
 			}
-			plan := &model.ExecutionPlan{
-				Queries: queries,
-			}
+			plan := model.NewExecutionPlan(queries, nil)
 			pipeline := NewOptimizePipeline(&cfg)
 			optimized, err := pipeline.Transform(plan)
 
@@ -453,9 +449,7 @@ func Test_materialized_view_replace(t *testing.T) {
 					SelectCommand: tt.query,
 				},
 			}
-			plan := &model.ExecutionPlan{
-				Queries: queries,
-			}
+			plan := model.NewExecutionPlan(queries, nil)
 			pipeline := NewOptimizePipeline(&cfg)
 			optimized, err := pipeline.Transform(plan)
 

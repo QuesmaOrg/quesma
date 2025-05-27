@@ -499,9 +499,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				q.Schema = currentSchema
 				q.Indexes = []string{q.TableName}
 			}
-			plan := &model.ExecutionPlan{
-				Queries: queries[k],
-			}
+			plan := model.NewExecutionPlan(queries[k], nil)
 
 			resultPlan, err := transform.Transform(plan)
 			assert.NoError(t, err)
@@ -742,9 +740,10 @@ func Test_arrayType(t *testing.T) {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			plan := &model.ExecutionPlan{
-				Queries: []*model.Query{tt.query},
-			}
+			plan := model.NewExecutionPlan(
+				[]*model.Query{tt.query},
+				nil,
+			)
 			actual, err := transform.Transform(plan)
 			assert.NoError(t, err)
 
@@ -1810,9 +1809,10 @@ func Test_mapKeys(t *testing.T) {
 			tt.query.Indexes = []string{tt.query.TableName}
 			var actual *model.ExecutionPlan
 			var err error
-			plan := &model.ExecutionPlan{
-				Queries: []*model.Query{tt.query},
-			}
+			plan := model.NewExecutionPlan(
+				[]*model.Query{tt.query},
+				nil,
+			)
 			if indexConfig[tt.query.TableName].EnableFieldMapSyntax {
 				actual, err = transformPass.Transform(plan)
 			} else {
@@ -1905,9 +1905,10 @@ func Test_cluster(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
 
-			plan := &model.ExecutionPlan{
-				Queries: []*model.Query{tt.query},
-			}
+			plan := model.NewExecutionPlan(
+				[]*model.Query{tt.query},
+				nil,
+			)
 			actual, err := transform.Transform(plan)
 			assert.NoError(t, err)
 

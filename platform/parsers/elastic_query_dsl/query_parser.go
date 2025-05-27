@@ -43,7 +43,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	simpleQuery, hitsInfo, highlighter, err := cw.parseQueryInternal(body)
 	if err != nil || !simpleQuery.CanParse {
 		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
-		return &model.ExecutionPlan{}, err
+		return model.NewExecutionPlan(nil, nil), err
 	}
 
 	var queries []*model.Query
@@ -74,7 +74,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 
 	runtimeMappings, err := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
 	if err != nil {
-		return &model.ExecutionPlan{}, err
+		return model.NewExecutionPlan(nil, nil), err
 	}
 
 	// we apply post query transformer for certain aggregation types
