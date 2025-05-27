@@ -117,8 +117,8 @@ type ExecutionPlan struct {
 	// e.g., there is some condition like enough results
 	Interrupt func(queryId int, rows []QueryResultRow) bool
 
-	Merge    func(plan *ExecutionPlan, results [][]QueryResultRow) (*ExecutionPlan, [][]QueryResultRow)
-	Siblings map[int][]int // map of query id to list of sibling query ids
+	MergeSiblingResults func(plan *ExecutionPlan, results [][]QueryResultRow) (*ExecutionPlan, [][]QueryResultRow)
+	Siblings            map[int][]int // map of query id to list of sibling query ids
 }
 
 func NewQueryExecutionHints() *QueryOptimizeHints {

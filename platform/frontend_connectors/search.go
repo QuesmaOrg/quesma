@@ -523,17 +523,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 	err = q.transformQueries(plan)
 
-	// TODO only for debug purposes, remove it
-	if len(plan.Queries) > 0 {
-		logger.InfoWithCtx(ctx).Msgf("Parsed queries: %d", len(plan.Queries))
-		bytes, _ := body.Bytes()
-		logger.InfoWithCtx(ctx).Msgf("Body: %s", string(bytes))
-
-		for i, query := range plan.Queries {
-			logger.InfoWithCtx(ctx).Msgf("Parsed query %d: %s", i, query.SelectCommand.String())
-		}
-		logger.InfoWithCtx(ctx).Msg("----------------------------------------")
-	}
 	if err != nil {
 		goto logErrorAndReturn
 	}
@@ -765,7 +754,6 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 		}
 
 		results[res.jobId] = res.rows
-		logger.InfoWithCtx(ctx).Msgf("Collected result from job %d", res.jobId)
 
 		if res.plan != nil && res.plan.Interrupt(res.jobId, res.rows) {
 			logger.InfoWithCtx(ctx).Msgf("Job %d triggered interrupt", res.jobId)

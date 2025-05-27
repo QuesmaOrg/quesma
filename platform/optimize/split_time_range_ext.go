@@ -251,13 +251,6 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 		}
 	}
 	plan.Queries = append(plan.Queries, newQueries...)
-	for i, subqueryPerQuery := range queriesSubqueriesMapping {
-		querySQL := plan.Queries[i].SelectCommand
-		logger.Info().Msgf("@@@@@@Original query: %s", querySQL.String())
-		for j := 0; j < len(subqueryPerQuery); j++ {
-			logger.Info().Msgf("@@@@@@Transformed query: %s", subqueryPerQuery[j].SelectCommand.String())
-		}
-	}
 
 	plan.Interrupt = func(queryId int, rows []model.QueryResultRow) bool {
 		const maxRows = 500
@@ -266,7 +259,7 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 		}
 		return false
 	}
-	plan.Merge = func(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow) {
+	plan.MergeSiblingResults = func(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow) {
 		for k, v := range plan.Siblings {
 			for _, sibling := range v {
 				// remove sibling query from the plan
