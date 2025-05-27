@@ -122,6 +122,18 @@ type ExecutionPlan struct {
 	SiblingQueries map[int][]int // Map of query IDs to their sibling query IDs
 }
 
+// NewExecutionPlan creates a new instance of model.ExecutionPlan
+func NewExecutionPlan(queries []*Query, queryRowsTransformers []QueryRowsTransformer) *ExecutionPlan {
+	return &ExecutionPlan{
+		Queries:               queries,
+		QueryRowsTransformers: queryRowsTransformers,
+		SiblingQueries:        make(map[int][]int),
+		Interrupt: func(queryId int, rows []QueryResultRow) bool {
+			return false
+		},
+	}
+}
+
 func NewQueryExecutionHints() *QueryOptimizeHints {
 	return &QueryOptimizeHints{ClickhouseQuerySettings: make(map[string]any)}
 }
