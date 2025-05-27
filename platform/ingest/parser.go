@@ -55,24 +55,25 @@ func columnsToString(columnsFromJson []CreateTableEntry,
 		columnMetadata := comment_metadata.NewCommentMetadata()
 		columnMetadata.Values[comment_metadata.ElasticFieldName] = propertyName
 		comment := columnMetadata.Marshall()
-
 		if columnFromSchema, found := columnsFromSchema[schema.FieldName(columnFromJson.ClickHouseColumnName)]; found {
-			// Schema takes precedence over inferred type from JSON
+			// Check if the type is an Array – if so, fallback to JSON type
 			if strings.Contains(columnFromJson.ClickHouseType, "Array") {
 				// The schema (e.g. PUT /:index/_mapping) doesn't contain information about whether a field is an array or not.
 				// Therefore, we have to combine the information from the schema and the JSON in such case.
 				// For example: in the mapping we have a field "products.name" with type "keyword" (String)
 				// and in the JSON "products.name" is an array of strings (Array(String)).
-
 				if strings.Count(columnFromJson.ClickHouseType, "Array") > 1 {
 					logger.Warn().Msgf("Column '%s' has type '%s' - an array nested multiple times. Such case might not be handled correctly.", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType)
 				}
-
-				result.WriteString(fmt.Sprintf("\"%s\" Array(%s) COMMENT '%s'", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType, comment))
+				result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType+" COMMENT ", comment))
+				// TODO this should be changed to use the schema type, but needs further investigation
+				//result.WriteString(fmt.Sprintf("\"%s\" Array(%s) COMMENT '%s'", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType, comment))
 			} else {
+				// Use schema type
 				result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType+" COMMENT ", comment))
 			}
 		} else {
+			// Not found in schema – fallback to JSON type
 			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType+" COMMENT ", comment))
 		}
 
