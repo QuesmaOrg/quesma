@@ -100,25 +100,26 @@ const MainExecutionPlan = "main"
 const AlternativeExecutionPlan = "alternative"
 
 type ExecutionPlan struct {
-	Name string
+	Name string // Name of the execution plan, e.g., "main" or "alternative"
 
-	IndexPattern string
+	IndexPattern string // Pattern for the index used in the execution plan
 
-	Queries []*Query
+	Queries []*Query // List of queries included in the execution plan
 
-	QueryRowsTransformers []QueryRowsTransformer
+	QueryRowsTransformers []QueryRowsTransformer // Transformers to process query result rows
 
-	// add more fields here
-	// JSON renderers
-	StartTime time.Time
+	StartTime time.Time // Timestamp indicating when the execution plan started
 
 	// Interrupt function to stop the execution of the plan
-	// if for some reason we need to stop the execution
-	// e.g., there is some condition like enough results
+	// This function is invoked to determine if the execution should be stopped
+	// based on certain conditions, e.g., when enough results are retrieved
 	Interrupt func(queryId int, rows []QueryResultRow) bool
 
+	// Function to merge results from sibling queries
+	// This is used to combine results from related queries into a single result set
 	MergeSiblingResults func(plan *ExecutionPlan, results [][]QueryResultRow) (*ExecutionPlan, [][]QueryResultRow)
-	Siblings            map[int][]int // map of query id to list of sibling query ids
+
+	SiblingQueries map[int][]int // Map of query IDs to their sibling query IDs
 }
 
 func NewQueryExecutionHints() *QueryOptimizeHints {

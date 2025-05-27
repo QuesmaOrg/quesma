@@ -19,6 +19,11 @@ import (
 // This optimization therefore splits the time range into parts: a short time range, on which we bet that the query
 // will be fast (and still return LIMIT many results) and a long time range, which will be used to get the rest of the
 // results (in case the short time range didn't return enough results).
+
+// Together with this optimization, query execution mechanism is modified to allow for sibling queries, which
+// means that the original query can be split into multiple subqueries that are executed in parallel.
+// Then the results of those subqueries are merged back into the original query result by specific ResultTransformer,
+// SiblingsTransformer.
 type splitTimeRangeExt struct{}
 
 func (s splitTimeRangeExt) validateSelectedColumns(columns []model.Expr) bool {
@@ -246,7 +251,7 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 			newQuery := plan.Queries[0].Clone()
 			newQuery.SelectCommand = subqueries[j].SelectCommand
 			newQueries = append(newQueries, newQuery)
-			plan.Siblings[i] = append(plan.Siblings[i], nextQueryId)
+			plan.SiblingQueries[i] = append(plan.SiblingQueries[i], nextQueryId)
 			nextQueryId++
 		}
 	}
@@ -254,13 +259,13 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 
 	plan.Interrupt = func(queryId int, rows []model.QueryResultRow) bool {
 		const maxRows = 500
-		if _, ok := plan.Siblings[queryId]; ok {
+		if _, ok := plan.SiblingQueries[queryId]; ok {
 			return len(rows) >= maxRows
 		}
 		return false
 	}
 	plan.MergeSiblingResults = func(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow) {
-		for k, v := range plan.Siblings {
+		for k, v := range plan.SiblingQueries {
 			for _, sibling := range v {
 				// remove sibling query from the plan
 				plan.Queries = append(plan.Queries[:sibling], plan.Queries[sibling+1:]...)
@@ -276,7 +281,7 @@ func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[s
 				results = append(results[:sibling], results[sibling+1:]...)
 			}
 		}
-		plan.Siblings = make(map[int][]int)
+		plan.SiblingQueries = make(map[int][]int)
 		return plan, results
 	}
 	return plan, nil
