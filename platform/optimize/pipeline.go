@@ -24,14 +24,21 @@ type OptimizePipeline struct {
 }
 
 func NewOptimizePipeline(config *config.QuesmaConfiguration) model.QueryTransformer {
-
+	// TODO remove this line when splitTimeRange is removed
+	// this is just to satisfy the linter
+	_ = &splitTimeRange{}
 	return &OptimizePipeline{
 		config: config,
 		optimizations: []OptimizeTransformer{
 			&truncateDate{truncateTo: 5 * time.Minute},
 			&cacheQueries{},
 			&materializedViewReplace{},
-			&splitTimeRange{},
+			// TODO finally remove this transformer
+			// commenting out splitTimeRange for now
+			// as we have splitTimeRangeExt that uses novel approach
+			// of splitting queries based on time range
+			// executing them in parallel and finally merging results
+			// &splitTimeRange{},
 			&splitTimeRangeExt{},
 		},
 	}
