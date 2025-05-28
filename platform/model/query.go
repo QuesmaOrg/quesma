@@ -63,8 +63,9 @@ type (
 		// this is schema for current query, this schema should be used in pipeline processing
 		Schema schema.Schema
 
-		Highlighter Highlighter
-		SearchAfter any // Value of query's "search_after" param. Used for pagination of hits. SearchAfterEmpty means no pagination
+		Highlighter           Highlighter
+		SearchAfter           any      // Value of query's "search_after" param. Used for pagination of hits. SearchAfterEmpty means no pagination
+		SearchAfterFieldNames []string // Names of fields used in search_after. These can be different from the order by fields,
 
 		RuntimeMappings map[string]RuntimeMapping
 

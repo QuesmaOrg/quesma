@@ -122,6 +122,7 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, simpleQuery.SortFieldNames, true, false, false, cw.Indexes)
 		fullQuery.Type = &queryType
 		fullQuery.Highlighter = highlighter
+		fullQuery.SearchAfterFieldNames = simpleQuery.SortFieldNames
 	}
 
 	return fullQuery

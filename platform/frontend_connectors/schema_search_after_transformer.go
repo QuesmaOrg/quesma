@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"slices"
 )
 
 type (
@@ -114,6 +115,9 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 	//if len(asArray) != len(query.SelectCommand.OrderBy) {
 	//	return nil, fmt.Errorf("len(search_after) != len(sortFields), search_after: %v, sortFields: %v", asArray, query.SelectCommand.OrderBy)
 	//}
+	if len(asArray) == 2 && slices.Contains(query.SearchAfterFieldNames, "_doc") {
+		asArray = asArray[:len(asArray)-1] // remove the last element, which is _doc
+	}
 
 	searchAfterParsed = make([]model.Expr, 0)
 	for i, searchAfterValue := range asArray {
@@ -134,8 +138,10 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 		if field.Type.Name == "date" || field.Type.Name == "timestamp" {
 			if number, isNumber := util.ExtractNumeric64Maybe(searchAfterValue); isNumber {
 				if number >= 0 && util.IsFloat64AnInt64(number) {
+					// TODO FIGURE OUT THIS TYPE MESS
 					// this param will always be timestamp in milliseconds, as we create it like this while rendering hits
 					searchAfterParsed = append(searchAfterParsed, model.NewFunction("toDateTime", model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))))
+					//searchAfterParsed = append(searchAfterParsed, model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number))))
 				} else {
 					return nil, fmt.Errorf("for basicAndFast strategy, search_after must be a unix timestamp in milliseconds")
 				}
