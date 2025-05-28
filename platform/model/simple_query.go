@@ -3,9 +3,12 @@
 package model
 
 type SimpleQuery struct {
-	WhereClause Expr
-	OrderBy     []OrderByExpr
-	CanParse    bool
+	WhereClause    Expr
+	OrderBy        []OrderByExpr
+	SortFieldNames []string // SortFieldNames is used to preserve fields listed in the `sort` part of the query.
+	// This can be different from the OrderBy clause, as it may contain Elasticsearch-internal fields like `_doc`.
+	// In that case, it is not reflected in the OrderBy clause, but is still used for assembling the response.
+	CanParse bool
 	// NeedCountWithLimit > 0 means we need count(*) LIMIT NeedCountWithLimit
 	// NeedCountWithLimit 0 (WeNeedUnlimitedCount) means we need count(*) (unlimited)
 	// NeedCountWithLimit -1 (WeDontNeedCount) means we don't need a count(*) query

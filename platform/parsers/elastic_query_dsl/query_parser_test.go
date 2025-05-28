@@ -272,7 +272,8 @@ func Test_parseSortFields(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background()}
 	for i, tt := range tests {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
-			assert.Equal(t, tt.sortColumns, cw.parseSortFields(tt.sortMap))
+			orderBy, _ := cw.parseSortFields(tt.sortMap)
+			assert.Equal(t, tt.sortColumns, orderBy)
 		})
 	}
 }
