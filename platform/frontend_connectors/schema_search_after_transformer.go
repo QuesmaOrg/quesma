@@ -138,7 +138,7 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 						// Here we have to make sure that the statement landing in the where clause will match the field type
 						searchAfterParsed[i] = model.NewFunction("toDateTime", milliTimestamp)
 					} else {
-						// Default case of (field.InternalPropertyType == "DateTime")
+						// Default case of (field.InternalPropertyType == "DateTime64")
 						// which most often is DateTime64(3) allowing millisecond precision
 						searchAfterParsed[i] = milliTimestamp
 					}
