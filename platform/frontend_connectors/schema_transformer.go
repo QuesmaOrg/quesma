@@ -1031,7 +1031,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 			query, err = transformation.Transformation(query.Schema, query)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error applying transformation %s: %w", transformation.TransformationName, err)
 			}
 
 			if s.cfg.Logging.EnableSQLTracing {

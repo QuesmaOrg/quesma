@@ -215,9 +215,10 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 
 func Test_parseSortFields(t *testing.T) {
 	tests := []struct {
-		name        string
-		sortMap     any
-		sortColumns []model.OrderByExpr
+		name           string
+		sortMap        any
+		sortColumns    []model.OrderByExpr
+		sortFieldNames []string
 	}{
 		{
 			name: "compound",
@@ -234,11 +235,13 @@ func Test_parseSortFields(t *testing.T) {
 				model.NewSortColumn("no_order_field", model.AscOrder),
 				model.NewSortColumn("_table_field_with_underscore", model.AscOrder),
 			},
+			sortFieldNames: []string{"@timestamp", "service.name", "no_order_field", "_table_field_with_underscore", "_doc"},
 		},
 		{
-			name:        "empty",
-			sortMap:     []any{},
-			sortColumns: []model.OrderByExpr{},
+			name:           "empty",
+			sortMap:        []any{},
+			sortColumns:    []model.OrderByExpr{},
+			sortFieldNames: []string{},
 		},
 		{
 			name: "map[string]string",
@@ -246,7 +249,8 @@ func Test_parseSortFields(t *testing.T) {
 				"timestamp": "desc",
 				"_doc":      "desc",
 			},
-			sortColumns: []model.OrderByExpr{model.NewSortColumn("timestamp", model.DescOrder)},
+			sortColumns:    []model.OrderByExpr{model.NewSortColumn("timestamp", model.DescOrder)},
+			sortFieldNames: []string{"timestamp", "_doc"},
 		},
 		{
 			name: "map[string]interface{}",
@@ -254,14 +258,16 @@ func Test_parseSortFields(t *testing.T) {
 				"timestamp": "desc",
 				"_doc":      "desc",
 			},
-			sortColumns: []model.OrderByExpr{model.NewSortColumn("timestamp", model.DescOrder)},
+			sortColumns:    []model.OrderByExpr{model.NewSortColumn("timestamp", model.DescOrder)},
+			sortFieldNames: []string{"timestamp", "_doc"},
 		}, {
 			name: "[]map[string]string",
 			sortMap: []any{
 				QueryMap{"@timestamp": "asc"},
 				QueryMap{"_doc": "asc"},
 			},
-			sortColumns: []model.OrderByExpr{model.NewSortColumn("@timestamp", model.AscOrder)},
+			sortColumns:    []model.OrderByExpr{model.NewSortColumn("@timestamp", model.AscOrder)},
+			sortFieldNames: []string{"@timestamp", "_doc"},
 		},
 	}
 	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`
@@ -272,7 +278,9 @@ func Test_parseSortFields(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background()}
 	for i, tt := range tests {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
-			assert.Equal(t, tt.sortColumns, cw.parseSortFields(tt.sortMap))
+			orderBy, sortFieldNames := cw.parseSortFields(tt.sortMap)
+			assert.Equal(t, tt.sortColumns, orderBy)
+			assert.ElementsMatch(t, tt.sortFieldNames, sortFieldNames)
 		})
 	}
 }
