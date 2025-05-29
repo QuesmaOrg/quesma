@@ -100,17 +100,38 @@ const MainExecutionPlan = "main"
 const AlternativeExecutionPlan = "alternative"
 
 type ExecutionPlan struct {
-	Name string
+	Name string // Name of the execution plan, e.g., "main" or "alternative"
 
-	IndexPattern string
+	IndexPattern string // Pattern for the index used in the execution plan
 
-	Queries []*Query
+	Queries []*Query // List of queries included in the execution plan
 
-	QueryRowsTransformers []QueryRowsTransformer
+	QueryRowsTransformers []QueryRowsTransformer // Transformers to process query result rows
 
-	// add more fields here
-	// JSON renderers
-	StartTime time.Time
+	StartTime time.Time // Timestamp indicating when the execution plan started
+
+	// Interrupt function to stop the execution of the plan
+	// This function is invoked to determine if the execution should be stopped
+	// based on certain conditions, e.g., when enough results are retrieved
+	Interrupt func(queryId int, rows []QueryResultRow) bool
+
+	// Function to merge results from sibling queries
+	// This is used to combine results from related queries into a single result set
+	MergeSiblingResults func(plan *ExecutionPlan, results [][]QueryResultRow) (*ExecutionPlan, [][]QueryResultRow)
+
+	SiblingQueries map[int][]int // Map of query IDs to their sibling query IDs
+}
+
+// NewExecutionPlan creates a new instance of model.ExecutionPlan
+func NewExecutionPlan(queries []*Query, queryRowsTransformers []QueryRowsTransformer) *ExecutionPlan {
+	return &ExecutionPlan{
+		Queries:               queries,
+		QueryRowsTransformers: queryRowsTransformers,
+		SiblingQueries:        make(map[int][]int),
+		Interrupt: func(queryId int, rows []QueryResultRow) bool {
+			return false
+		},
+	}
 }
 
 func NewQueryExecutionHints() *QueryOptimizeHints {
@@ -168,4 +189,47 @@ type HitsCountInfo struct {
 
 func NewEmptyHitsCountInfo() HitsCountInfo {
 	return HitsCountInfo{Type: Normal}
+}
+
+func (q *Query) Clone() *Query {
+	// Create a new Query object
+	clone := &Query{
+		SelectCommand:         q.SelectCommand, // Assuming SelectCommand has its own copy logic if needed
+		OptimizeHints:         nil,
+		TransformationHistory: q.TransformationHistory, // Assuming TransformationHistory is immutable or shallow copy is sufficient
+		Type:                  q.Type,
+		TableName:             q.TableName,
+		Indexes:               append([]string{}, q.Indexes...), // Deep copy of slice
+		Schema:                q.Schema,                         // Assuming schema.Schema is immutable or shallow copy is sufficient
+		Highlighter:           q.Highlighter,                    // Assuming Highlighter is immutable or shallow copy is sufficient
+		SearchAfter:           q.SearchAfter,                    // Assuming `any` is immutable or shallow copy is sufficient
+		RuntimeMappings:       make(map[string]RuntimeMapping),
+		Metadata:              nil,
+	}
+
+	// Deep copy OptimizeHints if it exists
+	if q.OptimizeHints != nil {
+		clone.OptimizeHints = &QueryOptimizeHints{
+			ClickhouseQuerySettings: make(map[string]any),
+			OptimizationsPerformed:  append([]string{}, q.OptimizeHints.OptimizationsPerformed...),
+		}
+		for k, v := range q.OptimizeHints.ClickhouseQuerySettings {
+			clone.OptimizeHints.ClickhouseQuerySettings[k] = v
+		}
+	}
+
+	// Deep copy RuntimeMappings
+	for k, v := range q.RuntimeMappings {
+		clone.RuntimeMappings[k] = v
+	}
+
+	// Deep copy Metadata if it exists
+	if q.Metadata != nil {
+		clone.Metadata = make(JsonMap)
+		for k, v := range q.Metadata {
+			clone.Metadata[k] = v
+		}
+	}
+
+	return clone
 }

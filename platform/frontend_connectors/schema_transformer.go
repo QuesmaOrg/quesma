@@ -974,7 +974,7 @@ func (s *SchemaCheckPass) applyAliasColumns(indexSchema schema.Schema, query *mo
 	return query, nil
 }
 
-func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
+func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.ExecutionPlan, error) {
 
 	transformationChain := []struct {
 		TransformationName string
@@ -1014,7 +1014,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 	}
 
-	for k, query := range queries {
+	for k, query := range plan.Queries {
 		var err error
 
 		if !s.cfg.Logging.EnableSQLTracing {
@@ -1043,9 +1043,9 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			}
 		}
 
-		queries[k] = query
+		plan.Queries[k] = query
 	}
-	return queries, nil
+	return plan, nil
 }
 
 func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {

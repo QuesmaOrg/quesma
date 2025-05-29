@@ -499,10 +499,11 @@ func Test_ipRangeTransform(t *testing.T) {
 				q.Schema = currentSchema
 				q.Indexes = []string{q.TableName}
 			}
+			plan := model.NewExecutionPlan(queries[k], nil)
 
-			resultQueries, err := transform.Transform(queries[k])
+			resultPlan, err := transform.Transform(plan)
 			assert.NoError(t, err)
-			assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultQueries[0].SelectCommand.String())
+			assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultPlan.Queries[0].SelectCommand.String())
 		})
 	}
 }
@@ -739,17 +740,21 @@ func Test_arrayType(t *testing.T) {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			actual, err := transform.Transform([]*model.Query{tt.query})
+			plan := model.NewExecutionPlan(
+				[]*model.Query{tt.query},
+				nil,
+			)
+			actual, err := transform.Transform(plan)
 			assert.NoError(t, err)
 
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			assert.True(t, len(actual) == 1, "len queries == 1")
+			assert.True(t, len(actual.Queries) == 1, "len queries == 1")
 
 			expectedJson := asString(tt.expected)
-			actualJson := asString(actual[0])
+			actualJson := asString(actual.Queries[0])
 
 			assert.Equal(t, expectedJson, actualJson)
 		})
@@ -1802,12 +1807,16 @@ func Test_mapKeys(t *testing.T) {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			var actual []*model.Query
+			var actual *model.ExecutionPlan
 			var err error
+			plan := model.NewExecutionPlan(
+				[]*model.Query{tt.query},
+				nil,
+			)
 			if indexConfig[tt.query.TableName].EnableFieldMapSyntax {
-				actual, err = transformPass.Transform([]*model.Query{tt.query})
+				actual, err = transformPass.Transform(plan)
 			} else {
-				actual, err = noTransformPass.Transform([]*model.Query{tt.query})
+				actual, err = noTransformPass.Transform(plan)
 			}
 			assert.NoError(t, err)
 
@@ -1815,10 +1824,10 @@ func Test_mapKeys(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			assert.True(t, len(actual) == 1, "len queries == 1")
+			assert.True(t, len(actual.Queries) == 1, "len queries == 1")
 
 			expectedJson := asString(tt.expected)
-			actualJson := asString(actual[0])
+			actualJson := asString(actual.Queries[0])
 
 			assert.Equal(t, expectedJson, actualJson)
 		})
@@ -1895,17 +1904,22 @@ func Test_cluster(t *testing.T) {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			actual, err := transform.Transform([]*model.Query{tt.query})
+
+			plan := model.NewExecutionPlan(
+				[]*model.Query{tt.query},
+				nil,
+			)
+			actual, err := transform.Transform(plan)
 			assert.NoError(t, err)
 
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			assert.True(t, len(actual) == 1, "len queries == 1")
+			assert.True(t, len(actual.Queries) == 1, "len queries == 1")
 
 			expectedJson := asString(tt.expected)
-			actualJson := asString(actual[0])
+			actualJson := asString(actual.Queries[0])
 
 			assert.Equal(t, expectedJson, actualJson)
 		})

@@ -422,11 +422,11 @@ func (p *QueryTransformationPipeline) ComposeResult(results [][]model.QueryResul
 type QueryTransformer1 struct {
 }
 
-func (p *QueryTransformer1) Transform(queries []*model.Query) ([]*model.Query, error) {
+func (p *QueryTransformer1) Transform(plan *model.ExecutionPlan) (*model.ExecutionPlan, error) {
 	logger.Debug().Msg("SimpleQueryTransformationPipeline: Transform")
 	// Do basic transformation
 
-	return queries, nil
+	return plan, nil
 }
 
 func NewQueryTransformer1() *QueryTransformer1 {

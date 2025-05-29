@@ -364,7 +364,7 @@ type AsyncQuery struct {
 
 func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
 	var err error
-	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
+	_, err = q.transformationPipeline.Transform(plan)
 	if err != nil {
 		return fmt.Errorf("error transforming queries: %v", err)
 	}
@@ -516,7 +516,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 		goto logErrorAndReturn
 	}
+	if len(plan.Queries) > 0 {
+		for i, query := range plan.Queries {
+			logger.InfoWithCtx(ctx).Msgf("Input SQL query %d: %s", i, query.SelectCommand.String())
+		}
+	}
 	err = q.transformQueries(plan)
+
 	if err != nil {
 		goto logErrorAndReturn
 	}
@@ -669,70 +675,97 @@ func (q *QueryRunner) isInternalKibanaQuery(query *model.Query) bool {
 	return false
 }
 
-type QueryJob func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error)
+type QueryJob func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResultRow, clickhouse.PerformanceResult, error)
 
 func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 	var results = make([][]model.QueryResultRow, 0)
 	var performance = make([]clickhouse.PerformanceResult, 0)
-	for _, job := range jobs {
-		rows, perf, err := job(ctx)
+	for n, job := range jobs {
+		plan, rows, perf, err := job(ctx)
 		performance = append(performance, perf)
 		if err != nil {
 			return nil, performance, err
 		}
 
 		results = append(results, rows)
+		if plan.Interrupt(n, rows) {
+			break
+		}
 	}
 	return results, performance, nil
 }
 
-func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
-
-	var results = make([][]model.QueryResultRow, len(jobs))
-	var performances = make([]clickhouse.PerformanceResult, len(jobs))
+func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob) (
+	[][]model.QueryResultRow,
+	[]clickhouse.PerformanceResult,
+	error,
+) {
+	var (
+		results      = make([][]model.QueryResultRow, len(jobs))
+		performances = make([]clickhouse.PerformanceResult, len(jobs))
+	)
 	type result struct {
+		plan  *model.ExecutionPlan
 		rows  []model.QueryResultRow
 		perf  clickhouse.PerformanceResult
 		err   error
 		jobId int
 	}
 
-	// this is our context to control the execution of the jobs
-
-	// cancellation is done by the parent context
-	// or by the first goroutine that returns an error
+	// cancelable context to stop jobs early
 	ctx, cancel := context.WithCancel(ctx)
-	// clean up on return
 	defer cancel()
 
 	collector := make(chan result, len(jobs))
+
+	// spawn worker goroutines
 	for n, job := range jobs {
-		// produce
 		go func(ctx context.Context, jobId int, j QueryJob) {
 			defer recovery.LogAndHandlePanic(ctx, func(err error) {
 				collector <- result{err: err, jobId: jobId}
 			})
+
 			start := time.Now()
-			rows, perf, err := j(ctx)
+			plan, rows, perf, err := j(ctx)
 			logger.DebugWithCtx(ctx).Msgf("parallel job %d finished in %v", jobId, time.Since(start))
-			collector <- result{rows: rows, perf: perf, err: err, jobId: jobId}
+			collector <- result{plan: plan, rows: rows, perf: perf, err: err, jobId: jobId}
 		}(ctx, n, job)
 	}
 
-	// consume
-	for range len(jobs) {
+	expected := len(jobs)
+	received := 0
+
+	for received < expected {
 		res := <-collector
+		received++
+
 		performances[res.jobId] = res.perf
-		if res.err == nil {
-			results[res.jobId] = res.rows
-		} else {
+
+		if res.err != nil {
+			logger.WarnWithCtx(ctx).Msgf("Job %d failed: %v", res.jobId, res.err)
+			cancel() // cancel remaining jobs
+
+			// Drain the rest to avoid goroutine leaks
+			for received < len(jobs) {
+				<-collector
+				received++
+			}
 			return nil, performances, res.err
+		}
+
+		results[res.jobId] = res.rows
+
+		if res.plan != nil && res.plan.Interrupt(res.jobId, res.rows) {
+			logger.InfoWithCtx(ctx).Msgf("Job %d triggered interrupt", res.jobId)
+			expected--
+		}
+		if expected == received {
+			cancel()
 		}
 	}
 
 	return results, performances, nil
 }
-
 func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 
 	numberOfJobs := len(jobs)
@@ -762,18 +795,18 @@ func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]mo
 
 }
 
-func (q *QueryRunner) makeJob(table *clickhouse.Table, query *model.Query) QueryJob {
-	return func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error) {
+func (q *QueryRunner) makeJob(plan *model.ExecutionPlan, table *clickhouse.Table, query *model.Query) QueryJob {
+	return func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResultRow, clickhouse.PerformanceResult, error) {
 		var err error
 		rows, performance, err := q.logManager.ProcessQuery(ctx, table, query)
 
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			performance.Error = err
-			return nil, performance, err
+			return plan, nil, performance, err
 		}
 
-		return rows, performance, nil
+		return plan, rows, performance, nil
 	}
 }
 
@@ -790,6 +823,7 @@ func (q *QueryRunner) searchWorkerCommon(
 	var jobs []QueryJob
 	var jobHitsPosition []int // it keeps the position of the hits array for each job
 
+	logger.InfoWithCtx(ctx).Msgf("search worker with query %d %v", len(queries), queries)
 	for i, query := range queries {
 		sql := query.SelectCommand.String()
 
@@ -809,7 +843,7 @@ func (q *QueryRunner) searchWorkerCommon(
 			continue
 		}
 
-		job := q.makeJob(table, query)
+		job := q.makeJob(plan, table, query)
 		jobs = append(jobs, job)
 		jobHitsPosition = append(jobHitsPosition, i)
 	}
@@ -914,6 +948,7 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 
 	}
 
+	pipeline = append(pipeline, pipelineElement{"siblingsTransformer", &SiblingsTransformer{}})
 	var err error
 	for _, t := range pipeline {
 
@@ -921,7 +956,7 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 		// for example if the schema doesn't hava array fields, we should skip the arrayResultTransformer
 		// these transformers can be cpu and mem consuming
 
-		results, err = t.transformer.Transform(results)
+		plan, results, err = t.transformer.Transform(plan, results)
 		if err != nil {
 			return nil, fmt.Errorf("resuls transformer %s has failed: %w", t.name, err)
 		}
