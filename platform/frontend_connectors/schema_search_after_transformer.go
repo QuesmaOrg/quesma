@@ -109,19 +109,17 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 	// "sort": [
 	//  { "@timestamp": { "order": "asc" } },   // this is the main sorting criteria -> timestamp field from the Data View setting
 	//  { "_doc": { "order": "asc" } }			// this is the tiebreaker field, referencing the Lucene document ID
-	//]
-	// Therefore, we support only one search_after value, at this moment.
-
-	//if len(asArray) != len(query.SelectCommand.OrderBy) {
-	//	return nil, fmt.Errorf("len(search_after) != len(sortFields), search_after: %v, sortFields: %v", asArray, query.SelectCommand.OrderBy)
-	//}
+	//
+	// Quesma ignores the _doc field during query parsing, so it won't have related `query.SelectCommand.OrderBy` clause
+	// Other than that, we expect the search_after to be an array of values that match the order by fields in the query.
 	if len(asArray) == 2 && slices.Contains(query.SearchAfterFieldNames, "_doc") {
-		asArray = asArray[:len(asArray)-1] // remove the last element, which is _doc
+		asArray = asArray[:len(asArray)-1]
+	} else if len(asArray) != len(query.SelectCommand.OrderBy) {
+		return nil, fmt.Errorf("len(search_after) != len(sortFields), search_after: %v, sortFields: %v", asArray, query.SelectCommand.OrderBy)
 	}
 
-	searchAfterParsed = make([]model.Expr, 0)
+	searchAfterParsed = make([]model.Expr, len(asArray))
 	for i, searchAfterValue := range asArray {
-
 		column, ok := query.SelectCommand.OrderBy[i].Expr.(model.ColumnRef)
 		if !ok {
 			return nil, fmt.Errorf("for basicAndFast strategy, order by must be a column reference")
@@ -138,7 +136,7 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 					// TODO FIGURE OUT THIS TYPE MESS
 					// this param will always be timestamp in milliseconds, as we create it like this while rendering hits
 					//searchAfterParsed = append(searchAfterParsed, model.NewFunction("toDateTime", model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))))
-					searchAfterParsed = append(searchAfterParsed, model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number))))
+					searchAfterParsed[i] = model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))
 				} else {
 					return nil, fmt.Errorf("for basicAndFast strategy, search_after must be a unix timestamp in milliseconds")
 				}
@@ -146,7 +144,7 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 				return nil, fmt.Errorf("for basicAndFast strategy, search_after must be a number")
 			}
 		} else {
-			searchAfterParsed = append(searchAfterParsed, model.NewLiteral(util.SingleQuoteIfString(searchAfterValue)))
+			searchAfterParsed[i] = model.NewLiteral(util.SingleQuoteIfString(searchAfterValue))
 		}
 	}
 
