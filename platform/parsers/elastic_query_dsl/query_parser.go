@@ -496,8 +496,7 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQu
 				logger.WarnWithCtx(cw.Ctx).Msgf("term %s=%v in query body, ignoring in result SQL", k, v)
 				return model.NewSimpleQuery(model.TrueExpr, true)
 			}
-			fieldName := ResolveField(cw.Ctx, k, cw.Schema)
-			whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), "=", model.NewLiteral(sprint(v)))
+			whereClause = model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(v)))
 			return model.NewSimpleQuery(whereClause, true)
 		}
 	}
@@ -512,8 +511,8 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 		return model.NewSimpleQueryInvalid()
 	}
 
-	for k, v := range queryMap {
-		if strings.HasPrefix(k, "_") {
+	for fieldName, v := range queryMap {
+		if strings.HasPrefix(fieldName, "_") {
 			// terms enum API uses _tier terms ( data_hot, data_warm, etc.)
 			// we don't want these internal fields to percolate to the SQL query
 			return model.NewSimpleQuery(nil, true)
@@ -524,7 +523,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			return model.NewSimpleQueryInvalid()
 		}
 		if len(vAsArray) == 1 {
-			simpleStatement := model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(vAsArray[0])))
+			simpleStatement := model.NewInfixExpr(model.NewColumnRef(fieldName), "=", model.NewLiteral(sprint(vAsArray[0])))
 			return model.NewSimpleQuery(simpleStatement, true)
 		}
 		values := make([]model.Expr, len(vAsArray))
@@ -532,7 +531,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			values[i] = model.NewLiteral(sprint(v))
 		}
 		tuple := model.NewTupleExpr(values...)
-		compoundStatement := model.NewInfixExpr(model.NewColumnRef(k), "IN", tuple)
+		compoundStatement := model.NewInfixExpr(model.NewColumnRef(fieldName), "IN", tuple)
 		return model.NewSimpleQuery(compoundStatement, true)
 	}
 
@@ -562,7 +561,6 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
 		// (fieldName, v) = either e.g. ("message", "this is a test")
 		//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.
 		vUnNested := v
@@ -784,8 +782,6 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 	const dateInSchemaExpected = true
 
 	for fieldName, v := range queryMap {
-		fieldName = ResolveField(cw.Ctx, fieldName, cw.Schema)
-
 		fieldType := cw.Table.GetDateTimeType(cw.Ctx, ResolveField(cw.Ctx, fieldName, cw.Schema), dateInSchemaExpected)
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
@@ -955,7 +951,6 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 		if fieldStr == "*" {
 			return []string{model.FullTextFieldNamePlaceHolder}
 		}
-		fieldStr = ResolveField(cw.Ctx, fieldStr, cw.Schema)
 		result = append(result, fieldStr)
 	}
 	return result
