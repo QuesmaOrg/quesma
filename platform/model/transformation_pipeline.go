@@ -10,15 +10,15 @@ func NewTransformationPipeline() *TransformationPipeline {
 	return &TransformationPipeline{}
 }
 
-func (o *TransformationPipeline) Transform(queries []*Query) ([]*Query, error) {
+func (o *TransformationPipeline) Transform(plan *ExecutionPlan) (*ExecutionPlan, error) {
 	var err error
 	for _, transformer := range o.transformers {
-		queries, err = transformer.Transform(queries)
+		plan, err = transformer.Transform(plan)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return queries, nil
+	return plan, nil
 }
 
 func (o *TransformationPipeline) AddTransformer(transformer QueryTransformer) {

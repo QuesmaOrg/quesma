@@ -166,9 +166,9 @@ func (s *truncateDate) IsEnabledByDefault() bool {
 	return false
 }
 
-func (s *truncateDate) Transform(queries []*model.Query, properties map[string]string) ([]*model.Query, error) {
+func (s *truncateDate) Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error) {
 
-	for k, query := range queries {
+	for k, query := range plan.Queries {
 
 		visitor, processor := newTruncDate(s.truncateTo) // read from properties
 
@@ -176,9 +176,9 @@ func (s *truncateDate) Transform(queries []*model.Query, properties map[string]s
 
 		// this is just in case if there was no truncation, we keep the original query
 		if processor.truncated && result != nil {
-			queries[k].SelectCommand = *result
+			plan.Queries[k].SelectCommand = *result
 			query.OptimizeHints.OptimizationsPerformed = append(query.OptimizeHints.OptimizationsPerformed, s.Name())
 		}
 	}
-	return queries, nil
+	return plan, nil
 }

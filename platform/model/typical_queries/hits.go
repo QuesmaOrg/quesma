@@ -94,6 +94,8 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 		for _, fieldName := range query.sortFieldNames {
 			if val, ok := hit.Fields[fieldName]; ok {
 				hit.Sort = append(hit.Sort, elasticsearch.FormatSortValue(val[0]))
+			} else if fieldName == "_doc" { // Kibana adds _doc as a tiebreaker field for sorting
+				hit.Sort = append(hit.Sort, hit.ID)
 			} else {
 				logger.WarnWithCtx(query.ctx).Msgf("field %s not found in fields", fieldName)
 			}

@@ -58,19 +58,20 @@ func Test_cacheQueries(t *testing.T) {
 					TableName:     tt.tableName,
 				},
 			}
+			plan := model.NewExecutionPlan(queries, nil)
 			pipeline := NewOptimizePipeline(&cfg)
-			optimized, err := pipeline.Transform(queries)
+			optimized, err := pipeline.Transform(plan)
 			if err != nil {
 				t.Fatalf("error optimizing query: %v", err)
 			}
 
-			if len(optimized) != 1 {
-				t.Fatalf("expected 1 query, got %d", len(optimized))
+			if len(optimized.Queries) != 1 {
+				t.Fatalf("expected 1 query, got %d", len(optimized.Queries))
 			}
 
 			var enabled bool
-			if optimized[0].OptimizeHints.ClickhouseQuerySettings["use_query_cache"] != nil {
-				enabled = optimized[0].OptimizeHints.ClickhouseQuerySettings["use_query_cache"].(bool)
+			if optimized.Queries[0].OptimizeHints.ClickhouseQuerySettings["use_query_cache"] != nil {
+				enabled = optimized.Queries[0].OptimizeHints.ClickhouseQuerySettings["use_query_cache"].(bool)
 			}
 
 			assert.Truef(t, enabled == tt.shouldCache, "expected use_query_cache to be %v, got %v", tt.shouldCache, enabled)
@@ -211,18 +212,19 @@ func Test_dateTrunc(t *testing.T) {
 					SelectCommand: tt.query,
 				},
 			}
+			plan := model.NewExecutionPlan(queries, nil)
 			pipeline := NewOptimizePipeline(&cfg)
-			optimized, err := pipeline.Transform(queries)
+			optimized, err := pipeline.Transform(plan)
 
 			if err != nil {
 				t.Fatalf("error optimizing query: %v", err)
 			}
 
-			if len(optimized) != 1 {
-				t.Fatalf("expected 1 query, got %d", len(optimized))
+			if len(optimized.Queries) != 1 {
+				t.Fatalf("expected 1 query, got %d", len(optimized.Queries))
 			}
 
-			assert.Equal(t, tt.expected, optimized[0].SelectCommand)
+			assert.Equal(t, tt.expected, optimized.Queries[0].SelectCommand)
 
 		})
 
@@ -447,18 +449,19 @@ func Test_materialized_view_replace(t *testing.T) {
 					SelectCommand: tt.query,
 				},
 			}
+			plan := model.NewExecutionPlan(queries, nil)
 			pipeline := NewOptimizePipeline(&cfg)
-			optimized, err := pipeline.Transform(queries)
+			optimized, err := pipeline.Transform(plan)
 
 			if err != nil {
 				t.Fatalf("error optimizing query: %v", err)
 			}
 
-			if len(optimized) != 1 {
-				t.Fatalf("expected 1 query, got %d", len(optimized))
+			if len(optimized.Queries) != 1 {
+				t.Fatalf("expected 1 query, got %d", len(optimized.Queries))
 			}
 
-			assert.Equal(t, tt.expected, optimized[0].SelectCommand)
+			assert.Equal(t, tt.expected, optimized.Queries[0].SelectCommand)
 		})
 	}
 }

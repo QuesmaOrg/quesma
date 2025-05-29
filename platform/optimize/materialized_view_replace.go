@@ -202,14 +202,14 @@ func (s *materializedViewReplace) IsEnabledByDefault() bool {
 	return false
 }
 
-func (s *materializedViewReplace) Transform(queries []*model.Query, properties map[string]string) ([]*model.Query, error) {
+func (s *materializedViewReplace) Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error) {
 
 	//
 	// TODO add list of rules maybe
 	//
 	rule := s.readRule(properties)
 
-	for k, query := range queries {
+	for k, query := range plan.Queries {
 
 		result, replaced := s.replace(rule, query.SelectCommand)
 
@@ -218,9 +218,9 @@ func (s *materializedViewReplace) Transform(queries []*model.Query, properties m
 			logger.Info().Msgf(s.Name()+" triggered, input query: %s", query.SelectCommand.String())
 			logger.Info().Msgf(s.Name()+" triggered, output query: %s", (*result).String())
 
-			queries[k].SelectCommand = *result
+			plan.Queries[k].SelectCommand = *result
 			query.OptimizeHints.OptimizationsPerformed = append(query.OptimizeHints.OptimizationsPerformed, s.Name())
 		}
 	}
-	return queries, nil
+	return plan, nil
 }

@@ -1008,12 +1008,14 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 		expectedSQL                 string
 		resultRowsFromDB            [][]any
 		basicAndFastSortFieldPerHit []int64
+		expectedSortValuesCount     int
 	}{
 		{
 			request:                     `{"size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
 			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC LIMIT 3`,
 			resultRowsFromDB:            [][]any{{someTime, "m1"}, {someTime, "m2"}, {someTime, "m3"}},
 			basicAndFastSortFieldPerHit: []int64{someTime.UnixMilli(), someTime.UnixMilli(), someTime.UnixMilli()},
+			expectedSortValuesCount:     1,
 		},
 		{
 			request: `
@@ -1029,18 +1031,21 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896491)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
 			resultRowsFromDB:            [][]any{{sub(1), "m8"}, {sub(2), "m9"}, {sub(3), "m10"}},
 			basicAndFastSortFieldPerHit: []int64{sub(1).UnixMilli(), sub(2).UnixMilli(), sub(3).UnixMilli()},
+			expectedSortValuesCount:     2,
 		},
 		{
 			request:                     `{"search_after": [1706551896488], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
 			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896488)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
 			resultRowsFromDB:            [][]any{{sub(4), "m11"}, {sub(5), "m12"}, {sub(6), "m13"}},
 			basicAndFastSortFieldPerHit: []int64{sub(4).UnixMilli(), sub(5).UnixMilli(), sub(6).UnixMilli()},
+			expectedSortValuesCount:     1,
 		},
 		{
 			request:                     `{"search_after": [1706551896485], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
 			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896485)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
 			resultRowsFromDB:            [][]any{{sub(7), "m14"}, {sub(8), "m15"}, {sub(9), "m16"}},
 			basicAndFastSortFieldPerHit: []int64{sub(7).UnixMilli(), sub(8).UnixMilli(), sub(9).UnixMilli()},
+			expectedSortValuesCount:     1,
 		},
 	}
 
@@ -1083,7 +1088,7 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 			assert.Len(t, hits, len(iteration.resultRowsFromDB))
 			for i, hit := range hits {
 				sortField := hit.(model.JsonMap)["sort"].([]any)
-				assert.Len(t, sortField, 1)
+				assert.Len(t, sortField, iteration.expectedSortValuesCount)
 				assert.Equal(t, float64(iteration.basicAndFastSortFieldPerHit[i]), sortField[0].(float64))
 			}
 		}

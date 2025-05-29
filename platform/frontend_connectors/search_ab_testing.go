@@ -134,13 +134,11 @@ func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.Executio
 
 		case *quesma_api.ConnectorDecisionElastic:
 			planExecutor = func(ctx context.Context) ([]byte, error) {
-				elasticPlan := &model.ExecutionPlan{
-					IndexPattern:          plan.IndexPattern,
-					QueryRowsTransformers: []model.QueryRowsTransformer{},
-					Queries:               []*model.Query{},
-					StartTime:             plan.StartTime,
-					Name:                  config.ElasticsearchTarget,
-				}
+				elasticPlan := model.NewExecutionPlan(
+					[]*model.Query{}, []model.QueryRowsTransformer{})
+				elasticPlan.Name = config.ElasticsearchTarget
+				elasticPlan.IndexPattern = plan.IndexPattern
+				elasticPlan.StartTime = plan.StartTime
 				return q.executePlanElastic(ctx, elasticPlan, body, optAsync, optComparePlansCh, isMainPlan)
 			}
 
