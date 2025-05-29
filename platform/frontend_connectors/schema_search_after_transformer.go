@@ -133,10 +133,16 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 		if field.Type.Name == "date" || field.Type.Name == "timestamp" {
 			if number, isNumber := util.ExtractNumeric64Maybe(searchAfterValue); isNumber {
 				if number >= 0 && util.IsFloat64AnInt64(number) {
-					// TODO FIGURE OUT THIS TYPE MESS
-					// this param will always be timestamp in milliseconds, as we create it like this while rendering hits
-					//searchAfterParsed = append(searchAfterParsed, model.NewFunction("toDateTime", model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))))
-					searchAfterParsed[i] = model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))
+					milliTimestamp := model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))
+					if field.InternalPropertyType == "DateTime" {
+						// Here we have to make sure that the statement landing in the where clause will match the field type
+						searchAfterParsed[i] = model.NewFunction("toDateTime", milliTimestamp)
+					} else {
+						// Default case of (field.InternalPropertyType == "DateTime")
+						// which most often is DateTime64(3) allowing millisecond precision
+						searchAfterParsed[i] = milliTimestamp
+					}
+
 				} else {
 					return nil, fmt.Errorf("for basicAndFast strategy, search_after must be a unix timestamp in milliseconds")
 				}
