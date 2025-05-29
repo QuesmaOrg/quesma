@@ -797,7 +797,12 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 		for _, op := range keysSorted {
 			valueRaw := v.(QueryMap)[op]
 			value := sprint(valueRaw)
-			defaultValue := model.NewLiteral(value)
+			formatAny, formatExists := v.(QueryMap)["format"]
+			format := ""
+			if f, ok := formatAny.(string); ok {
+				format = f
+			}
+			defaultValue := model.NewLiteralWithFormat(value, format)
 			dateManager := NewDateManager(cw.Ctx)
 
 			// Three stages:
@@ -812,16 +817,20 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			switch fieldType {
 			case clickhouse.DateTime, clickhouse.DateTime64:
 				// TODO add support for "time_zone" parameter in ParseDateUsualFormat
-				finalValue, doneParsing = dateManager.ParseDateUsualFormat(value, fieldType)  // stage 1
-				if !doneParsing && (op == "gte" || op == "lte" || op == "gt" || op == "lt") { // stage 2
+				finalValue, doneParsing = dateManager.ParseDateUsualFormat(value, fieldType, format) // stage 1
+				if !doneParsing && (op == "gte" || op == "lte" || op == "gt" || op == "lt") {        // stage 2
 					parsed, err := cw.parseDateMathExpression(value)
 					if err == nil {
 						doneParsing = true
-						finalValue = model.NewLiteral(parsed)
+						literal := model.NewLiteralWithEscapeType(parsed, model.NormalNotEscaped)
+						if formatExists {
+							literal.Attrs[model.FormatKey] = format
+						}
+						finalValue = literal
 					}
 				}
 				if !doneParsing && isQuoted { // stage 3
-					finalValue, doneParsing = dateManager.ParseDateUsualFormat(value[1:len(value)-1], fieldType)
+					finalValue, doneParsing = dateManager.ParseDateUsualFormat(value[1:len(value)-1], fieldType, format)
 				}
 			case clickhouse.Invalid:
 				if isQuoted {
@@ -832,7 +841,11 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						}
 					}
 					if isNumber {
-						finalValue = model.NewLiteral(unquoted)
+						literal := model.NewLiteralWithEscapeType(unquoted, model.NormalNotEscaped)
+						if formatExists {
+							literal.Attrs[model.FormatKey] = format
+						}
+						finalValue = literal
 						doneParsing = true
 					}
 				}

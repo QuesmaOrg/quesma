@@ -191,3 +191,8 @@ func (t *Table) GetFieldInfo(ctx context.Context, fieldName string) FieldInfo {
 	}
 	return ExistsAndIsBaseType
 }
+
+func (t *Table) IsInt(fieldName string) bool {
+	col, ok := t.Cols[fieldName]
+	return ok && col.Type != nil && strings.Contains(col.Type.String(), "Int")
+}
