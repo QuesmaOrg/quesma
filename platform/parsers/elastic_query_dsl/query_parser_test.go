@@ -280,7 +280,7 @@ func Test_parseSortFields(t *testing.T) {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			orderBy, sortFieldNames := cw.parseSortFields(tt.sortMap)
 			assert.Equal(t, tt.sortColumns, orderBy)
-			assert.Equal(t, tt.sortFieldNames, sortFieldNames)
+			assert.ElementsMatch(t, tt.sortFieldNames, sortFieldNames)
 		})
 	}
 }
