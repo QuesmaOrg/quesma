@@ -105,13 +105,14 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 	if !ok {
 		return nil, fmt.Errorf("search_after must be an array, got: %v", query.SearchAfter)
 	}
-	// Kibana uses search_after in the following way:
+	// Kibana uses search_after API for pagination in the following way:
 	// "sort": [
 	//  { "@timestamp": { "order": "asc" } },   // this is the main sorting criteria -> timestamp field from the Data View setting
 	//  { "_doc": { "order": "asc" } }			// this is the tiebreaker field, referencing the Lucene document ID
 	//
-	// Quesma ignores the _doc field during query parsing, so it won't have related `query.SelectCommand.OrderBy` clause
-	// Other than that, we expect the search_after to be an array of values that match the order by fields in the query.
+	// Quesma ignores the _doc field during query parsing, therefore there's no related `query.SelectCommand.OrderBy` clause.
+	// So the condition below is to handle this Kibana-specific case, in which we ignore the _doc and just sort by the first field only.
+	// In any other case, we expect the search_after to have the same number of elements as the order by fields.
 	if len(asArray) == 2 && slices.Contains(query.SearchAfterFieldNames, "_doc") {
 		asArray = asArray[:len(asArray)-1]
 	} else if len(asArray) != len(query.SelectCommand.OrderBy) {
