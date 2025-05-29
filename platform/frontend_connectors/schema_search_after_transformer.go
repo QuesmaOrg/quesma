@@ -121,9 +121,6 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 
 	searchAfterParsed = make([]model.Expr, 0)
 	for i, searchAfterValue := range asArray {
-		if i >= 1 { // we currently support only one search_after value
-			continue
-		}
 
 		column, ok := query.SelectCommand.OrderBy[i].Expr.(model.ColumnRef)
 		if !ok {
