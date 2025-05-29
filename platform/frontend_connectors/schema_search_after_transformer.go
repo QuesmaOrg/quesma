@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"slices"
 )
 
 type (
@@ -104,12 +105,21 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 	if !ok {
 		return nil, fmt.Errorf("search_after must be an array, got: %v", query.SearchAfter)
 	}
-	if len(asArray) != len(query.SelectCommand.OrderBy) {
+	// Kibana uses search_after API for pagination in the following way:
+	// "sort": [
+	//  { "@timestamp": { "order": "asc" } },   // this is the main sorting criteria -> timestamp field from the Data View setting
+	//  { "_doc": { "order": "asc" } }			// this is the tiebreaker field, referencing the Lucene document ID
+	//
+	// Quesma ignores the _doc field during query parsing, therefore there's no related `query.SelectCommand.OrderBy` clause.
+	// So the condition below is to handle this Kibana-specific case, in which we ignore the _doc and just sort by the first field only.
+	// In any other case, we expect the search_after to have the same number of elements as the order by fields.
+	if len(asArray) == 2 && slices.Contains(query.SearchAfterFieldNames, "_doc") {
+		asArray = asArray[:len(asArray)-1]
+	} else if len(asArray) != len(query.SelectCommand.OrderBy) {
 		return nil, fmt.Errorf("len(search_after) != len(sortFields), search_after: %v, sortFields: %v", asArray, query.SelectCommand.OrderBy)
 	}
 
-	sortFieldsNr := len(asArray)
-	searchAfterParsed = make([]model.Expr, sortFieldsNr)
+	searchAfterParsed = make([]model.Expr, len(asArray))
 	for i, searchAfterValue := range asArray {
 		column, ok := query.SelectCommand.OrderBy[i].Expr.(model.ColumnRef)
 		if !ok {
@@ -124,8 +134,16 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 		if field.Type.Name == "date" || field.Type.Name == "timestamp" {
 			if number, isNumber := util.ExtractNumeric64Maybe(searchAfterValue); isNumber {
 				if number >= 0 && util.IsFloat64AnInt64(number) {
-					// this param will always be timestamp in milliseconds, as we create it like this while rendering hits
-					searchAfterParsed[i] = model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))
+					milliTimestamp := model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))
+					if field.InternalPropertyType == "DateTime" {
+						// Here we have to make sure that the statement landing in the where clause will match the field type
+						searchAfterParsed[i] = model.NewFunction("toDateTime", milliTimestamp)
+					} else {
+						// Default case of (field.InternalPropertyType == "DateTime64")
+						// which most often is DateTime64(3) allowing millisecond precision
+						searchAfterParsed[i] = milliTimestamp
+					}
+
 				} else {
 					return nil, fmt.Errorf("for basicAndFast strategy, search_after must be a unix timestamp in milliseconds")
 				}

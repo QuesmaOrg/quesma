@@ -3,7 +3,6 @@
 package optimize
 
 import (
-	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"sort"
@@ -20,23 +19,14 @@ import (
 // This optimization therefore splits the time range into parts: a short time range, on which we bet that the query
 // will be fast (and still return LIMIT many results) and a long time range, which will be used to get the rest of the
 // results (in case the short time range didn't return enough results).
-type splitTimeRange struct{}
 
-var defaultShorterTimeRangesMinutes = []int64{15}
+// Together with this optimization, query execution mechanism is modified to allow for sibling queries, which
+// means that the original query can be split into multiple subqueries that are executed in parallel.
+// Then the results of those subqueries are merged back into the original query result by specific ResultTransformer,
+// SiblingsTransformer.
+type splitTimeRangeExt struct{}
 
-type timeRangeLimit struct {
-	value    int64
-	funcName string // for example fromUnixTimestamp64Milli
-}
-
-type timeRange struct {
-	columnName string
-	lowerLimit timeRangeLimit
-	upperLimit timeRangeLimit
-	direction  model.OrderByDirection
-}
-
-func (s splitTimeRange) validateSelectedColumns(columns []model.Expr) bool {
+func (s splitTimeRangeExt) validateSelectedColumns(columns []model.Expr) bool {
 	// The main purpose is to disallow window functions for which this optimization might be hard to reason about
 	// (and could be invalid). The allowed Expr types are whitelisted here rather than blacklisted (window functions)
 	// to be less error-prone in the future.
@@ -60,7 +50,7 @@ func (s splitTimeRange) validateSelectedColumns(columns []model.Expr) bool {
 	return true
 }
 
-func (s splitTimeRange) findOrderByColumn(selectCommand *model.SelectCommand) (string, model.OrderByDirection, bool) {
+func (s splitTimeRangeExt) findOrderByColumn(selectCommand *model.SelectCommand) (string, model.OrderByDirection, bool) {
 	if len(selectCommand.OrderBy) != 1 {
 		logger.Debug().Msg("Query not eligible for time range optimization: ORDER BY longer than 1")
 		return "", model.DefaultOrder, false
@@ -74,7 +64,7 @@ func (s splitTimeRange) findOrderByColumn(selectCommand *model.SelectCommand) (s
 	return "", model.DefaultOrder, false
 }
 
-func (s splitTimeRange) checkAndFindTimeLimits(selectCommand *model.SelectCommand, orderByColumnName string) (*timeRangeLimit, *timeRangeLimit) {
+func (s splitTimeRangeExt) checkAndFindTimeLimits(selectCommand *model.SelectCommand, orderByColumnName string) (*timeRangeLimit, *timeRangeLimit) {
 	var lowerLimit, upperLimit *timeRangeLimit
 
 	visitor := model.NewBaseVisitor()
@@ -105,7 +95,7 @@ func (s splitTimeRange) checkAndFindTimeLimits(selectCommand *model.SelectComman
 	return lowerLimit, upperLimit
 }
 
-func (s splitTimeRange) findTimeRange(selectCommand *model.SelectCommand) *timeRange {
+func (s splitTimeRangeExt) findTimeRange(selectCommand *model.SelectCommand) *timeRange {
 	// The optimization is not possible for all queries.
 	// Some of those restrictions are not strictly necessary, but added here conservatively to avoid potential issues.
 	if selectCommand.Limit == 0 {
@@ -156,7 +146,7 @@ func (s splitTimeRange) findTimeRange(selectCommand *model.SelectCommand) *timeR
 	return &timeRange{columnName: orderByColumnName, lowerLimit: *lowerLimit, upperLimit: *upperLimit, direction: direction}
 }
 
-func (s splitTimeRange) getSplitPoints(foundTimeRange timeRange, properties map[string]string) []timeRangeLimit {
+func (s splitTimeRangeExt) getSplitPoints(foundTimeRange timeRange, properties map[string]string) []timeRangeLimit {
 	shorterTimeRangesMinutes := defaultShorterTimeRangesMinutes
 	if shorterTimeRangesMinutesStr, ok := properties["ranges"]; ok {
 		shorterTimeRangesMinutesStrList := strings.Split(shorterTimeRangesMinutesStr, ",")
@@ -193,95 +183,114 @@ func (s splitTimeRange) getSplitPoints(foundTimeRange timeRange, properties map[
 	return result
 }
 
-func (s splitTimeRange) transformQuery(query *model.Query, properties map[string]string) (*model.Query, error) {
+func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[string]string) ([]*model.Query, error) {
+	var subqueries []model.SelectCommand
 	foundTimeRange := s.findTimeRange(&query.SelectCommand)
 	if foundTimeRange == nil {
-		return query, nil
+		var queries []*model.Query
+		queries = append(queries, query)
+		return queries, nil
 	}
 
 	splitPoints := s.getSplitPoints(*foundTimeRange, properties)
 	if len(splitPoints) <= 2 {
-		return query, nil
+		var queries []*model.Query
+		queries = append(queries, query)
+		return queries, nil
 	}
 
-	var namedCTEs []*model.CTE
-	var subqueries []model.SelectCommand
-
-	for i := 0; i < len(splitPoints)-1; i++ {
+	for i := 1; i < len(splitPoints); i++ {
 		subquery := query.SelectCommand
 
-		var whereClause model.Expr
-		if i == 0 {
-			// (splitPoint[1], inf)
-			whereClause = model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), ">", model.NewFunction(splitPoints[i+1].funcName, model.NewLiteral(splitPoints[i+1].value)))
-		} else if i == len(splitPoints)-2 {
-			// (-inf, splitPoint[i]]
-			whereClause = model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), "<=", model.NewFunction(splitPoints[i].funcName, model.NewLiteral(splitPoints[i].value)))
-		} else {
-			// (splitPoint[i], splitPoint[i+1]]
-			whereClause = model.NewInfixExpr(model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), "<=", model.NewFunction(splitPoints[i].funcName, model.NewLiteral(splitPoints[i].value))), "AND",
-				model.NewInfixExpr(model.NewColumnRef(foundTimeRange.columnName), ">", model.NewFunction(splitPoints[i+1].funcName, model.NewLiteral(splitPoints[i+1].value))))
-		}
-		subquery.WhereClause = model.NewInfixExpr(whereClause, "AND", subquery.WhereClause)
+		start := splitPoints[i].value
+		end := splitPoints[0].value // always ends at "now"
 
-		namedCTEs = append(namedCTEs, &model.CTE{
-			Name:          fmt.Sprintf("split_time_range_subquery_%d", i),
-			SelectCommand: &subquery,
+		startExpr := model.NewFunction(splitPoints[i].funcName, model.NewLiteral(start))
+		endExpr := model.NewFunction(splitPoints[0].funcName, model.NewLiteral(end))
+
+		whereClause := model.NewInfixExpr(
+			model.NewInfixExpr(
+				model.NewColumnRef(foundTimeRange.columnName), ">=", startExpr,
+			),
+			"AND",
+			model.NewInfixExpr(
+				model.NewColumnRef(foundTimeRange.columnName), "<", endExpr,
+			),
+		)
+
+		subquery.WhereClause = whereClause
+		subqueries = append(subqueries, subquery)
+	}
+
+	var queries []*model.Query
+	for i := 0; i < len(subqueries); i++ {
+		queries = append(queries, &model.Query{
+			SelectCommand: subqueries[i],
 		})
-		subqueries = append(subqueries, model.SelectCommand{
-			Columns:    []model.Expr{model.NewLiteral("*")},
-			FromClause: model.NewLiteral(fmt.Sprintf("split_time_range_subquery_%d", i)),
-		})
 	}
-
-	unionExpr := model.NewInfixExpr(subqueries[0], "UNION ALL", subqueries[1])
-	for i := 2; i < len(subqueries); i++ {
-		unionExpr = model.NewInfixExpr(unionExpr, "UNION ALL", subqueries[i])
-	}
-
-	selectedColumns := make([]model.Expr, len(namedCTEs[0].SelectCommand.Columns))
-	for i, column := range namedCTEs[0].SelectCommand.Columns {
-		switch column := (column).(type) {
-		case model.ColumnRef:
-			selectedColumns[i] = column.Clone()
-		case model.LiteralExpr:
-			selectedColumns[i] = model.NewColumnRef(column.Value.(string))
-		case model.AliasedExpr:
-			selectedColumns[i] = model.NewColumnRef(column.Alias)
-		}
-	}
-
-	query.SelectCommand = model.SelectCommand{
-		IsDistinct:  false,
-		Columns:     selectedColumns,
-		FromClause:  unionExpr,
-		WhereClause: nil,
-		GroupBy:     nil,
-		OrderBy:     nil,
-		LimitBy:     nil,
-		Limit:       namedCTEs[0].SelectCommand.Limit,
-		SampleLimit: 0,
-		NamedCTEs:   namedCTEs,
-	}
-
-	return query, nil
+	return queries, nil
 }
 
-func (s splitTimeRange) Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error) {
+func (s splitTimeRangeExt) Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error) {
+
+	queriesSubqueriesMapping := make(map[int][]*model.Query)
 	for i, query := range plan.Queries {
-		transformedQuery, err := s.transformQuery(query, properties)
+		subqueries, err := s.transformQuery(query, properties)
 		if err != nil {
 			return nil, err
 		}
-		plan.Queries[i] = transformedQuery
+		queriesSubqueriesMapping[i] = subqueries
+	}
+
+	var newQueries []*model.Query
+	nextQueryId := len(plan.Queries)
+	for i := range plan.Queries {
+		subqueries := queriesSubqueriesMapping[i]
+		plan.Queries[i].SelectCommand = subqueries[0].SelectCommand
+		for j := 1; j < len(subqueries); j++ {
+			newQuery := plan.Queries[0].Clone()
+			newQuery.SelectCommand = subqueries[j].SelectCommand
+			newQueries = append(newQueries, newQuery)
+			plan.SiblingQueries[i] = append(plan.SiblingQueries[i], nextQueryId)
+			nextQueryId++
+		}
+	}
+	plan.Queries = append(plan.Queries, newQueries...)
+
+	plan.Interrupt = func(queryId int, rows []model.QueryResultRow) bool {
+		const maxRows = 500
+		if _, ok := plan.SiblingQueries[queryId]; ok {
+			return len(rows) >= maxRows
+		}
+		return false
+	}
+	plan.MergeSiblingResults = func(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow) {
+		for k, v := range plan.SiblingQueries {
+			for _, sibling := range v {
+				// remove sibling query from the plan
+				plan.Queries = append(plan.Queries[:sibling], plan.Queries[sibling+1:]...)
+				// merge results of sibling query into the original query
+				if len(results[k]) == 0 && len(results[sibling]) > 0 {
+					results[k] = append(results[k], results[sibling]...)
+				}
+				if len(results[k]) > 0 && len(results[sibling]) > 0 {
+					results[k] = make([]model.QueryResultRow, 0)
+					results[k] = append(results[k], results[sibling]...)
+				}
+				// remove results of sibling query from the results
+				results = append(results[:sibling], results[sibling+1:]...)
+			}
+		}
+		plan.SiblingQueries = make(map[int][]int)
+		return plan, results
 	}
 	return plan, nil
 }
 
-func (s splitTimeRange) Name() string {
-	return "split_time_range"
+func (s splitTimeRangeExt) Name() string {
+	return "split_time_range_ext"
 }
 
-func (s splitTimeRange) IsEnabledByDefault() bool {
+func (s splitTimeRangeExt) IsEnabledByDefault() bool {
 	return true
 }

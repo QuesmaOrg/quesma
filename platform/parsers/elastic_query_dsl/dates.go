@@ -46,7 +46,7 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 	//   It'll be caught be one of the formats from the loop below.
 	const yearOrTsDelimiter = 10000
 
-	if asInt, err := strconv.ParseInt(asString, 10, 64); err == nil && asInt >= yearOrTsDelimiter {
+	if asInt, err := util.ToInt64(asString); err == nil && asInt >= yearOrTsDelimiter {
 		return dm.parseStrictDateOptionalTimeOrEpochMillis(asInt)
 	} else if asFloat, err := strconv.ParseFloat(asString, 64); err == nil && asFloat >= yearOrTsDelimiter {
 		return dm.parseStrictDateOptionalTimeOrEpochMillis(asFloat)
@@ -66,19 +66,26 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 // ParseDateUsualFormat parses date expression, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
 // It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
-func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType clickhouse.DateTimeType) (
+func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType clickhouse.DateTimeType, format any) (
 	resultExpr model.Expr, parsingSucceeded bool) {
+	addFormat := func(v any) model.LiteralExpr {
+		l := model.NewLiteral(v)
+		if format != nil {
+			l.Attrs[model.FormatKey] = format
+		}
+		return l
+	}
 	if utcTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
 		switch datetimeType {
 		case clickhouse.DateTime64:
 			threeDigitsOfPrecisionSuffice := utcTs.UnixNano()%1_000_000 == 0
 			if threeDigitsOfPrecisionSuffice {
-				return model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(utcTs.UnixMilli())), true
+				return model.NewFunction("fromUnixTimestamp64Milli", addFormat(utcTs.UnixMilli())), true
 			} else {
 				return model.NewFunction(
 					"toDateTime64",
 					model.NewInfixExpr(
-						model.NewLiteral(utcTs.UnixNano()),
+						addFormat(utcTs.UnixNano()),
 						"/",
 						model.NewLiteral(1_000_000_000),
 					),
@@ -86,7 +93,7 @@ func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType cli
 				), true
 			}
 		case clickhouse.DateTime:
-			return model.NewFunction("fromUnixTimestamp", model.NewLiteral(utcTs.Unix())), true
+			return model.NewFunction("fromUnixTimestamp", addFormat(utcTs.Unix())), true
 		default:
 			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
 		}
