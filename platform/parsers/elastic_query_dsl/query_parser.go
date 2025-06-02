@@ -1206,18 +1206,24 @@ func ResolveField(ctx context.Context, fieldName string, schemaInstance schema.S
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
 	fieldName = strings.TrimSuffix(fieldName, ".text")
 
-	if isKeyword {
-		field := schemaInstance.Fields[schema.FieldName(fieldName)]
-		field.Type = schema.QuesmaTypeKeyword
-		schemaInstance.Fields[schema.FieldName(fieldName)] = field
-	}
 	if resolvedField, ok := schemaInstance.ResolveField(fieldName); ok {
+		if isKeyword {
+			fieldKey := schema.FieldName(fieldName)
+			field := schemaInstance.Fields[fieldKey]
+			field.Type = schema.QuesmaTypeKeyword
+			schemaInstance.Fields[field.PropertyName] = field
+		}
 		return resolvedField.InternalPropertyName.AsString()
 	} else {
 		if fieldName != "*" && fieldName != "_all" && fieldName != "_doc" && fieldName != "_id" && fieldName != "_index" {
 			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema, falling back to original name", fieldName)
 		}
-
+		if isKeyword {
+			fieldKey, _ := schemaInstance.ResolveFieldByInternalName(fieldName)
+			field := schemaInstance.Fields[fieldKey.PropertyName]
+			field.Type = schema.QuesmaTypeKeyword
+			schemaInstance.Fields[field.PropertyName] = field
+		}
 		return fieldName
 	}
 }

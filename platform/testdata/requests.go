@@ -856,7 +856,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			  count(*) AS "metric____quesma_total_count_col_0"
 			FROM __quesma_table_name
 			WHERE (("message" iLIKE '%posei%' AND "message" ILIKE '%User logged out%') AND
-			  "host_name" ILIKE '%poseidon%')`,
+			  "host_name"='%poseidon%')`,
 		},
 		true,
 	},
@@ -1133,7 +1133,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"host_name" __quesma_match '%prometheus%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name" ILIKE '%prometheus%' LIMIT 10`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name"='%prometheus%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [6]
@@ -1712,7 +1712,7 @@ var TestsSearch = []SearchTestCase{
 			  "stream_namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" ILIKE '%User logged out%' AND "host_name" ILIKE '%poseidon%')
+			WHERE (("message" ILIKE '%User logged out%' AND "host_name"='%poseidon%')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
@@ -1870,7 +1870,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" ILIKE '%User logged out%' AND "host_name" ILIKE '%poseidon%')
+			WHERE (("message" ILIKE '%User logged out%' AND "host_name"='%poseidon%')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
