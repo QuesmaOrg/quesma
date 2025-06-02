@@ -36,6 +36,7 @@ func NewEmptyHighlighter() model.Highlighter {
 const (
 	defaultQueryResultSize = 10000 // TODO looks like we can NOT limit the returned `hits` because we calculate IDs there
 	defaultTrackTotalHits  = 10000
+	uuidSeparator          = "qqq" // Document IDs (_id) fields in quesma ar
 )
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, error) {
@@ -336,7 +337,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	// therefore we need to strip the hex part (before `q`) and convert it to decimal
 	// then we can query at DB level
 	for i, id := range ids {
-		idInHex := strings.Split(id, "qqq")[0]
+		idInHex := strings.Split(id, uuidSeparator)[0]
 		if idAsStr, err := hex.DecodeString(idInHex); err != nil {
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
 			return model.NewSimpleQueryInvalid()

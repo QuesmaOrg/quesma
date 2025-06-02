@@ -133,26 +133,26 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 	}
 	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet)
 
-	// trim hits
-
 	hitsResponse := hitsPartOfResponse["hits"].(model.SearchHits)
-	hits := cw.RemoveHitsIfDocHashesSet(hitsResponse)
+	hits := cw.FilterOutHitsIfThisIsIdQuery(hitsResponse)
 	return queriesWithoutHits, resultsWithoutHits, &hits
 }
 
-func (cw *ClickhouseQueryTranslator) RemoveHitsIfDocHashesSet(hits model.SearchHits) model.SearchHits {
-	// if we have doc hashes set, we need to remove hits from the response
+// FilterOutHitsIfThisIsIdQuery - If during parsing we have found that this is a query for _id,
+// we filter out hits that are not in the list of UniqueIDs.
+// we only do this filtering based on the doc.Source hash comparison, ignoring the two first UUID parts.
+func (cw *ClickhouseQueryTranslator) FilterOutHitsIfThisIsIdQuery(hits model.SearchHits) model.SearchHits {
 	if len(cw.UniqueIDs) == 0 {
-		return hits
+		return hits // not _id query, proceed as usual
 	}
-	docHashes := make([]string, 0, len(cw.UniqueIDs))
+	hashesFromQuery := make([]string, 0, len(cw.UniqueIDs))
 	for _, id := range cw.UniqueIDs {
-		docHashes = append(docHashes, strings.Split(id, "qqq")[2])
+		hashesFromQuery = append(hashesFromQuery, strings.Split(id, uuidSeparator)[2])
 	}
 	filteredHits := make([]model.SearchHit, 0, len(hits.Hits))
 	for _, hit := range hits.Hits {
-		hashOfOfDocInHit := strings.Split(hit.ID, "qqq")[2]
-		if slices.Contains(docHashes, hashOfOfDocInHit) {
+		hash := strings.Split(hit.ID, uuidSeparator)[2]
+		if slices.Contains(hashesFromQuery, hash) {
 			filteredHits = append(filteredHits, hit)
 		}
 	}
