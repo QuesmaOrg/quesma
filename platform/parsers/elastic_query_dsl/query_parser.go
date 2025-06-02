@@ -1199,9 +1199,18 @@ func createSortColumn(fieldName, ordering string) (model.OrderByExpr, error) {
 func ResolveField(ctx context.Context, fieldName string, schemaInstance schema.Schema) string {
 	// Alias resolution should occur *after* the query is parsed, not during the parsing
 
+	isKeyword := false
+	if strings.HasSuffix(fieldName, ".keyword") {
+		isKeyword = true
+	}
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
 	fieldName = strings.TrimSuffix(fieldName, ".text")
 
+	if isKeyword {
+		field := schemaInstance.Fields[schema.FieldName(fieldName)]
+		field.Type = schema.QuesmaTypeKeyword
+		schemaInstance.Fields[schema.FieldName(fieldName)] = field
+	}
 	if resolvedField, ok := schemaInstance.ResolveField(fieldName); ok {
 		return resolvedField.InternalPropertyName.AsString()
 	} else {
