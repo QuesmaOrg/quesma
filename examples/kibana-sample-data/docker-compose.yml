@@ -65,6 +65,8 @@ services:
       start_period: 2m
       interval: 1s
       timeout: 1s
+    volumes:
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
   kibana-sidecar:
     image: docker.elastic.co/kibana/kibana:8.11.1
     restart: "no"
