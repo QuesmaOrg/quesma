@@ -1211,7 +1211,9 @@ func ResolveField(ctx context.Context, fieldName string, schemaInstance schema.S
 			fieldKey := schema.FieldName(fieldName)
 			field := schemaInstance.Fields[fieldKey]
 			field.Type = schema.QuesmaTypeKeyword
-			schemaInstance.Fields[field.PropertyName] = field
+			if schemaInstance.Fields != nil {
+				schemaInstance.Fields[field.PropertyName] = field
+			}
 		}
 		return resolvedField.InternalPropertyName.AsString()
 	} else {
@@ -1222,7 +1224,9 @@ func ResolveField(ctx context.Context, fieldName string, schemaInstance schema.S
 			fieldKey, _ := schemaInstance.ResolveFieldByInternalName(fieldName)
 			field := schemaInstance.Fields[fieldKey.PropertyName]
 			field.Type = schema.QuesmaTypeKeyword
-			schemaInstance.Fields[field.PropertyName] = field
+			if schemaInstance.Fields != nil {
+				schemaInstance.Fields[field.PropertyName] = field
+			}
 		}
 		return fieldName
 	}
