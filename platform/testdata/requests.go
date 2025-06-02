@@ -856,7 +856,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			  count(*) AS "metric____quesma_total_count_col_0"
 			FROM __quesma_table_name
 			WHERE (("message" iLIKE '%posei%' AND "message" ILIKE '%User logged out%') AND
-			  "host_name"='%poseidon%')`,
+			  "host_name" ILIKE '%poseidon%')`,
 		},
 		true,
 	},
