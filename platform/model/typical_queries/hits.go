@@ -3,7 +3,11 @@
 package typical_queries
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
@@ -241,13 +245,28 @@ func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) st
 			// At database level we only compare timestamps with millisecond precision
 			// However in search results we append `q` plus generated digits (we use q because it's not in hex)
 			// so that kibana can iterate over documents in UI
-			pseudoUniqueId = fmt.Sprintf("%xq%s", vv, defaultID)
+			sourceHash := fmt.Sprintf("%x", HashJSON(doc.Source))
+			pseudoUniqueId = fmt.Sprintf("%xqqq%sqqq%x", vv, defaultID, sourceHash)
+			//pseudoUniqueId = fmt.Sprintf("%xq%s", vv, defaultID)
 		} else {
 			logger.WarnWithCtx(query.ctx).Msgf("failed to convert timestamp field [%v] to time.Time", v[0])
 			return defaultID
 		}
 	}
 	return pseudoUniqueId
+}
+
+func HashJSON(data json.RawMessage) string {
+	var buf bytes.Buffer
+	err := json.Compact(&buf, data)
+	if err != nil {
+		hash := sha256.Sum256(data)
+		return hex.EncodeToString(hash[:])
+	}
+	hash := sha256.Sum256(buf.Bytes())
+	eee := hex.EncodeToString(hash[:])
+	println(eee)
+	return hex.EncodeToString(hash[:])
 }
 
 func (query Hits) String() string {

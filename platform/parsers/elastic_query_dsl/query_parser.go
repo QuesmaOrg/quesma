@@ -34,7 +34,7 @@ func NewEmptyHighlighter() model.Highlighter {
 }
 
 const (
-	defaultQueryResultSize = 10
+	defaultQueryResultSize = 10000 // TODO looks like we can NOT limit the returned `hits` because we calculate IDs there
 	defaultTrackTotalHits  = 10000
 )
 
@@ -322,6 +322,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		return model.NewSimpleQueryInvalid()
 	}
 	ids := make([]string, 0, len(idsRaw))
+	uniqueIds := make([]string, 0, len(idsRaw)) // to avoid duplicates
 	for _, id := range idsRaw {
 		if idAsString, ok := id.(string); ok {
 			ids = append(ids, idAsString)
@@ -335,7 +336,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	// therefore we need to strip the hex part (before `q`) and convert it to decimal
 	// then we can query at DB level
 	for i, id := range ids {
-		idInHex := strings.Split(id, "q")[0]
+		idInHex := strings.Split(id, "qqq")[0]
 		if idAsStr, err := hex.DecodeString(idInHex); err != nil {
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
 			return model.NewSimpleQueryInvalid()
@@ -343,6 +344,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 			tsWithoutTZ := strings.TrimSuffix(string(idAsStr), " +0000 UTC")
 			ids[i] = fmt.Sprintf("'%s'", tsWithoutTZ)
 		}
+		uniqueIds = append(uniqueIds, id)
 	}
 
 	var idToSql func(string) (model.Expr, error)
@@ -399,6 +401,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		idsTuple := model.NewTupleExpr(idsAsExprs...)
 		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " IN ", idsTuple)
 	}
+	cw.UniqueIDs = uniqueIds // TODO a crucial side effect here
 	return model.NewSimpleQuery(whereStmt, true)
 }
 

@@ -11,6 +11,8 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl/query_util"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"slices"
+	"strings"
 )
 
 type JsonMap = map[string]interface{}
@@ -24,7 +26,8 @@ type ClickhouseQueryTranslator struct {
 	Indexes []string
 
 	// TODO this will be removed
-	Table *clickhouse.Table
+	Table     *clickhouse.Table
+	UniqueIDs []string // used for hits queries, to filter out hits that are not in the list of IDs
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
@@ -130,8 +133,31 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 	}
 	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet)
 
+	// trim hits
+
 	hitsResponse := hitsPartOfResponse["hits"].(model.SearchHits)
-	return queriesWithoutHits, resultsWithoutHits, &hitsResponse
+	hits := cw.RemoveHitsIfDocHashesSet(hitsResponse)
+	return queriesWithoutHits, resultsWithoutHits, &hits
+}
+
+func (cw *ClickhouseQueryTranslator) RemoveHitsIfDocHashesSet(hits model.SearchHits) model.SearchHits {
+	// if we have doc hashes set, we need to remove hits from the response
+	if len(cw.UniqueIDs) == 0 {
+		return hits
+	}
+	docHashes := make([]string, 0, len(cw.UniqueIDs))
+	for _, id := range cw.UniqueIDs {
+		docHashes = append(docHashes, strings.Split(id, "qqq")[2])
+	}
+	filteredHits := make([]model.SearchHit, 0, len(hits.Hits))
+	for _, hit := range hits.Hits {
+		hashOfOfDocInHit := strings.Split(hit.ID, "qqq")[2]
+		if slices.Contains(docHashes, hashOfOfDocInHit) {
+			filteredHits = append(filteredHits, hit)
+		}
+	}
+	hits.Hits = filteredHits
+	return hits
 }
 
 func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutCount []*model.Query, resultsWithoutCount [][]model.QueryResultRow, total *model.Total) {
