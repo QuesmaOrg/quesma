@@ -1199,16 +1199,35 @@ func createSortColumn(fieldName, ordering string) (model.OrderByExpr, error) {
 func ResolveField(ctx context.Context, fieldName string, schemaInstance schema.Schema) string {
 	// Alias resolution should occur *after* the query is parsed, not during the parsing
 
+	isKeyword := false
+	if strings.HasSuffix(fieldName, ".keyword") {
+		isKeyword = true
+	}
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
 	fieldName = strings.TrimSuffix(fieldName, ".text")
 
+	updateQuesmaType := func(fieldKey schema.FieldName) {
+		if schemaInstance.Fields != nil {
+			field := schemaInstance.Fields[fieldKey]
+			field.Type = schema.QuesmaTypeKeyword
+			schemaInstance.Fields[field.PropertyName] = field
+		}
+	}
+
 	if resolvedField, ok := schemaInstance.ResolveField(fieldName); ok {
+		if isKeyword {
+			updateQuesmaType(schema.FieldName(fieldName))
+		}
 		return resolvedField.InternalPropertyName.AsString()
 	} else {
 		if fieldName != "*" && fieldName != "_all" && fieldName != "_doc" && fieldName != "_id" && fieldName != "_index" {
 			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema, falling back to original name", fieldName)
 		}
-
+		if isKeyword {
+			if fieldKey, exists := schemaInstance.ResolveFieldByInternalName(fieldName); exists {
+				updateQuesmaType(fieldKey.PropertyName)
+			}
+		}
 		return fieldName
 	}
 }
