@@ -1,0 +1,46 @@
+frontendConnectors:
+  - name: elastic-ingest
+    type: elasticsearch-fe-ingest
+    config:
+      listenPort: 8080
+      disableAuth: true
+  - name: elastic-query
+    type: elasticsearch-fe-query
+    config:
+      listenPort: 8080
+backendConnectors:
+  - name: my-minimal-elasticsearch
+    type: elasticsearch
+    config:
+      url: "http://elasticsearch:9200"
+      adminUrl: "http://localhost:5601"
+  - name: my-clickhouse-data-source
+    type: clickhouse-os
+    config:
+      url: "clickhouse://clickhouse:9000"
+      adminUrl: "http://localhost:8123/play"
+ingestStatistics: true
+processors:
+  - name: my-query-processor
+    type: quesma-v1-processor-query
+    config:
+      indexes:
+        "*":
+          target:
+            - my-clickhouse-data-source
+  - name: my-ingest-processor
+    type: quesma-v1-processor-ingest
+    config:
+      indexes:
+        "*":
+          target:
+            - my-clickhouse-data-source
+pipelines:
+  - name: my-pipeline-elasticsearch-query-clickhouse
+    frontendConnectors: [ elastic-query ]
+    processors: [ my-query-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]
+  - name: my-pipeline-elasticsearch-ingest-to-clickhouse
+    frontendConnectors: [ elastic-ingest ]
+    processors: [ my-ingest-processor ]
+    backendConnectors: [ my-minimal-elasticsearch, my-clickhouse-data-source ]
