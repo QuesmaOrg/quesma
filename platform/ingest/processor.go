@@ -667,6 +667,8 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error createTableObjectAndAttributes, can't create table: %v", err)
 			return nil, err
+		} else {
+			logger.InfoWithCtx(ctx).Msgf("created table '%s' with query: %s", tableName, createTableCmd)
 		}
 		// Set pointer to table after creating it
 		table = ip.FindTable(tableName)
@@ -824,15 +826,18 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
 	statements, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
 	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error processing insert query: %v", err)
 		return err
 	}
 
 	var logVirtualTableDDL bool // maybe this should be a part of the config or sth
 
-	if isVirtualTable && logVirtualTableDDL {
-		for _, statement := range statements {
-			if strings.HasPrefix(statement, "ALTER") || strings.HasPrefix(statement, "CREATE") {
+	for _, statement := range statements {
+		if strings.HasPrefix(statement, "ALTER") || strings.HasPrefix(statement, "CREATE") {
+			if isVirtualTable && logVirtualTableDDL {
 				logger.InfoWithCtx(ctx).Msgf("VIRTUAL DDL EXECUTION: %s", statement)
+			} else {
+				logger.InfoWithCtx(ctx).Msgf("DDL EXECUTION: %s", statement)
 			}
 		}
 	}
