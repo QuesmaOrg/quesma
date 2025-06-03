@@ -26,6 +26,7 @@ processors:
     config:
       indexes:
         "*":
+          useCommonTable: true
           target:
             - my-clickhouse-data-source
   - name: my-ingest-processor
@@ -33,6 +34,7 @@ processors:
     config:
       indexes:
         "*":
+          useCommonTable: true
           target:
             - my-clickhouse-data-source
 pipelines:
