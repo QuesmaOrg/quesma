@@ -1205,6 +1205,11 @@ func ResolveField(ctx context.Context, fieldName string, schemaInstance schema.S
 }
 
 func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize int) int {
+	if len(cw.UniqueIDs) > 0 {
+		// If this is a unique ID query, we can't limit size at the SQL level,
+		// because we need all matching timestamps that later will be filtered out but looking at hashes computed on hits
+		return defaultSize
+	}
 	sizeRaw, exists := queryMap["size"]
 	if !exists {
 		return defaultSize

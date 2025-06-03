@@ -3,7 +3,6 @@
 package typical_queries
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -245,7 +244,7 @@ func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) st
 			// At database level we only compare timestamps with millisecond precision
 			// However in search results we append `q` plus generated digits (we use q because it's not in hex)
 			// so that kibana can iterate over documents in UI
-			sourceHash := fmt.Sprintf("%x", HashJSON(doc.Source))
+			sourceHash := fmt.Sprintf("%x", ComputeHash(doc.Source))
 			pseudoUniqueId = fmt.Sprintf("%xqqq%sqqq%x", vv, defaultID, sourceHash)
 			//pseudoUniqueId = fmt.Sprintf("%xq%s", vv, defaultID)
 		} else {
@@ -256,17 +255,42 @@ func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) st
 	return pseudoUniqueId
 }
 
-func HashJSON(data json.RawMessage) string {
-	var buf bytes.Buffer
-	err := json.Compact(&buf, data)
+func ComputeHash(data json.RawMessage) string {
+	var parsed interface{}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		hash := sha256.Sum256(data)
+		return hex.EncodeToString(hash[:])
+	}
+	normalized := normalizeJSON(parsed)
+	normalizedBytes, err := json.Marshal(normalized)
 	if err != nil {
 		hash := sha256.Sum256(data)
 		return hex.EncodeToString(hash[:])
 	}
-	hash := sha256.Sum256(buf.Bytes())
-	eee := hex.EncodeToString(hash[:])
-	println(eee)
+	hash := sha256.Sum256(normalizedBytes)
 	return hex.EncodeToString(hash[:])
+}
+
+// normalizeJSON recursively normalizes JSON structure to ensure consistent ordering for further hashing.
+func normalizeJSON(v interface{}) interface{} {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		normalized := make(map[string]interface{})
+		for k, v := range val {
+			normalized[k] = normalizeJSON(v)
+		}
+		return normalized
+
+	case []interface{}:
+		normalized := make([]interface{}, len(val))
+		for i, v := range val {
+			normalized[i] = normalizeJSON(v)
+		}
+		return normalized
+
+	default:
+		return val
+	}
 }
 
 func (query Hits) String() string {
