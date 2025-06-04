@@ -893,7 +893,7 @@ func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []stri
 			// Limit the number of error logs to avoid flooding the logs.
 
 			// logging only first 50 errors, it should be enough for troubleshooting
-			if count < 50 {
+			if count <= 50 {
 
 				// only first 10 errors will be logged with full query
 				if count > 5 {
