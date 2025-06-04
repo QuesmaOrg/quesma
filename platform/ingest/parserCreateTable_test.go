@@ -364,3 +364,24 @@ func TestParseCreateTableWithNullable(t *testing.T) {
 	assert.True(t, table.Cols["array-tuple"].Type.(clickhouse.CompoundType).BaseType.(clickhouse.MultiValueType).Cols[0].Type.IsNullable())
 	assert.False(t, table.Cols["array-tuple"].Type.(clickhouse.CompoundType).BaseType.(clickhouse.MultiValueType).Cols[1].Type.IsNullable())
 }
+
+func IgnoredTestParseCreateTableWithDots(t *testing.T) {
+	const columnNr = 5
+	q := `CREATE TABLE IF NOT EXISTS "my-index-2.3" 
+			(
+				"attributes_values" Map(String,String),
+				"attributes_metadata" Map(String,String),
+			
+				"level" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=level',
+				"@timestamp" DateTime64 DEFAULT now64() COMMENT 'quesmaMetadataV1:fieldName=%40timestamp',
+				"message" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=message'
+			)
+			ENGINE = MergeTree
+			ORDER BY ("@timestamp")
+			
+			COMMENT 'created by Quesma'`
+	table, err := clickhouse.NewTable(q, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, columnNr, len(table.Cols))
+	assert.Equal(t, "my-index-2.3", table.Name)
+}

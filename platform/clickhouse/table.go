@@ -19,7 +19,6 @@ type Table struct {
 	ClusterName  string `default:""`
 	Cols         map[string]*Column
 	Config       *ChTableConfig
-	Created      bool // do we need to create it during first insert
 	Indexes      []IndexStatement
 	aliases      map[string]string //deprecated
 	// TODO: we should use aliases directly from configuration, not store them here

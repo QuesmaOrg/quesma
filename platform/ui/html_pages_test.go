@@ -87,7 +87,6 @@ func TestHtmlSchemaPage(t *testing.T) {
 	columnsMap[xss] = column
 
 	table := &clickhouse.Table{
-		Created:      true,
 		Name:         xss,
 		DatabaseName: xss,
 		Cols:         columnsMap,

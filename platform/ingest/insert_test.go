@@ -151,7 +151,6 @@ func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHe
 				"message":          lowCardinalityString("message"),
 				"non-insert-field": genericString("non-insert-field"),
 			},
-			Created: created,
 		})
 		lms = append(lms, ingestProcessorHelper{newIngestProcessorWithEmptyTableMap(full, &config.QuesmaConfiguration{}), created})
 	}
@@ -198,7 +197,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// check if we properly create table in our tables table :) (:) suggested by Copilot) if needed
 					tableInMemory := ip.ip.FindTable(tableName)
 					needCreate := true
-					if tableInMemory != nil && tableInMemory.Created {
+					if tableInMemory != nil {
 						needCreate = false
 					}
 					noSuchTable := ip.ip.AddTableIfDoesntExist(table)
@@ -207,7 +206,6 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// and Created is set to true
 					tableInMemory = ip.ip.FindTable(tableName)
 					assert.NotNil(t, tableInMemory)
-					assert.True(t, tableInMemory.Created)
 
 					// and we have a schema in memory in every case
 					assert.Equal(t, 1, ip.ip.tableDiscovery.TableDefinitions().Size())
@@ -253,9 +251,7 @@ func TestProcessInsertQuery(t *testing.T) {
 					// info: result values aren't important, this '.WillReturnResult[...]' just needs to be there
 					if !ip.tableAlreadyCreated {
 						// we check here if we try to create table from predefined schema, not from insert's JSON
-						if ip.ip.tableDiscovery.TableDefinitions().Size() > 0 {
-							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName + `.*non-insert-field`).WillReturnResult(sqlmock.NewResult(0, 0))
-						} else {
+						if ip.ip.tableDiscovery.TableDefinitions().Size() == 0 {
 							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
 						}
 					}
@@ -311,10 +307,9 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 
 	// big integer as an attribute field
 	tableMapNoSchemaFields := util.NewSyncMapWith(tableName, &clickhouse.Table{
-		Name:    tableName,
-		Config:  NewChTableConfigFourAttrs(),
-		Cols:    map[string]*clickhouse.Column{},
-		Created: true,
+		Name:   tableName,
+		Config: NewChTableConfigFourAttrs(),
+		Cols:   map[string]*clickhouse.Column{},
 	})
 
 	for i, bigInt := range bigInts {

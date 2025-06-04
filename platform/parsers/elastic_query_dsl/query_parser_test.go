@@ -99,7 +99,6 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String")},
 			"-@bytes":      {Name: "-@bytes", Type: clickhouse.NewBaseType("Int64")},
 		},
-		Created: true,
 	}
 	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, diag.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(&table)
