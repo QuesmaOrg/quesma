@@ -171,7 +171,7 @@ func TestIngestToCommonTable(t *testing.T) {
 						Type: clickhouse.BaseType{Name: "Map(String, String)"},
 					},
 				},
-				Config:  NewDefaultCHConfig(),
+				Config: NewDefaultCHConfig(),
 			}
 
 			for _, col := range tt.alreadyExistingColumns {
