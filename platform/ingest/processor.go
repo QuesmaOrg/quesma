@@ -669,11 +669,11 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error createTableObjectAndAttributes, can't create table: %v", err)
 			return nil, err
+		} else {
+			logger.InfoWithCtx(ctx).Msgf("created table '%s' with query: %s", tableName, createTableCmd)
 		}
 		// Set pointer to table after creating it
 		table = ip.FindTable(tableName)
-	} else if !table.Created {
-		createTableCmd = table.CreateTableString()
 	}
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
@@ -826,15 +826,18 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
 	statements, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
 	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error processing insert query: %v", err)
 		return err
 	}
 
 	var logVirtualTableDDL bool // maybe this should be a part of the config or sth
 
-	if isVirtualTable && logVirtualTableDDL {
-		for _, statement := range statements {
-			if strings.HasPrefix(statement, "ALTER") || strings.HasPrefix(statement, "CREATE") {
+	for _, statement := range statements {
+		if strings.HasPrefix(statement, "ALTER") || strings.HasPrefix(statement, "CREATE") {
+			if isVirtualTable && logVirtualTableDDL {
 				logger.InfoWithCtx(ctx).Msgf("VIRTUAL DDL EXECUTION: %s", statement)
+			} else {
+				logger.InfoWithCtx(ctx).Msgf("DDL EXECUTION: %s", statement)
 			}
 		}
 	}
@@ -997,8 +1000,6 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	t := ip.FindTable(table.Name)
 	if t == nil {
-		table.Created = true
-
 		table.ApplyIndexConfig(ip.cfg)
 
 		if table.VirtualTable {
@@ -1010,9 +1011,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 		ip.tableDiscovery.AddTable(table.Name, table)
 		return true
 	}
-	wasntCreated := !t.Created
-	t.Created = true
-	return wasntCreated
+	return false
 }
 
 func (ip *IngestProcessor) GetSchemaRegistry() schema.Registry {

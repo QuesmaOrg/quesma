@@ -29,16 +29,16 @@ func TestCountEndpoint(t *testing.T) {
 
 	tables := clickhouse.NewTableMap()
 	tables.Store("no_db_name", &clickhouse.Table{
-		Name: "no_db_name", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Created: true, Cols: map[string]*clickhouse.Column{},
+		Name: "no_db_name", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Cols: map[string]*clickhouse.Column{},
 	})
 	tables.Store("with_db_name", &clickhouse.Table{
-		Name: "with_db_name", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Created: true, Cols: map[string]*clickhouse.Column{}, DatabaseName: "db_name",
+		Name: "with_db_name", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Cols: map[string]*clickhouse.Column{}, DatabaseName: "db_name",
 	})
 	tables.Store("common_prefix_1", &clickhouse.Table{
-		Name: "common_prefix_1", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Created: true, Cols: map[string]*clickhouse.Column{}, DatabaseName: "db_name",
+		Name: "common_prefix_1", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Cols: map[string]*clickhouse.Column{}, DatabaseName: "db_name",
 	})
 	tables.Store("common_prefix_2", &clickhouse.Table{
-		Name: "common_prefix_2", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Created: true, Cols: map[string]*clickhouse.Column{},
+		Name: "common_prefix_2", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Cols: map[string]*clickhouse.Column{},
 	})
 
 	conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)

@@ -69,7 +69,6 @@ func TestAsyncSearchHandler(t *testing.T) {
 				Type: clickhouse.NewBaseType("String"),
 			},
 		},
-		Created: true,
 	})
 	fields := map[schema.FieldName]schema.Field{
 		"@timestamp":        {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.QuesmaTypeDate},
@@ -114,7 +113,6 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 			"message_____": {Name: "message_____", Type: clickhouse.NewBaseType("String")},
 			"__bytes":      {Name: "__bytes", Type: clickhouse.NewBaseType("Int64")},
 		},
-		Created: true,
 	}
 	fields := map[schema.FieldName]schema.Field{
 		"host.name":         {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject},
@@ -168,7 +166,6 @@ var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
 			Type: clickhouse.NewBaseType("String"),
 		},
 	},
-	Created: true,
 })
 
 func TestSearchHandler(t *testing.T) {
@@ -262,7 +259,6 @@ func TestSearchHandler(t *testing.T) {
 				Type: clickhouse.NewBaseType("String"),
 			},
 		},
-		Created: true,
 	}
 
 	tableMap := util.NewSyncMapWith(tableName, tab)
@@ -373,7 +369,6 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 				Type: clickhouse.NewBaseType("String"),
 			},
 		},
-		Created: true,
 	})
 
 	s := &schema.StaticRegistry{
@@ -425,7 +420,6 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
 			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
-		Created: true,
 	})
 
 	s := &schema.StaticRegistry{
@@ -477,7 +471,6 @@ func TestAsyncSearchFilter(t *testing.T) {
 				Type: clickhouse.BaseType{Name: "Map(String, String)"},
 			},
 		},
-		Created: true,
 	}
 	s := &schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
@@ -553,7 +546,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		},
 	}
 
-	table := clickhouse.Table{Name: tableName, Config: clickhouse.NewChTableConfigTimestampStringAttr(), Created: true,
+	table := clickhouse.Table{Name: tableName, Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
 			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime")},
 			"timestamp64": {Name: "timestamp64", Type: clickhouse.NewBaseType("DateTime64")},
@@ -685,7 +678,6 @@ func TestNumericFacetsQueries(t *testing.T) {
 				Type: clickhouse.NewBaseType("Float64"),
 			},
 		},
-		Created: true,
 	})
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for i, tt := range testdata.TestsNumericFacets {
@@ -779,7 +771,6 @@ func TestSearchTrackTotalCount(t *testing.T) {
 			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
 			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
-		Created: true,
 	})
 
 	test := func(handlerName string, testcase testdata.FullSearchTestCase) {
@@ -885,7 +876,6 @@ func TestFullQueryTestWIP(t *testing.T) {
 			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
 			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
-		Created: true,
 	})
 
 	test := func(handlerName string, testcase testdata.FullSearchTestCase) {
@@ -996,7 +986,6 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
 			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
-		Created: true,
 	})
 
 	someTime := time.Date(2024, 1, 29, 18, 11, 36, 491000000, time.UTC) // 1706551896491 in UnixMilli
@@ -1133,7 +1122,6 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 		Cols: map[string]*clickhouse.Column{
 			"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
 		},
-		Created: true,
 	})
 
 	iterations := []struct {
@@ -1252,7 +1240,6 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 			"bicep_size": {Name: "bicep_size", Type: clickhouse.NewBaseType("Int64")},
 			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
-		Created: true,
 	})
 
 	someTime := time.Date(2024, 1, 29, 18, 11, 36, 491000000, time.UTC) // 1706551896491 in UnixMilli
@@ -1410,7 +1397,6 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 			"bicep_size": {Name: "bicep_size", Type: clickhouse.NewBaseType("Int64")},
 			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
-		Created: true,
 	})
 
 	someTime := time.Date(2024, 1, 29, 18, 11, 36, 491000000, time.UTC) // 1706551896491 in UnixMilli
