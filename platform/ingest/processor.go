@@ -68,6 +68,8 @@ type (
 		ingestFieldStatisticsLock sync.Mutex
 		virtualTableStorage       persistence.JSONDatabase
 		tableResolver             table_resolver.TableResolver
+
+		ingestErrorLoggerCount atomic.Int64
 	}
 	TableMap  = util.SyncMap[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -883,7 +885,27 @@ func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []stri
 
 		err := ip.execute(ctx, q)
 		if err != nil {
-			logger.ErrorFull(ctx, "error executing ingest statement", err).Msgf("query: %s", q)
+			count := ip.ingestErrorLoggerCount.Add(1)
+
+			// Limit the number of error logs to avoid flooding the logs.
+
+			// logging only first 50 errors, it should be enough for troubleshooting
+			if count < 50 {
+
+				// only first 10 errors will be logged with full query
+				if count > 5 {
+					if len(q) > 100 {
+						q = q[:100] + "..."
+					}
+				}
+				logger.ErrorWithCtx(ctx).Msgf("error executing ingest statement: %s, query: %s", err, q)
+			} else {
+				// log every 1000th error, just to keep track of errors
+				if count%1000 == 0 {
+					logger.WarnWithCtx(ctx).Msgf("got %d total errors executing ingest statements.  last error: %s, last query: %s", count, err, q)
+				}
+			}
+
 			return err
 		}
 	}
