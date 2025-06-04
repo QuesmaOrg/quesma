@@ -19,7 +19,6 @@ type Table struct {
 	ClusterName  string `default:""`
 	Cols         map[string]*Column
 	Config       *ChTableConfig
-	Indexes      []IndexStatement
 	aliases      map[string]string //deprecated
 	// TODO: we should use aliases directly from configuration, not store them here
 	Comment          string // this human-readable comment
@@ -70,9 +69,6 @@ func (t *Table) CreateTableString() string {
 		rows = append(rows, col.createTableString(1))
 	}
 	rows = append(rows, t.createTableOurFieldsString()...)
-	for _, index := range t.Indexes {
-		rows = append(rows, util.Indent(1)+index.Statement())
-	}
 	return s + strings.Join(rows, ",\n") + "\n)\n" + t.Config.CreateTablePostFieldsString()
 }
 
