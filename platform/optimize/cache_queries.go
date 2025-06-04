@@ -31,9 +31,9 @@ func (s *cacheQueries) IsEnabledByDefault() bool {
 	return false
 }
 
-func (s *cacheQueries) Transform(queries []*model.Query, properties map[string]string) ([]*model.Query, error) {
+func (s *cacheQueries) Transform(plan *model.ExecutionPlan, properties map[string]string) (*model.ExecutionPlan, error) {
 
-	for _, query := range queries {
+	for _, query := range plan.Queries {
 
 		var hasGroupBy bool
 		var hasWindowFunction bool
@@ -83,5 +83,5 @@ func (s *cacheQueries) Transform(queries []*model.Query, properties map[string]s
 		}
 
 	}
-	return queries, nil
+	return plan, nil
 }

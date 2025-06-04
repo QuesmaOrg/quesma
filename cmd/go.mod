@@ -3,7 +3,7 @@ module github.com/QuesmaOrg/quesma/quesma-cli
 go 1.24.0
 
 require (
-	github.com/QuesmaOrg/quesma/platform v0.0.0-20250303135300-04f0a4897c30
+	github.com/QuesmaOrg/quesma/platform v0.0.0-20250519105918-0f6942f1a3dd
 	github.com/goccy/go-json v0.10.5
 	github.com/stretchr/testify v1.10.0
 )
@@ -84,7 +84,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/otel v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect

@@ -12,7 +12,7 @@ type replaceColumNamesWithFieldNames struct {
 	indexSchema schema.Schema
 }
 
-func (t *replaceColumNamesWithFieldNames) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+func (t *replaceColumNamesWithFieldNames) Transform(plan *model.ExecutionPlan, result [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow, error) {
 
 	schemaInstance := t.indexSchema
 	for _, rows := range result {
@@ -25,14 +25,14 @@ func (t *replaceColumNamesWithFieldNames) Transform(result [][]model.QueryResult
 			}
 		}
 	}
-	return result, nil
+	return plan, result, nil
 }
 
 type EvalPainlessScriptOnColumnsTransformer struct {
 	FieldScripts map[string]painful.Expr
 }
 
-func (t *EvalPainlessScriptOnColumnsTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+func (t *EvalPainlessScriptOnColumnsTransformer) Transform(plan *model.ExecutionPlan, result [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow, error) {
 
 	for _, rows := range result {
 		for _, row := range rows {
@@ -50,12 +50,33 @@ func (t *EvalPainlessScriptOnColumnsTransformer) Transform(result [][]model.Quer
 
 					_, err := script.Eval(env)
 					if err != nil {
-						return nil, err
+						return plan, nil, err
 					}
 					row.Cols[j].Value = env.EmitValue
 				}
 			}
 		}
 	}
-	return result, nil
+	return plan, result, nil
+}
+
+// SiblingsTransformer is a transformer that merges the results of sibling queries
+// into a single result set. The general idea is that a query might be split into
+// multiple subqueries, which are executed in parallel. Their results are then
+// merged together.
+//
+// This approach is useful when only a subset of the results is needed.
+// For example, Elasticsearch often returns the last 500 hits. If we already
+// get 500 hits within the last 15 minutes, we can stop execution early.
+// Otherwise, we can collect and merge results from all sibling queries
+// to retrieve more data.
+
+type SiblingsTransformer struct {
+}
+
+func (t *SiblingsTransformer) Transform(plan *model.ExecutionPlan, results [][]model.QueryResultRow) (*model.ExecutionPlan, [][]model.QueryResultRow, error) {
+	if plan.MergeSiblingResults != nil {
+		plan, results = plan.MergeSiblingResults(plan, results)
+	}
+	return plan, results, nil
 }

@@ -43,7 +43,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	simpleQuery, hitsInfo, highlighter, err := cw.parseQueryInternal(body)
 	if err != nil || !simpleQuery.CanParse {
 		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
-		return &model.ExecutionPlan{}, err
+		return model.NewExecutionPlan(nil, nil), err
 	}
 
 	var queries []*model.Query
@@ -74,7 +74,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 
 	runtimeMappings, err := ParseRuntimeMappings(body) // we apply post query transformer for certain aggregation types
 	if err != nil {
-		return &model.ExecutionPlan{}, err
+		return model.NewExecutionPlan(nil, nil), err
 	}
 
 	// we apply post query transformer for certain aggregation types
@@ -98,10 +98,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		query.Schema = cw.Schema
 	}
 
-	plan := &model.ExecutionPlan{
-		Queries:               queries,
-		QueryRowsTransformers: queryResultTransformers,
-	}
+	plan := model.NewExecutionPlan(
+		queries, queryResultTransformers)
 
 	return plan, err
 }
@@ -119,10 +117,10 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	}
 	if fullQuery != nil {
 		highlighter.SetTokensToHighlight(fullQuery.SelectCommand)
-		// TODO: pass right arguments
-		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.SelectCommand.OrderByFieldNames(), true, false, false, cw.Indexes)
+		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, simpleQuery.SortFieldNames, true, false, false, cw.Indexes)
 		fullQuery.Type = &queryType
 		fullQuery.Highlighter = highlighter
+		fullQuery.SearchAfterFieldNames = simpleQuery.SortFieldNames
 	}
 
 	return fullQuery
@@ -155,7 +153,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryInternal(body types.JSON) (*model
 	}
 
 	if sortPart, ok := queryAsMap["sort"]; ok {
-		parsedQuery.OrderBy = cw.parseSortFields(sortPart)
+		parsedQuery.OrderBy, parsedQuery.SortFieldNames = cw.parseSortFields(sortPart)
 	}
 	size := cw.parseSize(queryAsMap, defaultQueryResultSize)
 
@@ -347,9 +345,14 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		}
 	}
 
-	// TODO replace with cw.Schema
 	var idToSql func(string) (model.Expr, error)
-	timestampColumnName := model.TimestampFieldName
+	var timestampColumnName string
+	if cw.Table.DiscoveredTimestampFieldName != nil {
+		timestampColumnName = *cw.Table.DiscoveredTimestampFieldName
+	} else {
+		timestampColumnName = model.TimestampFieldName
+	}
+
 	if column, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch column.Type.String() {
 		case clickhouse.DateTime64.String():
@@ -794,7 +797,12 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 		for _, op := range keysSorted {
 			valueRaw := v.(QueryMap)[op]
 			value := sprint(valueRaw)
-			defaultValue := model.NewLiteral(value)
+			formatAny, formatExists := v.(QueryMap)["format"]
+			format := ""
+			if f, ok := formatAny.(string); ok {
+				format = f
+			}
+			defaultValue := model.NewLiteralWithFormat(value, format)
 			dateManager := NewDateManager(cw.Ctx)
 
 			// Three stages:
@@ -809,16 +817,20 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			switch fieldType {
 			case clickhouse.DateTime, clickhouse.DateTime64:
 				// TODO add support for "time_zone" parameter in ParseDateUsualFormat
-				finalValue, doneParsing = dateManager.ParseDateUsualFormat(value, fieldType)  // stage 1
-				if !doneParsing && (op == "gte" || op == "lte" || op == "gt" || op == "lt") { // stage 2
+				finalValue, doneParsing = dateManager.ParseDateUsualFormat(value, fieldType, format) // stage 1
+				if !doneParsing && (op == "gte" || op == "lte" || op == "gt" || op == "lt") {        // stage 2
 					parsed, err := cw.parseDateMathExpression(value)
 					if err == nil {
 						doneParsing = true
-						finalValue = model.NewLiteral(parsed)
+						literal := model.NewLiteralWithEscapeType(parsed, model.NormalNotEscaped)
+						if formatExists {
+							literal.Attrs[model.FormatKey] = format
+						}
+						finalValue = literal
 					}
 				}
 				if !doneParsing && isQuoted { // stage 3
-					finalValue, doneParsing = dateManager.ParseDateUsualFormat(value[1:len(value)-1], fieldType)
+					finalValue, doneParsing = dateManager.ParseDateUsualFormat(value[1:len(value)-1], fieldType, format)
 				}
 			case clickhouse.Invalid:
 				if isQuoted {
@@ -829,7 +841,11 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						}
 					}
 					if isNumber {
-						finalValue = model.NewLiteral(unquoted)
+						literal := model.NewLiteralWithEscapeType(unquoted, model.NormalNotEscaped)
+						if formatExists {
+							literal.Attrs[model.FormatKey] = format
+						}
+						finalValue = literal
 						doneParsing = true
 					}
 				}
@@ -1075,8 +1091,9 @@ func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) (interva
 
 // parseSortFields parses sort fields from the query
 // We're skipping ELK internal fields, like "_doc", "_id", etc. (we only accept field starting with "_" if it exists in our table)
-func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns []model.OrderByExpr) {
+func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns []model.OrderByExpr, sortFieldNames []string) {
 	sortColumns = make([]model.OrderByExpr, 0)
+	sortFieldNames = make([]string, 0)
 	switch sortMaps := sortMaps.(type) {
 	case []any:
 		for _, sortMapAsAny := range sortMaps {
@@ -1088,6 +1105,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 
 			// sortMap has only 1 key, so we can just iterate over it
 			for k, v := range sortMap {
+				sortFieldNames = append(sortFieldNames, k)
 				// TODO replace cw.Table.GetFieldInfo with schema.Field[]
 				if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, ResolveField(cw.Ctx, k, cw.Schema)) == clickhouse.NotExists {
 					// we're skipping ELK internal fields, like "_doc", "_id", etc.
@@ -1120,9 +1138,10 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 				}
 			}
 		}
-		return sortColumns
+		return sortColumns, sortFieldNames
 	case map[string]interface{}:
 		for fieldName, fieldValue := range sortMaps {
+			sortFieldNames = append(sortFieldNames, fieldName)
 			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, ResolveField(cw.Ctx, fieldName, cw.Schema)) == clickhouse.NotExists {
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
@@ -1136,10 +1155,11 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 			}
 		}
 
-		return sortColumns
+		return sortColumns, sortFieldNames
 
 	case map[string]string:
 		for fieldName, fieldValue := range sortMaps {
+			sortFieldNames = append(sortFieldNames, fieldName)
 			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, ResolveField(cw.Ctx, fieldName, cw.Schema)) == clickhouse.NotExists {
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
@@ -1151,10 +1171,10 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 			}
 		}
 
-		return sortColumns
+		return sortColumns, sortFieldNames
 	default:
 		logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of sortMaps: %T, value: %v", sortMaps, sortMaps)
-		return []model.OrderByExpr{}
+		return []model.OrderByExpr{}, sortFieldNames
 	}
 }
 
@@ -1179,16 +1199,35 @@ func createSortColumn(fieldName, ordering string) (model.OrderByExpr, error) {
 func ResolveField(ctx context.Context, fieldName string, schemaInstance schema.Schema) string {
 	// Alias resolution should occur *after* the query is parsed, not during the parsing
 
+	isKeyword := false
+	if strings.HasSuffix(fieldName, ".keyword") {
+		isKeyword = true
+	}
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
 	fieldName = strings.TrimSuffix(fieldName, ".text")
 
+	updateQuesmaType := func(fieldKey schema.FieldName) {
+		if schemaInstance.Fields != nil {
+			field := schemaInstance.Fields[fieldKey]
+			field.Type = schema.QuesmaTypeKeyword
+			schemaInstance.Fields[field.PropertyName] = field
+		}
+	}
+
 	if resolvedField, ok := schemaInstance.ResolveField(fieldName); ok {
+		if isKeyword {
+			updateQuesmaType(schema.FieldName(fieldName))
+		}
 		return resolvedField.InternalPropertyName.AsString()
 	} else {
 		if fieldName != "*" && fieldName != "_all" && fieldName != "_doc" && fieldName != "_id" && fieldName != "_index" {
 			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema, falling back to original name", fieldName)
 		}
-
+		if isKeyword {
+			if fieldKey, exists := schemaInstance.ResolveFieldByInternalName(fieldName); exists {
+				updateQuesmaType(fieldKey.PropertyName)
+			}
+		}
 		return fieldName
 	}
 }

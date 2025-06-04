@@ -137,6 +137,7 @@ type discoveredTable struct {
 	createTableQuery   string
 	timestampFieldName string
 	virtualTable       bool
+	existsOnAllNodes   bool // => table can be queried using `FROM cluster(<clusterName>,<tableName>)` syntax
 }
 
 func (lm *LogManager) ReloadTables() {
@@ -269,10 +270,12 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 	if _, ok := paidServiceChecks[service]; !ok {
 		return fmt.Errorf("service %s is not supported", service)
 	}
+	backOffTime := 3 * time.Second
 	for {
 		isConnectedToPaidService, err := lm.isConnectedToPaidService(service)
 		if err != nil {
-			logger.Error().Msgf("Licensing checker failed to connect with the database")
+			logger.ErrorWithCtx(lm.ctx).Msgf(
+				"Failed to connect with the database, can't determine if license is required: %v", err)
 		}
 		if isConnectedToPaidService {
 			return fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
@@ -280,7 +283,11 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 			returnedErr = nil
 			break
 		}
-		time.Sleep(3 * time.Second)
+		time.Sleep(backOffTime)
+		backOffTime *= 2 // exponential backoff
+		if backOffTime > time.Minute {
+			backOffTime = time.Minute
+		}
 	}
 	return returnedErr
 }

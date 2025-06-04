@@ -1,0 +1,70 @@
+services:
+  quesma:
+    image: quesma/quesma:latest
+    environment:
+      - QUESMA_elasticsearch_url=http://elasticsearch:9200
+      - QUESMA_port=8080
+      - QUESMA_CONFIG_FILE=/config/starter-config.yml
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "9999:9999"
+      - "8080:8080"
+    volumes:
+      - ./config:/config
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    restart: unless-stopped
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xmx2G"
+    ports:
+      - "9201:9200"
+      - "9300:9300"
+    healthcheck:
+      test: curl -s http://elasticsearch:9200 >/dev/null || exit 1
+      start_period: 1m
+      interval: 1s
+      timeout: 1s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.1
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://quesma:8080"]'
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: 'QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA' # Just to get rid of annoying ERROR in logs
+    depends_on:
+      quesma:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "5601:5601"
+    restart: unless-stopped
+    healthcheck:
+      test: "curl -s http://localhost:5601/api/status >/dev/null || exit 1"
+      start_period: 2m
+      interval: 1s
+      timeout: 1s
+  #    volumes:
+  #      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+  clickhouse:
+    # user: 'default', no password
+    image: clickhouse/clickhouse-server:24.5.3.5-alpine
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://clickhouse:8123/ping || exit 1
+      interval: 1s
+      timeout: 1s
+      start_period: 1m

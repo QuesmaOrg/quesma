@@ -3,6 +3,7 @@
 package frontend_connectors
 
 import (
+	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
@@ -10,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
+	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/transformations"
 	"sort"
@@ -58,7 +60,8 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query
 			if strings.Contains(boolLiteral, "true") || strings.Contains(boolLiteral, "false") {
 				boolLiteral = strings.TrimLeft(boolLiteral, "'")
 				boolLiteral = strings.TrimRight(boolLiteral, "'")
-				return model.NewLiteralWithEscapeType(boolLiteral, e.EscapeType)
+				var asAny any = boolLiteral
+				return e.CloneAndOverride(&asAny, nil, nil)
 			}
 		}
 		return e.Clone()
@@ -235,7 +238,7 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 			}
 		}
 
-		return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+		return visitFunction(b, e)
 	}
 
 	visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
@@ -534,7 +537,7 @@ func (s *SchemaCheckPass) applyWildcardExpansion(indexSchema schema.Schema, quer
 
 	for _, selectColumn := range query.SelectCommand.Columns {
 
-		if selectColumn == model.NewWildcardExpr {
+		if model.IsWildcard(selectColumn) {
 			hasWildcard = true
 		} else {
 			newColumns = append(newColumns, selectColumn)
@@ -615,9 +618,9 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 
 				if len(fullTextFields) == 0 {
 					if (strings.ToUpper(e.Op) == "LIKE" || strings.ToUpper(e.Op) == "ILIKE") && model.AsString(e.Right) == "'%'" {
-						return model.NewLiteral(true)
+						return model.TrueExpr
 					}
-					return model.NewLiteral(false)
+					return model.FalseExpr
 				}
 
 				var expressions []model.Expr
@@ -632,7 +635,7 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 			}
 		}
 
-		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+		return visitInfix(b, e)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
@@ -655,6 +658,13 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 	// check if the schema has a timestamp field configured
 	if column, ok := indexSchema.Fields[model.TimestampFieldName]; ok {
 		timestampColumnName = column.InternalPropertyName.AsString()
+	}
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	if table.DiscoveredTimestampFieldName != nil {
+		timestampColumnName = *table.DiscoveredTimestampFieldName
 	}
 
 	// if not found, check if the table has a timestamp field discovered somehow
@@ -743,7 +753,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			if hasAttributesValuesColumn {
 				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
 			} else {
-				return model.NewLiteral("NULL")
+				return model.NullExpr
 			}
 		}
 	}
@@ -863,7 +873,7 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 			// add more
 
 		default:
-			return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+			return visitFunction(b, e)
 		}
 	}
 
@@ -897,7 +907,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 								if strings.HasPrefix(col.InternalPropertyType, dbTypePrefix) {
 									logger.Warn().Msgf("Aggregation '%s' over unsupported type '%s' in column '%s'", e.Name, dbTypePrefix, col.InternalPropertyName.AsString())
 									args := b.VisitChildren(e.Args)
-									args[0] = model.NewLiteral("NULL")
+									args[0] = model.NullExpr
 									return model.NewFunction(e.Name, args...)
 								}
 							}
@@ -908,7 +918,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 						if access.ColumnRef.ColumnName == clickhouse.AttributesValuesColumn {
 							logger.Warn().Msgf("Unsupported case. Aggregation '%s' over attribute named: '%s'", e.Name, access.Index)
 							args := b.VisitChildren(e.Args)
-							args[0] = model.NewLiteral("NULL")
+							args[0] = model.NullExpr
 							return model.NewFunction(e.Name, args...)
 						}
 					}
@@ -916,7 +926,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 			}
 		}
 
-		return model.NewFunction(e.Name, b.VisitChildren(e.Args)...)
+		return visitFunction(b, e)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
@@ -967,7 +977,77 @@ func (s *SchemaCheckPass) applyAliasColumns(indexSchema schema.Schema, query *mo
 	return query, nil
 }
 
-func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
+func visitFunction(b *model.BaseExprVisitor, f model.FunctionExpr) interface{} {
+	return model.NewFunction(f.Name, b.VisitChildren(f.Args)...)
+}
+
+func visitInfix(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+	return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+}
+
+func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	table, exists := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !exists {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+
+	dateManager := elastic_query_dsl.NewDateManager(context.Background())
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+		col, okLeft := model.ExtractColRef(e.Left)
+		lit, _ := model.ToLiteral(e.Right)
+		ts, okRight := model.ToLiteralsValue(e.Right)
+		if okLeft && okRight && table.IsInt(col.ColumnName) {
+			format := ""
+			if f, ok := lit.Format(); ok {
+				format = f
+			}
+			expr, ok := dateManager.ParseDateUsualFormat(ts, clickhouse.DateTime64, format)
+			if !ok {
+				// FIXME hacky but seems working
+				if tsStr, ok_ := ts.(string); ok_ && len(tsStr) > 2 {
+					expr, ok = dateManager.ParseDateUsualFormat(tsStr[1:len(tsStr)-1], clickhouse.DateTime64, format)
+				}
+			}
+			if ok {
+				if f, okF := model.ToFunction(expr); okF && f.Name == "fromUnixTimestamp64Milli" && len(f.Args) == 1 {
+					if l, okL := model.ToLiteral(f.Args[0]); okL {
+						if _, exists := l.Format(); exists { // heuristics: it's a date <=> it has a format
+							return model.NewInfixExpr(col, e.Op, f.Args[0])
+						}
+					}
+				}
+			}
+		}
+		return visitInfix(b, e)
+	}
+
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, f model.FunctionExpr) interface{} {
+		if f.Name == "toUnixTimestamp64Milli" && len(f.Args) == 1 {
+			if col, ok := model.ExtractColRef(f.Args[0]); ok && table.IsInt(col.ColumnName) {
+				// erases toUnixTimestamp64Milli
+				return f.Args[0]
+			}
+		}
+		if f.Name == "toTimezone" && len(f.Args) == 2 {
+			if col, ok := model.ExtractColRef(f.Args[0]); ok && table.IsInt(col.ColumnName) {
+				// adds fromUnixTimestamp64Milli
+				return model.NewFunction("toTimezone", model.NewFunction("fromUnixTimestamp64Milli", f.Args[0]), f.Args[1])
+			}
+		}
+		return visitFunction(b, f)
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+
+	return query, nil
+}
+
+func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.ExecutionPlan, error) {
 
 	transformationChain := []struct {
 		TransformationName string
@@ -981,6 +1061,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			return transformations.ApplyAllNecessaryCommonTransformations(query, schema, s.cfg.MapFieldsDiscoveringEnabled)
 		}},
 		{TransformationName: "AliasColumnsTransformation", Transformation: s.applyAliasColumns},
+		{TransformationName: "AcceptIntsAsTimestamps", Transformation: s.acceptIntsAsTimestamps},
 
 		// Section 2: generic schema based transformations
 		//
@@ -1001,12 +1082,13 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
 		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
+		{TransformationName: "ClusterFunction", Transformation: s.applyFromClusterExpression},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 	}
 
-	for k, query := range queries {
+	for k, query := range plan.Queries {
 		var err error
 
 		if !s.cfg.Logging.EnableSQLTracing {
@@ -1023,7 +1105,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 			query, err = transformation.Transformation(query.Schema, query)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error applying transformation %s: %w", transformation.TransformationName, err)
 			}
 
 			if s.cfg.Logging.EnableSQLTracing {
@@ -1035,9 +1117,9 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			}
 		}
 
-		queries[k] = query
+		plan.Queries[k] = query
 	}
-	return queries, nil
+	return plan, nil
 }
 
 func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
@@ -1074,7 +1156,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			okLeft = true
 			lhsCol = lhsT.ColumnRef
 		default:
-			return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+			return visitInfix(b, e)
 		}
 
 		rhsValue, ok := rhs.Value.(string)
@@ -1083,7 +1165,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				// only strings can be ILIKEd, everything else is a simple =
 				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), "=", e.Right.Accept(b).(model.Expr))
 			} else {
-				return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+				return visitInfix(b, e)
 			}
 		}
 
@@ -1123,9 +1205,17 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
 				rhs.Value = strings.Trim(rhsValue, "%")
-				rhs.EscapeType = model.NormalNotEscaped
+				rhs.Attrs[model.EscapeKey] = model.NormalNotEscaped
+				return equal()
+			case schema.QuesmaTypeKeyword.Name:
 				return equal()
 			default:
+				if rhsValue == "%%" { // ILIKE '%%' has terrible performance, but semantically means "is not null", hence this transformation
+					return model.NewInfixExpr(lhs, "IS", model.NewLiteral("NOT NULL"))
+				}
+				// we might investigate the potential performance gain of checking
+				// that if rhsValue doesn't contain '%' we could use '=' instead of 'ILIKE'
+				// *however* that'd require few tweaks in the parser
 				return ilike()
 			}
 		}
@@ -1152,14 +1242,17 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 
 								// sanity check for map type with two elements
 								if len(kvTypes) == 2 {
-									rhsValue := rhs.Value.(string)
+									rhsValue = rhs.Value.(string)
 									rhsValue = strings.TrimPrefix(rhsValue, "'")
 									rhsValue = strings.TrimSuffix(rhsValue, "'")
 
 									// here we check if the value of the map is string or not
 
 									if strings.Contains(kvTypes[1], "String") {
-										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "iLIKE", model.NewLiteralWithEscapeType(rhsValue, model.NotEscapedLikeFull))
+										newRhs := rhs.Clone()
+										newRhs.Value = rhsValue
+										newRhs.Attrs[model.EscapeKey] = model.NotEscapedLikeFull
+										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "iLIKE", newRhs)
 									} else {
 										return model.NewInfixExpr(arrayElementFn.Accept(b).(model.Expr), "=", e.Right.Accept(b).(model.Expr))
 									}
@@ -1174,7 +1267,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 		if e.Op == model.MatchOperator {
 			logger.Error().Msgf("Match operator is not supported for column %v (expr: %v)", lhsCol, e)
 		}
-		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
+		return visitInfix(b, e)
 	}
 
 	expr := query.SelectCommand.Accept(visitor)
@@ -1184,4 +1277,28 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	}
 	return query, nil
 
+}
+
+// applyFromClusterExpression transforms query so that `FROM table` becomes `FROM cluster(clusterName,table)` if applicable
+func (s *SchemaCheckPass) applyFromClusterExpression(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
+	if s.cfg.ClusterName == "" {
+		return query, nil
+	}
+	visitor := model.NewBaseVisitor()
+	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
+	if !ok {
+		return nil, fmt.Errorf("table %s not found", query.TableName)
+	}
+	if !table.ExistsOnAllNodes {
+		return query, nil
+	}
+	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
+		return model.NewFunction("cluster", model.NewLiteral(s.cfg.ClusterName), e)
+	}
+	logger.Debug().Msgf("applyClusterFunction: %s", s.cfg.ClusterName)
+	expr := query.SelectCommand.Accept(visitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
 }

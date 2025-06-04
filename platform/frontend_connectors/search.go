@@ -9,7 +9,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
 	"github.com/QuesmaOrg/quesma/platform/async_search_storage"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
-	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
@@ -72,6 +71,7 @@ type QueryRunnerIFace interface {
 	HandleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON, waitForResultsMs int, keepOnCompletion bool) ([]byte, error)
 	HandleAsyncSearchStatus(_ context.Context, id string) ([]byte, error)
 	HandleCount(ctx context.Context, indexPattern string) (int64, error)
+	HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, something bool) ([]byte, error)
 	// Todo: consider removing this getters for these two below, this was required for temporary Field Caps impl in v2 api
 	GetSchemaRegistry() schema.Registry
 	GetLogManager() clickhouse.LogManagerIFace
@@ -345,6 +345,10 @@ func (q *QueryRunner) HandleAsyncSearch(ctx context.Context, indexPattern string
 	return q.handleSearchCommon(ctx, indexPattern, body, &async)
 }
 
+func (q *QueryRunner) HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, isFieldMapSyntaxEnabled bool) ([]byte, error) {
+	return handleTermsEnumInternal(ctx, indexPattern, body, q.logManager, q.schemaRegistry, isFieldMapSyntaxEnabled, q.debugInfoCollector)
+}
+
 type asyncSearchWithError struct {
 	response            *model.SearchResp
 	translatedQueryBody []diag.TranslatedSQLQuery
@@ -360,7 +364,7 @@ type AsyncQuery struct {
 
 func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
 	var err error
-	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
+	_, err = q.transformationPipeline.Transform(plan)
 	if err != nil {
 		return fmt.Errorf("error transforming queries: %v", err)
 	}
@@ -455,9 +459,11 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery) (resp []byte, err error) {
+	const (
+		defaultId   = "FAKE_ID"
+		defaultPath = ""
+	)
 	var (
-		id                  = "FAKE_ID"
-		path                = ""
 		startTime           = time.Now()
 		resolvedIndexes     []string
 		queryTranslator     IQueryTranslator
@@ -466,158 +472,30 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		table               *clickhouse.Table // TODO we should use schema here only
 		tables              clickhouse.TableMap
 		currentSchema       schema.Schema
+		respWhenError       []byte
+		weEndSearch         bool
 	)
 
-	if val := ctx.Value(tracing.RequestIdCtxKey); val != nil {
-		if str, ok := val.(string); ok {
-			id = str
-		}
-	}
-	if val := ctx.Value(tracing.RequestPath); val != nil {
-		if str, ok := val.(string); ok {
-			path = str
-		}
-	}
+	id := tracing.ExtractValueString(ctx, tracing.RequestIdCtxKey, defaultId)
+	path := tracing.ExtractValueString(ctx, tracing.RequestPath, defaultPath)
 
 	decision := q.tableResolver.Resolve(quesma_api.QueryPipeline, indexPattern)
-
-	if decision.Err != nil {
-		if optAsync != nil {
-			resp, _ = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
-		} else {
-			resp = elastic_query_dsl.EmptySearchResponse(ctx)
-		}
-		err = decision.Err
-		goto logErrorAndReturn
-	}
-
-	if decision.IsEmpty {
-		if optAsync != nil {
-			resp, err = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
-		} else {
-			resp = elastic_query_dsl.EmptySearchResponse(ctx)
-		}
-		goto logErrorAndReturn
-	}
-
-	if decision.IsClosed {
-		err = quesma_errors.ErrIndexNotExists() // TODO
-		goto logErrorAndReturn
-	}
-
-	if len(decision.UseConnectors) == 0 {
-		err = end_user_errors.ErrSearchCondition.New(fmt.Errorf("no connectors to use"))
-		goto logErrorAndReturn
-	}
-
-	for _, connector := range decision.UseConnectors {
-		switch c := connector.(type) {
-
-		case *quesma_api.ConnectorDecisionClickhouse:
-			clickhouseConnector = c
-
-		case *quesma_api.ConnectorDecisionElastic:
-			// After https://github.com/QuesmaOrg/quesma/pull/1278 we should never land in this situation,
-			// previously this was an escape hatch for `_msearch` payload containing Elasticsearch-targetted query
-			// This code lives only to postpone bigger refactor of `handleSearchCommon` which also supports async and A/B testing
-
-		default:
-			err = fmt.Errorf("unknown connector type: %T", c)
-			goto logErrorAndReturn
-		}
-	}
-
-	if clickhouseConnector == nil {
-		logger.Warn().Msgf("multi-search payload contains Elasticsearch-targetted query")
-		err = fmt.Errorf("quesma-processed _msearch payload contains Elasticsearch-targetted query")
+	if respWhenError, err, weEndSearch = q.checkDecision(ctx, decision, optAsync); err != nil || weEndSearch {
+		resp = respWhenError
 		goto logErrorAndReturn
 	}
 
 	startTime = time.Now()
-	tables, err = q.logManager.GetTableDefinitions()
-	if err != nil {
+	if tables, err = q.logManager.GetTableDefinitions(); err != nil {
 		goto logErrorAndReturn
 	}
 
-	resolvedIndexes = clickhouseConnector.ClickhouseIndexes
-
-	if !clickhouseConnector.IsCommonTable {
-		if len(resolvedIndexes) < 1 {
-			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load [%s] schema", resolvedIndexes)).Details("Table: [%v]", resolvedIndexes)
-			goto logErrorAndReturn
-		}
-		indexName := resolvedIndexes[0] // we got exactly one table here because of the check above
-		resolvedTableName := q.cfg.IndexConfig[indexName].TableName(indexName)
-
-		resolvedSchema, ok := q.schemaRegistry.FindSchema(schema.IndexName(indexName))
-		if !ok {
-			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", resolvedTableName)).Details("Table: %s", resolvedTableName)
-			goto logErrorAndReturn
-		}
-
-		table, _ = tables.Load(resolvedTableName)
-		if table == nil {
-			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
-			goto logErrorAndReturn
-		}
-
-		currentSchema = resolvedSchema
-
-	} else {
-
-		// here we filter out indexes that are not stored in the common table
-		var virtualOnlyTables []string
-		for _, indexName := range resolvedIndexes {
-			table, _ = tables.Load(q.cfg.IndexConfig[indexName].TableName(indexName))
-			if table == nil {
-				continue
-			}
-			if table.VirtualTable {
-				virtualOnlyTables = append(virtualOnlyTables, indexName)
-			}
-		}
-		resolvedIndexes = virtualOnlyTables
-
-		if len(resolvedIndexes) == 0 {
-			if optAsync != nil {
-				resp, err = elastic_query_dsl.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
-			} else {
-				resp, err = elastic_query_dsl.EmptySearchResponse(ctx), nil
-			}
-			goto logErrorAndReturn
-		}
-
-		commonTable, ok := tables.Load(common_table.TableName)
-		if !ok {
-			resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", common_table.TableName)).Details("Table: %s", common_table.TableName)
-			goto logErrorAndReturn
-		}
-
-		// Let's build a  union of schemas
-		resolvedSchema := schema.Schema{
-			Fields:             make(map[schema.FieldName]schema.Field),
-			Aliases:            make(map[schema.FieldName]schema.FieldName),
-			ExistsInDataSource: false,
-			DatabaseName:       "", // it doesn't matter here, common table will be used
-		}
-
-		schemas := q.schemaRegistry.AllSchemas()
-
-		for _, idx := range resolvedIndexes {
-			scm, ok := schemas[schema.IndexName(idx)]
-			if !ok {
-				resp, err = []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s schema", idx)).Details("Table: %s", idx)
-				goto logErrorAndReturn
-			}
-
-			for fieldName := range scm.Fields {
-				// here we construct our runtime  schema by merging fields from all resolved indexes
-				resolvedSchema.Fields[fieldName] = scm.Fields[fieldName]
-			}
-		}
-
-		currentSchema = resolvedSchema
-		table = commonTable
+	if clickhouseConnector, err = q.clickhouseConnectorFromDecision(ctx, decision); err != nil || clickhouseConnector == nil {
+		goto logErrorAndReturn
+	}
+	if resolvedIndexes, currentSchema, table, respWhenError, err = q.resolveIndexes(ctx, clickhouseConnector, tables, optAsync); err != nil || table == nil {
+		resp = respWhenError
+		goto logErrorAndReturn
 	}
 
 	queryTranslator = NewQueryTranslator(ctx, currentSchema, table, q.logManager, q.DateMathRenderer, resolvedIndexes)
@@ -638,7 +516,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 		goto logErrorAndReturn
 	}
+	if len(plan.Queries) > 0 {
+		for i, query := range plan.Queries {
+			logger.InfoWithCtx(ctx).Msgf("Input SQL query %d: %s", i, query.SelectCommand.String())
+		}
+	}
 	err = q.transformQueries(plan)
+
 	if err != nil {
 		goto logErrorAndReturn
 	}
@@ -791,70 +675,97 @@ func (q *QueryRunner) isInternalKibanaQuery(query *model.Query) bool {
 	return false
 }
 
-type QueryJob func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error)
+type QueryJob func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResultRow, clickhouse.PerformanceResult, error)
 
 func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 	var results = make([][]model.QueryResultRow, 0)
 	var performance = make([]clickhouse.PerformanceResult, 0)
-	for _, job := range jobs {
-		rows, perf, err := job(ctx)
+	for n, job := range jobs {
+		plan, rows, perf, err := job(ctx)
 		performance = append(performance, perf)
 		if err != nil {
 			return nil, performance, err
 		}
 
 		results = append(results, rows)
+		if plan.Interrupt(n, rows) {
+			break
+		}
 	}
 	return results, performance, nil
 }
 
-func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
-
-	var results = make([][]model.QueryResultRow, len(jobs))
-	var performances = make([]clickhouse.PerformanceResult, len(jobs))
+func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob) (
+	[][]model.QueryResultRow,
+	[]clickhouse.PerformanceResult,
+	error,
+) {
+	var (
+		results      = make([][]model.QueryResultRow, len(jobs))
+		performances = make([]clickhouse.PerformanceResult, len(jobs))
+	)
 	type result struct {
+		plan  *model.ExecutionPlan
 		rows  []model.QueryResultRow
 		perf  clickhouse.PerformanceResult
 		err   error
 		jobId int
 	}
 
-	// this is our context to control the execution of the jobs
-
-	// cancellation is done by the parent context
-	// or by the first goroutine that returns an error
+	// cancelable context to stop jobs early
 	ctx, cancel := context.WithCancel(ctx)
-	// clean up on return
 	defer cancel()
 
 	collector := make(chan result, len(jobs))
+
+	// spawn worker goroutines
 	for n, job := range jobs {
-		// produce
 		go func(ctx context.Context, jobId int, j QueryJob) {
 			defer recovery.LogAndHandlePanic(ctx, func(err error) {
 				collector <- result{err: err, jobId: jobId}
 			})
+
 			start := time.Now()
-			rows, perf, err := j(ctx)
+			plan, rows, perf, err := j(ctx)
 			logger.DebugWithCtx(ctx).Msgf("parallel job %d finished in %v", jobId, time.Since(start))
-			collector <- result{rows: rows, perf: perf, err: err, jobId: jobId}
+			collector <- result{plan: plan, rows: rows, perf: perf, err: err, jobId: jobId}
 		}(ctx, n, job)
 	}
 
-	// consume
-	for range len(jobs) {
+	expected := len(jobs)
+	received := 0
+
+	for received < expected {
 		res := <-collector
+		received++
+
 		performances[res.jobId] = res.perf
-		if res.err == nil {
-			results[res.jobId] = res.rows
-		} else {
+
+		if res.err != nil {
+			logger.WarnWithCtx(ctx).Msgf("Job %d failed: %v", res.jobId, res.err)
+			cancel() // cancel remaining jobs
+
+			// Drain the rest to avoid goroutine leaks
+			for received < len(jobs) {
+				<-collector
+				received++
+			}
 			return nil, performances, res.err
+		}
+
+		results[res.jobId] = res.rows
+
+		if res.plan != nil && res.plan.Interrupt(res.jobId, res.rows) {
+			logger.InfoWithCtx(ctx).Msgf("Job %d triggered interrupt", res.jobId)
+			expected--
+		}
+		if expected == received {
+			cancel()
 		}
 	}
 
 	return results, performances, nil
 }
-
 func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 
 	numberOfJobs := len(jobs)
@@ -884,18 +795,18 @@ func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]mo
 
 }
 
-func (q *QueryRunner) makeJob(table *clickhouse.Table, query *model.Query) QueryJob {
-	return func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error) {
+func (q *QueryRunner) makeJob(plan *model.ExecutionPlan, table *clickhouse.Table, query *model.Query) QueryJob {
+	return func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResultRow, clickhouse.PerformanceResult, error) {
 		var err error
 		rows, performance, err := q.logManager.ProcessQuery(ctx, table, query)
 
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			performance.Error = err
-			return nil, performance, err
+			return plan, nil, performance, err
 		}
 
-		return rows, performance, nil
+		return plan, rows, performance, nil
 	}
 }
 
@@ -912,6 +823,7 @@ func (q *QueryRunner) searchWorkerCommon(
 	var jobs []QueryJob
 	var jobHitsPosition []int // it keeps the position of the hits array for each job
 
+	logger.InfoWithCtx(ctx).Msgf("search worker with query %d %v", len(queries), queries)
 	for i, query := range queries {
 		sql := query.SelectCommand.String()
 
@@ -931,7 +843,7 @@ func (q *QueryRunner) searchWorkerCommon(
 			continue
 		}
 
-		job := q.makeJob(table, query)
+		job := q.makeJob(plan, table, query)
 		jobs = append(jobs, job)
 		jobHitsPosition = append(jobHitsPosition, i)
 	}
@@ -1036,6 +948,7 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 
 	}
 
+	pipeline = append(pipeline, pipelineElement{"siblingsTransformer", &SiblingsTransformer{}})
 	var err error
 	for _, t := range pipeline {
 
@@ -1043,7 +956,7 @@ func (q *QueryRunner) postProcessResults(plan *model.ExecutionPlan, results [][]
 		// for example if the schema doesn't hava array fields, we should skip the arrayResultTransformer
 		// these transformers can be cpu and mem consuming
 
-		results, err = t.transformer.Transform(results)
+		plan, results, err = t.transformer.Transform(plan, results)
 		if err != nil {
 			return nil, fmt.Errorf("resuls transformer %s has failed: %w", t.name, err)
 		}
