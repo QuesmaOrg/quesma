@@ -234,7 +234,6 @@ func TestIngestValidation(t *testing.T) {
 				},
 			}},
 		},
-		Created: true,
 	})
 	for i := range inputJson {
 		conn, mock := util.InitSqlMockWithPrettyPrint(t, true)

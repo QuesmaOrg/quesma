@@ -412,7 +412,6 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 
 		if !partiallyResolved {
 			table := Table{
-				Created:      true,
 				Name:         tableName,
 				Comment:      resTable.comment,
 				DatabaseName: databaseName,

@@ -27,7 +27,6 @@ func TestSearchOpensearch(t *testing.T) {
 			"message_____": {Name: "message_____", Type: clickhouse.NewBaseType("String")},
 			"__bytes":      {Name: "__bytes", Type: clickhouse.NewBaseType("Int64")},
 		},
-		Created: true,
 	}
 
 	s := &schema.StaticRegistry{Tables: map[schema.IndexName]schema.Schema{}}
@@ -174,7 +173,6 @@ func TestHighlighter(t *testing.T) {
 			"host_name":    {Name: "host_name", Type: clickhouse.NewBaseType("String")},
 			"_timestamp":   {Name: "_timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 		},
-		Created: true,
 	}
 	fields := map[schema.FieldName]schema.Field{
 		"messeage$*%:;": {PropertyName: "message$*%:;", InternalPropertyName: "message_____", Type: schema.QuesmaTypeText},

@@ -468,7 +468,6 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_1(t *testing.T) {
 	table := Table{
-		Created: false,
 		Name:    "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
 		Cols: map[string]*Column{
 			"doc": {
@@ -570,7 +569,6 @@ func TestCreateTableString_1(t *testing.T) {
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_NewDateTypes(t *testing.T) {
 	table := Table{
-		Created: false,
 		Name:    "abc",
 		Cols: map[string]*Column{
 			"low_card_string": {

@@ -672,8 +672,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		}
 		// Set pointer to table after creating it
 		table = ip.FindTable(tableName)
-	} else if !table.Created {
-		createTableCmd = table.CreateTableString()
 	}
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
@@ -980,8 +978,6 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	t := ip.FindTable(table.Name)
 	if t == nil {
-		table.Created = true
-
 		table.ApplyIndexConfig(ip.cfg)
 
 		if table.VirtualTable {
@@ -993,9 +989,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 		ip.tableDiscovery.AddTable(table.Name, table)
 		return true
 	}
-	wasntCreated := !t.Created
-	t.Created = true
-	return wasntCreated
+	return false
 }
 
 func (ip *IngestProcessor) GetSchemaRegistry() schema.Registry {

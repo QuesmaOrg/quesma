@@ -94,7 +94,6 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName stri
 				Type: clickhouse.NewBaseType("LowCardinality(String)"),
 			},
 		},
-		Created: true,
 	}
 	tableResolver := table_resolver.NewEmptyTableResolver()
 	managementConsole := ui.NewQuesmaManagementConsole(&config.QuesmaConfiguration{}, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, tableResolver)

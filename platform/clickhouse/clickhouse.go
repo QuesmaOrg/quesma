@@ -318,16 +318,12 @@ func (lm *LogManager) GetTableDefinitions() (TableMap, error) {
 func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 	t := lm.FindTable(table.Name)
 	if t == nil {
-		table.Created = true
-
 		table.ApplyIndexConfig(lm.cfg)
 
 		lm.tableDiscovery.TableDefinitions().Store(table.Name, table)
 		return true
 	}
-	wasntCreated := !t.Created
-	t.Created = true
-	return wasntCreated
+	return false
 }
 
 func (lm *LogManager) Ping() error {
