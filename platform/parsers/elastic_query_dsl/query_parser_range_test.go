@@ -14,7 +14,7 @@ import (
 type parseRangeTest struct {
 	name             string
 	rangePartOfQuery QueryMap
-	createTableQuery string
+	table            clickhouse.Table
 	expectedWhere    string
 }
 
@@ -28,9 +28,14 @@ var parseRangeTests = []parseRangeTest{
 				"lte":    "2024-02-09T13:47:16.029Z",
 			},
 		},
-		`CREATE TABLE ` + tableName + `
-		( "message" String, "timestamp" DateTime64(3, 'UTC') )
-		ENGINE = Memory`,
+		clickhouse.Table{
+			Name: tableName,
+			Cols: map[string]*clickhouse.Column{
+				"message":   {Name: "message", Type: clickhouse.NewBaseType("String")},
+				"timestamp": {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			},
+			Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+		},
 		`("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))`,
 	},
 	{
@@ -42,9 +47,14 @@ var parseRangeTests = []parseRangeTest{
 				"lte":    "2024-02-09T13:47:16.029Z",
 			},
 		},
-		`CREATE TABLE ` + tableName + `
-		( "message" String, "timestamp" DateTime )
-		ENGINE = Memory`,
+		clickhouse.Table{
+			Name: tableName,
+			Cols: map[string]*clickhouse.Column{
+				"message":   {Name: "message", Type: clickhouse.NewBaseType("String")},
+				"timestamp": {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime")},
+			},
+			Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+		},
 		`("timestamp">=fromUnixTimestamp(1706881636) AND "timestamp"<=fromUnixTimestamp(1707486436))`,
 	},
 	{
@@ -54,9 +64,14 @@ var parseRangeTests = []parseRangeTest{
 				"gt": "100",
 			},
 		},
-		`CREATE TABLE ` + tableName + `
-		( "message" String, "timestamp" DateTime, "time_taken" UInt32 )
-		ENGINE = Memory`,
+		clickhouse.Table{
+			Name: tableName,
+			Cols: map[string]*clickhouse.Column{
+				"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
+				"time_taken": {Name: "time_taken", Type: clickhouse.NewBaseType("UInt32")},
+			},
+			Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+		},
 		`"time_taken">100`,
 	},
 	{
@@ -68,9 +83,14 @@ var parseRangeTests = []parseRangeTest{
 				"lte":    "2024-02-09T13:47:16",
 			},
 		},
-		`CREATE TABLE ` + tableName + `
-		( "message" String, "timestamp" DateTime64(3, 'UTC') )
-		ENGINE = Memory`,
+		clickhouse.Table{
+			Name: tableName,
+			Cols: map[string]*clickhouse.Column{
+				"message":   {Name: "message", Type: clickhouse.NewBaseType("String")},
+				"timestamp": {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			},
+			Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+		},
 		`("timestamp">=fromUnixTimestamp64Milli(1706881636000) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436000))`,
 	},
 }
@@ -96,12 +116,7 @@ func Test_parseRange(t *testing.T) {
 	}
 	for i, test := range parseRangeTests {
 		t.Run(util.PrettyTestName(test.name, i), func(t *testing.T) {
-			table, err := clickhouse.NewTable(test.createTableQuery, clickhouse.NewNoTimestampOnlyStringAttrCHConfig())
-			if err != nil {
-				t.Fatal(err)
-			}
-			assert.NoError(t, err)
-			cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
+			cw := ClickhouseQueryTranslator{Table: &test.table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
 
 			simpleQuery := cw.parseRange(test.rangePartOfQuery)
 			assert.Equal(t, test.expectedWhere, simpleQuery.WhereClauseAsString())
