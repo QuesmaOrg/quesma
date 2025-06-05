@@ -22,8 +22,8 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
 	}
 
 	switch s {
-	case "String":
-		return schema.QuesmaTypeText, true
+	case "String": // This should be treated as a text type (full text search). But ingest do not distinguish between LowCardinality and String.
+		return schema.QuesmaTypeKeyword, true
 	case "LowCardinality(String)", "UUID", "FixedString":
 		return schema.QuesmaTypeKeyword, true
 	case "Int", "Int8", "Int16", "Int32", "Int64":
