@@ -388,17 +388,19 @@ func (p *QueryTransformationPipeline) ParseQuery(message any) (*model.ExecutionP
 	// TODO this is a hack to create a table for the query
 	// Why parser needs a table?
 	tableName := "test_table"
-	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String))
-		ENGINE = Memory`,
-		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
-	)
-	if err != nil {
-		return nil, err
+	table := clickhouse.Table{
+		Name:         tableName,
+		DatabaseName: "default",
+		Cols: map[string]*clickhouse.Column{
+			"message":           {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"@timestamp":        {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64(3, 'UTC')")},
+			"attributes_values": {Name: "attributes_values", Type: clickhouse.NewBaseType("Map(String,String)")},
+		},
+		Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
 	}
 	cw := elastic_query_dsl.ClickhouseQueryTranslator{
 		Ctx:   req.OriginalRequest.Context(),
-		Table: table,
+		Table: &table,
 	}
 	plan, err := cw.ParseQuery(query)
 	if err != nil {
