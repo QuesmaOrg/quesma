@@ -187,7 +187,7 @@ func (ip *IngestProcessor) createTableObject(tableName string, columnsFromJson [
 		resCol := chLib.ResolveColumn(name, colType)
 		return resCol.Type
 	}
-	
+
 	tableColumns := make(map[string]*chLib.Column)
 	for _, c := range columnsFromJson {
 		tableColumns[c.ClickHouseColumnName] = &chLib.Column{
@@ -703,11 +703,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			createTableCmd = addOurFieldsToCreateTableQuery(createTableCmd, tableConfig, table)
 			logger.InfoWithCtx(ctx).Msgf("created table '%s' with query: %s", tableName, createTableCmd)
 		}
-		// Set pointer to table after creating it, TODO: probably to remove
-		table = ip.FindTable(tableName)
-		tableAlt, _ := chLib.NewTable(createTableCmd, tableConfig)
-		fmt.Println("JM 1 table", table, "tableOrig", tableAlt)
-
 	}
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
@@ -722,7 +717,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		return nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
 	for i, preprocessedJson := range validatedJsons {
-		fmt.Println("JM 2 table.Cols", table.Cols)
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig, encodings)
 

@@ -239,12 +239,8 @@ func DifferenceMap(sm SchemaMap, t *clickhouse.Table) SchemaMap {
 		}
 	}
 
-	fmt.Println("JM 3 table.Cols", t.Cols, sm)
-
 	for name, v := range sm {
 		col, ok := t.Cols[name]
-		fmt.Println("JM 3.1 name, ok", name, ok)
-
 		if !ok {
 			mDiff[name] = v
 		} else if mNested, ok := v.(SchemaMap); ok {
