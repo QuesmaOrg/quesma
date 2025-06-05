@@ -24,7 +24,7 @@ func HandleResolve(pattern string, sr schema.Registry, ir elasticsearch.IndexRes
 		sourcesToShow = &sourcesFromElasticsearch
 	}
 
-	var filteredOut []elasticsearch.Index
+	var filtered []elasticsearch.Index
 	for _, index := range sourcesToShow.Indices {
 		if index.Name == common_table.VirtualTableElasticIndexName {
 			// don't include the common table in the results
