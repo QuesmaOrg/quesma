@@ -69,7 +69,7 @@ type (
 		virtualTableStorage       persistence.JSONDatabase
 		tableResolver             table_resolver.TableResolver
 
-		ingestErrorLoggerCount atomic.Int64
+		errorLogCounter atomic.Int64
 	}
 	TableMap  = util.SyncMap[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -888,24 +888,29 @@ func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []stri
 
 		err := ip.execute(ctx, q)
 		if err != nil {
-			count := ip.ingestErrorLoggerCount.Add(1)
+			count := ip.errorLogCounter.Add(1)
 
 			// Limit the number of error logs to avoid flooding the logs.
 
-			// logging only first 50 errors, it should be enough for troubleshooting
-			if count <= 50 {
+			// some hardcoded limits
+			const maxErrorLogs = 50
+			const fullQueryThreshold = 5
+			const maxQueryLength = 100
+			const summaryInterval = 1000
 
-				// only first 10 errors will be logged with full query
-				if count > 5 {
-					if len(q) > 100 {
-						q = q[:100] + "..."
+			// logging only first nth errors, it should be enough for troubleshooting
+			if count < maxErrorLogs {
+				// only first fullQueryThreshold errors will be logged with full query
+				if count > fullQueryThreshold {
+					if len(q) > maxQueryLength {
+						q = q[:maxQueryLength] + "..."
 					}
 				}
 				logger.ErrorWithCtx(ctx).Msgf("error executing ingest statement: %s, query: %s", err, q)
 			} else {
-				// log every 1000th error, just to keep track of errors
-				if count%1000 == 0 {
-					logger.WarnWithCtx(ctx).Msgf("got %d total errors executing ingest statements.  last error: %s, last query: %s", count, err, q)
+				// log every summaryInterval-th error, just to keep track of errors
+				if count%summaryInterval == 0 {
+					logger.ErrorWithCtx(ctx).Msgf("got %d total errors executing ingest statements.  last error: %s, last query: %s", count, err, q)
 				}
 			}
 
