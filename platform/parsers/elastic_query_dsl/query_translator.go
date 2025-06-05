@@ -26,8 +26,9 @@ type ClickhouseQueryTranslator struct {
 	Indexes []string
 
 	// TODO this will be removed
-	Table     *clickhouse.Table
-	UniqueIDs []string // used for hits queries, to filter out hits that are not in the list of IDs
+	Table      *clickhouse.Table
+	UniqueIDs  []string // used for hits queries, to filter out hits that are not in the list of IDs
+	IgnoreSize bool
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()

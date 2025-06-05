@@ -43,6 +43,44 @@ func (s *SchemaCheckPass) isFieldMapSyntaxEnabled(query *model.Query) bool {
 	return enabled
 }
 
+func (s *SchemaCheckPass) applyIDTransform(_ schema.Schema, query *model.Query) (*model.Query, error) {
+	// _id's are computed from the timestamp and the document content.
+	// Because the latter can be accessed AFTER execution of the query and compared when hits are returned,
+	// we need to adjust the SQL query as follows:
+	// 1) if we're filtering for specific _id's then just return the query as is, because we filter out non-matching timestamps
+	// 2) if we're filtering OUT (e.g. _id NOT IN (...)) then we still need to return these documents,
+	//				because it might occur that multiple documents with the same timestamps and the final filtering
+	//				has to be done in the response rendering layer.
+	visitor := model.NewBaseVisitor()
+	visitor.OverrideVisitPrefixExpr = func(b *model.BaseExprVisitor, e model.PrefixExpr) interface{} {
+		if e.Op == "NOT" && e.Args != nil {
+			newArgs := make([]model.Expr, 0, len(e.Args))
+			for _, arg := range e.Args {
+				if infixExpr, ok := arg.(model.InfixExpr); ok {
+					if infixExpr.Metadata != model.IDQuery {
+						newArgs = append(newArgs, infixExpr)
+					}
+				}
+			}
+			e.Args = newArgs
+		}
+		if len(e.Args) == 0 {
+			query.IgnoreSize = true
+			return model.NewInfixExpr(model.NewLiteral(1), "=", model.NewLiteral(1)) // return a no-op expression
+		} else {
+			return model.NewPrefixExpr(e.Op, b.VisitChildren(e.Args))
+		}
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+
+	return query, nil
+}
+
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
@@ -980,6 +1018,8 @@ func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.Execution
 		TransformationName string
 		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
 	}{
+		{TransformationName: "IDTransform", Transformation: s.applyIDTransform},
+
 		// Section 1: from logical to physical
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},

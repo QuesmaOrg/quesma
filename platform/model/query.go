@@ -69,6 +69,7 @@ type (
 
 		RuntimeMappings map[string]RuntimeMapping
 
+		IgnoreSize bool
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
 		// But it works for the test + our dashboards, so let's fix it later if necessary.

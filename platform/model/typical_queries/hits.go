@@ -36,6 +36,7 @@ type Hits struct {
 	addVersion         bool // true <=> we add hit.Version field to the response (whose value is always 1)
 	indexes            []string
 	timestampFieldName string
+	IgnoreSize         bool
 }
 
 func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Highlighter,

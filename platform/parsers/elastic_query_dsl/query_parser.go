@@ -389,7 +389,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 			logger.ErrorWithCtx(cw.Ctx).Msgf("error converting id to sql: %v", err)
 			return model.NewSimpleQueryInvalid()
 		}
-		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", sql)
+		whereStmt = model.NewInfixExprWithMetadata(model.NewColumnRef(timestampColumnName), " = ", sql, model.IDQuery)
 	default:
 		idsAsExprs := make([]model.Expr, len(ids))
 		for i, id := range ids {
@@ -400,7 +400,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 			}
 		}
 		idsTuple := model.NewTupleExpr(idsAsExprs...)
-		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " IN ", idsTuple)
+		whereStmt = model.NewInfixExprWithMetadata(model.NewColumnRef(timestampColumnName), " IN ", idsTuple, model.IDQuery)
 	}
 	cw.UniqueIDs = uniqueIds // TODO a crucial side effect here
 	return model.NewSimpleQuery(whereStmt, true)
@@ -1205,11 +1205,13 @@ func ResolveField(ctx context.Context, fieldName string, schemaInstance schema.S
 }
 
 func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize int) int {
-	if len(cw.UniqueIDs) > 0 {
-		// If this is a unique ID query, we can't limit size at the SQL level,
-		// because we need all matching timestamps that later will be filtered out but looking at hashes computed on hits
-		return defaultSize
-	}
+	//isIDQuery := len(cw.UniqueIDs) > 0
+	// If this is a unique ID query, we can't limit size at the SQL level,
+	// because we need all matching timestamps that later will be filtered out but looking at hashes computed on hits
+
+	//if len(cw.UniqueIDs) > 0 { TODO: maybe remove
+	//	return defaultSize
+	//}
 	sizeRaw, exists := queryMap["size"]
 	if !exists {
 		return defaultSize

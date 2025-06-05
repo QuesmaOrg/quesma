@@ -123,9 +123,10 @@ func (e TupleExpr) Accept(v ExprVisitor) interface{} {
 }
 
 type InfixExpr struct {
-	Left  Expr
-	Op    string
-	Right Expr
+	Left     Expr
+	Op       string
+	Right    Expr
+	Metadata string // Metadata can store additional information about the expression for futher transofrmation
 }
 
 func (e InfixExpr) Accept(v ExprVisitor) interface{} {
@@ -237,6 +238,12 @@ func (o OrderByExpr) IsCountDesc() bool {
 
 func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
 	return InfixExpr{Left: lhs, Op: operator, Right: rhs}
+}
+
+const IDQuery = "ID_QUERY"
+
+func NewInfixExprWithMetadata(lhs Expr, operator string, rhs Expr, metadata string) InfixExpr {
+	return InfixExpr{Left: lhs, Op: operator, Right: rhs, Metadata: metadata}
 }
 
 // AliasedExpr is an expression with an alias, e.g. `columnName AS alias` or `COUNT(x) AS sum_of_xs`
