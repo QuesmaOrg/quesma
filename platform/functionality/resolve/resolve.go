@@ -28,7 +28,7 @@ func HandleResolve(pattern string, sr schema.Registry, ir elasticsearch.IndexRes
 	for _, index := range sourcesToShow.Indices {
 		if index.Name != common_table.VirtualTableElasticIndexName {
 			// don't include the common table in the results
-			// it's internal table used by Quesma, and should be exposed as an index / data stream
+			// it's internal table used by Quesma, and should not be exposed as an index / data stream
 			filtered = append(filtered, index)
 		}
 	}
@@ -56,7 +56,7 @@ func addClickHouseTablesToSourcesFromElastic(sourcesFromElastic *elasticsearch.S
 
 		if name == common_table.TableName {
 			// don't include the common table in the results
-			// it's internal table used by Quesma, and should be exposed as an index / data stream
+			// it's internal table used by Quesma, and should not be exposed as an index / data stream
 			continue
 		}
 
