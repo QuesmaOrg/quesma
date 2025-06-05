@@ -7,4 +7,10 @@ bin/build-image.sh
 
 cd ci/it
 
-go test -v
+if [ -n "$1" ]; then
+  # Run only tests matching the pattern
+  go test -v -run "$1"
+else
+  # Run all tests
+  go test -v
+fi

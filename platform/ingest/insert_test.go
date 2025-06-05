@@ -175,8 +175,8 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(types.MustJSON(tt.insertJson)))
 					query := createTableQuery(tableName, columns, tableConfig)
 
-					table, err := clickhouse.NewTable(query, tableConfig)
-					assert.NoError(t, err)
+					table := ip.ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
+
 					query = addOurFieldsToCreateTableQuery(query, tableConfig, table)
 
 					// check if CREATE TABLE string is OK

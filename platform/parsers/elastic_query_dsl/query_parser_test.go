@@ -29,20 +29,22 @@ import (
 func TestQueryParserStringAttrConfig(t *testing.T) {
 	logger.InitSimpleLoggerForTestsWarnLevel()
 	tableName := "logs-generic-default"
-	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "tsAsUInt64" UInt64, "attributes_values" Map(String,String))
-		ENGINE = Memory`,
-		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
-	)
-	if err != nil {
-		t.Fatal(err)
+	table := clickhouse.Table{
+		Name: tableName,
+		Cols: map[string]*clickhouse.Column{
+			"message":           {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"@timestamp":        {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"tsAsUInt64":        {Name: "tsAsUInt64", Type: clickhouse.NewBaseType("UInt64")},
+			"attributes_values": {Name: "attributes_values", Type: clickhouse.NewBaseType("Map(String,String)")},
+		},
+		Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
 	cfg.IndexConfig["logs-generic-default"] = config.IndexConfiguration{}
 
 	lm := clickhouse.NewEmptyLogManager(&cfg, nil, diag.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
-	lm.AddTableIfDoesntExist(table)
+	lm.AddTableIfDoesntExist(&table)
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
 			"logs-generic-default": {
@@ -63,7 +65,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
+	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[schema.IndexName(tableName)]}
 
 	for i, tt := range testdata.TestsSearch {
 		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
@@ -157,13 +159,14 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 // TODO this test gives wrong results??
 func TestQueryParserNoAttrsConfig(t *testing.T) {
 	tableName := "logs-generic-default"
-	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "@timestamp" DateTime64(3, 'UTC'), "attributes_values" Map(String,String)))
-		ENGINE = Memory`,
-		clickhouse.NewChTableConfigNoAttrs(),
-	)
-	if err != nil {
-		t.Fatal(err)
+	table := clickhouse.Table{
+		Name: tableName,
+		Cols: map[string]*clickhouse.Column{
+			"message":           {Name: "message", Type: clickhouse.NewBaseType("String")},
+			"@timestamp":        {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"attributes_values": {Name: "attributes_values", Type: clickhouse.NewBaseType("Map(String,String)")},
+		},
+		Config: clickhouse.NewChTableConfigNoAttrs(),
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
@@ -186,7 +189,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background(), Schema: s.Tables["logs-generic-default"]}
+	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables["logs-generic-default"]}
 	for i, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
@@ -270,12 +273,17 @@ func Test_parseSortFields(t *testing.T) {
 			sortFieldNames: []string{"@timestamp", "_doc"},
 		},
 	}
-	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "@timestamp" DateTime64(3, 'UTC'), "service.name" String, "no_order_field" String, "_table_field_with_underscore" Int64 )
-		ENGINE = Memory`,
-		clickhouse.NewChTableConfigNoAttrs(),
-	)
-	cw := ClickhouseQueryTranslator{Table: table, Ctx: context.Background()}
+	table := clickhouse.Table{
+		Name: tableName,
+		Cols: map[string]*clickhouse.Column{
+			"@timestamp":                   {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"service.name":                 {Name: "service.name", Type: clickhouse.NewBaseType("String")},
+			"no_order_field":               {Name: "no_order_field", Type: clickhouse.NewBaseType("String")},
+			"_table_field_with_underscore": {Name: "_table_field_with_underscore", Type: clickhouse.NewBaseType("Int64")},
+		},
+		Config: clickhouse.NewChTableConfigNoAttrs(),
+	}
+	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background()}
 	for i, tt := range tests {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			orderBy, sortFieldNames := cw.parseSortFields(tt.sortMap)
