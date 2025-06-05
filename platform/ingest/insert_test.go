@@ -175,29 +175,9 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(types.MustJSON(tt.insertJson)))
 					query := createTableQuery(tableName, columns, tableConfig)
 
-					tableColumns := make(map[string]*clickhouse.Column)
-					for _, c := range columnsFromJson {
-						tableColumns[c.ClickHouseColumnName] = &clickhouse.Column{
-							Name: c.ClickHouseColumnName,
-							Type: clickhouse.NewBaseType(c.ClickHouseType),
-						}
-					}
-					for _, c := range columnsFromSchema {
-						if _, exists := tableColumns[c.ClickHouseColumnName]; !exists {
-							tableColumns[c.ClickHouseColumnName] = &clickhouse.Column{
-								Name: c.ClickHouseColumnName,
-								Type: clickhouse.NewBaseType(c.ClickHouseType),
-							}
-						}
-					}
+					table := ip.ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
 
-					table := clickhouse.Table{
-						Name:   tableName,
-						Cols:   tableColumns,
-						Config: tableConfig,
-					}
-
-					query = addOurFieldsToCreateTableQuery(query, tableConfig, &table)
+					query = addOurFieldsToCreateTableQuery(query, tableConfig, table)
 
 					// check if CREATE TABLE string is OK
 					queryByLine := strings.Split(query, "\n")
@@ -220,7 +200,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					if tableInMemory != nil {
 						needCreate = false
 					}
-					noSuchTable := ip.ip.AddTableIfDoesntExist(&table)
+					noSuchTable := ip.ip.AddTableIfDoesntExist(table)
 					assert.Equal(t, needCreate, noSuchTable)
 
 					// and Created is set to true
