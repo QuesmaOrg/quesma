@@ -8,6 +8,14 @@ import (
 )
 
 type SchemaTypeAdapter struct {
+	stringColumnIsKeywordField bool
+}
+
+func NewSchemaTypeAdapter(stringColumnIsKeywordField bool) SchemaTypeAdapter {
+
+	return SchemaTypeAdapter{
+		stringColumnIsKeywordField: stringColumnIsKeywordField,
+	}
 }
 
 func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
@@ -22,8 +30,13 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
 	}
 
 	switch s {
-	case "String": // This should be treated as a text type (full text search). But ingest do not distinguish between LowCardinality and String.
-		return schema.QuesmaTypeKeyword, true
+	case "String":
+		if c.stringColumnIsKeywordField {
+			return schema.QuesmaTypeKeyword, true
+		} else {
+			return schema.QuesmaTypeText, true
+		}
+
 	case "LowCardinality(String)", "UUID", "FixedString":
 		return schema.QuesmaTypeKeyword, true
 	case "Int", "Int8", "Int16", "Int32", "Int64":

@@ -326,12 +326,6 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 			}
 			if existing, exists := fields[propertyName]; !exists {
 				if quesmaType, resolved := s.dataSourceTypeAdapter.Convert(column.Type); resolved {
-
-					// in most cases `message` field is a text field, it can be used for full-text search
-					if quesmaType.Name == QuesmaTypeKeyword.Name && column.Name == "message" {
-						quesmaType = QuesmaTypeText // special case for message field, we want it to be text
-					}
-
 					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), InternalPropertyType: column.Type, Type: quesmaType, Origin: column.Origin}
 				} else {
 					logger.Debug().Msgf("type %s not supported, falling back to keyword", column.Type)
