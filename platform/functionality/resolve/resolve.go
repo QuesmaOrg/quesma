@@ -3,6 +3,7 @@
 package resolve
 
 import (
+	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -23,16 +24,28 @@ func HandleResolve(pattern string, sr schema.Registry, ir elasticsearch.IndexRes
 		sourcesToShow = &sourcesFromElasticsearch
 	}
 
+	var filteredOut []elasticsearch.Index
+	for _, index := range sourcesToShow.Indices {
+		if index.Name == common_table.VirtualTableElasticIndexName {
+			// don't include the common table in the results
+			// it's internal table used by Quesma, and should be exposed as an index / data stream
+			continue
+		}
+		filteredOut = append(filteredOut, index)
+
+	}
+	sourcesToShow.Indices = filteredOut
+
 	tablesFromClickHouse := getMatchingClickHouseTables(sr.AllSchemas(), normalizedPattern)
 
 	addClickHouseTablesToSourcesFromElastic(sourcesToShow, tablesFromClickHouse)
+
 	return *sourcesToShow, nil
 }
 
 func getMatchingClickHouseTables(schemas map[schema.IndexName]schema.Schema, normalizedPattern string) (tables []string) {
 	for name, currentSchema := range schemas {
 		indexName := name.AsString()
-
 		if config.MatchName(normalizedPattern, indexName) && currentSchema.ExistsInDataSource {
 			tables = append(tables, indexName)
 		}
@@ -41,7 +54,15 @@ func getMatchingClickHouseTables(schemas map[schema.IndexName]schema.Schema, nor
 }
 
 func addClickHouseTablesToSourcesFromElastic(sourcesFromElastic *elasticsearch.Sources, chTableNames []string) {
-	for _, name := range chTableNames { // Quesma presents CH tables as Elasticsearch Data Streams.
+	for _, name := range chTableNames {
+
+		if name == common_table.TableName {
+			// don't include the common table in the results
+			// it's internal table used by Quesma, and should be exposed as an index / data stream
+			continue
+		}
+
+		// Quesma presents CH tables as Elasticsearch Data Streams.
 		sourcesFromElastic.DataStreams = append(sourcesFromElastic.DataStreams, elasticsearch.DataStream{
 			Name:           name,
 			BackingIndices: []string{name},
