@@ -180,17 +180,48 @@ func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, erro
 	return count, nil
 }
 
-func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, query string, config *chLib.ChTableConfig, name string, tableDefinitionChangeOnly bool) (string, error) {
-	table, err := chLib.NewTable(query, config)
-	if err != nil {
-		return "", err
+func (ip *IngestProcessor) createTableObject(tableName string, columnsFromJson []CreateTableEntry, columnsFromSchema map[schema.FieldName]CreateTableEntry, tableConfig *chLib.ChTableConfig) *chLib.Table {
+	resolveType := func(name, colType string) chLib.Type {
+		if strings.Contains(colType, " DEFAULT") {
+			// Remove DEFAULT clause from the type
+			colType = strings.Split(colType, " DEFAULT")[0]
+		}
+		resCol := chLib.ResolveColumn(name, colType)
+		return resCol.Type
 	}
+
+	tableColumns := make(map[string]*chLib.Column)
+	for _, c := range columnsFromJson {
+		tableColumns[c.ClickHouseColumnName] = &chLib.Column{
+			Name: c.ClickHouseColumnName,
+			Type: resolveType(c.ClickHouseColumnName, c.ClickHouseType),
+		}
+	}
+	for _, c := range columnsFromSchema {
+		if _, exists := tableColumns[c.ClickHouseColumnName]; !exists {
+			tableColumns[c.ClickHouseColumnName] = &chLib.Column{
+				Name: c.ClickHouseColumnName,
+				Type: resolveType(c.ClickHouseColumnName, c.ClickHouseType),
+			}
+		}
+	}
+
+	table := chLib.Table{
+		Name:   tableName,
+		Cols:   tableColumns,
+		Config: tableConfig,
+	}
+
+	return &table
+}
+
+func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, tableName string, columnsFromJson []CreateTableEntry, columnsFromSchema map[schema.FieldName]CreateTableEntry, tableConfig *chLib.ChTableConfig, tableDefinitionChangeOnly bool) (*chLib.Table, error) {
+	table := ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
 
 	// This is a HACK.
 	// CreateQueryParser assumes that the table name is in the form of "database.table"
 	// in this case we don't have a database name, so we need to add it
 	if tableDefinitionChangeOnly {
-		table.Name = name
 		table.DatabaseName = ""
 		table.Comment = "Definition only. This is not a real table."
 		table.VirtualTable = true
@@ -199,10 +230,10 @@ func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, q
 	// if exists only then createTable
 	noSuchTable := ip.AddTableIfDoesntExist(table)
 	if !noSuchTable {
-		return "", fmt.Errorf("table %s already exists", table.Name)
+		return nil, fmt.Errorf("table %s already exists", table.Name)
 	}
 
-	return addOurFieldsToCreateTableQuery(query, config, table), nil
+	return table, nil
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
@@ -665,15 +696,15 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName), Indexes(transformedJsons[0]))
 		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
 		var err error
-		createTableCmd, err = ip.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig, tableName, tableDefinitionChangeOnly)
+		table, err = ip.createTableObjectAndAttributes(ctx, tableName, columnsFromJson, columnsFromSchema, tableConfig, tableDefinitionChangeOnly)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error createTableObjectAndAttributes, can't create table: %v", err)
 			return nil, err
 		} else {
+			// Likely we want to remove below line
+			createTableCmd = addOurFieldsToCreateTableQuery(createTableCmd, tableConfig, table)
 			logger.InfoWithCtx(ctx).Msgf("created table '%s' with query: %s", tableName, createTableCmd)
 		}
-		// Set pointer to table after creating it
-		table = ip.FindTable(tableName)
 	}
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)

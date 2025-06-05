@@ -2121,11 +2121,14 @@ func Test_acceptIntsAsTimestamps(t *testing.T) {
 			tableMap := clickhouse.NewTableMap()
 
 			// timestampInt is datetime in schema (and Quesma config), UInt64 in Clickhouse
-			tab, _ := clickhouse.NewTable(`
-				CREATE TABLE table (
-					"timestampInt" UInt64
-				) ENGINE = Memory`, clickhouse.NewChTableConfigTimestampStringAttr())
-			tableMap.Store("test", tab)
+			tab := clickhouse.Table{
+				Name:   "test",
+				Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+				Cols: map[string]*clickhouse.Column{
+					"timestampInt": {Name: "timestampInt", Type: clickhouse.NewBaseType("UInt32")},
+				},
+			}
+			tableMap.Store("test", &tab)
 			td := clickhouse.NewEmptyTableDiscovery()
 			td.TableMap = tableMap
 
