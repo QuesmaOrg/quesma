@@ -393,7 +393,7 @@ func (p *QueryTransformationPipeline) ParseQuery(message any) (*model.ExecutionP
 		DatabaseName: "default",
 		Cols: map[string]*clickhouse.Column{
 			"message":           {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"@timestamp":        {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64(3, 'UTC')")},
+			"@timestamp":        {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"attributes_values": {Name: "attributes_values", Type: clickhouse.NewBaseType("Map(String,String)")},
 		},
 		Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
