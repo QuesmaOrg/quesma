@@ -26,15 +26,13 @@ func HandleResolve(pattern string, sr schema.Registry, ir elasticsearch.IndexRes
 
 	var filtered []elasticsearch.Index
 	for _, index := range sourcesToShow.Indices {
-		if index.Name == common_table.VirtualTableElasticIndexName {
+		if index.Name != common_table.VirtualTableElasticIndexName {
 			// don't include the common table in the results
 			// it's internal table used by Quesma, and should be exposed as an index / data stream
-			continue
+			filtered = append(filtered, index)
 		}
-		filteredOut = append(filteredOut, index)
-
 	}
-	sourcesToShow.Indices = filteredOut
+	sourcesToShow.Indices = filtered
 
 	tablesFromClickHouse := getMatchingClickHouseTables(sr.AllSchemas(), normalizedPattern)
 
