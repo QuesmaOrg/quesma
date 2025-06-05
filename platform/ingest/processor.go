@@ -179,18 +179,27 @@ func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, erro
 }
 
 func (ip *IngestProcessor) createTableObject(tableName string, columnsFromJson []CreateTableEntry, columnsFromSchema map[schema.FieldName]CreateTableEntry, tableConfig *chLib.ChTableConfig) *chLib.Table {
+	resolveType := func(name, colType string) chLib.Type {
+		if strings.Contains(colType, " DEFAULT") {
+			// Remove DEFAULT clause from the type
+			colType = strings.Split(colType, " DEFAULT")[0]
+		}
+		resCol := chLib.ResolveColumn(name, colType)
+		return resCol.Type
+	}
+	
 	tableColumns := make(map[string]*chLib.Column)
 	for _, c := range columnsFromJson {
 		tableColumns[c.ClickHouseColumnName] = &chLib.Column{
 			Name: c.ClickHouseColumnName,
-			Type: chLib.NewBaseType(c.ClickHouseType),
+			Type: resolveType(c.ClickHouseColumnName, c.ClickHouseType),
 		}
 	}
 	for _, c := range columnsFromSchema {
 		if _, exists := tableColumns[c.ClickHouseColumnName]; !exists {
 			tableColumns[c.ClickHouseColumnName] = &chLib.Column{
 				Name: c.ClickHouseColumnName,
-				Type: chLib.NewBaseType(c.ClickHouseType),
+				Type: resolveType(c.ClickHouseColumnName, c.ClickHouseType),
 			}
 		}
 	}
@@ -222,7 +231,6 @@ func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, t
 		return nil, fmt.Errorf("table %s already exists", table.Name)
 	}
 
-	// addOurFieldsToCreateTableQuery(query, config, table)
 	return table, nil
 }
 
@@ -697,6 +705,9 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		}
 		// Set pointer to table after creating it, TODO: probably to remove
 		table = ip.FindTable(tableName)
+		tableAlt, _ := chLib.NewTable(createTableCmd, tableConfig)
+		fmt.Println("JM 1 table", table, "tableOrig", tableAlt)
+
 	}
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
@@ -711,6 +722,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		return nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
 	for i, preprocessedJson := range validatedJsons {
+		fmt.Println("JM 2 table.Cols", table.Cols)
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], tableConfig, encodings)
 

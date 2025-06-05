@@ -393,7 +393,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				}
 			}
 
-			column := resolveColumn(col, columnMeta.colType)
+			column := ResolveColumn(col, columnMeta.colType)
 			if column != nil {
 				column.Comment = columnMeta.comment
 				column.Origin = columnMeta.origin
@@ -477,7 +477,7 @@ func (td *tableDiscovery) TableDefinitions() *TableMap {
 	return td.tableDefinitions.Load()
 }
 
-func resolveColumn(colName, colType string) *Column {
+func ResolveColumn(colName, colType string) *Column {
 	isNullable := false
 	if isNullableType(colType) {
 		isNullable = true
@@ -491,7 +491,7 @@ func resolveColumn(colName, colType string) *Column {
 			arrayType = strings.TrimSuffix(strings.TrimPrefix(arrayType, "Nullable("), ")")
 		}
 		if isArrayType(arrayType) {
-			innerColumn := resolveColumn("inner", arrayType)
+			innerColumn := ResolveColumn("inner", arrayType)
 			if innerColumn == nil {
 				logger.Warn().Msgf("invalid inner array type for column %s, %s", colName, colType)
 				return nil
@@ -514,7 +514,7 @@ func resolveColumn(colName, colType string) *Column {
 				},
 			}
 		} else if isTupleType(arrayType) {
-			tupleColumn := resolveColumn("Tuple", arrayType)
+			tupleColumn := ResolveColumn("Tuple", arrayType)
 			if tupleColumn == nil {
 				logger.Warn().Msgf("invalid tuple type for column %s, %s", colName, colType)
 				return nil
