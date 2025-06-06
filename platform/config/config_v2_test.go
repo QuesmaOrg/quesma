@@ -359,3 +359,27 @@ func TestPartitionBy(t *testing.T) {
 
 	assert.Equal(t, Hourly, legacyConf.DefaultPartitioningStrategy)
 }
+
+func TestStringColumnIsTextDefaultBehavior(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/partition_by.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+
+	assert.Equal(t, "text", legacyConf.DefaultStringColumnType)
+
+}
+
+func TestStringColumnIsKeyword(t *testing.T) {
+	os.Setenv(configFileLocationEnvVar, "./test_configs/string_column_is_keyword_field.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+
+	assert.Equal(t, "keyword", legacyConf.DefaultStringColumnType)
+
+}

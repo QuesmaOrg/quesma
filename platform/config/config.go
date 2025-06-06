@@ -57,6 +57,7 @@ type QuesmaConfiguration struct {
 	DefaultIngestOptimizers     map[string]OptimizerConfiguration
 	DefaultQueryOptimizers      map[string]OptimizerConfiguration
 	MapFieldsDiscoveringEnabled bool
+	DefaultStringColumnType     string
 }
 
 func NewQuesmaConfigurationIndexConfigOnly(indexConfig map[string]IndexConfiguration) QuesmaConfiguration {
@@ -269,7 +270,8 @@ Quesma Configuration:
 	UseCommonTableForWildcard: %t,
 	DefaultIngestTarget: %v,
 	DefaultQueryTarget: %v,
-	MapFieldsDiscoveringEnabled: %t
+	MapFieldsDiscoveringEnabled: %t,
+	DefaultStringColumnType: %s
 `,
 		c.TransparentProxy,
 		elasticUrl,
@@ -292,6 +294,7 @@ Quesma Configuration:
 		c.DefaultIngestTarget,
 		c.DefaultQueryTarget,
 		c.MapFieldsDiscoveringEnabled,
+		c.DefaultStringColumnType,
 	)
 }
 
