@@ -71,3 +71,8 @@ func TestTableOverrideTestcase(t *testing.T) {
 	testCase := testcases.NewOverrideTestcase()
 	runIntegrationTest(t, testCase)
 }
+
+func TestIndexNameRewrite(t *testing.T) {
+	testCase := testcases.NewIndexNameRewriteTestcase()
+	runIntegrationTest(t, testCase)
+}

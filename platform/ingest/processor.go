@@ -69,6 +69,8 @@ type (
 		virtualTableStorage       persistence.JSONDatabase
 		tableResolver             table_resolver.TableResolver
 
+		indexNameRewriter IndexNameRewriter
+
 		errorLogCounter atomic.Int64
 	}
 	TableMap  = util.SyncMap[string, *chLib.Table]
@@ -1062,9 +1064,14 @@ func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
+func (ip *IngestProcessor) GetIndexNameRewriter() IndexNameRewriter {
+	return ip.indexNameRewriter
+}
+
 func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
+	indexRewriter := NewIndexNameRewriter(cfg)
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver, indexNameRewriter: indexRewriter}
 }
 
 func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {

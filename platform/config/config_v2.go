@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog"
 	"log"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -133,8 +134,15 @@ type (
 		IndexConfig    IndicesConfigs `koanf:"indexes"`
 		// DefaultTargetConnectorType is used in V2 code only
 		DefaultTargetConnectorType string //it is not serialized to maintain configuration BWC, so it's basically just populated from '*' config in `config_v2.go`
+
+		IndexNameRewriteRules map[string]IndexNameRewriteRule `koanf:"indexNameRewriteRules"`
 	}
 	IndicesConfigs map[string]IndexConfiguration
+
+	IndexNameRewriteRule struct {
+		From string `koanf:"from"` // pattern to match
+		To   string `koanf:"to"`   // replacement string
+	}
 )
 
 func (p *QuesmaProcessorConfig) IsFieldMapSyntaxEnabled(indexName string) bool {
@@ -422,6 +430,18 @@ func (c *QuesmaNewConfiguration) definedProcessorNames() []string {
 	return names
 }
 
+func (c *QuesmaNewConfiguration) validateRewriteRules(rules map[string]IndexNameRewriteRule) error {
+
+	for name, rule := range rules {
+		_, err := regexp.Compile(rule.From)
+		if err != nil {
+			return fmt.Errorf("index name rewrite rule '%s' has an invalid 'from' regex: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
 func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 	if len(p.Name) == 0 {
 		return fmt.Errorf("processor must have a non-empty name")
@@ -440,12 +460,23 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 						return fmt.Errorf("configuration of index %s must have at most two targets (query processor)", indexName)
 					}
 				}
+
+				if p.Config.IndexNameRewriteRules != nil || len(p.Config.IndexNameRewriteRules) > 0 {
+					return fmt.Errorf("index name rewrite rules are not supported in query processor configuration, use the ingest processor for this purpose")
+				}
+
 			} else {
 				if _, ok := indexConfig.Target.([]interface{}); ok {
 					if len(indexConfig.Target.([]interface{})) > 2 {
 						return fmt.Errorf("configuration of index %s must have at most two targets (ingest processor)", indexName)
 					}
 				}
+
+				err := c.validateRewriteRules(p.Config.IndexNameRewriteRules)
+				if err != nil {
+					return err
+				}
+
 			}
 			targets, errTarget := c.getTargetsExtendedConfig(indexConfig.Target)
 			if errTarget != nil {
