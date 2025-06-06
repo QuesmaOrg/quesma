@@ -49,7 +49,7 @@ type QuesmaNewConfiguration struct {
 	Pipelines                   []Pipeline           `koanf:"pipelines"`
 	DisableTelemetry            bool                 `koanf:"disableTelemetry"`
 	MapFieldsDiscoveringEnabled bool                 `koanf:"mapFieldsDiscoveringEnabled"`
-	StringColumnIsKeywordField  bool                 `koanf:"stringColumnIsKeywordField"`
+	DefaultStringToKeywordType  bool                 `koanf:"defaultStringToKeywordType"`
 }
 
 type LoggingConfiguration struct {
@@ -592,7 +592,7 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	conf.LicenseKey = c.LicenseKey
 
 	conf.MapFieldsDiscoveringEnabled = c.MapFieldsDiscoveringEnabled
-	conf.StringColumnIsKeywordField = c.StringColumnIsKeywordField
+	conf.DefaultStringToKeywordType = c.DefaultStringToKeywordType
 
 	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)

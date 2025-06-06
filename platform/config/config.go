@@ -57,7 +57,7 @@ type QuesmaConfiguration struct {
 	DefaultIngestOptimizers     map[string]OptimizerConfiguration
 	DefaultQueryOptimizers      map[string]OptimizerConfiguration
 	MapFieldsDiscoveringEnabled bool
-	StringColumnIsKeywordField  bool
+	DefaultStringToKeywordType  bool
 }
 
 func NewQuesmaConfigurationIndexConfigOnly(indexConfig map[string]IndexConfiguration) QuesmaConfiguration {
@@ -294,7 +294,7 @@ Quesma Configuration:
 		c.DefaultIngestTarget,
 		c.DefaultQueryTarget,
 		c.MapFieldsDiscoveringEnabled,
-		c.StringColumnIsKeywordField,
+		c.DefaultStringToKeywordType,
 	)
 }
 

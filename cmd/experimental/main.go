@@ -165,7 +165,7 @@ func main() {
 
 	virtualTableStorage := persistence.NewElasticJSONDatabase(cfg.Elasticsearch, common_table.VirtualTableElasticIndexName)
 	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.NewSchemaTypeAdapter(cfg.StringColumnIsKeywordField))
+	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.NewSchemaTypeAdapter(cfg.DefaultStringToKeywordType))
 	schemaRegistry.Start()
 
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch)
