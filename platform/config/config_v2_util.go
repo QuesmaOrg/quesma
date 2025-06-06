@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/go-multierror"
 	"slices"
+	"sort"
 )
 
 func (c *QuesmaConfiguration) translateAndAddSinglePipeline(confNew *QuesmaNewConfiguration, errAcc error) {
@@ -353,7 +354,9 @@ func (c *QuesmaConfiguration) translateAndAddDualPipeline(confNew *QuesmaNewConf
 				names = append(names, name)
 			}
 
-			orderedRules := make([]IndexNameRewriteRule, len(names))
+			sort.Strings(names)
+
+			var orderedRules []IndexNameRewriteRule
 			for _, name := range names {
 				if rule, ok := ingestProcessor.Config.IndexNameRewriteRules[name]; ok {
 					orderedRules = append(orderedRules, rule)

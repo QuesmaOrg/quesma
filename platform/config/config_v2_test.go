@@ -359,3 +359,24 @@ func TestPartitionBy(t *testing.T) {
 
 	assert.Equal(t, Hourly, legacyConf.DefaultPartitioningStrategy)
 }
+
+func TestIndexNameRewriteRules(t *testing.T) {
+
+	os.Setenv(configFileLocationEnvVar, "./test_configs/index_name_rewrite_rules.yaml")
+	cfg := LoadV2Config()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	legacyConf := cfg.TranslateToLegacyConfig()
+
+	assert.Equal(t, 4, len(legacyConf.IndexNameRewriteRules))
+
+	for _, rule := range legacyConf.IndexNameRewriteRules {
+		assert.Equal(t, "$1", rule.To)
+	}
+
+	assert.Equal(t, "(.*?)(-\\d{4}\\.\\d{2}\\.\\d{2})$", legacyConf.IndexNameRewriteRules[0].From)
+	assert.Equal(t, "(.*?)(-\\d{4}\\.\\d{2})$", legacyConf.IndexNameRewriteRules[1].From)
+	assert.Equal(t, "(.*?)(.\\d{4}-\\d{2})$", legacyConf.IndexNameRewriteRules[2].From)
+	assert.Equal(t, "(.*?)(.\\d{4}-\\d{2}\\.\\d{2})$", legacyConf.IndexNameRewriteRules[3].From) // empty string means no rewrite rule
+}
