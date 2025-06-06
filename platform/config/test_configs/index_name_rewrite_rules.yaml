@@ -59,7 +59,7 @@ processors:
           from: (.*?)(.\d{4}-\d{2})$
           to: "$1"
         4:
-          from: (.*?)(.\d{4}-\d{2}\.\d{2})$
+          from: (.*?)(.\d{4}-\d{2}-\d{2})$
           to: "$1"
       indexes:
         logs-1:
