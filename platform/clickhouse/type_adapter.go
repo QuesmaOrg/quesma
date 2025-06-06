@@ -3,11 +3,20 @@
 package clickhouse
 
 import (
+	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"strings"
 )
 
 type SchemaTypeAdapter struct {
+	defaultStringColumnType string
+}
+
+func NewSchemaTypeAdapter(defaultType string) SchemaTypeAdapter {
+
+	return SchemaTypeAdapter{
+		defaultStringColumnType: defaultType,
+	}
 }
 
 func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
@@ -23,7 +32,18 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
 
 	switch s {
 	case "String":
-		return schema.QuesmaTypeText, true
+		switch c.defaultStringColumnType {
+
+		// empty if for testing purposes, in production it should always be set
+		case "", "text":
+			return schema.QuesmaTypeText, true
+		case "keyword":
+			return schema.QuesmaTypeKeyword, true
+		default:
+			logger.Error().Msgf("Unknown field type %s", c.defaultStringColumnType)
+			return schema.QuesmaTypeUnknown, false
+		}
+
 	case "LowCardinality(String)", "UUID", "FixedString":
 		return schema.QuesmaTypeKeyword, true
 	case "Int", "Int8", "Int16", "Int32", "Int64":
