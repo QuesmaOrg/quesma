@@ -1,6 +1,10 @@
 # TEST CONFIGURATION
 licenseKey: "cdd749a3-e777-11ee-bcf8-0242ac150004"
-defaultStringToKeywordType: true
+
+
+flags:
+  defaultStringColumnType: keyword
+
 frontendConnectors:
   - name: elastic-ingest
     type: elasticsearch-fe-ingest

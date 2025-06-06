@@ -50,6 +50,12 @@ type QuesmaNewConfiguration struct {
 	DisableTelemetry            bool                 `koanf:"disableTelemetry"`
 	MapFieldsDiscoveringEnabled bool                 `koanf:"mapFieldsDiscoveringEnabled"`
 	DefaultStringToKeywordType  bool                 `koanf:"defaultStringToKeywordType"`
+	QuesmaFlags                 QuesmaFlags          `koanf:"flags"`
+}
+
+// It holds all the configuration flags that affect global Quesma behavior.
+type QuesmaFlags struct {
+	DefaultStringColumnType *string `koanf:"defaultStringColumnType"`
 }
 
 type LoggingConfiguration struct {
@@ -592,7 +598,21 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	conf.LicenseKey = c.LicenseKey
 
 	conf.MapFieldsDiscoveringEnabled = c.MapFieldsDiscoveringEnabled
-	conf.DefaultStringToKeywordType = c.DefaultStringToKeywordType
+
+	conf.DefaultStringColumnType = "text" // default value, can be overridden by the flag
+	if c.QuesmaFlags.DefaultStringColumnType != nil {
+
+		switch *c.QuesmaFlags.DefaultStringColumnType {
+		case "keyword":
+			conf.DefaultStringColumnType = "keyword"
+		case "text":
+			conf.DefaultStringColumnType = "text"
+		default:
+
+			errAcc = multierror.Append(errAcc, fmt.Errorf("defaultStringColumnType must be either 'keyword' or 'text', got '%s'", *c.QuesmaFlags.DefaultStringColumnType))
+
+		}
+	}
 
 	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)
