@@ -11,6 +11,8 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl/query_util"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"slices"
+	"strings"
 )
 
 type JsonMap = map[string]interface{}
@@ -24,7 +26,9 @@ type ClickhouseQueryTranslator struct {
 	Indexes []string
 
 	// TODO this will be removed
-	Table *clickhouse.Table
+	Table                   *clickhouse.Table
+	UniqueIDsUsedInTheQuery []string // A list of UniqueIDs used in the query (via `_id` field), which has to be passed to the JSON response rendering stage.
+	// That's because it has to be used both in the SQL query and during the response rendering, see https://github.com/QuesmaOrg/quesma/pull/1435 for more details.
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
@@ -131,7 +135,30 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet)
 
 	hitsResponse := hitsPartOfResponse["hits"].(model.SearchHits)
-	return queriesWithoutHits, resultsWithoutHits, &hitsResponse
+	hits := cw.FilterOutHitsIfThisIsIdQuery(hitsResponse)
+	return queriesWithoutHits, resultsWithoutHits, &hits
+}
+
+// FilterOutHitsIfThisIsIdQuery - If during parsing we have found that this is a query for _id,
+// we filter out hits that are not in the list of UniqueIDsUsedInTheQuery.
+// we only do this filtering based on the doc.Source hash comparison, ignoring the two first UUID parts.
+func (cw *ClickhouseQueryTranslator) FilterOutHitsIfThisIsIdQuery(hits model.SearchHits) model.SearchHits {
+	if len(cw.UniqueIDsUsedInTheQuery) == 0 {
+		return hits // not _id query, proceed as usual
+	}
+	hashesFromQuery := make([]string, 0, len(cw.UniqueIDsUsedInTheQuery))
+	for _, id := range cw.UniqueIDsUsedInTheQuery {
+		hashesFromQuery = append(hashesFromQuery, strings.Split(id, uuidSeparator)[1])
+	}
+	filteredHits := make([]model.SearchHit, 0, len(hits.Hits))
+	for _, hit := range hits.Hits {
+		hash := strings.Split(hit.ID, uuidSeparator)[1]
+		if slices.Contains(hashesFromQuery, hash) {
+			filteredHits = append(filteredHits, hit)
+		}
+	}
+	hits.Hits = filteredHits
+	return hits
 }
 
 func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutCount []*model.Query, resultsWithoutCount [][]model.QueryResultRow, total *model.Total) {
