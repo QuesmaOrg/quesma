@@ -344,6 +344,25 @@ func (c *QuesmaConfiguration) translateAndAddDualPipeline(confNew *QuesmaNewConf
 		c.DefaultIngestOptimizers = nil
 	}
 
+	if ingestProcessor.Config.IndexNameRewriteRules != nil {
+
+		if len(ingestProcessor.Config.IndexNameRewriteRules) > 0 {
+
+			var names []string
+			for name := range ingestProcessor.Config.IndexNameRewriteRules {
+				names = append(names, name)
+			}
+
+			orderedRules := make([]IndexNameRewriteRule, len(names))
+			for _, name := range names {
+				if rule, ok := ingestProcessor.Config.IndexNameRewriteRules[name]; ok {
+					orderedRules = append(orderedRules, rule)
+				}
+			}
+			c.IndexNameRewriteRules = orderedRules
+		}
+	}
+
 	// safe to call per validation earlier
 	if targts, ok := ingestProcessor.Config.IndexConfig[DefaultWildcardIndexName].Target.([]interface{}); ok {
 		conn := confNew.GetBackendConnectorByName(targts[0].(string))
