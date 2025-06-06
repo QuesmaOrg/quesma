@@ -57,8 +57,7 @@ type QuesmaConfiguration struct {
 	DefaultIngestOptimizers     map[string]OptimizerConfiguration
 	DefaultQueryOptimizers      map[string]OptimizerConfiguration
 	MapFieldsDiscoveringEnabled bool
-
-	IndexNameRewriteRules []IndexNameRewriteRule // rules for rewriting index names, e.g. "index_name" -> "index_name_v2"
+	IndexNameRewriteRules       []IndexNameRewriteRule // rules for rewriting index names, e.g. "index_name" -> "index_name_v2"
 	DefaultStringColumnType     string
 }
 
