@@ -34,8 +34,10 @@ func NewEmptyHighlighter() model.Highlighter {
 }
 
 const (
-	defaultQueryResultSize = 10
-	defaultTrackTotalHits  = 10000
+	defaultQueryResultSize        = 10
+	increasedResultSizeForIdQuery = 10000 // In `_id` query we had to fetch way more documents as these have to be filtered later on, when assembling the result
+	defaultTrackTotalHits         = 10000
+	uuidSeparator                 = "qqq" // Document IDs (_id) fields in quesma ar
 )
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, error) {
@@ -322,6 +324,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		return model.NewSimpleQueryInvalid()
 	}
 	ids := make([]string, 0, len(idsRaw))
+	uniqueIds := make([]string, 0, len(idsRaw))
 	for _, id := range idsRaw {
 		if idAsString, ok := id.(string); ok {
 			ids = append(ids, idAsString)
@@ -331,11 +334,11 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		}
 	}
 
-	// when our generated ID appears in query looks like this: `1d<TRUNCATED>0b8q1`
-	// therefore we need to strip the hex part (before `q`) and convert it to decimal
-	// then we can query at DB level
+	// when our generated ID appears in query looks like this:
+	// `<hex-encoded timestamp>qqq<hex-encoded source hash>`
+	// Therefore we need to convert the hex-encoded timestamp to assemble the SQL query
 	for i, id := range ids {
-		idInHex := strings.Split(id, "q")[0]
+		idInHex := strings.Split(id, uuidSeparator)[0]
 		if idAsStr, err := hex.DecodeString(idInHex); err != nil {
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
 			return model.NewSimpleQueryInvalid()
@@ -343,6 +346,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 			tsWithoutTZ := strings.TrimSuffix(string(idAsStr), " +0000 UTC")
 			ids[i] = fmt.Sprintf("'%s'", tsWithoutTZ)
 		}
+		uniqueIds = append(uniqueIds, id)
 	}
 
 	var idToSql func(string) (model.Expr, error)
@@ -399,6 +403,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		idsTuple := model.NewTupleExpr(idsAsExprs...)
 		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " IN ", idsTuple)
 	}
+	cw.UniqueIDsUsedInTheQuery = uniqueIds // a crucial side effect here - queries against _id field requires special treatment
 	return model.NewSimpleQuery(whereStmt, true)
 }
 
@@ -1233,6 +1238,11 @@ func ResolveField(ctx context.Context, fieldName string, schemaInstance schema.S
 }
 
 func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize int) int {
+	if len(cw.UniqueIDsUsedInTheQuery) > 0 {
+		// If this is a unique ID query, we can't limit size at the SQL level,
+		// because we need all matching timestamps that later will be filtered out but looking at hashes computed on hits
+		return increasedResultSizeForIdQuery
+	}
 	sizeRaw, exists := queryMap["size"]
 	if !exists {
 		return defaultSize

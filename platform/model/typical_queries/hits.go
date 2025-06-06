@@ -4,6 +4,9 @@ package typical_queries
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
@@ -12,6 +15,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -239,15 +243,59 @@ func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) st
 	if v, ok := doc.Fields[tsFieldName]; ok {
 		if vv, okk := v[0].(time.Time); okk {
 			// At database level we only compare timestamps with millisecond precision
-			// However in search results we append `q` plus generated digits (we use q because it's not in hex)
-			// so that kibana can iterate over documents in UI
-			pseudoUniqueId = fmt.Sprintf("%xq%s", vv, defaultID)
+			// However in search results we append `qqq` plus generated hash of the source to hex-encoded timestamp
+			sourceHash := fmt.Sprintf("%x", ComputeHash(doc.Source))
+			pseudoUniqueId = fmt.Sprintf("%xqqq%x", vv, sourceHash)
 		} else {
 			logger.WarnWithCtx(query.ctx).Msgf("failed to convert timestamp field [%v] to time.Time", v[0])
 			return defaultID
 		}
 	}
 	return pseudoUniqueId
+}
+
+func ComputeHash(data json.RawMessage) string {
+	var parsed interface{}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		hash := sha256.Sum256(data)
+		return hex.EncodeToString(hash[:])
+	}
+	normalized := normalizeJSON(parsed)
+	normalizedBytes, err := json.Marshal(normalized)
+	if err != nil {
+		hash := sha256.Sum256(data)
+		return hex.EncodeToString(hash[:])
+	}
+	hash := sha256.Sum256(normalizedBytes)
+	return hex.EncodeToString(hash[:])
+}
+
+// normalizeJSON recursively normalizes JSON structure to ensure consistent ordering for further hashing.
+func normalizeJSON(v interface{}) interface{} {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		normalized := make(map[string]interface{})
+		for _, k := range keys {
+			normalized[k] = normalizeJSON(val[k])
+		}
+		return normalized
+
+	case []interface{}:
+		normalized := make([]interface{}, len(val))
+		for i, v := range val {
+			normalized[i] = normalizeJSON(v)
+		}
+		return normalized
+
+	default:
+		return val
+	}
 }
 
 func (query Hits) String() string {
