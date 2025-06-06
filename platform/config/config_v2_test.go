@@ -368,7 +368,7 @@ func TestStringColumnIsTextDefaultBehavior(t *testing.T) {
 	}
 	legacyConf := cfg.TranslateToLegacyConfig()
 
-	assert.Equal(t, false, legacyConf.DefaultStringToKeywordType)
+	assert.Equal(t, "text", legacyConf.DefaultStringColumnType)
 
 }
 
@@ -380,6 +380,6 @@ func TestStringColumnIsKeyword(t *testing.T) {
 	}
 	legacyConf := cfg.TranslateToLegacyConfig()
 
-	assert.Equal(t, true, legacyConf.DefaultStringToKeywordType)
+	assert.Equal(t, "keyword", legacyConf.DefaultStringColumnType)
 
 }
