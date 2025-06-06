@@ -13,10 +13,10 @@ type IndexNameRewriter interface {
 	RewriteIndex(indexName string) string
 }
 
-type nopIndexNameRewriter struct {
+type NoOpIndexNameRewriter struct {
 }
 
-func (n *nopIndexNameRewriter) RewriteIndex(indexName string) string {
+func (n *NoOpIndexNameRewriter) RewriteIndex(indexName string) string {
 	// no-op rewriter, returns the index name as is
 	return indexName
 }
@@ -39,7 +39,7 @@ func NewIndexNameRewriter(cfg *config.QuesmaConfiguration) IndexNameRewriter {
 	if len(cfg.IndexNameRewriteRules) == 0 {
 		logger.Info().Msgf("No index name rewrite rules configured, using no-op rewriter")
 		// if no rewrite rules are configured, return a no-op rewriter
-		return &nopIndexNameRewriter{}
+		return &NoOpIndexNameRewriter{}
 	}
 
 	var rules []rewriteRule
