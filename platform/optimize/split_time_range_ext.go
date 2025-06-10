@@ -196,7 +196,7 @@ func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[str
 		queries = append(queries, query)
 		return queries, nil
 	}
-	
+
 	for i := 1; i < len(splitPoints); i++ {
 		subquery := query.SelectCommand
 
@@ -212,7 +212,7 @@ func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[str
 			),
 			"AND",
 			model.NewInfixExpr(
-				model.NewColumnRef(foundTimeRange.columnName), "<", endExpr,
+				model.NewColumnRef(foundTimeRange.columnName), "<=", endExpr,
 			),
 		)
 
