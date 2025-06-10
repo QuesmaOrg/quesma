@@ -5,6 +5,7 @@ package optimize
 import (
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/model"
+	"log"
 	"strings"
 	"time"
 )
@@ -23,24 +24,40 @@ type OptimizePipeline struct {
 	optimizations []OptimizeTransformer
 }
 
+func checkIfOptimizerIsEnabled(config *config.QuesmaConfiguration, name string) bool {
+
+	if c, ok := config.DefaultQueryOptimizers[name]; ok {
+		return !c.Disabled
+	}
+	return true // default is enabled
+
+}
+
 func NewOptimizePipeline(config *config.QuesmaConfiguration) model.QueryTransformer {
-	// TODO remove this line when splitTimeRange is removed
-	// this is just to satisfy the linter
-	_ = &splitTimeRange{}
+
+	var optimizations []OptimizeTransformer
+
+	if checkIfOptimizerIsEnabled(config, "truncateDate") {
+		optimizations = append(optimizations, &truncateDate{truncateTo: 5 * time.Minute})
+	}
+
+	if checkIfOptimizerIsEnabled(config, "cacheQueries") {
+		optimizations = append(optimizations, &cacheQueries{})
+	}
+
+	if checkIfOptimizerIsEnabled(config, "materializedViewReplace") {
+		optimizations = append(optimizations, &materializedViewReplace{})
+	}
+
+	if checkIfOptimizerIsEnabled(config, "splitTimeRangeExt") {
+		optimizations = append(optimizations, &splitTimeRangeExt{})
+	}
+
+	log.Println("OptimizePipeline: enabled optimizations:", optimizations)
+
 	return &OptimizePipeline{
-		config: config,
-		optimizations: []OptimizeTransformer{
-			&truncateDate{truncateTo: 5 * time.Minute},
-			&cacheQueries{},
-			&materializedViewReplace{},
-			// TODO finally remove this transformer
-			// commenting out splitTimeRange for now
-			// as we have splitTimeRangeExt that uses novel approach
-			// of splitting queries based on time range
-			// executing them in parallel and finally merging results
-			// &splitTimeRange{},
-			&splitTimeRangeExt{},
-		},
+		config:        config,
+		optimizations: optimizations,
 	}
 }
 
