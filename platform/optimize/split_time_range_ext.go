@@ -218,6 +218,14 @@ func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[str
 			),
 		)
 
+		if subquery.WhereClause != nil {
+			whereClause = model.NewInfixExpr(
+				subquery.WhereClause,
+				"AND",
+				whereClause,
+			)
+		}
+
 		subquery.WhereClause = whereClause
 		subqueries = append(subqueries, subquery)
 	}
