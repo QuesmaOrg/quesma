@@ -39,6 +39,7 @@ type (
 
 		// index configuration overrides always take precedence
 		indexConfiguration      *map[string]config.IndexConfiguration
+		defaultSchemaOverrides  *config.SchemaConfiguration
 		dataSourceTableProvider TableProvider
 		dataSourceTypeAdapter   typeAdapter
 		dynamicConfiguration    map[string]Table
@@ -149,6 +150,11 @@ func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
 	if s.dataSourceTableProvider.AutodiscoveryEnabled() {
 		for tableName, table := range definitions {
 			fields := make(map[FieldName]Field)
+
+			if s.defaultSchemaOverrides != nil {
+				s.populateSchemaFromStaticConfiguration(s.defaultSchemaOverrides, fields)
+			}
+
 			internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(tableName)
 			existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields, internalToPublicFieldsEncodings)
 			schemas[IndexName(tableName)] = NewSchema(fields, existsInDataSource, table.DatabaseName)
@@ -159,7 +165,7 @@ func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
 		fields := make(map[FieldName]Field)
 		aliases := make(map[FieldName]FieldName)
 		s.populateSchemaFromDynamicConfiguration(indexName, fields)
-		s.populateSchemaFromStaticConfiguration(indexConfiguration, fields)
+		s.populateSchemaFromStaticConfiguration(indexConfiguration.SchemaOverrides, fields)
 		internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(indexName)
 		tableName := indexConfiguration.TableName(indexName)
 		existsInDataSource := s.populateSchemaFromTableDefinition(definitions, tableName, fields, internalToPublicFieldsEncodings)
@@ -256,6 +262,7 @@ func (s *schemaRegistry) GetFieldEncodings() map[FieldEncodingKey]EncodedFieldNa
 func NewSchemaRegistry(tableProvider TableProvider, configuration *config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {
 	res := &schemaRegistry{
 		indexConfiguration:      &configuration.IndexConfig,
+		defaultSchemaOverrides:  configuration.DefaultSchemaOverrides,
 		dataSourceTableProvider: tableProvider,
 		dataSourceTypeAdapter:   dataSourceTypeAdapter,
 		dynamicConfiguration:    make(map[string]Table),
@@ -266,11 +273,11 @@ func NewSchemaRegistry(tableProvider TableProvider, configuration *config.Quesma
 	return res
 }
 
-func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguration config.IndexConfiguration, fields map[FieldName]Field) {
-	if indexConfiguration.SchemaOverrides == nil {
+func (s *schemaRegistry) populateSchemaFromStaticConfiguration(schemaOverrides *config.SchemaConfiguration, fields map[FieldName]Field) {
+	if schemaOverrides == nil {
 		return
 	}
-	for fieldName, field := range indexConfiguration.SchemaOverrides.Fields {
+	for fieldName, field := range schemaOverrides.Fields {
 		if field.Type.AsString() == config.TypeAlias || field.Ignored {
 			continue
 		}
