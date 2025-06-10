@@ -76,3 +76,8 @@ func TestIndexNameRewrite(t *testing.T) {
 	testCase := testcases.NewIndexNameRewriteTestcase()
 	runIntegrationTest(t, testCase)
 }
+
+func TestDefaultSchemaOverride(t *testing.T) {
+	testCase := testcases.NewDefaultSchemaOverrideTestcase()
+	runIntegrationTest(t, testCase)
+}
