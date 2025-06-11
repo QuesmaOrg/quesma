@@ -76,3 +76,8 @@ func TestIndexNameRewrite(t *testing.T) {
 	testCase := testcases.NewIndexNameRewriteTestcase()
 	runIntegrationTest(t, testCase)
 }
+
+func TestSplitTimeRange(t *testing.T) {
+	testCase := testcases.NewSplitTimeRangeTestcase()
+	runIntegrationTest(t, testCase)
+}
