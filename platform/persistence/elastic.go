@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
+	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/goccy/go-json"
 	"io"
@@ -34,6 +35,29 @@ func NewElasticJSONDatabase(cfg config.ElasticsearchConfiguration, indexName str
 	}
 }
 
+func (p *ElasticJSONDatabase) refresh() error {
+
+	elasticsearchURL := fmt.Sprintf("%s/_refresh", p.indexName)
+
+	resp, err := p.httpClient.Request(context.Background(), "POST", elasticsearchURL, nil)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusAccepted:
+		return nil
+	default:
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		logger.Error().Msgf("Failed to flush elastic index: %s", string(body))
+		return fmt.Errorf("failed to flush elastic: %v", resp.Status)
+	}
+}
+
 func (p *ElasticJSONDatabase) Put(key string, data string) error {
 
 	elasticsearchURL := fmt.Sprintf("%s/_update/%s", p.indexName, key)
@@ -57,6 +81,14 @@ func (p *ElasticJSONDatabase) Put(key string, data string) error {
 
 	switch resp.StatusCode {
 	case http.StatusCreated, http.StatusOK:
+
+		// We need to flush the index to make sure the data is available for search.
+		err = p.refresh()
+		if err != nil {
+			log.Printf("Failed to flush elastic: %v", err)
+			return err
+		}
+
 		return nil
 	default:
 		respBody, err := io.ReadAll(resp.Body)
