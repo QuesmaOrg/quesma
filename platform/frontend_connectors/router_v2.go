@@ -310,5 +310,16 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		return &quesma_api.Result{Body: string(body), StatusCode: http.StatusOK, GenericResult: body}, nil
 	})
 
+	router.Register(routes.QuesmaReloadTablsPath, method("POST"), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+
+		lm.ReloadTables()
+
+		return &quesma_api.Result{
+			Body:          "Table reloaded successfully",
+			StatusCode:    http.StatusOK,
+			GenericResult: []byte("Table reloaded successfully"),
+		}, nil
+	})
+
 	return router
 }
