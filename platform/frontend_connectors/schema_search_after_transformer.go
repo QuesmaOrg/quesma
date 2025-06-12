@@ -125,7 +125,7 @@ func (s searchAfterStrategyBasicAndFast) validateAndParse(query *model.Query, in
 			if number, isNumber := util.ExtractNumeric64Maybe(searchAfterValue); isNumber {
 				if number >= 0 && util.IsFloat64AnInt64(number) {
 					// this param will always be timestamp in milliseconds, as we create it like this while rendering hits
-					searchAfterParsed[i] = model.NewFunction("fromUnixTimestamp64Milli", model.NewLiteral(int64(number)))
+					searchAfterParsed[i] = model.NewFunction("FROM_UNIXTIME", model.NewLiteral(int64(number)/1000))
 				} else {
 					return nil, fmt.Errorf("for basicAndFast strategy, search_after must be a unix timestamp in milliseconds")
 				}

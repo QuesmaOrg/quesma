@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/logger"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 )
 
@@ -64,6 +65,7 @@ func (p *BasicSqlBackendConnector) Ping() error {
 }
 
 func (p *BasicSqlBackendConnector) Query(ctx context.Context, query string, args ...interface{}) (quesma_api.Rows, error) {
+	logger.Info().Msgf("query sql: %s", query)
 	rows, err := p.connection.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -72,10 +74,12 @@ func (p *BasicSqlBackendConnector) Query(ctx context.Context, query string, args
 }
 
 func (p *BasicSqlBackendConnector) QueryRow(ctx context.Context, query string, args ...interface{}) quesma_api.Row {
+	logger.Info().Msgf("queryRow sql: %s", query)
 	return p.connection.QueryRowContext(ctx, query, args...)
 }
 
 func (p *BasicSqlBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
+	logger.Info().Msgf("Exec sql: %s", query)
 	if len(args) == 0 {
 		_, err := p.connection.ExecContext(ctx, query)
 		return err

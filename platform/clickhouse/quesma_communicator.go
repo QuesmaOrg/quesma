@@ -223,7 +223,15 @@ func read(ctx context.Context, rows quesma_api.Rows, selectFields []string, rowT
 		}
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, len(selectFields))}
 		for i, field := range selectFields {
-			resultRow.Cols[i] = model.QueryResultCol{ColName: field, Value: rowToScan[i]}
+			var val interface{}
+			switch v := rowToScan[i].(type) {
+			// just for doris query
+			case []uint8:
+				val = string(v)
+			default:
+				val = v
+			}
+			resultRow.Cols[i] = model.QueryResultCol{ColName: field, Value: val}
 		}
 		resultRows = append(resultRows, resultRow)
 	}

@@ -186,15 +186,19 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 			lon := model.NewColumnRef(field.InternalPropertyName.AsString() + "_lon")
 			lat := model.NewColumnRef(field.InternalPropertyName.AsString() + "_lat")
 
+			lonFun := model.NewFunction("CAST", model.NewAliasedExpr(model.NewColumnRef(field.InternalPropertyName.AsString()+"_lon"), "string"))
+			latFun := model.NewFunction("CAST", model.NewAliasedExpr(model.NewColumnRef(field.InternalPropertyName.AsString()+"_lat"), "string"))
+
 			// This is a workaround. Clickhouse Point is defined as Tuple. We need to know the type of the tuple.
 			// In this step we merge two columns into single map here. Map is in elastic format.
 
 			// In this point we assume that Quesma point type is stored into two separate columns.
-			replace[field.InternalPropertyName.AsString()] = model.NewFunction("map",
-				model.NewLiteral("'lat'"),
-				lat,
-				model.NewLiteral("'lon'"),
-				lon)
+			replace[field.InternalPropertyName.AsString()] = model.NewFunction("CONCAT",
+				model.NewLiteral("'{\"lat\":'"),
+				latFun,
+				model.NewLiteral("',\"lon\":'"),
+				lonFun,
+				model.NewLiteral("'}'"))
 
 			// these a just if we need multifields support
 			replace[field.InternalPropertyName.AsString()+".lat"] = lat
@@ -307,7 +311,7 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 	hasArrayColumn := false
 	for _, col := range allColumns {
 		dbType := arrayTypeResolver.dbColumnType(col.ColumnName)
-		if strings.HasPrefix(dbType, "Array") {
+		if strings.HasPrefix(dbType, "array") {
 			hasArrayColumn = true
 			break
 		}
@@ -617,6 +621,9 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 					if (strings.ToUpper(e.Op) == "LIKE" || strings.ToUpper(e.Op) == "ILIKE") && model.AsString(e.Right) == "'%'" {
 						return model.NewLiteral(true)
 					}
+					if strings.ToUpper(e.Op) == "MATCH" {
+						return model.NewLiteral(true)
+					}
 					return model.NewLiteral(false)
 				}
 
@@ -864,7 +871,7 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 			if len(e.Args) != 1 {
 				return e
 			}
-			return model.NewFunction("toHour", e.Args[0].Accept(b).(model.Expr))
+			return model.NewFunction("HOUR", e.Args[0].Accept(b).(model.Expr))
 
 			// TODO this is a place for over date/time related functions
 			// add more
@@ -1111,7 +1118,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
 
 			ilike := func() model.Expr {
-				return model.NewInfixExpr(lhs, "ILIKE", rhs.Clone())
+				return model.NewInfixExpr(lhs, "MATCH", rhs.Clone())
 			}
 			equal := func() model.Expr {
 				return model.NewInfixExpr(lhs, "=", rhs.Clone())

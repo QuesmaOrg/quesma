@@ -16,6 +16,8 @@ import (
 //
 //
 
+const array = "array"
+
 type functionWithCombinator struct {
 	baseFunctionName string
 	isArray          bool
@@ -28,7 +30,7 @@ type functionWithCombinator struct {
 func (f functionWithCombinator) String() string {
 	result := f.baseFunctionName
 	if f.isArray {
-		result = result + "Array"
+		result = result + array
 	}
 	if f.isIf {
 		result = result + "If"
@@ -94,7 +96,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 		column, ok := e.Left.(model.ColumnRef)
 		if ok {
 			dbType := resolver.dbColumnType(column.ColumnName)
-			if strings.HasPrefix(dbType, "Array") {
+			if strings.HasPrefix(dbType, array) {
 				op := strings.TrimSpace(e.Op)
 				opUpperCase := strings.ToUpper(op)
 				switch {
@@ -109,7 +111,8 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 
 				case op == "=":
 					return model.NewFunction("has", e.Left, e.Right.Accept(b).(model.Expr))
-
+				case op == model.MatchOperator && dbType == array:
+					return model.NewFunction("ARRAY_CONTAINS", e.Left, e.Right.Accept(b).(model.Expr))
 				default:
 					anyError = true
 					// add context to log line below (already introduced in unmerged Krzysiek's PR)
@@ -134,7 +137,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 			column, ok := arg.(model.ColumnRef)
 			if ok {
 				dbType := resolver.dbColumnType(column.ColumnName)
-				if strings.HasPrefix(dbType, "Array") {
+				if strings.HasPrefix(dbType, array) {
 					funcParsed := parseFunctionWithCombinator(e.Name)
 					funcParsed.isArray = true
 					childGotArrayFunc = true
@@ -163,7 +166,7 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		dbType := resolver.dbColumnType(e.ColumnName)
-		if strings.HasPrefix(dbType, "Array") {
+		if strings.HasPrefix(dbType, array) {
 			// add context to log line below (already introduced in unmerged Krzysiek's PR)
 			logger.WarnWithReason("unhandled array column ref").Msgf("column '%v' ('%v')", e.ColumnName, dbType)
 		}
@@ -181,7 +184,7 @@ func checkIfGroupingByArrayColumn(selectCommand model.SelectCommand, resolver ar
 
 		findArrayColumn.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 			dbType := resolver.dbColumnType(e.ColumnName)
-			if strings.HasPrefix(dbType, "Array") {
+			if strings.HasPrefix(dbType, array) {
 				columnIsArray = true
 			}
 			return e
@@ -231,7 +234,7 @@ func NewArrayJoinVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		dbType := resolver.dbColumnType(e.ColumnName)
-		if strings.HasPrefix(dbType, "Array") {
+		if strings.HasPrefix(dbType, array) {
 			return model.NewFunction("arrayJoin", model.NewFunction("arrayDistinct", e))
 		}
 		return e

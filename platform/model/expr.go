@@ -4,7 +4,7 @@ package model
 
 import (
 	"fmt"
-	"strconv"
+	"github.com/QuesmaOrg/quesma/platform/util"
 )
 
 // Expr is a generic representation of an expression which is a part of the SQL query.
@@ -202,6 +202,19 @@ func (t TableRef) Accept(v ExprVisitor) interface{} {
 	return v.VisitTableRef(t)
 }
 
+type GroupByExpr struct {
+	Expr       Expr
+	GroupAlias string
+}
+
+func (g GroupByExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitGroupByExpr(g)
+}
+
+func NewGroupByExpr(expr Expr, groupAlias string) GroupByExpr {
+	return GroupByExpr{Expr: expr, GroupAlias: groupAlias}
+}
+
 type OrderByDirection int8
 
 const (
@@ -252,7 +265,11 @@ func NewAliasedExpr(expr Expr, alias string) AliasedExpr {
 func (a AliasedExpr) Accept(v ExprVisitor) interface{} { return v.VisitAliasedExpr(a) }
 
 func (a AliasedExpr) AliasRef() LiteralExpr {
-	return LiteralExpr{Value: strconv.Quote(a.Alias)}
+	return LiteralExpr{Value: util.BackquoteIdentifier(a.Alias)}
+}
+
+func (g GroupByExpr) GroupAliasRef() LiteralExpr {
+	return LiteralExpr{Value: util.BackquoteIdentifier(g.GroupAlias)}
 }
 
 // WindowFunction representation e.g. `SUM(x) OVER (PARTITION BY y ORDER BY z)`
@@ -339,6 +356,7 @@ type ExprVisitor interface {
 	VisitNestedProperty(e NestedProperty) interface{}
 	VisitArrayAccess(e ArrayAccess) interface{}
 	VisitOrderByExpr(e OrderByExpr) interface{}
+	VisitGroupByExpr(e GroupByExpr) interface{}
 	VisitDistinctExpr(e DistinctExpr) interface{}
 	VisitTableRef(e TableRef) interface{}
 	VisitAliasedExpr(e AliasedExpr) interface{}

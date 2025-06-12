@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/metrics_aggregations"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"strconv"
 )
 
 func (p *pancakeSqlQueryGenerator) quotedLiteral(name string) model.LiteralExpr {
-	return model.NewLiteral(strconv.Quote(name))
+	return model.NewLiteral(util.BackquoteIdentifier(name))
 }
 
 // generateSimpleTopHitsQuery generates an SQL for top_hits/top_metrics
@@ -42,7 +43,7 @@ func (p *pancakeSqlQueryGenerator) generateSimpleTopHitsQuery(topHits *pancakeMo
 func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeModel,
 	combinatorWhere []model.Expr,
 	topHits *pancakeModelMetricAggregation,
-	groupBys []model.AliasedExpr,
+	groupBys []model.GroupByExpr,
 	selectColumns []model.AliasedExpr,
 	origQuery *model.SelectCommand) (*model.SelectCommand, error) {
 
@@ -83,7 +84,8 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	hitTableName := "hit_table"
 
 	groupTableLiteral := func(reference string) model.Expr {
-		return model.NewLiteral(strconv.Quote(groupTableName) + "." + strconv.Quote(reference))
+		//return model.NewLiteral(strconv.Quote(groupTableName) + "." + strconv.Quote(reference))
+		return model.NewLiteral(util.BackquoteIdentifier(groupTableName) + "." + util.BackquoteIdentifier(reference))
 	}
 
 	convertColumnRefToHitTable := func(expr model.Expr) model.Expr {
@@ -101,9 +103,9 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	var joinExprs []model.Expr
 	var partitionByExprs []model.Expr
 	for _, groupBy := range groupBys {
-		partitionByExprs = append(partitionByExprs, groupTableLiteral(groupBy.Alias))
+		partitionByExprs = append(partitionByExprs, groupTableLiteral(groupBy.GroupAlias))
 		joinExprs = append(joinExprs, model.NewInfixExpr(
-			groupTableLiteral(groupBy.Alias),
+			groupTableLiteral(groupBy.GroupAlias),
 			"=",
 			convertColumnRefToHitTable(groupBy.Expr)))
 	}

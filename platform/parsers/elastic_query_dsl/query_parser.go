@@ -355,40 +355,41 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		timestampColumnName = model.TimestampFieldName
 	}
 
-	if column, ok := cw.Table.Cols[timestampColumnName]; ok {
-		switch column.Type.String() {
-		case clickhouse.DateTime64.String():
-			idToSql = func(id string) (model.Expr, error) {
-				precision, success := util.FindTimestampPrecision(id[1 : len(id)-1]) // strip quotes added above
-				if !success {
-					return nil, fmt.Errorf("invalid timestamp format: %s", id)
-				}
-				return model.NewFunction("toDateTime64", model.NewLiteral(id), model.NewLiteral(precision)), nil
-			}
-		case clickhouse.DateTime.String():
-			idToSql = func(id string) (model.Expr, error) {
-				return model.NewFunction("toDateTime", model.NewLiteral(id)), nil
-			}
-		default:
-			logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field of unsupported type %s", column.Type.String())
-			return model.NewSimpleQueryInvalid()
-		}
-	} else {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field %s not found in schema", timestampColumnName)
-		return model.NewSimpleQueryInvalid()
-	}
+	//if column, ok := cw.Table.Cols[timestampColumnName]; ok {
+	//	switch column.Type.String() {
+	//	case clickhouse.DateTime64.String():
+	//		idToSql = func(id string) (model.Expr, error) {
+	//			precision, success := util.FindTimestampPrecision(id[1 : len(id)-1]) // strip quotes added above
+	//			if !success {
+	//				return nil, fmt.Errorf("invalid timestamp format: %s", id)
+	//			}
+	//			return model.NewFunction("toDateTime64", model.NewLiteral(id), model.NewLiteral(precision)), nil
+	//		}
+	//	case clickhouse.DateTime.String():
+	//		idToSql = func(id string) (model.Expr, error) {
+	//			return model.NewFunction("toDateTime", model.NewLiteral(id)), nil
+	//		}
+	//	default:
+	//		logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field of unsupported type %s", column.Type.String())
+	//		return model.NewSimpleQueryInvalid()
+	//	}
+	//} else {
+	//	logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field %s not found in schema", timestampColumnName)
+	//	return model.NewSimpleQueryInvalid()
+	//}
 
 	var whereStmt model.Expr
 	switch len(ids) {
 	case 0:
 		whereStmt = model.FalseExpr // timestamp IN [] <=> false
 	case 1:
-		sql, err := idToSql(ids[0])
-		if err != nil {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("error converting id to sql: %v", err)
-			return model.NewSimpleQueryInvalid()
-		}
-		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", sql)
+		//sql = ids[0]
+		//sql, err := idToSql(ids[0])
+		//if err != nil {
+		//	logger.ErrorWithCtx(cw.Ctx).Msgf("error converting id to sql: %v", err)
+		//	return model.NewSimpleQueryInvalid()
+		//}
+		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", model.NewLiteral(ids[0]))
 	default:
 		idsAsExprs := make([]model.Expr, len(ids))
 		for i, id := range ids {
@@ -648,7 +649,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 	i := 0
 	for _, field := range fields {
 		for _, subQ := range subQueries {
-			simpleStat := model.NewInfixExpr(model.NewColumnRef(field), "iLIKE", model.NewLiteral("'%"+subQ+"%'"))
+			simpleStat := model.NewInfixExpr(model.NewColumnRef(field), "MATCH", model.NewLiteral("'"+subQ+"'"))
 			sqls[i] = simpleStat
 			i++
 		}

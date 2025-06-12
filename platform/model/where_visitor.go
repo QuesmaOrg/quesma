@@ -26,7 +26,7 @@ func FindTimestampLowerBound(field ColumnRef, whereClause Expr) (timestampInMill
 						found = true
 					}
 				}
-			} else if fun, ok := e.Right.(FunctionExpr); ok && fun.Name == "fromUnixTimestamp" && len(fun.Args) == 1 {
+			} else if fun, ok := e.Right.(FunctionExpr); ok && fun.Name == "FROM_UNIXTIME" && len(fun.Args) == 1 {
 				if rhs, ok := fun.Args[0].(LiteralExpr); ok {
 					if rhsInt64, ok := util.ExtractInt64Maybe(rhs.Value); ok {
 						timestampInMillis = min(timestampInMillis, rhsInt64*1000) // seconds -> milliseconds

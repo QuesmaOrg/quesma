@@ -14,6 +14,7 @@ func (NoOpVisitor) VisitPrefixExpr(e PrefixExpr) interface{}         { return e 
 func (NoOpVisitor) VisitNestedProperty(e NestedProperty) interface{} { return e }
 func (NoOpVisitor) VisitArrayAccess(e ArrayAccess) interface{}       { return e }
 func (NoOpVisitor) VisitOrderByExpr(e OrderByExpr) interface{}       { return e }
+func (NoOpVisitor) VisitGroupByExpr(e GroupByExpr) interface{}       { return e }
 func (NoOpVisitor) VisitDistinctExpr(e DistinctExpr) interface{}     { return e }
 func (NoOpVisitor) VisitTableRef(e TableRef) interface{}             { return e }
 func (NoOpVisitor) VisitAliasedExpr(e AliasedExpr) interface{}       { return e }

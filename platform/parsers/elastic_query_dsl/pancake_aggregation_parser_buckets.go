@@ -368,13 +368,13 @@ func (cw *ClickhouseQueryTranslator) parseGeotileGrid(aggregation *pancakeAggreg
 	radians := model.NewFunction("RADIANS", lat)
 	tan := model.NewFunction("TAN", radians)
 	cos := model.NewFunction("COS", radians)
-	Log := model.NewFunction("LOG", model.NewInfixExpr(tan, "+",
+	Ln := model.NewFunction("LN", model.NewInfixExpr(tan, "+",
 		model.NewParenExpr(model.NewInfixExpr(model.NewLiteral(1), "/", cos))))
 
 	FloorContent := model.NewInfixExpr(
 		model.NewInfixExpr(
 			model.NewParenExpr(
-				model.NewInfixExpr(model.NewInfixExpr(model.NewLiteral(1), "-", Log), "/",
+				model.NewInfixExpr(model.NewInfixExpr(model.NewLiteral(1), "-", Ln), "/",
 					model.NewLiteral("PI()"))), "/",
 			model.NewLiteral(2.0)), "*",
 		model.NewFunction("POWER", model.NewLiteral(2), zoomLiteral))

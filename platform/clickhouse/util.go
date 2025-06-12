@@ -118,20 +118,25 @@ func PrettyJson(jsonStr string) string {
 // - timestampGroupBy("@timestamp", DateTime, 30 seconds)   --> toInt64(toUnixTimestamp(`@timestamp`)/30)
 func TimestampGroupBy(timestampField model.Expr, typ DateTimeType, groupByInterval time.Duration) model.Expr {
 
-	createAExp := func(innerFuncName string, interval int64) model.Expr {
+	createAExp := func(innerFuncName string, interval int64, offsetMultiplier int64) model.Expr {
 		toUnixTsFunc := model.NewInfixExpr(
 			model.NewFunction(innerFuncName, timestampField),
-			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-			model.NewLiteral(interval))
-		return model.NewFunction("toInt64", toUnixTsFunc)
+			" * ",
+			model.NewLiteral(offsetMultiplier))
+
+		//" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
+		//model.NewLiteral(interval))
+
+		toUnixTsFunc = model.NewInfixExpr(toUnixTsFunc, " / ", model.NewLiteral(interval))
+		return model.NewFunction("FLOOR", toUnixTsFunc)
 	}
 
 	switch typ {
 	case DateTime64:
 		// as string: fmt.Sprintf("toInt64(toUnixTimestamp(`%s`)/%f)", timestampFieldName, groupByInterval.Seconds())
-		return createAExp("toUnixTimestamp64Milli", groupByInterval.Milliseconds())
+		return createAExp("UNIX_TIMESTAMP", groupByInterval.Milliseconds(), 1000)
 	case DateTime:
-		return createAExp("toUnixTimestamp", groupByInterval.Milliseconds()/1000)
+		return createAExp("UNIX_TIMESTAMP", groupByInterval.Milliseconds()/1000, 1)
 	default:
 		logger.Error().Msgf("invalid timestamp fieldname: %s", timestampFieldName)
 		return model.NewLiteral("invalid") // maybe create new type InvalidExpr?
@@ -142,46 +147,46 @@ func TimestampGroupByWithTimezone(timestampField model.Expr, typ DateTimeType,
 	groupByInterval time.Duration, timezone string) model.Expr {
 
 	// If no timezone, or timezone is default (UTC), we just return TimestampGroupBy(...)
-	if timezone == "" {
-		return TimestampGroupBy(timestampField, typ, groupByInterval)
-	}
-
-	createAExp := func(innerFuncName string, interval, offsetMultiplier int64) model.Expr {
-		var offset model.Expr
-		offset = model.NewFunction(
-			"timeZoneOffset",
-			model.NewFunction(
-				"toTimezone",
-				timestampField, model.NewLiteral("'"+timezone+"'"),
-			),
-		)
-		if offsetMultiplier != 1 {
-			offset = model.NewInfixExpr(offset, "*", model.NewLiteral(offsetMultiplier))
-		}
-
-		unixTsWithOffset := model.NewInfixExpr(
-			model.NewFunction(innerFuncName, timestampField),
-			"+",
-			offset,
-		)
-
-		groupByExpr := model.NewInfixExpr(
-			model.NewParenExpr(unixTsWithOffset),
-			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
-			model.NewLiteral(interval),
-		)
-
-		return model.NewFunction("toInt64", groupByExpr)
-	}
-
-	switch typ {
-	case DateTime64:
-		// e.g: (toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 600000
-		return createAExp("toUnixTimestamp64Milli", groupByInterval.Milliseconds(), 1000)
-	case DateTime:
-		return createAExp("toUnixTimestamp", groupByInterval.Milliseconds()/1000, 1)
-	default:
-		logger.Error().Msgf("invalid timestamp fieldname: %s", timestampFieldName)
-		return model.NewLiteral("invalid") // maybe create new type InvalidExpr?
-	}
+	//if timezone == "" {
+	return TimestampGroupBy(timestampField, typ, groupByInterval)
+	//}
+	//
+	//createAExp := func(innerFuncName string, interval, offsetMultiplier int64) model.Expr {
+	//	var offset model.Expr
+	//	offset = model.NewFunction(
+	//		"timeZoneOffset",
+	//		model.NewFunction(
+	//			"toTimezone",
+	//			timestampField, model.NewLiteral("'"+timezone+"'"),
+	//		),
+	//	)
+	//	if offsetMultiplier != 1 {
+	//		offset = model.NewInfixExpr(offset, "*", model.NewLiteral(offsetMultiplier))
+	//	}
+	//
+	//	unixTsWithOffset := model.NewInfixExpr(
+	//		model.NewFunction(innerFuncName, timestampField),
+	//		"+",
+	//		offset,
+	//	)
+	//
+	//	groupByExpr := model.NewInfixExpr(
+	//		model.NewParenExpr(unixTsWithOffset),
+	//		" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
+	//		model.NewLiteral(interval),
+	//	)
+	//
+	//	return model.NewFunction("toInt64", groupByExpr)
+	//}
+	//
+	//switch typ {
+	//case DateTime64:
+	//	// e.g: (toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone("timestamp",'Europe/Warsaw'))*1000) / 600000
+	//	return createAExp("UNIX_TIMESTAMP", groupByInterval.Milliseconds(), 1000)
+	//case DateTime:
+	//	return createAExp("UNIX_TIMESTAMP", groupByInterval.Milliseconds()/1000, 1)
+	//default:
+	//	logger.Error().Msgf("invalid timestamp fieldname: %s", timestampFieldName)
+	//	return model.NewLiteral("invalid") // maybe create new type InvalidExpr?
+	//}
 }

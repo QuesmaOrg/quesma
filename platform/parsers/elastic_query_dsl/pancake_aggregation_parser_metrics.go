@@ -24,24 +24,32 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
-		result = []model.Expr{model.NewFunction(metricsAggr.AggrType+"OrNull", getFirstExpression())}
+		result = []model.Expr{model.NewFunction(metricsAggr.AggrType, getFirstExpression())}
 	case "quantile":
+		firstField := metricsAggr.Fields[0]
+		var columnName string
+		if colRef, ok := firstField.(model.ColumnRef); ok {
+			columnName = colRef.ColumnName
+		}
+
 		// Sorting here useful mostly for determinism in tests.
 		// It wasn't there before, and everything worked fine. We could safely remove it, if needed.
 		usersPercents := util.MapKeysSortedByValue(metricsAggr.Percentiles)
 		result = make([]model.Expr, 0, len(usersPercents))
 		for _, usersPercent := range usersPercents {
 			percentAsFloat := metricsAggr.Percentiles[usersPercent]
-			result = append(result, model.FunctionExpr{
-				// Rare function that has two brackets: quantiles(0.5)(x)
-				// https://clickhouse.com/docs/en/sql-reference/aggregate-functions/reference/quantiles
-				Name: fmt.Sprintf("quantiles(%f)", percentAsFloat),
-				Args: []model.Expr{getFirstExpression()}},
-			)
+			// https://doris.apache.org/docs/sql-manual/sql-functions/aggregate-functions/percentile-approx
+			result = append(result, model.NewFunction("PERCENTILE_APPROX", model.NewColumnRef(columnName), model.NewLiteral(percentAsFloat)))
+			//result = append(result, model.FunctionExpr{
+			//	// Rare function that has two brackets: PERCENTILE_APPROX(x, 0.5)
+			//	//https://doris.apache.org/docs/sql-manual/sql-functions/aggregate-functions/percentile-approx
+			//	Name: fmt.Sprintf("PERCENTILE_APPROX(%f)", percentAsFloat),
+			//	Args: []model.Expr{getFirstExpression()}},
+			//)
 		}
 	case "cardinality":
 		// In ElasticSearch it is approximate algorithm
-		result = []model.Expr{model.NewFunction("uniq", getFirstExpression())}
+		result = []model.Expr{model.NewFunction("NDV", getFirstExpression())}
 
 	case "value_count":
 		result = []model.Expr{model.NewCountFunc(getFirstExpression())}
@@ -51,10 +59,10 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		result = make([]model.Expr, 0, 4)
 
 		result = append(result, model.NewCountFunc(expr),
-			model.NewFunction("minOrNull", expr),
-			model.NewFunction("maxOrNull", expr),
-			model.NewFunction("avgOrNull", expr),
-			model.NewFunction("sumOrNull", expr))
+			model.NewFunction("min", expr),
+			model.NewFunction("max", expr),
+			model.NewFunction("avg", expr),
+			model.NewFunction("sum", expr))
 
 	case "top_hits":
 		innerFieldsAsSelect := make([]model.Expr, len(metricsAggr.Fields))
@@ -71,7 +79,7 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		if len(metricsAggr.Fields) > 0 {
 			switch metrics_aggregations.NewRateMode(ctx, metricsAggr.mode) {
 			case metrics_aggregations.RateModeSum:
-				result = []model.Expr{model.NewFunction("sumOrNull", getFirstExpression())}
+				result = []model.Expr{model.NewFunction("sum", getFirstExpression())}
 			case metrics_aggregations.RateModeValueCount:
 				result = []model.Expr{model.NewCountFunc(getFirstExpression())}
 			default:
@@ -103,12 +111,12 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		}
 
 		addColumn("count")
-		addColumn("minOrNull")
-		addColumn("maxOrNull")
-		addColumn("avgOrNull")
-		addColumn("sumOrNull")
+		addColumn("min")
+		addColumn("max")
+		addColumn("avg")
+		addColumn("sum")
 
-		result = append(result, model.NewFunction("sumOrNull", model.NewInfixExpr(expr, "*", expr)))
+		result = append(result, model.NewFunction("sum", model.NewInfixExpr(expr, "*", expr)))
 
 		addColumn("varPop")
 		addColumn("varSamp")
@@ -124,8 +132,8 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			// TODO we have create columns according to the schema
 			latColumn := model.NewGeoLat(colName)
 			lonColumn := model.NewGeoLon(colName)
-			result = append(result, model.NewFunction("avgOrNull", latColumn))
-			result = append(result, model.NewFunction("avgOrNull", lonColumn))
+			result = append(result, model.NewFunction("avg", latColumn))
+			result = append(result, model.NewFunction("avg", lonColumn))
 			result = append(result, model.NewCountFunc())
 		}
 	case "geo_bounds":
@@ -138,9 +146,9 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			// TODO we have create columns according to the schema
 			latColumn := model.NewGeoLat(colName)
 			lonColumn := model.NewGeoLon(colName)
-			result = append(result, model.NewFunction("minOrNull", lonColumn))
+			result = append(result, model.NewFunction("min", lonColumn))
 			result = append(result, model.NewFunction("argMinOrNull", latColumn, lonColumn))
-			result = append(result, model.NewFunction("minOrNull", latColumn))
+			result = append(result, model.NewFunction("min", latColumn))
 			result = append(result, model.NewFunction("argMinOrNull", lonColumn, latColumn))
 		}
 	default:

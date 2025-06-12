@@ -3,10 +3,8 @@
 package connectors
 
 import (
-	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
-	"github.com/QuesmaOrg/quesma/platform/licensing"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/telemetry"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
@@ -27,14 +25,14 @@ func (c *ConnectorManager) GetConnector() *clickhouse.LogManager {
 	if len(c.connectors) == 0 {
 		panic("No connectors found")
 	}
-	conn := c.connectors[0]
-	if !c.connectors[0].GetConnector().IsInTransparentProxyMode() {
-		go func() {
-			if err := conn.LicensingCheck(); err != nil {
-				licensing.PanicWithLicenseViolation(fmt.Errorf("connector [%s] reported licensing issue: [%v]", conn.Type(), err))
-			}
-		}()
-	}
+	//conn := c.connectors[0]
+	//if !c.connectors[0].GetConnector().IsInTransparentProxyMode() {
+	//	go func() {
+	//		if err := conn.LicensingCheck(); err != nil {
+	//			licensing.PanicWithLicenseViolation(fmt.Errorf("connector [%s] reported licensing issue: [%v]", conn.Type(), err))
+	//		}
+	//	}()
+	//}
 	return c.connectors[0].GetConnector()
 }
 
