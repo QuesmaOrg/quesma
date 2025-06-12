@@ -10,7 +10,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/recovery"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"log"
 	"sync"
 	"time"
 )
@@ -156,11 +155,7 @@ func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
 			if tableName != common_table.TableName {
 				_, hasConfig := (*s.indexConfiguration)[tableName]
 				if !hasConfig && s.defaultSchemaOverrides != nil {
-					log.Println("XXX apply default schema overrides for table", tableName)
 					s.populateSchemaFromStaticConfiguration(s.defaultSchemaOverrides, fields)
-				} else {
-					log.Println("XXX dont apply default schema overrides for table", tableName)
-					s.populateSchemaFromDynamicConfiguration(tableName, fields)
 				}
 			}
 
