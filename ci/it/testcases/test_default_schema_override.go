@@ -42,70 +42,101 @@ func (a *DefaultSchemaOverrideTestcase) RunTests(ctx context.Context, t *testing
 func (a *DefaultSchemaOverrideTestcase) testBasicRequest(ctx context.Context, t *testing.T) {
 
 	testCases := []struct {
-		TestCaseName string `json:"name"`
+		testCaseName string
 
 		// ingest
-		IndexName string `json:"index_name"`
+		indexName string
+
+		hasDefaultField bool
 
 		// value of the doc
-		Message string `json:"message"`
+		message string
 
 		// query
-		QueryIndex   string `json:"query_index"`
-		Pattern      string `json:"pattern"`
-		TotalResults int    `json:"total_results"`
+		queryIndex   string
+		pattern      string
+		totalResults int
 	}{
 		{
-			TestCaseName: "1. plain index name",
-			IndexName:    "foo",
-			QueryIndex:   "foo",
-			Message:      "This is first",
-			Pattern:      "first",
-			TotalResults: 1,
+			testCaseName:    "1. plain index name",
+			indexName:       "foo",
+			hasDefaultField: true,
+			queryIndex:      "foo",
+			message:         "This is first",
+			pattern:         "first",
+			totalResults:    1,
 		},
 		{
-			TestCaseName: "2. plain index name with date",
-			IndexName:    "foo.2023-10-01",
-			QueryIndex:   "foo",
-			Message:      "This is second",
-			Pattern:      "second",
-			TotalResults: 1,
+			testCaseName:    "2. plain index name with date",
+			indexName:       "foo.2023-10-01",
+			hasDefaultField: true,
+			queryIndex:      "foo",
+			message:         "This is second",
+			pattern:         "second",
+			totalResults:    1,
 		},
 		{
-			TestCaseName: "3. plain index name with date not matching ",
-			IndexName:    "foo.2023-10-01",
-			QueryIndex:   "foo",
-			Message:      "This is third",
-			Pattern:      "notmatching",
-			TotalResults: 0,
+			testCaseName:    "3. plain index name with date not matching ",
+			indexName:       "foo.2023-10-01",
+			hasDefaultField: true,
+			queryIndex:      "foo",
+			message:         "This is third",
+			pattern:         "notmatching",
+			totalResults:    0,
 		},
 		{
-			TestCaseName: "4. another index name with date",
-			IndexName:    "anotherindex.2023-10-01",
-			QueryIndex:   "anotherindex",
-			Message:      "This is third",
-			Pattern:      "third",
-			TotalResults: 1,
+			testCaseName:    "4. another index name with date",
+			indexName:       "anotherindex.2023-10-01",
+			hasDefaultField: true,
+			queryIndex:      "anotherindex",
+			message:         "This is third",
+			pattern:         "third",
+			totalResults:    1,
 		},
 		{
-			TestCaseName: "5. query all",
-			IndexName:    "foo.2023-01",
-			QueryIndex:   "foo,anotherindex",
-			Message:      "This is fifth",
-			Pattern:      "This",
-			TotalResults: 5,
+			testCaseName:    "5. query all",
+			indexName:       "foo.2023-01",
+			hasDefaultField: true,
+			queryIndex:      "foo,anotherindex",
+			message:         "This is fifth",
+			pattern:         "This",
+			totalResults:    5,
+		},
+		{
+			testCaseName:    "6. no message index",
+			indexName:       "no-message-index",
+			hasDefaultField: false,
+			queryIndex:      "no-message-index",
+			message:         "",
+			pattern:         "",
+			totalResults:    0,
 		},
 	}
 
+	type Doc struct {
+		IndexName string  `json:"index_name"`
+		Message   *string `json:"message,omitempty"`
+	}
+
+	// ingest all test cases
 	for n, d := range testCases {
 
-		data, err := json.Marshal(d)
+		var doc Doc
+
+		doc.IndexName = d.indexName
+		if d.message != "" {
+			doc.Message = &d.message
+		} else {
+			doc.Message = nil // explicitly set to nil if no message
+		}
+
+		data, err := json.Marshal(doc)
 		if err != nil {
 			t.Fatalf("Failed to marshal test case %d: %s", n, err)
 		}
 
 		resp, bodyBytes := a.RequestToQuesma(ctx, t,
-			"POST", fmt.Sprintf("/%s/_doc", d.IndexName), data)
+			"POST", fmt.Sprintf("/%s/_doc", d.indexName), data)
 
 		assert.Contains(t, string(bodyBytes), "created")
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -113,24 +144,41 @@ func (a *DefaultSchemaOverrideTestcase) testBasicRequest(ctx context.Context, t 
 		assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
 	}
 
+	// query all test cases
+
 	for _, d := range testCases {
-		t.Run(d.TestCaseName, func(t *testing.T) {
+		t.Run(d.testCaseName, func(t *testing.T) {
 			// check field caps
-			fmt.Println("Testing: ", d.QueryIndex, d.TestCaseName)
+			fmt.Println("Testing: ", d.queryIndex, d.testCaseName)
 			q := `{
 			"fields": [
 		             "*"
             ]
 		}`
 
-			_, bodyBytes := a.RequestToQuesma(ctx, t, "POST", fmt.Sprintf("/%s/_field_caps", d.QueryIndex), []byte(q))
-			assert.Contains(t, string(bodyBytes), `"message":{"text"`)
+			_, bodyBytes := a.RequestToQuesma(ctx, t, "POST", fmt.Sprintf("/%s/_field_caps", d.queryIndex), []byte(q))
+
+			defaulfFieldForNotConfiguredIndex := `default_field_for_not_configured_index`
+
+			if d.hasDefaultField {
+				assert.Contains(t, string(bodyBytes), defaulfFieldForNotConfiguredIndex, "Index %s should have a default_field_for_not_configured_index field", d.queryIndex)
+			} else {
+				assert.NotContains(t, string(bodyBytes), defaulfFieldForNotConfiguredIndex, "Index %s should not have a default_field_for_not_configured_index field", d.queryIndex)
+			}
+
+			if d.message == "" {
+				assert.NotContains(t, string(bodyBytes), `"message":{"text"`, "Index %s should not have a message field", d.queryIndex)
+				// don't check the rest of the fields if message is not present
+				return
+			} else {
+				assert.Contains(t, string(bodyBytes), `"message":{"text"`, "Index %s should have a message field", d.queryIndex)
+			}
 
 			// perform full-text search
 
-			fullTextQuery := fmt.Sprintf(`{"query": {"match": {"message": "%s"}}}`, d.Pattern)
+			fullTextQuery := fmt.Sprintf(`{"query": {"match": {"message": "%s"} },  "fields": ["message"],  "_source": false }`, d.pattern)
 
-			_, bodyBytes = a.RequestToQuesma(ctx, t, "POST", fmt.Sprintf("/%s/_search", d.QueryIndex), []byte(fullTextQuery))
+			_, bodyBytes = a.RequestToQuesma(ctx, t, "POST", fmt.Sprintf("/%s/_search", d.queryIndex), []byte(fullTextQuery))
 
 			fmt.Println(string(bodyBytes))
 
@@ -152,8 +200,8 @@ func (a *DefaultSchemaOverrideTestcase) testBasicRequest(ctx context.Context, t 
 				t.Fatalf("Failed to unmarshal response body: %s", err)
 			}
 
-			if esResponse.Hits.Total.Value != d.TotalResults {
-				t.Fatalf("Expected %d results, got %d for test case %s", d.TotalResults, esResponse.Hits.Total, d.TestCaseName)
+			if esResponse.Hits.Total.Value != d.totalResults {
+				t.Fatalf("Expected %d results, got %d for test case %s", d.totalResults, esResponse.Hits.Total, d.testCaseName)
 			}
 		})
 	}

@@ -4,11 +4,13 @@ package schema
 
 import (
 	"github.com/QuesmaOrg/quesma/platform/comment_metadata"
+	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/recovery"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"log"
 	"sync"
 	"time"
 )
@@ -151,8 +153,15 @@ func (s *schemaRegistry) loadSchemas() (map[IndexName]Schema, error) {
 		for tableName, table := range definitions {
 			fields := make(map[FieldName]Field)
 
-			if s.defaultSchemaOverrides != nil {
-				s.populateSchemaFromStaticConfiguration(s.defaultSchemaOverrides, fields)
+			if tableName != common_table.TableName {
+				_, hasConfig := (*s.indexConfiguration)[tableName]
+				if !hasConfig && s.defaultSchemaOverrides != nil {
+					log.Println("XXX apply default schema overrides for table", tableName)
+					s.populateSchemaFromStaticConfiguration(s.defaultSchemaOverrides, fields)
+				} else {
+					log.Println("XXX dont apply default schema overrides for table", tableName)
+					s.populateSchemaFromDynamicConfiguration(tableName, fields)
+				}
 			}
 
 			internalToPublicFieldsEncodings := s.getInternalToPublicFieldEncodings(tableName)

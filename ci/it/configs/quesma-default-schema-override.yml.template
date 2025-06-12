@@ -1,3 +1,7 @@
+flags:
+  defaultStringColumnType: keyword
+
+
 frontendConnectors:
   - name: elastic-ingest
     type: elasticsearch-fe-ingest
@@ -29,11 +33,19 @@ processors:
     config:
       useCommonTable:  true
       indexes:
+        no-message-index:
+          useCommonTable: true
+          target:
+            - c
+
         "*":
           schemaOverrides:
            fields:
             "message":
               type: text
+            "default_field_for_not_configured_index":
+              type: keyword
+
           useCommonTable: true
           target:
             - c
@@ -55,12 +67,20 @@ processors:
           to: "$1"
       useCommonTable:  true
       indexes:
+        no-message-index:
+          useCommonTable: true
+          target:
+            - c
+
         "*":
           useCommonTable: true
           schemaOverrides:
             fields:
               "message":
                 type: text
+              "default_field_for_not_configured_index":
+                type: keyword
+
           target:
             - c
 
