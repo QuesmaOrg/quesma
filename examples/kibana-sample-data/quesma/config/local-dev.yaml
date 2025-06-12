@@ -50,6 +50,8 @@ processors:
             - my-clickhouse-data-source
           schemaOverrides:
             fields:
+              "Carrier":
+                type: keyword
               "DestLocation":
                 type: geo_point
               "OriginLocation":
@@ -114,6 +116,8 @@ processors:
             - my-clickhouse-data-source
           schemaOverrides:
             fields:
+              "Carrier":
+                type: keyword
               "DestLocation":
                 type: geo_point
               "OriginLocation":
