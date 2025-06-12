@@ -11,6 +11,15 @@ import (
 	"testing"
 )
 
+func loadConfig(t *testing.T) QuesmaNewConfiguration {
+	cfg, cfgErr := LoadV2Config()
+	assert.NoError(t, cfgErr, "error loading config")
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("error validating config: %v", err)
+	}
+	return cfg
+}
+
 func TestQuesmaConfigurationLoading(t *testing.T) {
 
 	os.Setenv(configFileLocationEnvVar, "./test_configs/test_config_v2.yaml")
@@ -26,11 +35,7 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 		os.Unsetenv("QUESMA_licenseKey")
 		os.Unsetenv("QUESMA_backendConnectors_1_config_user")
 	})
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
-
+	cfg := loadConfig(t)
 	legacyCfg := cfg.TranslateToLegacyConfig()
 
 	assert.Equal(t, licenseKeyPassedAsEnvVar, legacyCfg.LicenseKey)
@@ -74,10 +79,7 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 
 func TestQuesmaTransparentProxyConfiguration(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_as_transparent_proxy.yml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.True(t, legacyConf.TransparentProxy)
 	assert.Equal(t, false, legacyConf.EnableIngest)
@@ -88,10 +90,8 @@ func TestQuesmaTransparentProxyWithoutNoopConfiguration(t *testing.T) {
 	t.Skip("not working yet")
 
 	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_as_transparent_proxy_without_noop.yml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
+
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.False(t, legacyConf.TransparentProxy) // even though transparent proxy would work similarly, the user explicitly requested two Quesma pipelines
 	assert.Equal(t, 2, len(legacyConf.IndexConfig))
@@ -109,10 +109,7 @@ func TestQuesmaTransparentProxyWithoutNoopConfiguration(t *testing.T) {
 
 func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_adding_two_hydrolix_tables.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.False(t, legacyConf.TransparentProxy)
 	assert.Equal(t, 2, len(legacyConf.IndexConfig))
@@ -130,10 +127,7 @@ func TestQuesmaAddingHydrolixTablesToExistingElasticsearch(t *testing.T) {
 
 func TestIngestWithSingleConnector(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/ingest_with_single_connector.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.False(t, legacyConf.TransparentProxy)
 	assert.Equal(t, 2, len(legacyConf.IndexConfig))
@@ -151,10 +145,7 @@ func TestIngestWithSingleConnector(t *testing.T) {
 
 func TestQuesmaHydrolixQueryOnly(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/quesma_hydrolix_tables_query_only.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.False(t, legacyConf.TransparentProxy)
 	assert.Equal(t, 2, len(legacyConf.IndexConfig))
@@ -175,10 +166,7 @@ func TestQuesmaHydrolixQueryOnly(t *testing.T) {
 
 func TestHasCommonTable(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/has_common_table.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 
 	assert.Equal(t, true, legacyConf.EnableIngest)
@@ -187,7 +175,8 @@ func TestHasCommonTable(t *testing.T) {
 
 func TestInvalidDualTarget(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/invalid_dual_target.yaml")
-	cfg := LoadV2Config()
+	cfg, cfgErr := LoadV2Config()
+	assert.NoError(t, cfgErr, "error loading config")
 	if err := cfg.Validate(); err != nil {
 
 		if !strings.Contains(err.Error(), "has invalid dual query target configuration - when you specify two targets") {
@@ -233,10 +222,7 @@ func TestMatchName(t *testing.T) {
 
 func TestTargetNewVariant(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/target_new_variant.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.False(t, legacyConf.TransparentProxy)
 	assert.Equal(t, 4, len(legacyConf.IndexConfig))
@@ -271,10 +257,7 @@ func TestTargetNewVariant(t *testing.T) {
 
 func TestTargetLegacyVariant(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/target_legacy_variant.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.False(t, legacyConf.TransparentProxy)
 	assert.Equal(t, 3, len(legacyConf.IndexConfig))
@@ -300,10 +283,7 @@ func TestTargetLegacyVariant(t *testing.T) {
 
 func TestUseCommonTableGlobalProperty(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/use_common_table_global_property.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.False(t, legacyConf.TransparentProxy)
 	assert.Equal(t, 2, len(legacyConf.IndexConfig))
@@ -322,10 +302,7 @@ func TestUseCommonTableGlobalProperty(t *testing.T) {
 
 func TestIngestOptimizers(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/ingest_only_optimizers.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 	assert.False(t, legacyConf.TransparentProxy)
 	assert.Equal(t, 1, len(legacyConf.IndexConfig))
@@ -343,10 +320,7 @@ func TestIngestOptimizers(t *testing.T) {
 
 func TestPartitionBy(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/partition_by.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 
 	assert.Equal(t, 2, len(legacyConf.IndexConfig))
@@ -363,10 +337,7 @@ func TestPartitionBy(t *testing.T) {
 func TestIndexNameRewriteRules(t *testing.T) {
 
 	os.Setenv(configFileLocationEnvVar, "./test_configs/index_name_rewrite_rules.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 
 	assert.Equal(t, 4, len(legacyConf.IndexNameRewriteRules))
@@ -383,10 +354,7 @@ func TestIndexNameRewriteRules(t *testing.T) {
 
 func TestStringColumnIsTextDefaultBehavior(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/partition_by.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 
 	assert.Equal(t, "text", legacyConf.DefaultStringColumnType)
@@ -395,10 +363,7 @@ func TestStringColumnIsTextDefaultBehavior(t *testing.T) {
 
 func TestStringColumnIsKeyword(t *testing.T) {
 	os.Setenv(configFileLocationEnvVar, "./test_configs/string_column_is_keyword_field.yaml")
-	cfg := LoadV2Config()
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("error validating config: %v", err)
-	}
+	cfg := loadConfig(t)
 	legacyConf := cfg.TranslateToLegacyConfig()
 
 	assert.Equal(t, "keyword", legacyConf.DefaultStringColumnType)

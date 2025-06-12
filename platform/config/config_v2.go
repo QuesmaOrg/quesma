@@ -152,21 +152,23 @@ func (p *QuesmaProcessorConfig) IsFieldMapSyntaxEnabled(indexName string) bool {
 	return false
 }
 
-func LoadV2Config() QuesmaNewConfiguration {
+func LoadV2Config() (QuesmaNewConfiguration, error) {
 	var v2config QuesmaNewConfiguration
 	loadConfigFile()
 	// We have to use custom env provider to allow array overrides
 	if err := k.Load(Env2JsonProvider("QUESMA_", "_", nil), json.Parser(), koanf.WithMergeFunc(mergeDictFunc)); err != nil {
-		log.Fatalf("error loading config form supplied env vars: %v", err)
+		log.Printf("error loading config form supplied env vars: %v", err)
+		return v2config, err
 	}
 	if err := k.Unmarshal("", &v2config); err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
 
 	if err := v2config.Validate(); err != nil {
-		log.Fatalf("Config validation failed: %v", err)
+		log.Printf("Config validation failed: %v", err)
+		return v2config, err
 	}
-	return v2config
+	return v2config, nil
 }
 
 // validate at this level verifies the basic assumptions behind pipelines/processors/connectors,
@@ -189,7 +191,6 @@ func (c *QuesmaNewConfiguration) Validate() error {
 	var multiErr *multierror.Error
 	if errors.As(errAcc, &multiErr) {
 		if len(multiErr.Errors) > 0 {
-			log.Fatalf("Config validation failed: %v", multiErr)
 			return multiErr
 		}
 	}

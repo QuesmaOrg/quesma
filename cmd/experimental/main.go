@@ -135,7 +135,10 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	doneCh := make(chan struct{})
 
-	var newConfiguration = config.LoadV2Config()
+	var newConfiguration, configErr = config.LoadV2Config()
+	if configErr != nil {
+		return // We log error in LoadV2Config
+	}
 	var cfg = newConfiguration.TranslateToLegacyConfig()
 
 	if err := cfg.Validate(); err != nil {
