@@ -77,6 +77,11 @@ func TestIndexNameRewrite(t *testing.T) {
 	runIntegrationTest(t, testCase)
 }
 
+func TestDefaultSchemaOverride(t *testing.T) {
+	testCase := testcases.NewDefaultSchemaOverrideTestcase()
+	runIntegrationTest(t, testCase)
+}
+
 func TestSplitTimeRange(t *testing.T) {
 	testCase := testcases.NewSplitTimeRangeTestcase()
 	runIntegrationTest(t, testCase)
