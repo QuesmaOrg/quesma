@@ -22,7 +22,10 @@ import (
 // BuildNewQuesma creates a new quesma instance with both Ingest And Query Processors, unused yet
 func BuildNewQuesma() quesma_api.QuesmaBuilder {
 
-	var newConfiguration = config.LoadV2Config()
+	var newConfiguration, configErr = config.LoadV2Config()
+	if configErr != nil {
+		os.Exit(0) // We log error in LoadV2Config, likely replace with returning an error
+	}
 	var cfg = newConfiguration.TranslateToLegacyConfig()
 
 	if err := cfg.Validate(); err != nil {

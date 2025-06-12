@@ -41,7 +41,8 @@ func TestEnv2Json_arraysByName(t *testing.T) {
 		os.Unsetenv("QUESMA_backendConnectors_my-clickhouse-data-source_config_password")
 	})
 
-	cfg := LoadV2Config()
+	cfg, err := LoadV2Config()
+	assert.NoError(t, err)
 	assert.Len(t, cfg.BackendConnectors, 2)
 	clickHouseBackend := cfg.BackendConnectors[1]
 	assert.Equal(t, "my-clickhouse-data-source", clickHouseBackend.Name)

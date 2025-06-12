@@ -23,7 +23,7 @@ services:
       - "9200:8080"
     volumes:
       - ./quesma/config/ci-config.yaml:/mnt/ci-config.yaml
-    restart: unless-stopped
+    restart: on-failure
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     container_name: elasticsearch

@@ -19,7 +19,7 @@ services:
     volumes:
       - ./quesma/logs/:/var/quesma/logs
       - ../examples/kibana-sample-data/quesma/config/local-dev.yaml:/mnt/ci-config.yaml
-    restart: unless-stopped
+    restart: on-failure
   log-generator:
     build: log-generator
     image: log-generator:latest
