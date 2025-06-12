@@ -36,6 +36,7 @@ const (
 	// Quesma internal paths
 
 	QuesmaTableResolverPath = "/:index/_quesma_table_resolver"
+	QuesmaReloadTablsPath   = "/_quesma/reload-tables"
 )
 
 var notQueryPaths = []string{
