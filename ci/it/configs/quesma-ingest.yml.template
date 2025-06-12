@@ -67,6 +67,15 @@ processors:
                 type: geo_point
               "OriginLocation":
                 type: geo_point
+        kibana_sample_data_flights_bulk:
+          target:
+            - my-clickhouse-instance
+          schemaOverrides:
+            fields:
+              "DestLocation":
+                type: geo_point
+              "OriginLocation":
+                type: geo_point
         kibana_sample_data_flights_with_mappings:
           target:
             - my-clickhouse-instance
@@ -140,6 +149,15 @@ processors:
               manufacturer:
                 type: text
         kibana_sample_data_flights:
+          target:
+            - my-clickhouse-instance
+          schemaOverrides:
+            fields:
+              "DestLocation":
+                type: geo_point
+              "OriginLocation":
+                type: geo_point
+        kibana_sample_data_flights_bulk:
           target:
             - my-clickhouse-instance
           schemaOverrides:

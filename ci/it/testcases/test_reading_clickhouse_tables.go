@@ -93,7 +93,7 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testWildcardGoesToElastic(c
 func (a *ReadingClickHouseTablesIntegrationTestcase) testIngestIsDisabled(ctx context.Context, t *testing.T) {
 	// There is no ingest pipeline, so Quesma should reject all ingest requests
 	for _, tt := range []string{"test_table", "extra_index"} {
-		t.Run(tt, func(t *testing.T) {
+		t.Run(tt+"_doc", func(t *testing.T) {
 			resp, bodyBytes := a.RequestToQuesma(ctx, t, "POST", fmt.Sprintf("/%s/_doc", tt), []byte(`{"name": "Piotr", "age": 11111}`))
 			assert.Contains(t, string(bodyBytes), "index_closed_exception")
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -101,4 +101,21 @@ func (a *ReadingClickHouseTablesIntegrationTestcase) testIngestIsDisabled(ctx co
 			assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
 		})
 	}
+
+	for _, tt := range []string{"test_table", "extra_index"} {
+		t.Run(tt+"_bulk", func(t *testing.T) {
+
+			bulkPayload := []byte(fmt.Sprintf(`
+				{ "index": { "_index": "%s", "_id": "1" } }
+				{ "name": "Alice", "age": 30 }
+`, tt))
+
+			resp, bodyBytes := a.RequestToQuesma(ctx, t, "POST", "/_bulk", bulkPayload)
+			assert.Contains(t, string(bodyBytes), "index_closed_exception")
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, "Clickhouse", resp.Header.Get("X-Quesma-Source"))
+			assert.Equal(t, "Elasticsearch", resp.Header.Get("X-Elastic-Product"))
+		})
+	}
+
 }
