@@ -382,12 +382,10 @@ func (ip *IngestProcessor) generateNewColumns(
 			maybeOnClusterClause = " ON CLUSTER " + strconv.Quote(table.ClusterName)
 		}
 
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\"%s ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, maybeOnClusterClause, attrKeys[i], columnType)
+		alterTable := fmt.Sprintf(`ALTER TABLE "%s"%s ADD COLUMN IF NOT EXISTS "%s" %s, COMMENT COLUMN "%s" '%s'`,
+			table.Name, maybeOnClusterClause, attrKeys[i], columnType, attrKeys[i], comment)
 		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
 		alterCmd = append(alterCmd, alterTable)
-
-		alterColumn := fmt.Sprintf("ALTER TABLE \"%s\"%s COMMENT COLUMN \"%s\" '%s'", table.Name, maybeOnClusterClause, attrKeys[i], comment)
-		alterCmd = append(alterCmd, alterColumn)
 
 		deleteIndexes = append(deleteIndexes, i)
 	}
