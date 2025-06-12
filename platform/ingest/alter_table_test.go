@@ -36,8 +36,8 @@ func TestAlterTable(t *testing.T) {
 		"{\"Test1\":1,\"Test2\":2}",
 	}
 	alters := []string{
-		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test1\" Nullable(Int64)",
-		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test2\" Nullable(Int64)",
+		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test1\" Nullable(Int64), COMMENT COLUMN \"Test1\" 'quesmaMetadataV1:fieldName=Test1'",
+		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test2\" Nullable(Int64), COMMENT COLUMN \"Test2\" 'quesmaMetadataV1:fieldName=Test2'",
 	}
 	columns := []string{"Test1", "Test2"}
 	table := &clickhouse.Table{
