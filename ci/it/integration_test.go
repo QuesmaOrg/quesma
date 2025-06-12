@@ -81,3 +81,8 @@ func TestSplitTimeRange(t *testing.T) {
 	testCase := testcases.NewSplitTimeRangeTestcase()
 	runIntegrationTest(t, testCase)
 }
+
+func TestOnlyCommonTable(t *testing.T) {
+	testCase := testcases.NewOnlyCommonTableTestcase()
+	runIntegrationTest(t, testCase)
+}
