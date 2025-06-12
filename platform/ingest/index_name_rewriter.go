@@ -37,7 +37,7 @@ type indexNameRegexpRewriter struct {
 func NewIndexNameRewriter(cfg *config.QuesmaConfiguration) IndexNameRewriter {
 
 	if len(cfg.IndexNameRewriteRules) == 0 {
-		logger.Info().Msgf("No index name rewrite rules configured, using no-op rewriter")
+		logger.Debug().Msgf("No index name rewrite rules configured, using no-op rewriter")
 		// if no rewrite rules are configured, return a no-op rewriter
 		return &NoOpIndexNameRewriter{}
 	}

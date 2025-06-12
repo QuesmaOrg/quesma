@@ -705,7 +705,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		} else {
 			// Likely we want to remove below line
 			createTableCmd = addOurFieldsToCreateTableQuery(createTableCmd, tableConfig, table)
-			logger.InfoWithCtx(ctx).Msgf("created table '%s' with query: %s", tableName, createTableCmd)
 		}
 	}
 	if table == nil {
