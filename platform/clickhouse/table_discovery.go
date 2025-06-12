@@ -427,7 +427,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				VirtualTable:                 resTable.virtualTable,
 				ExistsOnAllNodes:             resTable.existsOnAllNodes,
 			}
-			if containsAttributes(resTable.columnTypes) {
+			if containsAttributes(resTable.columnTypes) || resTable.virtualTable {
 				table.Config.Attributes = []Attribute{NewDefaultStringAttribute()}
 			}
 
