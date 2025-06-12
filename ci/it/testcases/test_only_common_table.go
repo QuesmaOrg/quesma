@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
-	"time"
 )
 
 type OnlyCommonTableTestcase struct {
@@ -38,23 +37,31 @@ func (a *OnlyCommonTableTestcase) RunTests(ctx context.Context, t *testing.T) er
 
 func (a *OnlyCommonTableTestcase) testAlterVirtualTable(ctx context.Context, t *testing.T) {
 
+	reloadTables := func() {
+		resp, body := a.RequestToQuesma(ctx, t, "POST", "/_quesma/reload-tables", nil)
+		fmt.Println(string(body))
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	}
+
 	resp, body := a.RequestToQuesma(ctx, t, "POST", "/logs-6/_doc", []byte(`{"name": "Przemyslaw", "age": 31337}`))
 	fmt.Println(string(body))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	// wait for internal processing, especially for the periodic task that updates the schema
-	time.Sleep(60 * time.Second)
+	reloadTables()
 
 	resp, body = a.RequestToQuesma(ctx, t, "POST", "/logs-6/_doc", []byte(`{"name": "Przemyslaw", "age": 31337, "this-is-a-new-field": "new-field"}`))
 	fmt.Println(string(body))
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	q := `{	"fields": [ "*" ]}`
+	fieldCapsQuery := `{"fields": [ "*" ]}`
 
-	_, bodyBytes := a.RequestToQuesma(ctx, t, "POST", "/logs-6/_field_caps", []byte(q))
+	_, bodyBytes := a.RequestToQuesma(ctx, t, "POST", "/logs-6/_field_caps", []byte(fieldCapsQuery))
+	assert.Contains(t, string(bodyBytes), `"this-is-a-new-field"`)
 
+	reloadTables()
+
+	_, bodyBytes = a.RequestToQuesma(ctx, t, "POST", "/logs-6/_field_caps", []byte(fieldCapsQuery))
 	fmt.Println(string(bodyBytes))
-
 	assert.Contains(t, string(bodyBytes), `"this-is-a-new-field"`)
 
 }
