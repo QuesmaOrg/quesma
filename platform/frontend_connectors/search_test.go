@@ -272,7 +272,7 @@ func TestSearchHandler(t *testing.T) {
 		"user.id":                         {PropertyName: "user.id", InternalPropertyName: "user_id", Type: schema.QuesmaTypeKeyword},
 		"tags":                            {PropertyName: "tags", InternalPropertyName: "tags", Type: schema.QuesmaTypeKeyword},
 		"age":                             {PropertyName: "age", InternalPropertyName: "age", Type: schema.QuesmaTypeInteger},
-		"host.name":                       {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeObject},
+		"host.name":                       {PropertyName: "host.name", InternalPropertyName: "host_name", Type: schema.QuesmaTypeKeyword},
 		"status":                          {PropertyName: "status", InternalPropertyName: "status", Type: schema.QuesmaTypeKeyword},
 		"namespace":                       {PropertyName: "namespace", InternalPropertyName: "namespace", Type: schema.QuesmaTypeKeyword},
 		"namespaces":                      {PropertyName: "namespaces", InternalPropertyName: "namespaces", Type: schema.QuesmaTypeKeyword},
