@@ -1207,7 +1207,9 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 				rhs.Value = strings.Trim(rhsValue, "%")
 				rhs.Attrs[model.EscapeKey] = model.NormalNotEscaped
 				return equal()
-			case schema.QuesmaTypeKeyword.Name:
+			case schema.QuesmaTypeKeyword.Name: // similar as above, but for keyword type, un-ilike it
+				rhs.Value = strings.Trim(rhsValue, "%")
+				rhs.Attrs[model.EscapeKey] = model.FullyEscaped
 				return equal()
 			default:
 				if rhsValue == "%%" { // ILIKE '%%' has terrible performance, but semantically means "is not null", hence this transformation
