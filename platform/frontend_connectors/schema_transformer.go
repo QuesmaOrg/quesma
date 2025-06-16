@@ -1102,6 +1102,55 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			}
 		}
 
+		if okLeft && okRight && e.Op == model.MatchPhraseOperator {
+			field, found := indexSchema.ResolveFieldByInternalName(lhsCol.ColumnName)
+			if !found {
+				// indexSchema won't find attributes columns, that's why this check
+				if clickhouse.IsColumnAttributes(lhsCol.ColumnName) {
+					colIsAttributes = true
+				} else {
+					logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsCol.ColumnName, query.TableName)
+					goto experimental
+				}
+			}
+
+			rhsValue = strings.TrimPrefix(rhsValue, "'")
+			rhsValue = strings.TrimSuffix(rhsValue, "'")
+
+			matchParse := func() model.Expr {
+				return model.NewInfixExpr(lhs, "MATCH_PHRASE", rhs.Clone())
+			}
+			equal := func() model.Expr {
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
+			}
+
+			// handling case when e.Left is an array access
+			if lhsIsArrayAccess {
+				if colIsAttributes || field.IsMapWithStringValues() { // attributes always have string values, so ilike
+					return matchParse()
+				} else {
+					return equal()
+				}
+			}
+
+			// handling case when e.Left is a simple column ref
+			// TODO: improve? we seem to be `ilike'ing` too much
+			switch field.Type.String() {
+			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+				rhs.Value = strings.Trim(rhsValue, "%")
+				rhs.EscapeType = model.NormalNotEscaped
+				return equal()
+			case schema.QuesmaTypeKeyword.Name:
+				return equal()
+			default:
+				if rhsValue == "%%" { // ILIKE '%%' has terrible performance, but semantically means "is not null", hence this transformation
+					return model.NewInfixExpr(lhs, "IS", model.NewLiteral("NOT NULL"))
+				}
+				return matchParse()
+			}
+
+		}
+
 		if okLeft && okRight && e.Op == model.MatchOperator {
 			field, found := indexSchema.ResolveFieldByInternalName(lhsCol.ColumnName)
 			if !found {
