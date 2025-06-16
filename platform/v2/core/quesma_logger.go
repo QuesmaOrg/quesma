@@ -5,6 +5,7 @@ package quesma_api
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/buildinfo"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/hashicorp/golang-lru/v2/expirable"
 	"github.com/rs/zerolog"
@@ -19,6 +20,7 @@ const (
 	Path     = "path"
 	AsyncId  = "async_id"
 	OpaqueId = "opaque_id"
+	Version  = "version"
 
 	DefaultBurstSamplerPeriodSeconds    = 20  // burst up to 600 lines of logs per 20 seconds period
 	DefaultBurstSamplerMaxLogsPerSecond = 30  // ~100k lines of logs per hour
@@ -162,6 +164,8 @@ func (l *QuesmaLoggerImpl) addKnownContextValues(event *zerolog.Event, ctx conte
 	if requestId, ok := ctx.Value(tracing.OpaqueIdCtxKey).(string); ok {
 		event = event.Str(OpaqueId, requestId)
 	}
+
+	event = event.Str(Version, buildinfo.Version)
 
 	return event
 }
