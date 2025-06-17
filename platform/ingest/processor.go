@@ -415,32 +415,29 @@ type NonSchemaField struct {
 	Type  string // inferred from incoming json
 }
 
-func convertNonSchemaFieldsToString(nonSchemaFields []NonSchemaField) string {
-	if len(nonSchemaFields) <= 0 {
-		return ""
-	}
-	attributesColumns := []string{chLib.AttributesValuesColumn, chLib.AttributesMetadataColumn}
-	var nonSchemaStr string
-	for columnIndex, column := range attributesColumns {
-		var value string
-		if columnIndex > 0 {
-			nonSchemaStr += ","
+func convertNonSchemaFieldsToMap(nonSchemaFields []NonSchemaField) map[string]any {
+	values := make(map[string]string)
+	typesMap := make(map[string]string)
+
+	for _, f := range nonSchemaFields {
+		if f.Value != "" {
+			values[f.Key] = f.Value
 		}
-		nonSchemaStr += "\"" + column + "\":{"
-		for i := 0; i < len(nonSchemaFields); i++ {
-			if columnIndex > 0 {
-				value = nonSchemaFields[i].Type
-			} else {
-				value = nonSchemaFields[i].Value
-			}
-			if i > 0 {
-				nonSchemaStr += ","
-			}
-			nonSchemaStr += fmt.Sprintf("\"%s\":\"%s\"", nonSchemaFields[i].Key, value)
+		if f.Type != "" {
+			typesMap[f.Key] = f.Type
 		}
-		nonSchemaStr = nonSchemaStr + "}"
 	}
-	return nonSchemaStr
+
+	result := make(map[string]any)
+
+	if len(values) > 0 {
+		result[chLib.AttributesValuesColumn] = values
+	}
+	if len(typesMap) > 0 {
+		result[chLib.AttributesMetadataColumn] = typesMap
+	}
+
+	return result
 }
 
 func generateNonSchemaFields(attrsMap map[string][]interface{}) ([]NonSchemaField, error) {
@@ -588,16 +585,17 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 }
 
 func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) (string, error) {
-	nonSchemaStr := convertNonSchemaFieldsToString(nonSchemaFields)
-	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
+	result := convertNonSchemaFieldsToMap(nonSchemaFields)
+
+	for k, v := range onlySchemaFields {
+		result[k] = v
+	}
+
+	jsonBytes, err := json.Marshal(result)
 	if err != nil {
 		return "", err
 	}
-	comma := ""
-	if nonSchemaStr != "" && len(schemaFieldsJson) > 2 {
-		comma = ","
-	}
-	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), err
+	return string(jsonBytes), nil
 }
 
 func generateSqlStatements(createTableCmd string, alterCmd []string, insert string) []string {
