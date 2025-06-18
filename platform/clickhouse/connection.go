@@ -17,7 +17,7 @@ import (
 
 func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql.DB {
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=true",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=true&loc=Asia%%2FShanghai",
 		c.ClickHouse.User,
 		c.ClickHouse.Password,
 		c.ClickHouse.Url.Host,
