@@ -416,12 +416,12 @@ type NonSchemaField struct {
 }
 
 func convertNonSchemaFieldsToMap(nonSchemaFields []NonSchemaField) map[string]any {
-	values := make(map[string]string)
+	valuesMap := make(map[string]string)
 	typesMap := make(map[string]string)
 
 	for _, f := range nonSchemaFields {
 		if f.Value != "" {
-			values[f.Key] = f.Value
+			valuesMap[f.Key] = f.Value
 		}
 		if f.Type != "" {
 			typesMap[f.Key] = f.Type
@@ -430,8 +430,8 @@ func convertNonSchemaFieldsToMap(nonSchemaFields []NonSchemaField) map[string]an
 
 	result := make(map[string]any)
 
-	if len(values) > 0 {
-		result[chLib.AttributesValuesColumn] = values
+	if len(valuesMap) > 0 {
+		result[chLib.AttributesValuesColumn] = valuesMap
 	}
 	if len(typesMap) > 0 {
 		result[chLib.AttributesMetadataColumn] = typesMap
