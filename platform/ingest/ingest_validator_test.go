@@ -38,7 +38,6 @@ func TestValidateIngest(t *testing.T) {
 }
 
 func EscapeBrackets(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
 	s = strings.ReplaceAll(s, `(`, `\(`)
 	s = strings.ReplaceAll(s, `)`, `\)`)
 	s = strings.ReplaceAll(s, `[`, `\[`)
@@ -135,8 +134,8 @@ func TestIngestValidation(t *testing.T) {
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"string_field":"v1;Float64"},"attributes_values":{"string_field":"1.5"}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int_array_field":[81,85,69,83,77,65]}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"string_array_field":["DHRFZN","HLVJDR"]}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"int_array_field":"v1;Array(Int64)"},"attributes_values":{"int_array_field":"[81,\\\"oops\\\",69,83,77,65]"}}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"string_array_field":"v1;Array(String)"},"attributes_values":{"string_array_field":"[\\\"DHRFZN\\\",15,\\\"HLVJDR\\\"]"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"int_array_field":"v1;Array(Int64)"},"attributes_values":{"int_array_field":"[81,\\"oops\\",69,83,77,65]"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"string_array_field":"v1;Array(String)"},"attributes_values":{"string_array_field":"[\\"DHRFZN\\",15,\\"HLVJDR\\"]"}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int32_field":15}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":7.5}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":15}`, tableName),
