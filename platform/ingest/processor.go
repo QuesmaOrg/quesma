@@ -541,10 +541,9 @@ func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[s
 func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	data types.JSON,
 	inValidJson types.JSON,
-	config *chLib.ChTableConfig,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, types.JSON, []NonSchemaField, error) {
 
-	if len(config.Attributes) == 0 {
+	if len(table.Config.Attributes) == 0 {
 		return nil, data, nil, nil
 	}
 
@@ -555,10 +554,10 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	}
 
 	// check attributes precondition
-	if len(config.Attributes) <= 0 {
+	if len(table.Config.Attributes) <= 0 {
 		return nil, nil, nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
 	}
-	attrsMap, _ := BuildAttrsMap(mDiff, config)
+	attrsMap, _ := BuildAttrsMap(mDiff, table.Config)
 
 	// generateNewColumns is called on original attributes map
 	// before adding invalid fields to it
@@ -708,7 +707,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
 	}
-	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
 	var validatedJsons []types.JSON
@@ -719,7 +717,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	}
 	for i, preprocessedJson := range validatedJsons {
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
-			invalidJsons[i], tableConfig, encodings)
+			invalidJsons[i], encodings)
 
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
