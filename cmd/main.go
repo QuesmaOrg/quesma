@@ -71,7 +71,7 @@ func main() {
 		Path:              cfg.Logging.Path,
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
 		Level:             *cfg.Logging.Level,
-		ClientId:          licenseMod.License.ClientID,
+		ClientId:          "air-gapped-client-id",
 	}, sig, doneCh)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()

@@ -37,19 +37,19 @@ func Init(config *config.QuesmaConfiguration) *LicenseModule {
 		Config:     config,
 		LicenseKey: []byte(config.LicenseKey),
 	}
-	if airgapKey, isSet := os.LookupEnv(quesmaAirGapModeEnvVar); isSet {
-		if isAirgapKeyValid(airgapKey) {
-			l.logInfo("Running Quesma in airgapped mode")
-			l.License = &License{
-				InstallationID: "air-gapped-installation-id",
-				ClientID:       "air-gapped-client-id",
-			}
-			return l
-		}
+	//if airgapKey, isSet := os.LookupEnv(quesmaAirGapModeEnvVar); isSet {
+	//	if isAirgapKeyValid(airgapKey) {
+	l.logInfo("Running Quesma in airgapped mode")
+	l.License = &License{
+		InstallationID: "air-gapped-installation-id",
+		ClientID:       "air-gapped-client-id",
 	}
-	l.logInfo("Initializing license module")
-	l.Run()
 	return l
+	//}
+	//}
+	//l.logInfo("Initializing license module")
+	//l.Run()
+	//return l
 }
 
 func (l *LicenseModule) Run() {
