@@ -8,7 +8,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/logger"
-	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/goccy/go-json"
 	"io"
 	"log"
@@ -60,20 +59,16 @@ func (p *ElasticJSONDatabase) refresh() error {
 
 func (p *ElasticJSONDatabase) Put(key string, data string) error {
 
-	elasticsearchURL := fmt.Sprintf("%s/_update/%s", p.indexName, key)
+	elasticsearchURL := fmt.Sprintf("%s/_doc/%s", p.indexName, key)
 
 	w := Wrapper{Content: data}
 
-	updateContent := types.JSON{}
-	updateContent["doc"] = w
-	updateContent["doc_as_upsert"] = true
-
-	jsonData, err := json.Marshal(updateContent)
+	jsonData, err := json.Marshal(w)
 	if err != nil {
 		return err
 	}
 
-	resp, err := p.httpClient.Request(context.Background(), "POST", elasticsearchURL, jsonData)
+	resp, err := p.httpClient.Request(context.Background(), "PUT", elasticsearchURL, jsonData)
 	if err != nil {
 		return err
 	}
