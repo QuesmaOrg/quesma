@@ -343,8 +343,9 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
 			return model.NewSimpleQueryInvalid()
 		} else {
-			tsWithoutTZ := strings.TrimSuffix(string(idAsStr), " +0000 UTC")
-			ids[i] = fmt.Sprintf("'%s'", tsWithoutTZ)
+			// "2025-06-18 22:13:16.468 +0800 CST"  -> "2025-06-18 22:13:16.468"
+			timeSplit := strings.Split(string(idAsStr), " ")
+			ids[i] = fmt.Sprintf("'%s'", strings.Join(timeSplit[:2], " "))
 		}
 		uniqueIds = append(uniqueIds, id)
 	}
@@ -353,8 +354,10 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	var timestampColumnName string
 	if cw.Table.DiscoveredTimestampFieldName != nil {
 		timestampColumnName = *cw.Table.DiscoveredTimestampFieldName
-	} else {
+	} else if _, exits := cw.Schema.Fields[model.TimestampFieldName]; exits {
 		timestampColumnName = model.TimestampFieldName
+	} else {
+		timestampColumnName = "collect_time"
 	}
 
 	//if column, ok := cw.Table.Cols[timestampColumnName]; ok {
