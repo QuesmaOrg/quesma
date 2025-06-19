@@ -15,8 +15,19 @@ import (
 	"testing"
 )
 
-type fixedTableProvider struct {
-	tables map[string]schema.Table
+type (
+	fixedTableProvider struct {
+		tables map[string]schema.Table
+	}
+	transformTest struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}
+)
+
+func newFixedTableProvider(tables map[string]schema.Table) *fixedTableProvider {
+	return &fixedTableProvider{tables: tables}
 }
 
 func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
@@ -499,10 +510,11 @@ func Test_ipRangeTransform(t *testing.T) {
 				q.Schema = currentSchema
 				q.Indexes = []string{q.TableName}
 			}
+			plan := model.NewExecutionPlan(queries[k], nil)
 
-			resultQueries, err := transform.Transform(queries[k])
+			resultPlan, err := transform.Transform(plan)
 			assert.NoError(t, err)
-			assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultQueries[0].SelectCommand.String())
+			assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultPlan.Queries[0].SelectCommand.String())
 		})
 	}
 }
@@ -739,17 +751,21 @@ func Test_arrayType(t *testing.T) {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			actual, err := transform.Transform([]*model.Query{tt.query})
+			plan := model.NewExecutionPlan(
+				[]*model.Query{tt.query},
+				nil,
+			)
+			actual, err := transform.Transform(plan)
 			assert.NoError(t, err)
 
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			assert.True(t, len(actual) == 1, "len queries == 1")
+			assert.True(t, len(actual.Queries) == 1, "len queries == 1")
 
 			expectedJson := asString(tt.expected)
-			actualJson := asString(actual[0])
+			actualJson := asString(actual.Queries[0])
 
 			assert.Equal(t, expectedJson, actualJson)
 		})
@@ -1226,15 +1242,13 @@ func TestFullTextFields(t *testing.T) {
 }
 
 func Test_applyMatchOperator(t *testing.T) {
-	const messageAsKeyword = "messageAsKeyword"
 	schemaTable := schema.Table{
 		Columns: map[string]schema.Column{
-			"message":        {Name: "message", Type: "String"},
-			messageAsKeyword: {Name: messageAsKeyword, Type: "String"},
-			"easy":           {Name: "easy", Type: "Bool"},
-			"map_str_str":    {Name: "map_str_str", Type: "Map(String, String)"},
-			"map_str_int":    {Name: "map_str_int", Type: "Map(String, Int)"},
-			"count":          {Name: "count", Type: "Int64"},
+			"message":     {Name: "message", Type: "String"},
+			"easy":        {Name: "easy", Type: "Bool"},
+			"map_str_str": {Name: "map_str_str", Type: "Map(String, String)"},
+			"map_str_int": {Name: "map_str_int", Type: "Map(String, Int)"},
+			"count":       {Name: "count", Type: "Int64"},
 		},
 	}
 
@@ -1243,7 +1257,7 @@ func Test_applyMatchOperator(t *testing.T) {
 		query    *model.Query
 		expected *model.Query
 	}{
-		{
+		{ // [APM_0]
 			name: "match operator transformation for String (ILIKE)",
 			query: &model.Query{
 				TableName: "test",
@@ -1270,7 +1284,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_1]
 			name: "match operator transformation for Int64 (=)",
 			query: &model.Query{
 				TableName: "test",
@@ -1297,7 +1311,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_2]
 			name: "match operator transformation for Bool",
 			query: &model.Query{
 				TableName: "test",
@@ -1324,7 +1338,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_3]
 			name: "match operator transformation for map(string, string) (ILIKE)",
 			query: &model.Query{
 				TableName: "test",
@@ -1351,7 +1365,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_4]
 			name: "match operator transformation for map(string, int) (=)",
 			query: &model.Query{
 				TableName: "test",
@@ -1378,7 +1392,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_5]
 			name: "match operator transformation for Attributes map (1/2)",
 			query: &model.Query{
 				TableName: "test",
@@ -1405,7 +1419,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_6]
 			name: "match operator transformation for Attributes map (2/2)",
 			query: &model.Query{
 				TableName: "test",
@@ -1432,7 +1446,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ // [APM_7]
 			name: "match operator should change `ILIKE '%%'` TO `IS NOT NULL`",
 			query: &model.Query{
 				TableName: "test",
@@ -1455,33 +1469,6 @@ func Test_applyMatchOperator(t *testing.T) {
 						model.NewColumnRef("message"),
 						"IS",
 						model.NewLiteral("NOT NULL"),
-					),
-				},
-			},
-		},
-		{
-			name: "match operator transformation for Keyword (equals)",
-			query: &model.Query{
-				TableName: "test",
-				SelectCommand: model.SelectCommand{
-					FromClause: model.NewTableRef("test"),
-					Columns:    []model.Expr{model.NewColumnRef(messageAsKeyword)},
-					WhereClause: model.NewInfixExpr(
-						model.NewColumnRef(messageAsKeyword),
-						model.MatchOperator,
-						model.NewLiteralWithEscapeType("needle", model.NormalNotEscaped),
-					),
-				},
-			},
-			expected: &model.Query{
-				TableName: "test",
-				SelectCommand: model.SelectCommand{
-					FromClause: model.NewTableRef("test"),
-					Columns:    []model.Expr{model.NewColumnRef(messageAsKeyword)},
-					WhereClause: model.NewInfixExpr(
-						model.NewColumnRef(messageAsKeyword),
-						"=",
-						model.NewLiteralWithEscapeType("needle", model.NormalNotEscaped),
 					),
 				},
 			},
@@ -1513,12 +1500,7 @@ func Test_applyMatchOperator(t *testing.T) {
 			if !ok {
 				t.Fatal("schema not found")
 			}
-			indexSchema.Fields[messageAsKeyword] = schema.Field{
-				PropertyName:         messageAsKeyword,
-				InternalPropertyName: messageAsKeyword,
-				InternalPropertyType: "String",
-				Type:                 schema.QuesmaTypeKeyword,
-			}
+
 			actual, err := transform.applyMatchOperator(indexSchema, tt.query)
 			if err != nil {
 				t.Fatal(err)
@@ -1802,12 +1784,16 @@ func Test_mapKeys(t *testing.T) {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			var actual []*model.Query
+			var actual *model.ExecutionPlan
 			var err error
+			plan := model.NewExecutionPlan(
+				[]*model.Query{tt.query},
+				nil,
+			)
 			if indexConfig[tt.query.TableName].EnableFieldMapSyntax {
-				actual, err = transformPass.Transform([]*model.Query{tt.query})
+				actual, err = transformPass.Transform(plan)
 			} else {
-				actual, err = noTransformPass.Transform([]*model.Query{tt.query})
+				actual, err = noTransformPass.Transform(plan)
 			}
 			assert.NoError(t, err)
 
@@ -1815,10 +1801,10 @@ func Test_mapKeys(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			assert.True(t, len(actual) == 1, "len queries == 1")
+			assert.True(t, len(actual.Queries) == 1, "len queries == 1")
 
 			expectedJson := asString(tt.expected)
-			actualJson := asString(actual[0])
+			actualJson := asString(actual.Queries[0])
 
 			assert.Equal(t, expectedJson, actualJson)
 		})
@@ -1895,19 +1881,273 @@ func Test_cluster(t *testing.T) {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			tt.query.Schema = indexSchema
 			tt.query.Indexes = []string{tt.query.TableName}
-			actual, err := transform.Transform([]*model.Query{tt.query})
+
+			plan := model.NewExecutionPlan(
+				[]*model.Query{tt.query},
+				nil,
+			)
+			actual, err := transform.Transform(plan)
 			assert.NoError(t, err)
 
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			assert.True(t, len(actual) == 1, "len queries == 1")
+			assert.True(t, len(actual.Queries) == 1, "len queries == 1")
 
 			expectedJson := asString(tt.expected)
-			actualJson := asString(actual[0])
+			actualJson := asString(actual.Queries[0])
 
 			assert.Equal(t, expectedJson, actualJson)
+		})
+	}
+}
+
+func Test_acceptIntsAsTimestamps(t *testing.T) {
+	schemaTable := schema.Table{
+		Columns: map[string]schema.Column{
+			"@timestamp":   {Name: "@timestamp", Type: "DateTime64"},
+			"timestampInt": {Name: "timestampInt", Type: "DateTime64"}, // datetime in schema (and Quesma config), UInt64 in Clickhouse
+			"normalInt":    {Name: "normalInt", Type: "Int"},
+		},
+	}
+
+	tests := []transformTest{
+		{
+			name: "replace string datetime with unix millis timestamp",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("timestampInt"),
+						">=",
+						model.NewLiteralWithFormat("2025-03-25T12:32:51.527Z", "epoch_millis"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("timestampInt"),
+						">=",
+						model.NewLiteral(1742905971527),
+					),
+				},
+			},
+		},
+		{
+			name: "query e.g. from date_histogram. need to erase toUnixTimestamp() when column is already int",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						model.NewFunction(
+							"toInt64",
+							model.NewFunction(
+								"toUnixTimestamp64Milli",
+								model.NewColumnRef("timestampInt"),
+							),
+						),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						model.NewFunction(
+							"toInt64",
+							model.NewColumnRef("timestampInt"),
+						),
+					},
+				},
+			},
+		},
+		{
+			name: "query e.g. from date_histogram with time_zone. need to erase toUnixTimestamp() + add fromUnixTimestamp() when column is already int",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						// toInt64(
+						//	(
+						//    toUnixTimestamp64Milli("timestampInt")
+						//    +
+						//      timeZoneOffset(toTimezone("timestampInt", 'Europe/Warsaw'))
+						//      *
+						//      1000
+						//  )
+						//  / 43200000
+						// )
+						model.NewFunction(
+							"toInt64",
+							model.NewInfixExpr(
+								model.NewParenExpr(
+									model.NewInfixExpr(
+										model.NewFunction("toUnixTimestamp64Milli", model.NewColumnRef("timestampInt")),
+										"+",
+										model.NewInfixExpr(
+											model.NewFunction("timeZoneOffset", model.NewFunction(
+												"toTimezone",
+												model.NewColumnRef("timestampInt"),
+												model.NewLiteral("'Europe/Warsaw'")),
+											),
+											"*",
+											model.NewLiteral(1000),
+										),
+									),
+								),
+								"/",
+								model.NewLiteral(43200000),
+							),
+						),
+					},
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns: []model.Expr{
+						// toInt64(
+						//	(
+						//    "timestampInt"
+						//    +
+						//      timeZoneOffset(toTimezone(fromUnixTimestamp64Milli("timestampInt"), 'Europe/Warsaw'))
+						//      *
+						//      1000
+						//  )
+						//  / 43200000
+						// )
+						model.NewFunction(
+							"toInt64",
+							model.NewInfixExpr(
+								model.NewParenExpr(
+									model.NewInfixExpr(
+										model.NewColumnRef("timestampInt"),
+										"+",
+										model.NewInfixExpr(
+											model.NewFunction("timeZoneOffset", model.NewFunction(
+												"toTimezone",
+												model.NewFunction("fromUnixTimestamp64Milli", model.NewColumnRef("timestampInt")),
+												model.NewLiteral("'Europe/Warsaw'")),
+											),
+											"*",
+											model.NewLiteral(1000),
+										),
+									),
+								),
+								"/",
+								model.NewLiteral(43200000),
+							),
+						),
+					},
+				},
+			},
+		},
+		{
+			name: "int but not as timestamp",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+		},
+		{
+			name: "int but not as timestamp, came as string",
+			query: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral("50"),
+					),
+				},
+			},
+			expected: &model.Query{
+				TableName: "test",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("test"),
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("message"))},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("normalInt"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
+			tableDiscovery := newFixedTableProvider(map[string]schema.Table{
+				"test": schemaTable,
+			})
+			cfg := config.NewQuesmaConfigurationIndexConfigOnly(map[string]config.IndexConfiguration{
+				"test": {},
+			})
+
+			tableMap := clickhouse.NewTableMap()
+
+			// timestampInt is datetime in schema (and Quesma config), UInt64 in Clickhouse
+			tab := clickhouse.Table{
+				Name:   "test",
+				Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+				Cols: map[string]*clickhouse.Column{
+					"timestampInt": {Name: "timestampInt", Type: clickhouse.NewBaseType("UInt32")},
+				},
+			}
+			tableMap.Store("test", &tab)
+			td := clickhouse.NewEmptyTableDiscovery()
+			td.TableMap = tableMap
+
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s.Start()
+			defer s.Stop()
+			transform := NewSchemaCheckPass(&cfg, td, defaultSearchAfterStrategy)
+
+			indexSchema, ok := s.FindSchema("test")
+			if !ok {
+				t.Fatal("schema not found")
+			}
+
+			actual, err := transform.acceptIntsAsTimestamps(indexSchema, tt.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, model.AsString(tt.expected.SelectCommand), model.AsString(actual.SelectCommand))
 		})
 	}
 }

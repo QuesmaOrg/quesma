@@ -118,7 +118,7 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 func (c *SenderCoordinator) Start() {
 
 	if !c.enabled {
-		logger.InfoWithCtx(c.ctx).Msg("A/B Testing Controller is disabled")
+		logger.DebugWithCtx(c.ctx).Msg("A/B Testing Controller is disabled")
 		return
 	}
 

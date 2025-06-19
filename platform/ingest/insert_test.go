@@ -102,14 +102,11 @@ var configs = []*clickhouse.ChTableConfig{
 var expectedInserts = [][]string{
 	[]string{EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","service_name":"frontend","severity":"debug","source":"rhel"}`)},
 	[]string{
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "service_name" Nullable(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "service_name" 'quesmaMetadataV1:fieldName=service.name`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "service_name" Nullable(String), COMMENT COLUMN "service_name" 'quesmaMetadataV1:fieldName=service.name'`),
 
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String), COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
 
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "source" Nullable(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "source" 'quesmaMetadataV1:fieldName=source'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "source" Nullable(String), COMMENT COLUMN "source" 'quesmaMetadataV1:fieldName=source'`),
 
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","service_name":"frontend","severity":"debug","source":"rhel"}`),
 	},
@@ -117,12 +114,9 @@ var expectedInserts = [][]string{
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
 	},
 	[]string{
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Array(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "random1" 'quesmaMetadataV1:fieldName=random1'`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random2" Nullable(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "random2" 'quesmaMetadataV1:fieldName=random2'`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Array(String), COMMENT COLUMN "random1" 'quesmaMetadataV1:fieldName=random1'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random2" Nullable(String), COMMENT COLUMN "random2" 'quesmaMetadataV1:fieldName=random2'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String), COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
 	},
 }
@@ -151,7 +145,6 @@ func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHe
 				"message":          lowCardinalityString("message"),
 				"non-insert-field": genericString("non-insert-field"),
 			},
-			Created: created,
 		})
 		lms = append(lms, ingestProcessorHelper{newIngestProcessorWithEmptyTableMap(full, &config.QuesmaConfiguration{}), created})
 	}
@@ -176,8 +169,8 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(types.MustJSON(tt.insertJson)))
 					query := createTableQuery(tableName, columns, tableConfig)
 
-					table, err := clickhouse.NewTable(query, tableConfig)
-					assert.NoError(t, err)
+					table := ip.ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
+
 					query = addOurFieldsToCreateTableQuery(query, tableConfig, table)
 
 					// check if CREATE TABLE string is OK
@@ -198,7 +191,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// check if we properly create table in our tables table :) (:) suggested by Copilot) if needed
 					tableInMemory := ip.ip.FindTable(tableName)
 					needCreate := true
-					if tableInMemory != nil && tableInMemory.Created {
+					if tableInMemory != nil {
 						needCreate = false
 					}
 					noSuchTable := ip.ip.AddTableIfDoesntExist(table)
@@ -207,7 +200,6 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// and Created is set to true
 					tableInMemory = ip.ip.FindTable(tableName)
 					assert.NotNil(t, tableInMemory)
-					assert.True(t, tableInMemory.Created)
 
 					// and we have a schema in memory in every case
 					assert.Equal(t, 1, ip.ip.tableDiscovery.TableDefinitions().Size())
@@ -253,9 +245,7 @@ func TestProcessInsertQuery(t *testing.T) {
 					// info: result values aren't important, this '.WillReturnResult[...]' just needs to be there
 					if !ip.tableAlreadyCreated {
 						// we check here if we try to create table from predefined schema, not from insert's JSON
-						if ip.ip.tableDiscovery.TableDefinitions().Size() > 0 {
-							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName + `.*non-insert-field`).WillReturnResult(sqlmock.NewResult(0, 0))
-						} else {
+						if ip.ip.tableDiscovery.TableDefinitions().Size() == 0 {
 							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
 						}
 					}
@@ -311,10 +301,9 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 
 	// big integer as an attribute field
 	tableMapNoSchemaFields := util.NewSyncMapWith(tableName, &clickhouse.Table{
-		Name:    tableName,
-		Config:  NewChTableConfigFourAttrs(),
-		Cols:    map[string]*clickhouse.Column{},
-		Created: true,
+		Name:   tableName,
+		Config: NewChTableConfigFourAttrs(),
+		Cols:   map[string]*clickhouse.Column{},
 	})
 
 	for i, bigInt := range bigInts {

@@ -68,6 +68,10 @@ type (
 		ingestFieldStatisticsLock sync.Mutex
 		virtualTableStorage       persistence.JSONDatabase
 		tableResolver             table_resolver.TableResolver
+
+		indexNameRewriter IndexNameRewriter
+
+		errorLogCounter atomic.Int64
 	}
 	TableMap  = util.SyncMap[string, *chLib.Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -178,17 +182,48 @@ func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, erro
 	return count, nil
 }
 
-func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, query string, config *chLib.ChTableConfig, name string, tableDefinitionChangeOnly bool) (string, error) {
-	table, err := chLib.NewTable(query, config)
-	if err != nil {
-		return "", err
+func (ip *IngestProcessor) createTableObject(tableName string, columnsFromJson []CreateTableEntry, columnsFromSchema map[schema.FieldName]CreateTableEntry, tableConfig *chLib.ChTableConfig) *chLib.Table {
+	resolveType := func(name, colType string) chLib.Type {
+		if strings.Contains(colType, " DEFAULT") {
+			// Remove DEFAULT clause from the type
+			colType = strings.Split(colType, " DEFAULT")[0]
+		}
+		resCol := chLib.ResolveColumn(name, colType)
+		return resCol.Type
 	}
+
+	tableColumns := make(map[string]*chLib.Column)
+	for _, c := range columnsFromJson {
+		tableColumns[c.ClickHouseColumnName] = &chLib.Column{
+			Name: c.ClickHouseColumnName,
+			Type: resolveType(c.ClickHouseColumnName, c.ClickHouseType),
+		}
+	}
+	for _, c := range columnsFromSchema {
+		if _, exists := tableColumns[c.ClickHouseColumnName]; !exists {
+			tableColumns[c.ClickHouseColumnName] = &chLib.Column{
+				Name: c.ClickHouseColumnName,
+				Type: resolveType(c.ClickHouseColumnName, c.ClickHouseType),
+			}
+		}
+	}
+
+	table := chLib.Table{
+		Name:   tableName,
+		Cols:   tableColumns,
+		Config: tableConfig,
+	}
+
+	return &table
+}
+
+func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, tableName string, columnsFromJson []CreateTableEntry, columnsFromSchema map[schema.FieldName]CreateTableEntry, tableConfig *chLib.ChTableConfig, tableDefinitionChangeOnly bool) (*chLib.Table, error) {
+	table := ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
 
 	// This is a HACK.
 	// CreateQueryParser assumes that the table name is in the form of "database.table"
 	// in this case we don't have a database name, so we need to add it
 	if tableDefinitionChangeOnly {
-		table.Name = name
 		table.DatabaseName = ""
 		table.Comment = "Definition only. This is not a real table."
 		table.VirtualTable = true
@@ -197,10 +232,10 @@ func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, q
 	// if exists only then createTable
 	noSuchTable := ip.AddTableIfDoesntExist(table)
 	if !noSuchTable {
-		return "", fmt.Errorf("table %s already exists", table.Name)
+		return nil, fmt.Errorf("table %s already exists", table.Name)
 	}
 
-	return addOurFieldsToCreateTableQuery(query, config, table), nil
+	return table, nil
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
@@ -347,12 +382,10 @@ func (ip *IngestProcessor) generateNewColumns(
 			maybeOnClusterClause = " ON CLUSTER " + strconv.Quote(table.ClusterName)
 		}
 
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\"%s ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, maybeOnClusterClause, attrKeys[i], columnType)
+		alterTable := fmt.Sprintf(`ALTER TABLE "%s"%s ADD COLUMN IF NOT EXISTS "%s" %s, COMMENT COLUMN "%s" '%s'`,
+			table.Name, maybeOnClusterClause, attrKeys[i], columnType, attrKeys[i], comment)
 		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
 		alterCmd = append(alterCmd, alterTable)
-
-		alterColumn := fmt.Sprintf("ALTER TABLE \"%s\"%s COMMENT COLUMN \"%s\" '%s'", table.Name, maybeOnClusterClause, attrKeys[i], comment)
-		alterCmd = append(alterCmd, alterColumn)
 
 		deleteIndexes = append(deleteIndexes, i)
 	}
@@ -508,10 +541,9 @@ func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[s
 func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	data types.JSON,
 	inValidJson types.JSON,
-	config *chLib.ChTableConfig,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, types.JSON, []NonSchemaField, error) {
 
-	if len(config.Attributes) == 0 {
+	if len(table.Config.Attributes) == 0 {
 		return nil, data, nil, nil
 	}
 
@@ -522,10 +554,10 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	}
 
 	// check attributes precondition
-	if len(config.Attributes) <= 0 {
+	if len(table.Config.Attributes) <= 0 {
 		return nil, nil, nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
 	}
-	attrsMap, _ := BuildAttrsMap(mDiff, config)
+	attrsMap, _ := BuildAttrsMap(mDiff, table.Config)
 
 	// generateNewColumns is called on original attributes map
 	// before adding invalid fields to it
@@ -663,20 +695,18 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName), Indexes(transformedJsons[0]))
 		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
 		var err error
-		createTableCmd, err = ip.createTableObjectAndAttributes(ctx, createTableCmd, tableConfig, tableName, tableDefinitionChangeOnly)
+		table, err = ip.createTableObjectAndAttributes(ctx, tableName, columnsFromJson, columnsFromSchema, tableConfig, tableDefinitionChangeOnly)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error createTableObjectAndAttributes, can't create table: %v", err)
 			return nil, err
+		} else {
+			// Likely we want to remove below line
+			createTableCmd = addOurFieldsToCreateTableQuery(createTableCmd, tableConfig, table)
 		}
-		// Set pointer to table after creating it
-		table = ip.FindTable(tableName)
-	} else if !table.Created {
-		createTableCmd = table.CreateTableString()
 	}
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
 	}
-	tableConfig = table.Config
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
 	var validatedJsons []types.JSON
@@ -687,7 +717,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	}
 	for i, preprocessedJson := range validatedJsons {
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
-			invalidJsons[i], tableConfig, encodings)
+			invalidJsons[i], encodings)
 
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
@@ -824,15 +854,18 @@ func (ip *IngestProcessor) processInsertQueryInternal(ctx context.Context, table
 	tableFormatter TableColumNameFormatter, isVirtualTable bool) error {
 	statements, err := ip.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter, isVirtualTable)
 	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error processing insert query: %v", err)
 		return err
 	}
 
 	var logVirtualTableDDL bool // maybe this should be a part of the config or sth
 
-	if isVirtualTable && logVirtualTableDDL {
-		for _, statement := range statements {
-			if strings.HasPrefix(statement, "ALTER") || strings.HasPrefix(statement, "CREATE") {
+	for _, statement := range statements {
+		if strings.HasPrefix(statement, "ALTER") || strings.HasPrefix(statement, "CREATE") {
+			if isVirtualTable && logVirtualTableDDL {
 				logger.InfoWithCtx(ctx).Msgf("VIRTUAL DDL EXECUTION: %s", statement)
+			} else {
+				logger.InfoWithCtx(ctx).Msgf("DDL EXECUTION: %s", statement)
 			}
 		}
 	}
@@ -883,7 +916,32 @@ func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []stri
 
 		err := ip.execute(ctx, q)
 		if err != nil {
-			logger.ErrorFull(ctx, "error executing ingest statement", err).Msgf("query: %s", q)
+			count := ip.errorLogCounter.Add(1)
+
+			// Limit the number of error logs to avoid flooding the logs.
+
+			// some hardcoded limits
+			const maxErrorLogs = 50
+			const fullQueryThreshold = 5
+			const maxQueryLength = 100
+			const summaryInterval = 1000
+
+			// logging only first nth errors, it should be enough for troubleshooting
+			if count < maxErrorLogs {
+				// only first fullQueryThreshold errors will be logged with full query
+				if count > fullQueryThreshold {
+					if len(q) > maxQueryLength {
+						q = q[:maxQueryLength] + "..."
+					}
+				}
+				logger.ErrorWithCtx(ctx).Msgf("error executing ingest statement: %s, query: %s", err, q)
+			} else {
+				// log every summaryInterval-th error, just to keep track of errors
+				if count%summaryInterval == 0 {
+					logger.ErrorWithCtx(ctx).Msgf("got %d total errors executing ingest statements.  last error: %s, last query: %s", count, err, q)
+				}
+			}
+
 			return err
 		}
 	}
@@ -975,8 +1033,6 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 	t := ip.FindTable(table.Name)
 	if t == nil {
-		table.Created = true
-
 		table.ApplyIndexConfig(ip.cfg)
 
 		if table.VirtualTable {
@@ -988,9 +1044,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 		ip.tableDiscovery.AddTable(table.Name, table)
 		return true
 	}
-	wasntCreated := !t.Created
-	t.Created = true
-	return wasntCreated
+	return false
 }
 
 func (ip *IngestProcessor) GetSchemaRegistry() schema.Registry {
@@ -1005,9 +1059,14 @@ func (ip *IngestProcessor) Ping() error {
 	return ip.chDb.Ping()
 }
 
+func (ip *IngestProcessor) GetIndexNameRewriter() IndexNameRewriter {
+	return ip.indexNameRewriter
+}
+
 func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver}
+	indexRewriter := NewIndexNameRewriter(cfg)
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver, indexNameRewriter: indexRewriter}
 }
 
 func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {

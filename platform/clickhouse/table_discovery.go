@@ -393,7 +393,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				}
 			}
 
-			column := resolveColumn(col, columnMeta.colType)
+			column := ResolveColumn(col, columnMeta.colType)
 			if column != nil {
 				column.Comment = columnMeta.comment
 				column.Origin = columnMeta.origin
@@ -412,7 +412,6 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 
 		if !partiallyResolved {
 			table := Table{
-				Created:      true,
 				Name:         tableName,
 				Comment:      resTable.comment,
 				DatabaseName: databaseName,
@@ -428,7 +427,11 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				VirtualTable:                 resTable.virtualTable,
 				ExistsOnAllNodes:             resTable.existsOnAllNodes,
 			}
-			if containsAttributes(resTable.columnTypes) {
+
+			// We're adding default attributes to the virtual tables. We store virtual tables in the elastic as a list of essential column names.
+			// Quesma heavily relies on the attributes when it alters schema on ingest (see processor.go)
+			// If we don't add attributes to the virtual tables, virtual tables will be not altered on ingest.
+			if containsAttributes(resTable.columnTypes) || resTable.virtualTable {
 				table.Config.Attributes = []Attribute{NewDefaultStringAttribute()}
 			}
 
@@ -478,7 +481,7 @@ func (td *tableDiscovery) TableDefinitions() *TableMap {
 	return td.tableDefinitions.Load()
 }
 
-func resolveColumn(colName, colType string) *Column {
+func ResolveColumn(colName, colType string) *Column {
 	isNullable := false
 	if isNullableType(colType) {
 		isNullable = true
@@ -492,7 +495,7 @@ func resolveColumn(colName, colType string) *Column {
 			arrayType = strings.TrimSuffix(strings.TrimPrefix(arrayType, "Nullable("), ")")
 		}
 		if isArrayType(arrayType) {
-			innerColumn := resolveColumn("inner", arrayType)
+			innerColumn := ResolveColumn("inner", arrayType)
 			if innerColumn == nil {
 				logger.Warn().Msgf("invalid inner array type for column %s, %s", colName, colType)
 				return nil
@@ -515,7 +518,7 @@ func resolveColumn(colName, colType string) *Column {
 				},
 			}
 		} else if isTupleType(arrayType) {
-			tupleColumn := resolveColumn("Tuple", arrayType)
+			tupleColumn := ResolveColumn("Tuple", arrayType)
 			if tupleColumn == nil {
 				logger.Warn().Msgf("invalid tuple type for column %s, %s", colName, colType)
 				return nil

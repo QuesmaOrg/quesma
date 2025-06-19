@@ -310,10 +310,6 @@ func (a *DualWriteAndCommonTableTestcase) testResolveEndpointInQuesma(ctx contex
 				"attributes": []interface{}{"open"},
 			},
 			map[string]interface{}{
-				"name":       "quesma_virtual_tables",
-				"attributes": []interface{}{"open"},
-			},
-			map[string]interface{}{
 				"name":       "unmentioned_index",
 				"attributes": []interface{}{"open"},
 			},

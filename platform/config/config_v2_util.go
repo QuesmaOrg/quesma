@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/go-multierror"
 	"slices"
+	"sort"
 )
 
 func (c *QuesmaConfiguration) translateAndAddSinglePipeline(confNew *QuesmaNewConfiguration, errAcc error) {
@@ -54,9 +55,11 @@ func (c *QuesmaConfiguration) translateAndAddSinglePipeline(confNew *QuesmaNewCo
 		c.CreateCommonTable = true
 		c.UseCommonTableForWildcard = true
 	}
+
 	if defaultConfig.SchemaOverrides != nil {
-		errAcc = multierror.Append(errAcc, fmt.Errorf("schema overrides of default index ('%s') are not currently supported (only supported in configuration of a specific index)", DefaultWildcardIndexName))
+		c.DefaultSchemaOverrides = defaultConfig.SchemaOverrides
 	}
+
 	if len(defaultConfig.QueryTarget) > 1 {
 		errAcc = multierror.Append(errAcc, fmt.Errorf("the target configuration of default index ('%s') of query processor is not currently supported", DefaultWildcardIndexName))
 	}
@@ -191,9 +194,11 @@ func (c *QuesmaConfiguration) translateAndAddDualPipeline(confNew *QuesmaNewConf
 			c.UseCommonTableForWildcard = queryProcessor.Config.UseCommonTable
 		}
 	}
+
 	if defaultConfig.SchemaOverrides != nil {
-		errAcc = multierror.Append(errAcc, fmt.Errorf("schema overrides of default index ('%s') are not currently supported (only supported in configuration of a specific index)", DefaultWildcardIndexName))
+		c.DefaultSchemaOverrides = defaultConfig.SchemaOverrides
 	}
+
 	if defaultConfig.UseCommonTable {
 		// We set both flags to true here
 		// as creating common table depends on the first one
@@ -342,6 +347,27 @@ func (c *QuesmaConfiguration) translateAndAddDualPipeline(confNew *QuesmaNewConf
 		c.DefaultIngestOptimizers = defaultIngestConfig.Optimizers
 	} else {
 		c.DefaultIngestOptimizers = nil
+	}
+
+	if ingestProcessor.Config.IndexNameRewriteRules != nil {
+
+		if len(ingestProcessor.Config.IndexNameRewriteRules) > 0 {
+
+			var names []string
+			for name := range ingestProcessor.Config.IndexNameRewriteRules {
+				names = append(names, name)
+			}
+
+			sort.Strings(names)
+
+			var orderedRules []IndexNameRewriteRule
+			for _, name := range names {
+				if rule, ok := ingestProcessor.Config.IndexNameRewriteRules[name]; ok {
+					orderedRules = append(orderedRules, rule)
+				}
+			}
+			c.IndexNameRewriteRules = orderedRules
+		}
 	}
 
 	// safe to call per validation earlier

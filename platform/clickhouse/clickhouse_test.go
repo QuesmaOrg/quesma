@@ -468,8 +468,7 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_1(t *testing.T) {
 	table := Table{
-		Created: false,
-		Name:    "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
+		Name: "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
 		Cols: map[string]*Column{
 			"doc": {
 				Name: "doc",
@@ -520,16 +519,10 @@ func TestCreateTableString_1(t *testing.T) {
 			PrimaryKey:           "",
 			Ttl:                  "",
 			Attributes: []Attribute{
-				NewDefaultInt64Attribute(),
 				NewDefaultStringAttribute(),
-				NewDefaultBoolAttribute(),
 			},
 			CastUnsupportedAttrValueTypesToString: false,
 			PreferCastingToOthers:                 false,
-		},
-		Indexes: []IndexStatement{
-			GetIndexStatement("body"),
-			GetIndexStatement("severity"),
 		},
 	}
 	expectedRows := []string{
@@ -546,16 +539,8 @@ func TestCreateTableString_1(t *testing.T) {
 		`"updated_at" DateTime64`,
 		`),`,
 		`"@timestamp" DateTime64,`,
-		`"attributes_int64_key" Array(String),`,
-		`"attributes_int64_value" Array(Int64),`,
-		`"attributes_string_key" Array(String),`,
-		`"attributes_string_value" Array(String),`,
-		`"attributes_bool_key" Array(String),`,
-		`"attributes_bool_value" Array(Bool),`,
 		`"attributes_values" Map(String,String),`,
-		`"attributes_metadata" Map(String,String),`,
-		`INDEX body_idx body TYPE tokenbf_v1(10240, 3, 0) GRANULARITY 4,`,
-		`INDEX severity_idx severity TYPE set(25) GRANULARITY 4`,
+		`"attributes_metadata" Map(String,String)`,
 		`)`,
 		`ENGINE = MergeTree`,
 		`ORDER BY (@timestamp)`,
@@ -570,8 +555,7 @@ func TestCreateTableString_1(t *testing.T) {
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_NewDateTypes(t *testing.T) {
 	table := Table{
-		Created: false,
-		Name:    "abc",
+		Name: "abc",
 		Cols: map[string]*Column{
 			"low_card_string": {
 				Name:    "low_card_string",

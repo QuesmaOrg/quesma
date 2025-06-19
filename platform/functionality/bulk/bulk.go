@@ -75,7 +75,13 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 
 	// The returned results should be in the same order as the input request, however splitting the bulk might change the order.
 	// Therefore, each BulkRequestEntry has a corresponding pointer to the result entry, allowing us to freely split and reshuffle the bulk.
-	results, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, defaultIndex, bulk, maxBulkSize, tableResolver)
+
+	var indexNameRewriter ingest.IndexNameRewriter
+	if ip != nil {
+		indexNameRewriter = ip.GetIndexNameRewriter()
+	}
+
+	results, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, defaultIndex, bulk, maxBulkSize, tableResolver, indexNameRewriter)
 	if err != nil {
 		return []BulkItem{}, err
 	}
@@ -118,7 +124,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, ip *ing
 	return nonEmptyResults, nil
 }
 
-func SplitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, maxBulkSize int, tableResolver table_resolver.TableResolver) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
+func SplitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, maxBulkSize int, tableResolver table_resolver.TableResolver, rewriter ingest.IndexNameRewriter) ([]BulkItem, map[string][]BulkRequestEntry, []byte, []BulkRequestEntry, error) {
 	results := make([]BulkItem, maxBulkSize)
 
 	clickhouseBulkEntries := make(map[string][]BulkRequestEntry, maxBulkSize)
@@ -128,6 +134,10 @@ func SplitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, max
 	err := bulk.BulkForEach(func(entryNumber int, op types.BulkOperation, rawOp types.JSON, document types.JSON) error {
 		index := op.GetIndex()
 		operation := op.GetOperation()
+
+		if rewriter != nil {
+			index = rewriter.RewriteIndex(index)
+		}
 
 		entryWithResponse := BulkRequestEntry{
 			operation: operation,

@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog"
 	"log"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -49,6 +50,13 @@ type QuesmaNewConfiguration struct {
 	Pipelines                   []Pipeline           `koanf:"pipelines"`
 	DisableTelemetry            bool                 `koanf:"disableTelemetry"`
 	MapFieldsDiscoveringEnabled bool                 `koanf:"mapFieldsDiscoveringEnabled"`
+	DefaultStringToKeywordType  bool                 `koanf:"defaultStringToKeywordType"`
+	QuesmaFlags                 QuesmaFlags          `koanf:"flags"`
+}
+
+// It holds all the configuration flags that affect global Quesma behavior.
+type QuesmaFlags struct {
+	DefaultStringColumnType *string `koanf:"defaultStringColumnType"`
 }
 
 type LoggingConfiguration struct {
@@ -126,8 +134,15 @@ type (
 		IndexConfig    IndicesConfigs `koanf:"indexes"`
 		// DefaultTargetConnectorType is used in V2 code only
 		DefaultTargetConnectorType string //it is not serialized to maintain configuration BWC, so it's basically just populated from '*' config in `config_v2.go`
+
+		IndexNameRewriteRules map[string]IndexNameRewriteRule `koanf:"indexNameRewriteRules"`
 	}
 	IndicesConfigs map[string]IndexConfiguration
+
+	IndexNameRewriteRule struct {
+		From string `koanf:"from"` // pattern to match
+		To   string `koanf:"to"`   // replacement string
+	}
 )
 
 func (p *QuesmaProcessorConfig) IsFieldMapSyntaxEnabled(indexName string) bool {
@@ -137,21 +152,23 @@ func (p *QuesmaProcessorConfig) IsFieldMapSyntaxEnabled(indexName string) bool {
 	return false
 }
 
-func LoadV2Config() QuesmaNewConfiguration {
+func LoadV2Config() (QuesmaNewConfiguration, error) {
 	var v2config QuesmaNewConfiguration
 	loadConfigFile()
 	// We have to use custom env provider to allow array overrides
 	if err := k.Load(Env2JsonProvider("QUESMA_", "_", nil), json.Parser(), koanf.WithMergeFunc(mergeDictFunc)); err != nil {
-		log.Fatalf("error loading config form supplied env vars: %v", err)
+		log.Printf("error loading config form supplied env vars: %v", err)
+		return v2config, err
 	}
 	if err := k.Unmarshal("", &v2config); err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
 
 	if err := v2config.Validate(); err != nil {
-		log.Fatalf("Config validation failed: %v", err)
+		log.Printf("Config validation failed: %v", err)
+		return v2config, err
 	}
-	return v2config
+	return v2config, nil
 }
 
 // validate at this level verifies the basic assumptions behind pipelines/processors/connectors,
@@ -174,7 +191,6 @@ func (c *QuesmaNewConfiguration) Validate() error {
 	var multiErr *multierror.Error
 	if errors.As(errAcc, &multiErr) {
 		if len(multiErr.Errors) > 0 {
-			log.Fatalf("Config validation failed: %v", multiErr)
 			return multiErr
 		}
 	}
@@ -415,6 +431,18 @@ func (c *QuesmaNewConfiguration) definedProcessorNames() []string {
 	return names
 }
 
+func (c *QuesmaNewConfiguration) validateRewriteRules(rules map[string]IndexNameRewriteRule) error {
+
+	for name, rule := range rules {
+		_, err := regexp.Compile(rule.From)
+		if err != nil {
+			return fmt.Errorf("index name rewrite rule '%s' has an invalid 'from' regex: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
 func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 	if len(p.Name) == 0 {
 		return fmt.Errorf("processor must have a non-empty name")
@@ -433,12 +461,23 @@ func (c *QuesmaNewConfiguration) validateProcessor(p Processor) error {
 						return fmt.Errorf("configuration of index %s must have at most two targets (query processor)", indexName)
 					}
 				}
+
+				if p.Config.IndexNameRewriteRules != nil || len(p.Config.IndexNameRewriteRules) > 0 {
+					return fmt.Errorf("index name rewrite rules are not supported in query processor configuration, use the ingest processor for this purpose")
+				}
+
 			} else {
 				if _, ok := indexConfig.Target.([]interface{}); ok {
 					if len(indexConfig.Target.([]interface{})) > 2 {
 						return fmt.Errorf("configuration of index %s must have at most two targets (ingest processor)", indexName)
 					}
 				}
+
+				err := c.validateRewriteRules(p.Config.IndexNameRewriteRules)
+				if err != nil {
+					return err
+				}
+
 			}
 			targets, errTarget := c.getTargetsExtendedConfig(indexConfig.Target)
 			if errTarget != nil {
@@ -591,6 +630,21 @@ func (c *QuesmaNewConfiguration) TranslateToLegacyConfig() QuesmaConfiguration {
 	conf.LicenseKey = c.LicenseKey
 
 	conf.MapFieldsDiscoveringEnabled = c.MapFieldsDiscoveringEnabled
+
+	conf.DefaultStringColumnType = "text" // default value, can be overridden by the flag
+	if c.QuesmaFlags.DefaultStringColumnType != nil {
+
+		switch *c.QuesmaFlags.DefaultStringColumnType {
+		case "keyword":
+			conf.DefaultStringColumnType = "keyword"
+		case "text":
+			conf.DefaultStringColumnType = "text"
+		default:
+
+			errAcc = multierror.Append(errAcc, fmt.Errorf("defaultStringColumnType must be either 'keyword' or 'text', got '%s'", *c.QuesmaFlags.DefaultStringColumnType))
+
+		}
+	}
 
 	conf.AutodiscoveryEnabled = false
 	conf.Connectors = make(map[string]RelationalDbConfiguration)

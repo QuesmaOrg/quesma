@@ -95,3 +95,8 @@ func (s Schema) ResolveField(fieldName string) (Field, bool) {
 	field, exists := s.Fields[FieldName(fieldName)]
 	return field, exists
 }
+
+func (s Schema) IsInt(fieldName string) bool {
+	field, ok := s.ResolveField(fieldName)
+	return ok && field.Type.Name == QuesmaTypeInteger.Name
+}

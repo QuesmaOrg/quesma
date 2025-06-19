@@ -1,0 +1,23 @@
+server.host: "0.0.0.0"
+
+xpack.security.enabled: false
+xpack.reporting.kibanaServer.hostname: localhost
+
+# We don't need sophisticated monitoring
+monitoring.ui.enabled: false
+
+newsfeed.enabled: false
+
+# No telemetry for Elastic
+telemetry.optIn: false
+telemetry.enabled: false
+
+# Disable several managment settings
+xpack.ilm.ui.enabled: false
+xpack.ccr.ui.enabled: false
+xpack.remote_clusters.ui.enabled: false
+xpack.rollup.ui.enabled: false
+xpack.license_management.ui.enabled: false
+xpack.snapshot_restore.ui.enabled: false
+xpack.upgrade_assistant.ui.enabled: false
+xpack.index_management.ui.enabled: false

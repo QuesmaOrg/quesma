@@ -352,16 +352,6 @@ func NewType(value any, valueOrigin string) (Type, error) {
 	return nil, fmt.Errorf("unsupported type '%T' of value: %v (origin: %s)", value, value, valueOrigin)
 }
 
-func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {
-	t, i := ParseCreateTable(createTableQuery)
-	t.Config = config
-	if i == 0 {
-		return t, nil
-	} else {
-		return t, fmt.Errorf("error parsing query at character %d, query: %s", i, createTableQuery)
-	}
-}
-
 // NewEmptyTable is used only in tests
 func NewEmptyTable(tableName string) *Table {
 	return &Table{Name: tableName, Config: NewChTableConfigNoAttrs()}

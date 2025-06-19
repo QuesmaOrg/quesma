@@ -88,18 +88,19 @@ func InitDBConnectionPool(c *config.QuesmaConfiguration) quesma_api.BackendConne
 
 	err := db.Ping()
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to ping database.")
 		// These error message duplicates messages from end_user_errors.GuessClickhouseErrorType
 		// Not sure if you want to keep them in sync or not. These two cases are different.
 
 		if strings.Contains(err.Error(), "tls: failed to verify certificate") {
-			logger.Warn().Err(err).Msg("Failed to connect to database with TLS. Retrying TLS, but with disabled chain and host verification.")
+			logger.Info().Err(err).Msg("Failed to connect to database with TLS. Retrying TLS, but with disabled chain and host verification.")
 			_ = db.Close()
 			db = initDBConnection(c, &tls.Config{InsecureSkipVerify: true})
 		} else if strings.Contains(err.Error(), "tls: first record does not look like a TLS handshake") {
 			_ = db.Close()
-			logger.Warn().Err(err).Msg("Failed to connect to database with TLS. Trying without TLS at all.")
+			logger.Info().Err(err).Msg("Failed to connect to database with TLS. Trying without TLS at all.")
 			db = initDBConnection(c, nil)
+		} else {
+			logger.Info().Err(err).Msg("Failed to ping database and could not apply recovery.")
 		}
 	}
 

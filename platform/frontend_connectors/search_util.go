@@ -110,7 +110,27 @@ func (q *QueryRunner) resolveIndexesNonCommonTable(ctx context.Context, clickhou
 		return
 	}
 
-	currentSchema = resolvedSchema
+	// Clone the resolved schema to currentSchema
+	//
+	// Schema can be modified during the query execution, we don't want to modify the original schema, and we don't need any concurrency issues here.
+	//
+	// resolveIndexesCommonTable also returns an ephemeral schema
+
+	currentSchema = schema.Schema{
+		Fields:             make(map[schema.FieldName]schema.Field),
+		Aliases:            make(map[schema.FieldName]schema.FieldName),
+		ExistsInDataSource: resolvedSchema.ExistsInDataSource,
+		DatabaseName:       resolvedSchema.DatabaseName,
+	}
+
+	for fieldName, field := range resolvedSchema.Fields {
+		currentSchema.Fields[fieldName] = field
+	}
+
+	for aliasName, targetFieldName := range resolvedSchema.Aliases {
+		currentSchema.Aliases[aliasName] = targetFieldName
+	}
+
 	return
 }
 

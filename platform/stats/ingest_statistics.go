@@ -83,9 +83,6 @@ func (s *Statistics) process(index string,
 
 	flatJson := util.FlattenMap(jsonData, nestedSeparator)
 
-	mu.Lock()
-	defer mu.Unlock()
-
 	statistics, ok := (*s)[index]
 	if !ok {
 		statistics = &IngestStatistics{IndexName: index, Keys: make(map[string]*KeyStatistics)}
@@ -121,6 +118,10 @@ func (s *Statistics) process(index string,
 }
 
 func (s *Statistics) Process(ingestStatsEnabled bool, index string, jsonData types.JSON, nestedSeparator string) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
 	if ingestStatsEnabled {
 		s.process(index, jsonData, false, nestedSeparator)
 	}
@@ -130,6 +131,10 @@ func (s *Statistics) Process(ingestStatsEnabled bool, index string, jsonData typ
 }
 
 func (s *Statistics) UpdateNonSchemaValues(ingestStatsEnabled bool, index string, jsonData types.JSON, nestedSeparator string) {
+
+	mu.Lock()
+	defer mu.Unlock()
+
 	if ingestStatsEnabled {
 		s.process(index, jsonData, true, nestedSeparator)
 	}

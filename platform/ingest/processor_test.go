@@ -68,10 +68,11 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 
 	tableName, exists := fieldsMap.Load("tableName")
+	tableName.Config = hasOthersConfig
 	assert.True(t, exists)
 	f := func(t1, t2 TableMap) {
 		ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
-		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(tableName, types.MustJSON(rowToInsert), nil, hasOthersConfig, encodings)
+		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(tableName, types.MustJSON(rowToInsert), nil, encodings)
 		assert.NoError(t, err)
 		j, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		assert.NoError(t, err)
@@ -604,8 +605,7 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_1(t *testing.T) {
 	table := clickhouse.Table{
-		Created: false,
-		Name:    "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
+		Name: "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
 		Cols: map[string]*clickhouse.Column{
 			"doc": {
 				Name: "doc",
@@ -656,16 +656,10 @@ func TestCreateTableString_1(t *testing.T) {
 			PrimaryKey:           "",
 			Ttl:                  "",
 			Attributes: []clickhouse.Attribute{
-				clickhouse.NewDefaultInt64Attribute(),
 				clickhouse.NewDefaultStringAttribute(),
-				clickhouse.NewDefaultBoolAttribute(),
 			},
 			CastUnsupportedAttrValueTypesToString: false,
 			PreferCastingToOthers:                 false,
-		},
-		Indexes: []clickhouse.IndexStatement{
-			clickhouse.GetIndexStatement("body"),
-			clickhouse.GetIndexStatement("severity"),
 		},
 	}
 	expectedRows := []string{
@@ -682,16 +676,8 @@ func TestCreateTableString_1(t *testing.T) {
 		`"updated_at" DateTime64`,
 		`),`,
 		`"@timestamp" DateTime64,`,
-		`"attributes_int64_key" Array(String),`,
-		`"attributes_int64_value" Array(Int64),`,
-		`"attributes_string_key" Array(String),`,
-		`"attributes_string_value" Array(String),`,
-		`"attributes_bool_key" Array(String),`,
-		`"attributes_bool_value" Array(Bool),`,
 		`"attributes_values" Map(String,String),`,
-		`"attributes_metadata" Map(String,String),`,
-		`INDEX body_idx body TYPE tokenbf_v1(10240, 3, 0) GRANULARITY 4,`,
-		`INDEX severity_idx severity TYPE set(25) GRANULARITY 4`,
+		`"attributes_metadata" Map(String,String)`,
 		`)`,
 		`ENGINE = MergeTree`,
 		`ORDER BY (@timestamp)`,
@@ -706,8 +692,7 @@ func TestCreateTableString_1(t *testing.T) {
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_NewDateTypes(t *testing.T) {
 	table := clickhouse.Table{
-		Created: false,
-		Name:    "abc",
+		Name: "abc",
 		Cols: map[string]*clickhouse.Column{
 			"low_card_string": {
 				Name: "low_card_string",

@@ -1133,7 +1133,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"host_name" __quesma_match '%prometheus%'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name" ILIKE '%prometheus%' LIMIT 10`},
+		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name"='prometheus' LIMIT 10`},
 		[]string{},
 	},
 	{ // [6]
@@ -1712,7 +1712,7 @@ var TestsSearch = []SearchTestCase{
 			  "stream_namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" ILIKE '%User logged out%' AND "host_name" ILIKE '%poseidon%')
+			WHERE (("message" ILIKE '%User logged out%' AND "host_name"='poseidon')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
@@ -1870,7 +1870,7 @@ var TestsSearch = []SearchTestCase{
 			  "namespace" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM __quesma_table_name
-			WHERE (("message" ILIKE '%User logged out%' AND "host_name" ILIKE '%poseidon%')
+			WHERE (("message" ILIKE '%User logged out%' AND "host_name"='poseidon')
 			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
 			GROUP BY "namespace" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
@@ -2148,7 +2148,7 @@ var TestsSearch = []SearchTestCase{
 					},
 					{
 					  "match_phrase": {
-						"_id": "323032342d30352d32342031333a33323a34372e333037202b3030303020555443q1"
+						"_id": "323032342d30352d32342031333a33323a34372e333037202b3030303020555443qqq111111111111111111111111111111111111111111111111111111111111"
 					  }
 					}
 				  ]
@@ -2386,7 +2386,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		`{
 			"query": {
 				"ids": {
-					 "values": ["323032342d31322d32312030373a32393a30332e333637202b3030303020555443q1"]
+					 "values": ["323032342d31322d32312030373a32393a30332e333637202b3030303020555443qqq1111111111111111111111111111111111111111"]
 				}
 			},
 			"track_total_hits": false
@@ -2407,8 +2407,8 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			"query": {
 				"ids": {
 					 "values": [
-						"323032342d31322d32312030373a32393a30332e333637202b3030303020555443q1",
-						"323032342d31322d32312030373a32393a30322e393932202b3030303020555443q3"
+						"323032342d31322d32312030373a32393a30332e333637202b3030303020555443qqq111111111111111111111111111",
+ 						"323032342d31322d32312030373a32393a30322e393932202b3030303020555443qqq111111111111111111111111111"
 					]
 				}
 			},
@@ -2420,7 +2420,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE "@timestamp" IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3)) ` +
-				`LIMIT 10`,
+				`LIMIT 10000`,
 		},
 		[]string{},
 	},
@@ -2429,7 +2429,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		`{
 			"query": {
 				"ids": {
-					 "values": ["323032342d31322d32312030373a32393a30332e333637303030303030q1"]
+					 "values": ["323032342d31322d32312030373a32393a30332e333637303030303030qqq123qqq11111111111111111111111111111111111111111111111"]
 				}
 			},
 			"track_total_hits": false
@@ -2440,7 +2440,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.367000000',9) ` +
-				`LIMIT 10`,
+				`LIMIT 10000`,
 		},
 		[]string{},
 	},
@@ -2449,7 +2449,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		`{
 			"query": {
 				"ids": {
-					 "values": ["323032342d31322d32312030373a32393a30332e313233343536373839q123"]
+					 "values": ["323032342d31322d32312030373a32393a30332e313233343536373839qqq123qqq11111111111111111111111111111111111111111111111"]
 				}
 			},
 			"track_total_hits": false
@@ -2460,7 +2460,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.123456789',9) ` +
-				`LIMIT 10`,
+				`LIMIT 10000`,
 		},
 		[]string{},
 	},
@@ -2469,7 +2469,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		`{
 			"query": {
 				"ids": {
-					 "values": ["323032342d31322d32312030373a32393a3033q1"]
+					 "values": ["323032342d31322d32312030373a32393a3033qqq11111111111111111111111111111111111111111111111"]
 				}
 			},
 			"track_total_hits": false
@@ -2480,7 +2480,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03',0) ` +
-				`LIMIT 10`,
+				`LIMIT 10000`,
 		},
 		[]string{},
 	},
@@ -2489,7 +2489,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		`{
 			"query": {
 				"ids": {
-					 "values": ["323032342d31322d32312030373a32393a30332e33q1"]
+					 "values": ["323032342d31322d32312030373a32393a30332e33qqq11111111111111111111111111111111111111111111111"]
 				}
 			},
 			"track_total_hits": false
@@ -2500,11 +2500,70 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
 				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.3',1) ` +
-				`LIMIT 10`,
+				`LIMIT 10000`,
 		},
 		[]string{},
 	},
 	{ // [49]
+		Name: "range with int as datetime. when all query tests use transformers, expected results should be different",
+		QueryJson: `
+		{
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"tsAsUInt64": {
+									"format": "strict_date_optional_time",
+									"gte": "2025-03-25T12:32:51.527Z",
+									"lte": "2025-03-25T12:47:51.527Z"
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		WantedSql:       []string{`("tsAsUInt64">='2025-03-25T12:32:51.527Z' AND "tsAsUInt64"<='2025-03-25T12:47:51.527Z')`},
+		WantedQueryType: model.ListAllFields,
+		WantedRegexes: []string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE ("tsAsUInt64">=1742905971527 AND "tsAsUInt64"<=1742906871527) ` +
+				`LIMIT 10`,
+		},
+	},
+	{ // [50]
+		Name: "range with int not as datetime. when all query tests use transformers, expected results should be different",
+		QueryJson: `
+		{
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"tsAsUInt64": {
+									"gte": 15,
+									"lte": "2025"
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		WantedSql:       []string{`("tsAsUInt64">=15 AND "tsAsUInt64"<=2025)`},
+		WantedQueryType: model.ListAllFields,
+		WantedRegexes: []string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE ("tsAsUInt64">=15 AND "tsAsUInt64"<=1735689600000) ` +
+				`LIMIT 10`,
+		},
+	},
+	{ // [51]
 		"_index term",
 		`{
 			"query": { /*one comment */

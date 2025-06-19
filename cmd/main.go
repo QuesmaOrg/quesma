@@ -58,7 +58,10 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	doneCh := make(chan struct{})
 
-	var newConfiguration = config.LoadV2Config()
+	var newConfiguration, configErr = config.LoadV2Config()
+	if configErr != nil {
+		return // We log error in LoadV2Config
+	}
 	var cfg = newConfiguration.TranslateToLegacyConfig()
 
 	if err := cfg.Validate(); err != nil {
@@ -88,7 +91,7 @@ func main() {
 
 	virtualTableStorage := persistence.NewElasticJSONDatabase(cfg.Elasticsearch, common_table.VirtualTableElasticIndexName)
 	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.SchemaTypeAdapter{})
+	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.NewSchemaTypeAdapter(cfg.DefaultStringColumnType))
 	schemaRegistry.Start()
 
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch)

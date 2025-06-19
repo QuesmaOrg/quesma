@@ -19,8 +19,6 @@ type Table struct {
 	ClusterName  string `default:""`
 	Cols         map[string]*Column
 	Config       *ChTableConfig
-	Created      bool // do we need to create it during first insert
-	Indexes      []IndexStatement
 	aliases      map[string]string //deprecated
 	// TODO: we should use aliases directly from configuration, not store them here
 	Comment          string // this human-readable comment
@@ -71,9 +69,6 @@ func (t *Table) CreateTableString() string {
 		rows = append(rows, col.createTableString(1))
 	}
 	rows = append(rows, t.createTableOurFieldsString()...)
-	for _, index := range t.Indexes {
-		rows = append(rows, util.Indent(1)+index.Statement())
-	}
 	return s + strings.Join(rows, ",\n") + "\n)\n" + t.Config.CreateTablePostFieldsString()
 }
 
@@ -190,4 +185,9 @@ func (t *Table) GetFieldInfo(ctx context.Context, fieldName string) FieldInfo {
 		return ExistsAndIsArray
 	}
 	return ExistsAndIsBaseType
+}
+
+func (t *Table) IsInt(fieldName string) bool {
+	col, ok := t.Cols[fieldName]
+	return ok && col.Type != nil && strings.Contains(col.Type.String(), "Int")
 }

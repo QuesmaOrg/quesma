@@ -5,6 +5,7 @@ package bulk
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/ingest"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
@@ -140,7 +141,7 @@ func TestSplitBulkSampleData(t *testing.T) {
 	maxBulkSize := len(bulk)
 
 	// first returned value here is a result of side effects (writes to ClickHouse and Elasticsearch) so it is not tested here
-	_, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver)
+	_, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver, &ingest.NoOpIndexNameRewriter{})
 
 	assert.NoError(t, err)
 	assert.Len(t, clickhouseBulkEntries["kibana_sample_data_ecommerce"], 5)
@@ -160,7 +161,7 @@ func TestSplitBulkDelete(t *testing.T) {
 	maxBulkSize := len(bulk)
 
 	// first returned value here is a result of side effects (writes to ClickHouse and Elasticsearch) so it is not tested here
-	_, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver)
+	_, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver, &ingest.NoOpIndexNameRewriter{})
 
 	assert.NoError(t, err)
 	assert.Len(t, clickhouseBulkEntries, 0)
@@ -188,7 +189,7 @@ func TestSplitBulkUpdatePayload(t *testing.T) {
 	maxBulkSize := len(bulk)
 
 	// first returned value here is a result of side effects (writes to ClickHouse and Elasticsearch) so it is not tested here
-	_, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver)
+	_, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver, &ingest.NoOpIndexNameRewriter{})
 
 	assert.NoError(t, err)
 	assert.Len(t, clickhouseBulkEntries, 0)
@@ -216,7 +217,7 @@ func TestSplitBulkMixedPayload(t *testing.T) {
 	}
 	maxBulkSize := len(bulk)
 
-	results, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver)
+	results, clickhouseBulkEntries, elasticRequestBody, elasticBulkEntries, err := SplitBulk(ctx, &defaultIndex, bulk, maxBulkSize, testTableResolver, &ingest.NoOpIndexNameRewriter{})
 
 	assert.NoError(t, err)
 	assert.Len(t, results, maxBulkSize)
