@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/k0kubun/pp"
-	"strconv"
 )
 
 // Expr is a generic representation of an expression which is a part of the SQL query.

@@ -265,12 +265,13 @@ func (query *DateHistogram) calculateResponseKeyInUTC(originalKey int64) int64 {
 // originalKey is the key as it came from our SQL request (e.g. returned by query.getKey)
 func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
 	keyInUTC := query.calculateResponseKeyInUTC(originalKey)
+	return keyInUTC
 
-	ts := time.UnixMilli(keyInUTC)
-	intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
-
-	_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
-	return keyInUTC - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
+	//ts := time.UnixMilli(keyInUTC)
+	//intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
+	//
+	//_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
+	//return keyInUTC - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
 }
 
 func (query *DateHistogram) fromUTCToWantedTimezone(tsUTC int64) int64 {
@@ -282,7 +283,7 @@ func (query *DateHistogram) fromUTCToWantedTimezone(tsUTC int64) int64 {
 }
 
 func (query *DateHistogram) calculateKeyAsString(key int64) string {
-	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000") // TODO: check if this necessary Format("2006/01/02 15:04:05")
+	return time.UnixMilli(key).In(query.wantedTimezone).Format("2006-01-02T15:04:05.000") // TODO: check if this necessary Format("2006/01/02 15:04:05")
 }
 
 func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {

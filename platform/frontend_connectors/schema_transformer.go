@@ -1212,9 +1212,11 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			switch field.Type.String() {
 			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
 				rhs.Value = strings.Trim(rhsValue, "%")
-				rhs.EscapeType = model.NormalNotEscaped
+				rhs.Attrs[model.EscapeKey] = model.NormalNotEscaped
 				return equal()
 			case schema.QuesmaTypeKeyword.Name:
+				rhs.Value = strings.Trim(rhsValue, "%")
+				rhs.Attrs[model.EscapeKey] = model.FullyEscaped
 				return equal()
 			default:
 				if rhsValue == "%%" { // ILIKE '%%' has terrible performance, but semantically means "is not null", hence this transformation
