@@ -707,7 +707,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
 	}
-	var jsonsReadyForInsertion []string
 	var alterCmd []string
 	var validatedJsons []types.JSON
 	var invalidJsons []types.JSON
@@ -715,6 +714,11 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
+	return LowerToDDL(validatedJsons, ip, table, invalidJsons, encodings, alterCmd, createTableCmd)
+}
+
+func LowerToDDL(validatedJsons []types.JSON, ip *IngestProcessor, table *chLib.Table, invalidJsons []types.JSON, encodings map[schema.FieldEncodingKey]schema.EncodedFieldName, alterCmd []string, createTableCmd string) ([]string, error) {
+	var jsonsReadyForInsertion []string
 	for i, preprocessedJson := range validatedJsons {
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], encodings)
