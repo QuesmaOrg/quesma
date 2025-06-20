@@ -201,7 +201,7 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
-			ingest.virtualTableStorage = virtualTableStorage
+			ingest.lowerer.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
 			ingest.tableResolver = resolver
 
@@ -219,7 +219,7 @@ func TestIngestToCommonTable(t *testing.T) {
 				}
 
 				tables.Store(indexName, testTable)
-				err = ingest.storeVirtualTable(testTable)
+				err = storeVirtualTable(testTable, ingest.lowerer.virtualTableStorage)
 				if err != nil {
 					t.Fatalf("error storing virtual table: %v", err)
 				}
