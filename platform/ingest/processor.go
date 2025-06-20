@@ -792,7 +792,11 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
-	return ip.lowerer.LowerToDDL(validatedJsons, table, invalidJsons, encodings, alterCmd, createTableCmd)
+	ddlLowerer, ok := ip.lowerers[ip.chDb.GetId()]
+	if !ok {
+		return nil, fmt.Errorf("no lowerer registered for connector type %s", quesma_api.GetBackendConnectorNameFromType(ip.chDb.GetId()))
+	}
+	return ddlLowerer.LowerToDDL(validatedJsons, table, invalidJsons, encodings, alterCmd, createTableCmd)
 }
 
 func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonData []types.JSON) error {
