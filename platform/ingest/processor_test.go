@@ -9,6 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/goccy/go-json"
 	"strings"
@@ -22,10 +23,13 @@ func newIngestProcessorWithEmptyTableMap(tables *TableMap, cfg *config.QuesmaCon
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
 	lowerer := NewSqlLowerer(persistence.NewStaticJSONDatabase())
-	return &IngestProcessor{chDb: nil, tableDiscovery: clickhouse.NewTableDiscoveryWith(cfg, nil, *tables),
+	processor := &IngestProcessor{chDb: nil, tableDiscovery: clickhouse.NewTableDiscoveryWith(cfg, nil, *tables),
 		cfg: cfg, phoneHomeClient: diag.NewPhoneHomeEmptyAgent(),
-		lowerer: lowerer,
+		lowerers: make(map[quesma_api.BackendConnectorType]Lowerer),
+		lowerer:  lowerer,
 	}
+	processor.RegisterLowerer(lowerer, quesma_api.ClickHouseSQLBackend)
+	return processor
 }
 
 func newIngestProcessorEmpty() *IngestProcessor {
@@ -33,8 +37,10 @@ func newIngestProcessorEmpty() *IngestProcessor {
 	tableDefinitions.Store(NewTableMap())
 	cfg := &config.QuesmaConfiguration{}
 	lowerer := NewSqlLowerer(persistence.NewStaticJSONDatabase())
-	return &IngestProcessor{tableDiscovery: clickhouse.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
-		phoneHomeClient: diag.NewPhoneHomeEmptyAgent(), lowerer: lowerer}
+	processor := &IngestProcessor{tableDiscovery: clickhouse.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
+		phoneHomeClient: diag.NewPhoneHomeEmptyAgent(), lowerers: make(map[quesma_api.BackendConnectorType]Lowerer), lowerer: lowerer}
+	processor.RegisterLowerer(lowerer, quesma_api.ClickHouseSQLBackend)
+	return processor
 }
 
 var hasOthersConfig = &clickhouse.ChTableConfig{
