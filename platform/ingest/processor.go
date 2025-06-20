@@ -96,6 +96,9 @@ type (
 		ingestFieldStatistics     IngestFieldStatistics
 		ingestFieldStatisticsLock sync.Mutex
 	}
+	HydrolixLowerer struct {
+		virtualTableStorage persistence.JSONDatabase
+	}
 )
 
 func NewSqlLowerer(virtualTableStorage persistence.JSONDatabase) *SqlLowerer {
@@ -134,7 +137,25 @@ func (l *SqlLowerer) LowerToDDL(validatedJsons []types.JSON,
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
 
 	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
+}
 
+func NewHydrolixLowerer(virtualTableStorage persistence.JSONDatabase) *HydrolixLowerer {
+	return &HydrolixLowerer{
+		virtualTableStorage: virtualTableStorage,
+	}
+}
+
+func (l *HydrolixLowerer) LowerToDDL(validatedJsons []types.JSON,
+	table *chLib.Table,
+	invalidJsons []types.JSON,
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
+	alterCmd []string,
+	createTableCmd string) ([]string, error) {
+	for i, preprocessedJson := range validatedJsons {
+		_ = i
+		_ = preprocessedJson
+	}
+	return nil, fmt.Errorf("HydrolixLowerer is not implemented yet")
 }
 
 func NewTableMap() *TableMap {
