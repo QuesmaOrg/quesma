@@ -67,6 +67,7 @@ type Processor struct {
 	indexNameRewriter IndexNameRewriter
 
 	errorLogCounter atomic.Int64
+	lowerers        map[quesma_api.BackendConnectorType]Lowerer
 	lowerer         *SqlLowerer
 }
 
@@ -158,8 +159,8 @@ func (l *HydrolixLowerer) LowerToDDL(validatedJsons []types.JSON,
 	return nil, fmt.Errorf("HydrolixLowerer is not implemented yet")
 }
 
-func (ip *IngestProcessor) RegisterLowerer(lowerer Lowerer, connector quesma_api.BackendConnectorType) {
-
+func (ip *IngestProcessor) RegisterLowerer(lowerer Lowerer, connectorType quesma_api.BackendConnectorType) {
+	ip.lowerers[connectorType] = lowerer
 }
 
 func NewTableMap() *TableMap {
@@ -1121,7 +1122,10 @@ func (ip *IngestProcessor) GetIndexNameRewriter() IndexNameRewriter {
 func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, lowerer *SqlLowerer, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
 	indexRewriter := NewIndexNameRewriter(cfg)
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, lowerer: lowerer, tableResolver: tableResolver, indexNameRewriter: indexRewriter}
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb,
+		tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient,
+		schemaRegistry: schemaRegistry, lowerers: make(map[quesma_api.BackendConnectorType]Lowerer),
+		lowerer: lowerer, tableResolver: tableResolver, indexNameRewriter: indexRewriter}
 }
 
 func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {
