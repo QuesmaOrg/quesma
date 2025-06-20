@@ -669,12 +669,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		transformedJsons = append(transformedJsons, transformedJson)
 	}
 
-	return ip.generateIngestStatements(ctx, tableName, transformedJsons, tableFormatter, tableDefinitionChangeOnly, encodings)
-}
-
-func (ip *IngestProcessor) generateIngestStatements(ctx context.Context, tableName string,
-	transformedJsons []types.JSON, tableFormatter TableColumNameFormatter, tableDefinitionChangeOnly bool,
-	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, error) {
 	table := ip.FindTable(tableName)
 	var tableConfig *chLib.ChTableConfig
 	var createTableCmd string
