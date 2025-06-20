@@ -21,10 +21,10 @@ import (
 func newIngestProcessorWithEmptyTableMap(tables *TableMap, cfg *config.QuesmaConfiguration) *IngestProcessor {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
+	lowerer := NewSqlLowerer(persistence.NewStaticJSONDatabase())
 	return &IngestProcessor{chDb: nil, tableDiscovery: clickhouse.NewTableDiscoveryWith(cfg, nil, *tables),
 		cfg: cfg, phoneHomeClient: diag.NewPhoneHomeEmptyAgent(),
-		ingestFieldStatistics: make(IngestFieldStatistics),
-		virtualTableStorage:   persistence.NewStaticJSONDatabase(),
+		lowerer: lowerer,
 	}
 }
 
@@ -32,8 +32,9 @@ func newIngestProcessorEmpty() *IngestProcessor {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	cfg := &config.QuesmaConfiguration{}
+	lowerer := NewSqlLowerer(persistence.NewStaticJSONDatabase())
 	return &IngestProcessor{tableDiscovery: clickhouse.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
-		phoneHomeClient: diag.NewPhoneHomeEmptyAgent(), ingestFieldStatistics: make(IngestFieldStatistics)}
+		phoneHomeClient: diag.NewPhoneHomeEmptyAgent(), lowerer: lowerer}
 }
 
 var hasOthersConfig = &clickhouse.ChTableConfig{
@@ -72,7 +73,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	assert.True(t, exists)
 	f := func(t1, t2 TableMap) {
 		ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
-		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(tableName, types.MustJSON(rowToInsert), nil, encodings)
+		alter, onlySchemaFields, nonSchemaFields, err := ip.lowerer.GenerateIngestContent(tableName, types.MustJSON(rowToInsert), nil, encodings)
 		assert.NoError(t, err)
 		j, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		assert.NoError(t, err)

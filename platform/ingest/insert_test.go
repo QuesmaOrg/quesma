@@ -429,7 +429,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
-			ingest.virtualTableStorage = virtualTableStorage
+			ingest.lowerer.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
 			ingest.tableResolver = resolver
 

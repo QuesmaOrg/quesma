@@ -147,14 +147,14 @@ func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, o
 	//phoneHomeAgent := baseDeps.PhoneHomeAgent() //TODO perhaps remove? we could get away with Client if not the UI console. Because of that we have to use Agent
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(oldQuesmaConfig, connectionPool, "DuMMY_CLIENT_ID")
 	phoneHomeAgent.Start()
-
+	lowerer := ingest.NewSqlLowerer(virtualTableStorage)
 	ingestProcessor := ingest.NewIngestProcessor(
 		oldQuesmaConfig,
 		connectionPool,
 		phoneHomeAgent,
 		tableDisco,
 		schemaRegistry,
-		virtualTableStorage,
+		lowerer,
 		dummyTableResolver,
 	)
 	ingestProcessor.Start()
