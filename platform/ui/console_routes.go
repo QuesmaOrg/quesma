@@ -67,8 +67,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.HandleFunc(healthPath, qmc.checkHealth)
 	router.Handle(metricsPath, promhttp.Handler())
 
-	qmc.initPprof(router)
-
 	// just for oauth compliance
 	router.HandleFunc("/auth/{provider}", gothic.BeginAuthHandler)
 	router.HandleFunc("/auth/{provider}/callback", authCallbackHandler)
@@ -85,6 +83,8 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		qmc.isAuthEnabled = true
 		authenticatedRoutes.Use(authMiddleware)
 	}
+
+	qmc.initPprof(authenticatedRoutes)
 
 	authenticatedRoutes.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateDashboard()
