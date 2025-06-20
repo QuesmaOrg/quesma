@@ -54,28 +54,27 @@ type Ingester interface {
 	Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error
 }
 
+type Processor struct {
+	ctx             context.Context
+	cancel          context.CancelFunc
+	chDb            quesma_api.BackendConnector
+	tableDiscovery  chLib.TableDiscovery
+	cfg             *config.QuesmaConfiguration
+	phoneHomeClient diag.PhoneHomeClient
+	schemaRegistry  schema.Registry
+	tableResolver   table_resolver.TableResolver
+
+	indexNameRewriter IndexNameRewriter
+
+	errorLogCounter atomic.Int64
+	lowerer         *SqlLowerer
+}
+
 type (
-	IngestProcessor struct {
-		ctx                       context.Context
-		cancel                    context.CancelFunc
-		chDb                      quesma_api.BackendConnector
-		tableDiscovery            chLib.TableDiscovery
-		cfg                       *config.QuesmaConfiguration
-		phoneHomeClient           diag.PhoneHomeClient
-		schemaRegistry            schema.Registry
-		ingestCounter             int64
-		ingestFieldStatistics     IngestFieldStatistics
-		ingestFieldStatisticsLock sync.Mutex
-		virtualTableStorage       persistence.JSONDatabase
-		tableResolver             table_resolver.TableResolver
-
-		indexNameRewriter IndexNameRewriter
-
-		errorLogCounter atomic.Int64
-	}
-	TableMap  = util.SyncMap[string, *chLib.Table]
-	SchemaMap = map[string]interface{} // TODO remove
-	Attribute struct {
+	IngestProcessor Processor
+	TableMap        = util.SyncMap[string, *chLib.Table]
+	SchemaMap       = map[string]interface{} // TODO remove
+	Attribute       struct {
 		KeysArrayName   string
 		ValuesArrayName string
 		TypesArrayName  string
@@ -83,7 +82,37 @@ type (
 		MapMetadataName string
 		Type            chLib.BaseType
 	}
+	Lowerer interface {
+		LowerToDDL(validatedJsons []types.JSON,
+			table *chLib.Table,
+			invalidJsons []types.JSON,
+			encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
+			alterCmd []string,
+			createTableCmd string) ([]string, error)
+	}
+	SqlLowerer struct {
+		virtualTableStorage       persistence.JSONDatabase
+		ingestCounter             int64
+		ingestFieldStatistics     IngestFieldStatistics
+		ingestFieldStatisticsLock sync.Mutex
+	}
 )
+
+func NewSqlLowerer(virtualTableStorage persistence.JSONDatabase) *SqlLowerer {
+	return &SqlLowerer{
+		virtualTableStorage:   virtualTableStorage,
+		ingestFieldStatistics: make(IngestFieldStatistics),
+	}
+}
+
+func (l *SqlLowerer) LowerToDDL(validatedJsons []types.JSON,
+	table *chLib.Table,
+	invalidJsons []types.JSON,
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
+	alterCmd []string,
+	createTableCmd string) ([]string, error) {
+	return nil, nil
+}
 
 func NewTableMap() *TableMap {
 	return util.NewSyncMap[string, *chLib.Table]()
@@ -329,7 +358,7 @@ func getAttributesByArrayName(arrayName string,
 // AttributesMap contains the attributes that are not part of the schema
 // Function has side effects, it modifies the table.Cols map
 // and removes the attributes that were promoted to columns
-func (ip *IngestProcessor) generateNewColumns(
+func (ip *SqlLowerer) generateNewColumns(
 	attrsMap map[string][]interface{},
 	table *chLib.Table,
 	alteredAttributesIndexes []int,
@@ -395,7 +424,7 @@ func (ip *IngestProcessor) generateNewColumns(
 	table.Cols = newColumns
 
 	if table.VirtualTable {
-		err := ip.storeVirtualTable(table)
+		err := storeVirtualTable(table, ip.virtualTableStorage)
 		if err != nil {
 			logger.Error().Msgf("error storing virtual table: %v", err)
 		}
@@ -482,7 +511,7 @@ func generateNonSchemaFields(attrsMap map[string][]interface{}) ([]NonSchemaFiel
 }
 
 // This function implements heuristic for deciding if we should add new columns
-func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[string][]interface{}) (bool, []int) {
+func (ip *SqlLowerer) shouldAlterColumns(table *chLib.Table, attrsMap map[string][]interface{}) (bool, []int) {
 	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
 	alterColumnIndexes := make([]int, 0)
 
@@ -537,7 +566,7 @@ func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[s
 	return false, nil
 }
 
-func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
+func (ip *SqlLowerer) GenerateIngestContent(table *chLib.Table,
 	data types.JSON,
 	inValidJson types.JSON,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, types.JSON, []NonSchemaField, error) {
@@ -714,10 +743,10 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
-	return LowerToDDL(validatedJsons, ip, table, invalidJsons, encodings, alterCmd, createTableCmd)
+	return LowerToDDL(validatedJsons, ip.lowerer, table, invalidJsons, encodings, alterCmd, createTableCmd)
 }
 
-func LowerToDDL(validatedJsons []types.JSON, ip *IngestProcessor, table *chLib.Table, invalidJsons []types.JSON, encodings map[schema.FieldEncodingKey]schema.EncodedFieldName, alterCmd []string, createTableCmd string) ([]string, error) {
+func LowerToDDL(validatedJsons []types.JSON, ip *SqlLowerer, table *chLib.Table, invalidJsons []types.JSON, encodings map[schema.FieldEncodingKey]schema.EncodedFieldName, alterCmd []string, createTableCmd string) ([]string, error) {
 	var jsonsReadyForInsertion []string
 	for i, preprocessedJson := range validatedJsons {
 		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
@@ -988,7 +1017,7 @@ func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {
 	return result
 }
 
-func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
+func storeVirtualTable(table *chLib.Table, virtualTableStorage persistence.JSONDatabase) error {
 
 	now := time.Now()
 
@@ -1030,7 +1059,7 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 		return err
 	}
 
-	return ip.virtualTableStorage.Put(table.Name, string(data))
+	return virtualTableStorage.Put(table.Name, string(data))
 }
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
@@ -1040,7 +1069,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 		table.ApplyIndexConfig(ip.cfg)
 
 		if table.VirtualTable {
-			err := ip.storeVirtualTable(table)
+			err := storeVirtualTable(table, ip.lowerer.virtualTableStorage)
 			if err != nil {
 				logger.Error().Msgf("error storing virtual table: %v", err)
 			}
@@ -1067,10 +1096,10 @@ func (ip *IngestProcessor) GetIndexNameRewriter() IndexNameRewriter {
 	return ip.indexNameRewriter
 }
 
-func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, lowerer *SqlLowerer, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
 	indexRewriter := NewIndexNameRewriter(cfg)
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver, indexNameRewriter: indexRewriter}
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, lowerer: lowerer, tableResolver: tableResolver, indexNameRewriter: indexRewriter}
 }
 
 func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {

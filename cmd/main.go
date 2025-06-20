@@ -111,8 +111,8 @@ func main() {
 			// Ensure common table exists. This table have to be created before ingest processor starts
 			common_table.EnsureCommonTableExists(connectionPool, cfg.ClusterName)
 		}
-
-		ingestProcessor = ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage, tableResolver)
+		lowerer := ingest.NewSqlLowerer(virtualTableStorage)
+		ingestProcessor = ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, lowerer, tableResolver)
 	} else {
 		logger.Info().Msg("Ingest processor is disabled.")
 	}
