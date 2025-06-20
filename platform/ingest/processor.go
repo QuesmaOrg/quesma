@@ -111,7 +111,30 @@ func (l *SqlLowerer) LowerToDDL(validatedJsons []types.JSON,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
 	alterCmd []string,
 	createTableCmd string) ([]string, error) {
-	return nil, nil
+	var jsonsReadyForInsertion []string
+	for i, preprocessedJson := range validatedJsons {
+		alter, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
+			invalidJsons[i], encodings)
+
+		if err != nil {
+			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
+		}
+		insertJson, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
+		if err != nil {
+			return nil, fmt.Errorf("error generatateInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
+		}
+		alterCmd = append(alterCmd, alter...)
+		if err != nil {
+			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
+		}
+		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
+	}
+
+	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
+	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
+
+	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
+
 }
 
 func NewTableMap() *TableMap {
