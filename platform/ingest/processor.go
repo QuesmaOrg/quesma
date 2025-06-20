@@ -158,6 +158,10 @@ func (l *HydrolixLowerer) LowerToDDL(validatedJsons []types.JSON,
 	return nil, fmt.Errorf("HydrolixLowerer is not implemented yet")
 }
 
+func (ip *IngestProcessor) RegisterLowerer(lowerer Lowerer, connector quesma_api.BackendConnectorType) {
+
+}
+
 func NewTableMap() *TableMap {
 	return util.NewSyncMap[string, *chLib.Table]()
 }
