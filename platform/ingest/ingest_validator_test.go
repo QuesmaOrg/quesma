@@ -15,6 +15,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	mux "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/stretchr/testify/assert"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -122,21 +123,20 @@ func TestIngestValidation(t *testing.T) {
 		]}`,
 	}
 	expectedInsertJsons := []string{
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"string_field":"10"},"attributes_metadata":{"string_field":"v1;Int64"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"string_field":"v1;Int64"},"attributes_values":{"string_field":"10"}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"string_field":"10"}`, tableName),
 
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int_field":15}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int_field":15}`, tableName),
 
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int_field":"15"}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"int_field":"1.5"},"attributes_metadata":{"int_field":"v1;String"}}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"string_field":"15"},"attributes_metadata":{"string_field":"v1;Int64"}}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"string_field":"1.5"},"attributes_metadata":{"string_field":"v1;Float64"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"int_field":"v1;String"},"attributes_values":{"int_field":"1.5"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"string_field":"v1;Int64"},"attributes_values":{"string_field":"15"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"string_field":"v1;Float64"},"attributes_values":{"string_field":"1.5"}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int_array_field":[81,85,69,83,77,65]}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"string_array_field":["DHRFZN","HLVJDR"]}`, tableName),
-
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"int_array_field":"[81,\\"oops\\",69,83,77,65]"},"attributes_metadata":{"int_array_field":"v1;Array(Int64)"}}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"string_array_field":"[\\"DHRFZN\\",15,\\"HLVJDR\\"]"},"attributes_metadata":{"string_array_field":"v1;Array(String)"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"int_array_field":"v1;Array(Int64)"},"attributes_values":{"int_array_field":"[81,\\\"oops\\\",69,83,77,65]"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"string_array_field":"v1;Array(String)"},"attributes_values":{"string_array_field":"[\\\"DHRFZN\\\",15,\\\"HLVJDR\\\"]"}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int32_field":15}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":7.5}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":15}`, tableName),
@@ -144,11 +144,11 @@ func TestIngestValidation(t *testing.T) {
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":"15.55"}`, tableName),
 
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int32_field":2147483647}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"int32_field":"2147483648"},"attributes_metadata":{"int32_field":"v1;Int64"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"int32_field":"v1;Int64"},"attributes_values":{"int32_field":"2147483648"}}`, tableName),
 
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"uint8_field":"-1"},"attributes_metadata":{"uint8_field":"v1;Int64"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"uint8_field":"v1;Int64"},"attributes_values":{"uint8_field":"-1"}}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"uint8_field":255}`, tableName),
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_values":{"uint8_field":"1000"},"attributes_metadata":{"uint8_field":"v1;Int64"}}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_metadata":{"uint8_field":"v1;Int64"},"attributes_values":{"uint8_field":"1000"}}`, tableName),
 
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_array_field":[3.14,6.28,0.99]}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_array_field":[1,2,3]}`, tableName),
@@ -235,8 +235,66 @@ func TestIngestValidation(t *testing.T) {
 			}},
 		},
 	})
+
+	splitInsertJSONEachRow := func(sql string) (prefix, jsonPart string, ok bool) {
+		idx := strings.Index(sql, "{")
+		if idx == -1 {
+			return "", "", false // not a JSONEachRow insert or malformed
+		}
+		return sql[:idx], sql[idx:], true
+	}
+
 	for i := range inputJson {
-		conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
+
+		queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+
+			dumpState := func() {
+				fmt.Println("Expected SQL:", expectedSQL)
+				fmt.Println("Actual SQL:  ", actualSQL)
+				fmt.Println("---")
+			}
+
+			expectedInsert, expectedJson, ok := splitInsertJSONEachRow(expectedSQL)
+			if !ok {
+				dumpState()
+				return fmt.Errorf("expected SQL does not match JSONEachRow format: %s", expectedSQL)
+			}
+
+			actualInsert, actualJson, ok := splitInsertJSONEachRow(actualSQL)
+			if !ok {
+				dumpState()
+				return fmt.Errorf("actual SQL does not match JSONEachRow format: %s", actualSQL)
+			}
+
+			if expectedInsert != actualInsert {
+				dumpState()
+				return fmt.Errorf("expected insert prefix '%s' does not match actual '%s'", expectedInsert, actualInsert)
+			}
+
+			expectedMap, err := types.ParseJSON(expectedJson)
+			if err != nil {
+				dumpState()
+				return fmt.Errorf("failed to parse expected JSON: %s, error: %v", expectedJson, err)
+			}
+			actualMap, err := types.ParseJSON(actualJson)
+			if err != nil {
+				dumpState()
+				return fmt.Errorf("failed to parse actual JSON: %s, error: %v", actualJson, err)
+			}
+
+			if !reflect.DeepEqual(expectedMap, actualMap) {
+				dumpState()
+				return fmt.Errorf("expected JSON %s does not match actual JSON %s", expectedJson, actualJson)
+			}
+
+			return nil
+		})
+
+		conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))
+		if err != nil {
+			t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+		}
+
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		ip := newIngestProcessorEmpty()
 		ip.chDb = db
@@ -253,9 +311,10 @@ func TestIngestValidation(t *testing.T) {
 
 		defer db.Close()
 
-		mock.ExpectExec(EscapeBrackets(expectedInsertJsons[i])).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))
-		err := ip.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((inputJson[i]))}, &IngestTransformerTest{}, &columNameFormatter{separator: "::"})
+		mock.ExpectExec(expectedInsertJsons[i]).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))
+		err = ip.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((inputJson[i]))}, &IngestTransformerTest{}, &columNameFormatter{separator: "::"})
 		assert.NoError(t, err)
+
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Fatal("there were unfulfilled expections:", err)
 		}
