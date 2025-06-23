@@ -793,7 +793,8 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		// This comes externally from (configuration)
 		// So we need to convert that separately
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter, tableName, ip.schemaRegistry.GetFieldEncodings())
-		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName), Indexes(transformedJsons[0]))
+		resultColumns := columnsToProperties(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName)
+		columnsAsString := columnsWithIndexes(columnPropertiesToString(resultColumns), Indexes(transformedJsons[0]))
 		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
 		var err error
 		table, err = ip.createTableObjectAndAttributes(ctx, tableName, columnsFromJson, columnsFromSchema, tableConfig, tableDefinitionChangeOnly)

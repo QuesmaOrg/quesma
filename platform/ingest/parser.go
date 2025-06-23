@@ -31,72 +31,96 @@ func reverseFieldEncoding(fieldEncodings map[schema.FieldEncodingKey]schema.Enco
 	return res
 }
 
-// Rendering columns to string
-func columnsToString(columnsFromJson []CreateTableEntry,
+type ColumnProperties struct {
+	ColumnName   string
+	ColumnType   string
+	Comment      string
+	PropertyName string
+}
+
+// Returns a slice of ColumnProperties containing all needed column properties
+func columnsToProperties(columnsFromJson []CreateTableEntry,
 	columnsFromSchema map[schema.FieldName]CreateTableEntry,
 	fieldEncodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
 	tableName string,
-) string {
+) []ColumnProperties {
 
 	reverseMap := reverseFieldEncoding(fieldEncodings, tableName)
 
-	var result strings.Builder
-	first := true
+	var columnProperties []ColumnProperties
 	for _, columnFromJson := range columnsFromJson {
-		if first {
-			first = false
-		} else {
-			result.WriteString(",\n")
-		}
-		result.WriteString(util.Indent(1))
-
 		propertyName := reverseMap[schema.EncodedFieldName(columnFromJson.ClickHouseColumnName)].FieldName
 
 		columnMetadata := comment_metadata.NewCommentMetadata()
 		columnMetadata.Values[comment_metadata.ElasticFieldName] = propertyName
 		comment := columnMetadata.Marshall()
+
 		if columnFromSchema, found := columnsFromSchema[schema.FieldName(columnFromJson.ClickHouseColumnName)]; found {
 			// Check if the type is an Array – if so, fallback to JSON type
 			if strings.Contains(columnFromJson.ClickHouseType, "Array") {
-				// The schema (e.g. PUT /:index/_mapping) doesn't contain information about whether a field is an array or not.
-				// Therefore, we have to combine the information from the schema and the JSON in such case.
-				// For example: in the mapping we have a field "products.name" with type "keyword" (String)
-				// and in the JSON "products.name" is an array of strings (Array(String)).
 				if strings.Count(columnFromJson.ClickHouseType, "Array") > 1 {
 					logger.Warn().Msgf("Column '%s' has type '%s' - an array nested multiple times. Such case might not be handled correctly.", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType)
 				}
-				result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType+" COMMENT ", comment))
-				// TODO this should be changed to use the schema type, but needs further investigation
-				//result.WriteString(fmt.Sprintf("\"%s\" Array(%s) COMMENT '%s'", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType, comment))
+				columnProperties = append(columnProperties, ColumnProperties{
+					ColumnName:   columnFromJson.ClickHouseColumnName,
+					ColumnType:   columnFromJson.ClickHouseType,
+					Comment:      comment,
+					PropertyName: propertyName,
+				})
 			} else {
-				// Use schema type
-				result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType+" COMMENT ", comment))
+				columnProperties = append(columnProperties, ColumnProperties{
+					ColumnName:   columnFromSchema.ClickHouseColumnName,
+					ColumnType:   columnFromSchema.ClickHouseType,
+					Comment:      comment,
+					PropertyName: propertyName,
+				})
 			}
 		} else {
-			// Not found in schema – fallback to JSON type
-			result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType+" COMMENT ", comment))
+			columnProperties = append(columnProperties, ColumnProperties{
+				ColumnName:   columnFromJson.ClickHouseColumnName,
+				ColumnType:   columnFromJson.ClickHouseType,
+				Comment:      comment,
+				PropertyName: propertyName,
+			})
 		}
 
 		delete(columnsFromSchema, schema.FieldName(columnFromJson.ClickHouseColumnName))
 	}
 
-	// There might be some columns from schema which were not present in the JSON
+	// Add columns from schema which were not present in the JSON
 	for _, column := range columnsFromSchema {
-		if first {
-			first = false
-		} else {
-			result.WriteString(",\n")
-		}
-
 		propertyName := reverseMap[schema.EncodedFieldName(column.ClickHouseColumnName)].FieldName
 
 		columnMetadata := comment_metadata.NewCommentMetadata()
 		columnMetadata.Values[comment_metadata.ElasticFieldName] = propertyName
 		comment := columnMetadata.Marshall()
 
-		result.WriteString(util.Indent(1))
-		result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ClickHouseColumnName, column.ClickHouseType+" COMMENT ", comment))
+		columnProperties = append(columnProperties, ColumnProperties{
+			ColumnName:   column.ClickHouseColumnName,
+			ColumnType:   column.ClickHouseType,
+			Comment:      comment,
+			PropertyName: propertyName,
+		})
 	}
+
+	return columnProperties
+}
+
+// Rendering columns to string
+func columnPropertiesToString(columnProperties []ColumnProperties) string {
+	var result strings.Builder
+	first := true
+
+	for _, column := range columnProperties {
+		if first {
+			first = false
+		} else {
+			result.WriteString(",\n")
+		}
+		result.WriteString(util.Indent(1))
+		result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ColumnName, column.ColumnType+" COMMENT ", column.Comment))
+	}
+
 	return result.String()
 }
 

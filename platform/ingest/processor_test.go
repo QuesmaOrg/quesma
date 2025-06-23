@@ -167,7 +167,7 @@ func TestAddTimestamp(t *testing.T) {
 	columnsFromJson := JsonToColumns(jsonData, tableConfig)
 
 	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter, tableName, encodings)
-	columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(jsonData))
+	columns := columnsWithIndexes(columnPropertiesToString(columnsToProperties(columnsFromJson, columnsFromSchema, encodings, tableName)), Indexes(jsonData))
 	query := createTableQuery(tableName, columns, tableConfig)
 	assert.True(t, strings.Contains(query, timestampFieldName))
 }

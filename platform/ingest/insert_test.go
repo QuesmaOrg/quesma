@@ -172,7 +172,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					encodings := populateFieldEncodings([]types.JSON{types.MustJSON(tt.insertJson)}, tableName)
 					columnsFromJson := JsonToColumns(types.MustJSON(tt.insertJson), tableConfig)
 					columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.ip.schemaRegistry, tableName), &columNameFormatter{separator: "::"}, tableName, encodings)
-					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(types.MustJSON(tt.insertJson)))
+					columns := columnsWithIndexes(columnPropertiesToString(columnsToProperties(columnsFromJson, columnsFromSchema, encodings, tableName)), Indexes(types.MustJSON(tt.insertJson)))
 					query := createTableQuery(tableName, columns, tableConfig)
 
 					table := ip.ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
