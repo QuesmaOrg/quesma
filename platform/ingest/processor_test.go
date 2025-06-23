@@ -68,10 +68,11 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	encodings := make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
 
 	tableName, exists := fieldsMap.Load("tableName")
+	tableName.Config = hasOthersConfig
 	assert.True(t, exists)
 	f := func(t1, t2 TableMap) {
 		ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
-		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(tableName, types.MustJSON(rowToInsert), nil, hasOthersConfig, encodings)
+		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(tableName, types.MustJSON(rowToInsert), nil, encodings)
 		assert.NoError(t, err)
 		j, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		assert.NoError(t, err)
