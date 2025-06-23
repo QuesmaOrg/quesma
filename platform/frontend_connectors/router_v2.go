@@ -211,7 +211,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		index := req.Params["index"]
 		switch req.Method {
 		case "GET":
-			return HandleGetIndexMapping(sr, index)
+			return HandleGetIndexMapping(ctx, sr, lm, index)
 		case "PUT":
 			if body, err := types.ExpectJSON(req.ParsedBody); err != nil {
 				return nil, err
