@@ -38,6 +38,62 @@ type ColumnProperties struct {
 	PropertyName string
 }
 
+type CreateTableStatement struct {
+	Name       string
+	Cluster    string // Optional: ON CLUSTER
+	Columns    []ColumnProperties
+	Indexes    string // Optional: INDEXES
+	Comment    string
+	PostClause string // e.g. ENGINE, ORDER BY, etc.
+}
+
+func BuildCreateTable(name string, columns []ColumnProperties, indexes string, config *clickhouse.ChTableConfig) CreateTableStatement {
+	var cluster string
+	if config.ClusterName != "" {
+		cluster = config.ClusterName
+	}
+
+	return CreateTableStatement{
+		Name:       name,
+		Cluster:    cluster,
+		Columns:    columns,
+		Indexes:    indexes,
+		Comment:    "created by Quesma",
+		PostClause: config.CreateTablePostFieldsString(),
+	}
+}
+
+func (ct CreateTableStatement) ToSQL() string {
+	var b strings.Builder
+
+	if ct.Cluster != "" {
+		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" ON CLUSTER "%s"`+"\n(\n", ct.Name, ct.Cluster))
+	} else {
+		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"`+"\n(\n", ct.Name))
+	}
+
+	for i, col := range ct.Columns {
+		if i > 0 {
+			b.WriteString(",\n")
+		}
+		b.WriteString(util.Indent(1))
+		b.WriteString(fmt.Sprintf(`"%s" %s COMMENT '%s'`, col.ColumnName, col.ColumnType, col.Comment))
+	}
+
+	b.WriteString("\n)\n")
+
+	b.WriteString(ct.Indexes)
+
+	if ct.PostClause != "" {
+		b.WriteString(ct.PostClause + "\n")
+	}
+	if ct.Comment != "" {
+		b.WriteString(fmt.Sprintf("COMMENT '%s'", ct.Comment))
+	}
+
+	return b.String()
+}
+
 // Returns a slice of ColumnProperties containing all needed column properties
 func columnsToProperties(columnsFromJson []CreateTableEntry,
 	columnsFromSchema map[schema.FieldName]CreateTableEntry,
