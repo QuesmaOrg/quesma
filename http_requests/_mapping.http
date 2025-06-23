@@ -1,1 +1,7 @@
 GET http://localhost:8080/kibana_sample_data_ecommerce/_mapping
+
+####
+GET localhost:8080/*/_field_caps
+
+###
+GET localhost:8080/*/_mapping
