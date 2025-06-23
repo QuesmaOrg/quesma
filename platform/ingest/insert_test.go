@@ -459,7 +459,14 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 }
 
 func TestHydrolixIngest(t *testing.T) {
+	indexName := "test_index"
 
+	quesmaConfig := &config.QuesmaConfiguration{
+		IndexConfig: map[string]config.IndexConfiguration{
+			indexName: {},
+		},
+	}
+	projectName := quesmaConfig.Hydrolix.Database
 	tests := []struct {
 		name               string
 		documents          []types.JSON
@@ -470,11 +477,12 @@ func TestHydrolixIngest(t *testing.T) {
 			documents: []types.JSON{
 				{"new_field": "bar"},
 			},
+
 			expectedStatements: []string{
-				`{
+				fmt.Sprintf(`{
   "schema": {
-    "project": "my_project",
-    "name": "my_table",
+    "project": "%s",
+    "name": "test_index",
     "time_column": "ingest_time",
     "columns": [
       { "name": "new_field", "type": "string" },
@@ -491,7 +499,7 @@ func TestHydrolixIngest(t *testing.T) {
       "new_field": "bar"
     }
   ]
-}`,
+}`, projectName),
 			},
 		},
 	}
@@ -499,24 +507,7 @@ func TestHydrolixIngest(t *testing.T) {
 	for i, tt := range tests {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 
-			indexName := "test_index"
-
-			quesmaConfig := &config.QuesmaConfiguration{
-				IndexConfig: map[string]config.IndexConfiguration{
-					indexName: {},
-				},
-			}
-
-			indexSchema := schema.Schema{
-				ExistsInDataSource: false,
-				Fields: map[schema.FieldName]schema.Field{
-					"nested.field": {
-						PropertyName:         "nested.field",
-						InternalPropertyName: "nested_field",
-						InternalPropertyType: "String",
-						Type:                 schema.QuesmaTypeKeyword},
-				},
-			}
+			indexSchema := schema.Schema{}
 
 			tables := NewTableMap()
 
@@ -537,9 +528,6 @@ func TestHydrolixIngest(t *testing.T) {
 					ClickhouseTableName: "test_index",
 				}}}
 			resolver.Decisions["test_index"] = decision
-
-			schemaRegistry.FieldEncodings = make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
-			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "nested.field"}] = "nested_field"
 
 			ingest := newIngestProcessorWithHydrolixLowerer(tables, quesmaConfig)
 			ingest.chDb = db
