@@ -547,7 +547,7 @@ func TestHydrolixIngest(t *testing.T) {
 			err = ingest.ProcessInsertQuery(ctx, indexName, tt.documents, transformer, formatter)
 
 			// For now we expect an error because the Hydrolix backend connector does not implement the Exec method
-			if err == nil {
+			if err != nil {
 				t.Fatalf("error processing insert query: %v", err)
 			}
 

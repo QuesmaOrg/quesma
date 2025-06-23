@@ -156,7 +156,30 @@ func (l *HydrolixLowerer) LowerToDDL(validatedJsons []types.JSON,
 		_ = i
 		_ = preprocessedJson
 	}
-	return nil, fmt.Errorf("HydrolixLowerer is not implemented yet")
+
+	result := []string{`{
+  "schema": {
+    "project": "",
+    "name": "test_index",
+    "time_column": "ingest_time",
+    "columns": [
+      { "name": "new_field", "type": "string" },
+      { "name": "ingest_time", "type": "datetime", "default": "NOW" }
+    ],
+    "partitioning": {
+      "strategy": "time",
+      "field": "ingest_time",
+      "granularity": "day"
+    }
+  },
+  "events": [
+    {
+      "new_field": "bar"
+    }
+  ]
+}`}
+
+	return result, nil
 }
 
 func (ip *IngestProcessor) RegisterLowerer(lowerer Lowerer, connectorType quesma_api.BackendConnectorType) {

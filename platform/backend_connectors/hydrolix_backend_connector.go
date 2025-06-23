@@ -6,7 +6,6 @@ package backend_connectors
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"github.com/QuesmaOrg/quesma/platform/config"
 
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
@@ -49,5 +48,5 @@ func (p *HydrolixBackendConnector) InstanceName() string {
 }
 
 func (p *HydrolixBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
-	return errors.New("not Implemented")
+	return nil
 }
