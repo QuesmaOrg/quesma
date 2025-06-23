@@ -471,8 +471,27 @@ func TestHydrolixIngest(t *testing.T) {
 				{"new_field": "bar"},
 			},
 			expectedStatements: []string{
-				`CREATE TABLE IF NOT EXISTS "test_index" ( "@timestamp" DateTime64(3) DEFAULT now64(), "attributes_values" Map(String,String), "attributes_metadata" Map(String,String), "new_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=new_field', "nested_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=nested.field', ) ENGINE = MergeTree ORDER BY ("@timestamp") COMMENT 'created by Quesma'`,
-				`INSERT INTO "test_index" FORMAT JSONEachRow {"new_field":"bar"}`,
+				`{
+  "schema": {
+    "project": "my_project",
+    "name": "my_table",
+    "time_column": "ingest_time",
+    "columns": [
+      { "name": "new_field", "type": "string" },
+      { "name": "ingest_time", "type": "datetime", "default": "NOW" }
+    ],
+    "partitioning": {
+      "strategy": "time",
+      "field": "ingest_time",
+      "granularity": "day"
+    }
+  },
+  "events": [
+    {
+      "new_field": "bar"
+    }
+  ]
+}`,
 			},
 		},
 	}
