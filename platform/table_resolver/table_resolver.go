@@ -156,7 +156,7 @@ func (r *tableRegistryImpl) updateIndexes() {
 
 	tableMap.Range(func(name string, tableDef *clickhouse.Table) bool {
 		if name == common_table.TableName {
-			return false
+			return true
 		}
 		clickhouseIndexes[name] = table{
 			name:      name,
