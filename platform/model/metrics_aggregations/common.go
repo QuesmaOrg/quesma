@@ -44,7 +44,7 @@ func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
 		valueAsAny := rows[0].Cols[len(rows[0].Cols)-1].Value
 		if valueAsTime, ok := valueAsAny.(time.Time); ok {
 			value = valueAsTime.UnixMilli()
-			valueAsString = valueAsTime.UTC().Format("2006-01-02T15:04:05.000")
+			valueAsString = valueAsTime.Format("2006-01-02T15:04:05.000")
 		} else {
 			logger.WarnWithCtx(ctx).Msgf("could not parse date %v", valueAsAny)
 		}
