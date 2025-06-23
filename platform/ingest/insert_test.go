@@ -457,3 +457,93 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 		})
 	}
 }
+
+func TestHydrolixIngest(t *testing.T) {
+
+	tests := []struct {
+		name               string
+		documents          []types.JSON
+		expectedStatements []string
+	}{
+		{
+			name: "simple single insert",
+			documents: []types.JSON{
+				{"new_field": "bar"},
+			},
+			expectedStatements: []string{
+				`CREATE TABLE IF NOT EXISTS "test_index" ( "@timestamp" DateTime64(3) DEFAULT now64(), "attributes_values" Map(String,String), "attributes_metadata" Map(String,String), "new_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=new_field', "nested_field" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=nested.field', ) ENGINE = MergeTree ORDER BY ("@timestamp") COMMENT 'created by Quesma'`,
+				`INSERT INTO "test_index" FORMAT JSONEachRow {"new_field":"bar"}`,
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
+
+			indexName := "test_index"
+
+			quesmaConfig := &config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					indexName: {},
+				},
+			}
+
+			indexSchema := schema.Schema{
+				ExistsInDataSource: false,
+				Fields: map[schema.FieldName]schema.Field{
+					"nested.field": {
+						PropertyName:         "nested.field",
+						InternalPropertyName: "nested_field",
+						InternalPropertyType: "String",
+						Type:                 schema.QuesmaTypeKeyword},
+				},
+			}
+
+			tables := NewTableMap()
+
+			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			db := backend_connectors.NewHydrolixBackendConnectorWithConnection("", conn)
+			if err != nil {
+				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+
+			schemaRegistry := &schema.StaticRegistry{
+				Tables: make(map[schema.IndexName]schema.Schema),
+			}
+			schemaRegistry.Tables[schema.IndexName(indexName)] = indexSchema
+
+			resolver := table_resolver.NewEmptyTableResolver()
+			decision := &mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
+					ClickhouseTableName: "test_index",
+				}}}
+			resolver.Decisions["test_index"] = decision
+
+			schemaRegistry.FieldEncodings = make(map[schema.FieldEncodingKey]schema.EncodedFieldName)
+			schemaRegistry.FieldEncodings[schema.FieldEncodingKey{TableName: indexName, FieldName: "nested.field"}] = "nested_field"
+
+			ingest := newIngestProcessorWithHydrolixLowerer(tables, quesmaConfig)
+			ingest.chDb = db
+
+			ingest.schemaRegistry = schemaRegistry
+			ingest.tableResolver = resolver
+
+			ctx := context.Background()
+			formatter := DefaultColumnNameFormatter()
+
+			transformer := IngestTransformerFor(indexName, quesmaConfig)
+
+			for _, stm := range tt.expectedStatements {
+				mock.ExpectExec(stm).WillReturnResult(sqlmock.NewResult(1, 1))
+			}
+
+			err = ingest.ProcessInsertQuery(ctx, indexName, tt.documents, transformer, formatter)
+
+			// For now we expect an error because the Hydrolix backend connector does not implement the Exec method
+			if err == nil {
+				t.Fatalf("error processing insert query: %v", err)
+			}
+
+		})
+	}
+}

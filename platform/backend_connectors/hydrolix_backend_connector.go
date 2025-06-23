@@ -18,7 +18,7 @@ type HydrolixBackendConnector struct {
 }
 
 func (p *HydrolixBackendConnector) GetId() quesma_api.BackendConnectorType {
-	return quesma_api.ClickHouseSQLBackend
+	return quesma_api.HydrolixSQLBackend
 }
 
 func (p *HydrolixBackendConnector) Open() error {

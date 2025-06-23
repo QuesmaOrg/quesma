@@ -3,6 +3,7 @@
 package ingest
 
 import (
+	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
@@ -29,6 +30,18 @@ func newIngestProcessorWithEmptyTableMap(tables *TableMap, cfg *config.QuesmaCon
 		lowerer:  lowerer,
 	}
 	processor.RegisterLowerer(lowerer, quesma_api.ClickHouseSQLBackend)
+	return processor
+}
+
+func newIngestProcessorWithHydrolixLowerer(tables *TableMap, cfg *config.QuesmaConfiguration) *IngestProcessor {
+	var tableDefinitions = atomic.Pointer[TableMap]{}
+	tableDefinitions.Store(tables)
+	lowerer := NewHydrolixLowerer(persistence.NewStaticJSONDatabase())
+	processor := &IngestProcessor{chDb: backend_connectors.NewHydrolixBackendConnector(&cfg.Hydrolix), tableDiscovery: clickhouse.NewTableDiscoveryWith(cfg, nil, *tables),
+		cfg: cfg, phoneHomeClient: diag.NewPhoneHomeEmptyAgent(),
+		lowerers: make(map[quesma_api.BackendConnectorType]Lowerer),
+	}
+	processor.RegisterLowerer(lowerer, quesma_api.HydrolixSQLBackend)
 	return processor
 }
 
