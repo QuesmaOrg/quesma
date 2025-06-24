@@ -24,6 +24,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/routes"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
+	"golang.org/x/time/rate"
 	"io"
 	"net/http"
 	"strings"
@@ -85,6 +86,8 @@ type Dispatcher struct {
 
 	debugInfoCollector diag.DebugInfoCollector
 	phoneHomeAgent     diag.PhoneHomeClient
+
+	elasticSearchErrorRateLimiter *rate.Limiter
 }
 
 func (r *Dispatcher) SetDependencies(deps quesma_api.Dependencies) {
@@ -98,9 +101,10 @@ func NewDispatcher(config *config.QuesmaConfiguration) *Dispatcher {
 	requestProcessors = append(requestProcessors, quesma_api.NewTraceIdPreprocessor())
 
 	return &Dispatcher{
-		Config:               config,
-		RequestPreprocessors: requestProcessors,
-		HttpClient:           client,
+		Config:                        config,
+		RequestPreprocessors:          requestProcessors,
+		HttpClient:                    client,
+		elasticSearchErrorRateLimiter: rate.NewLimiter(rate.Every(20*time.Second), 5),
 	}
 }
 
@@ -495,8 +499,10 @@ func (r *Dispatcher) sendHttpRequest(ctx context.Context, address string, origin
 
 	resp, err := r.HttpClient.Do(req)
 	if err != nil {
-		logger.ErrorWithCtxAndReason(ctx, "No network connection").
-			Msgf("Error sending request: %v", err)
+		if r.elasticSearchErrorRateLimiter != nil && r.elasticSearchErrorRateLimiter.Allow() {
+			logger.ErrorWithCtxAndReason(ctx, "No network connection").
+				Msgf("Error sending request: %v", err)
+		}
 		return nil, err
 	}
 
