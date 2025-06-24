@@ -132,24 +132,17 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) (exprVisitor model.ExprVisi
 	var childGotArrayFunc bool
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
 
-		if len(e.Args) > 0 {
-			arg := e.Args[0]
-			column, ok := arg.(model.ColumnRef)
-			if ok {
-				dbType := resolver.dbColumnType(column.ColumnName)
-				if strings.HasPrefix(dbType, array) {
-					funcParsed := parseFunctionWithCombinator(e.Name)
-					funcParsed.isArray = true
-					childGotArrayFunc = true
-					e.Name = funcParsed.String()
-				} else {
-					e.Args = b.VisitChildren(e.Args)
-				}
-			} else {
-				e.Args = b.VisitChildren(e.Args)
-			}
+		if len(e.Args) == 0 {
+			return nil
 		}
 
+		arg := e.Args[0]
+		if column, ok := arg.(model.ColumnRef); ok {
+			concatWs := model.NewFunction("CONCAT_WS", model.NewLiteral("','"), model.NewLiteral(column.ColumnName))
+			return model.NewFunction(e.Name, concatWs)
+		}
+
+		e.Args = b.VisitChildren(e.Args)
 		return model.NewFunction(e.Name, e.Args...)
 	}
 
