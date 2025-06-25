@@ -102,11 +102,14 @@ var configs = []*clickhouse.ChTableConfig{
 var expectedInserts = [][]string{
 	[]string{EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","service_name":"frontend","severity":"debug","source":"rhel"}`)},
 	[]string{
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "service_name" Nullable(String), COMMENT COLUMN "service_name" 'quesmaMetadataV1:fieldName=service.name'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "service_name" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "service_name" 'quesmaMetadataV1:fieldName=service.name`),
 
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String), COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
 
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "source" Nullable(String), COMMENT COLUMN "source" 'quesmaMetadataV1:fieldName=source'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "source" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "source" 'quesmaMetadataV1:fieldName=source'`),
 
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","service_name":"frontend","severity":"debug","source":"rhel"}`),
 	},
@@ -114,9 +117,12 @@ var expectedInserts = [][]string{
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
 	},
 	[]string{
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Array(String), COMMENT COLUMN "random1" 'quesmaMetadataV1:fieldName=random1'`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random2" Nullable(String), COMMENT COLUMN "random2" 'quesmaMetadataV1:fieldName=random2'`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String), COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Array(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "random1" 'quesmaMetadataV1:fieldName=random1'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random2" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "random2" 'quesmaMetadataV1:fieldName=random2'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
 	},
 }

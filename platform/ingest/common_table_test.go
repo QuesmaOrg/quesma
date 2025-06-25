@@ -35,7 +35,8 @@ func TestIngestToCommonTable(t *testing.T) {
 				{"foo": "bar"},
 			},
 			expectedStatements: []string{
-				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String), COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
 				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","foo":"bar"}`,
 			},
 			virtualTableColumns: []string{"@timestamp", "foo"},
@@ -47,7 +48,8 @@ func TestIngestToCommonTable(t *testing.T) {
 				{"foo": "baz"},
 			},
 			expectedStatements: []string{
-				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String), COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
 				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","foo":"bar"}, {"__quesma_index_name":"test_index","foo":"baz"}`,
 			},
 			virtualTableColumns: []string{"@timestamp", "foo"},
@@ -60,8 +62,10 @@ func TestIngestToCommonTable(t *testing.T) {
 				{"foo": "1", "baz": "qux"},
 			},
 			expectedStatements: []string{
-				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String), COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
-				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "baz" Nullable(String), COMMENT COLUMN "baz" 'quesmaMetadataV1:fieldName=baz'`,
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "baz" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "baz" 'quesmaMetadataV1:fieldName=baz'`,
 
 				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","foo":"bar"}, {"__quesma_index_name":"test_index","foo":"baz"}, {"__quesma_index_name":"test_index","baz":"qux","foo":"1"} `,
 			},
@@ -78,8 +82,10 @@ func TestIngestToCommonTable(t *testing.T) {
 				{"foo": "1", "baz": "qux"},
 			},
 			expectedStatements: []string{
-				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String), COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
-				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "baz" Nullable(String), COMMENT COLUMN "baz" 'quesmaMetadataV1:fieldName=baz'`,
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "foo" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "foo" 'quesmaMetadataV1:fieldName=foo'`,
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "baz" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "baz" 'quesmaMetadataV1:fieldName=baz'`,
 
 				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","foo":"bar"}, {"__quesma_index_name":"test_index","foo":"baz"}, {"__quesma_index_name":"test_index","baz":"qux","foo":"1"} `,
 			},
@@ -107,7 +113,8 @@ func TestIngestToCommonTable(t *testing.T) {
 				{"a": "bar", "b": "baz"},
 			},
 			expectedStatements: []string{
-				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "b" Nullable(String), COMMENT COLUMN "b" 'quesmaMetadataV1:fieldName=b'`,
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "b" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "b" 'quesmaMetadataV1:fieldName=b'`,
 
 				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","a":"bar","b":"baz"}`,
 			},
@@ -120,7 +127,8 @@ func TestIngestToCommonTable(t *testing.T) {
 				{"a.b": "c"},
 			},
 			expectedStatements: []string{
-				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "a_b" Nullable(String), COMMENT COLUMN "a_b" 'quesmaMetadataV1:fieldName=a.b'`,
+				`ALTER TABLE "quesma_common_table" ADD COLUMN IF NOT EXISTS "a_b" Nullable(String)`,
+				`ALTER TABLE "quesma_common_table" COMMENT COLUMN "a_b" 'quesmaMetadataV1:fieldName=a.b'`,
 
 				`INSERT INTO "quesma_common_table" FORMAT JSONEachRow {"__quesma_index_name":"test_index","a_b":"c"}`,
 			},
