@@ -499,10 +499,23 @@ func (r *Dispatcher) sendHttpRequest(ctx context.Context, address string, origin
 
 	resp, err := r.HttpClient.Do(req)
 	if err != nil {
-		if r.elasticSearchErrorRateLimiter != nil && r.elasticSearchErrorRateLimiter.Allow() {
+
+		var shouldLogError bool
+
+		// we're rate limiting errors that are related to network issues only
+		if strings.Contains(err.Error(), "dial") {
+			if r.elasticSearchErrorRateLimiter != nil && r.elasticSearchErrorRateLimiter.Allow() {
+				shouldLogError = true
+			}
+		} else {
+			shouldLogError = true
+		}
+
+		if shouldLogError {
 			logger.ErrorWithCtxAndReason(ctx, "No network connection").
 				Msgf("Error sending request: %v", err)
 		}
+
 		return nil, err
 	}
 
