@@ -187,16 +187,7 @@ func HandleGetIndexMapping(ctx context.Context, sr schema.Registry, lm clickhous
 
 	allMappings := make(map[string]map[string]any)
 
-	var filteredIndexes []string
-	for _, idx := range indexes {
-
-		if idx == common_table.TableName {
-			// Skip the common table, it is not a real index
-			continue
-		}
-		filteredIndexes = append(filteredIndexes, idx)
-	}
-	indexes = filteredIndexes
+	indexes = common_table.FilterCommonTableIndex(indexes)
 
 	for _, resolvedIndex := range indexes {
 

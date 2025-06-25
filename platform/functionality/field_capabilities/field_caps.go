@@ -48,16 +48,7 @@ func handleFieldCapsIndex(cfg map[string]config.IndexConfiguration, schemaRegist
 
 	schemas := schemaRegistry.AllSchemas()
 
-	var filteredIndexes []string
-	for _, index := range indexes {
-
-		if index == common_table.TableName {
-			// Skip the common table, it is not a real index
-			continue
-		}
-		filteredIndexes = append(filteredIndexes, index)
-	}
-	indexes = filteredIndexes
+	indexes = common_table.FilterCommonTableIndex(indexes)
 
 	for _, resolvedIndex := range indexes {
 		if len(resolvedIndex) == 0 {
