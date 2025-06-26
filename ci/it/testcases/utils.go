@@ -25,7 +25,7 @@ import (
 const (
 	// debugQuesmaDuringTestRun should be set to `true` if you would like to run Quesma in IDE with debugger on
 	// during the integration test run.
-	debugQuesmaDuringTestRun = true
+	debugQuesmaDuringTestRun = false
 )
 
 const configTemplatesDir = "configs"
