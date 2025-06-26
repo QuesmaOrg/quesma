@@ -104,7 +104,6 @@ type (
 			table *chLib.Table,
 			invalidJsons []types.JSON,
 			encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
-			alterCmd []string,
 			createTableCmd CreateTableStatement) ([]string, error)
 	}
 	SqlLowerer struct {
@@ -129,9 +128,10 @@ func (l *SqlLowerer) LowerToDDL(validatedJsons []types.JSON,
 	table *chLib.Table,
 	invalidJsons []types.JSON,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
-	alterCmd []string,
 	createTableCmd CreateTableStatement) ([]string, error) {
 	var jsonsReadyForInsertion []string
+	var alterStatements []AlterStatement
+
 	for i, preprocessedJson := range validatedJsons {
 		alter, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], encodings)
@@ -143,7 +143,7 @@ func (l *SqlLowerer) LowerToDDL(validatedJsons []types.JSON,
 		if err != nil {
 			return nil, fmt.Errorf("error generatateInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
 		}
-		alterCmd = append(alterCmd, alter...)
+		alterStatements = append(alterStatements, alter...)
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
 		}
@@ -153,7 +153,7 @@ func (l *SqlLowerer) LowerToDDL(validatedJsons []types.JSON,
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
 
-	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
+	return generateSqlStatements(createTableCmd, alterStatements, insert), nil
 }
 
 func NewHydrolixLowerer(virtualTableStorage persistence.JSONDatabase) *HydrolixLowerer {
@@ -166,7 +166,6 @@ func (l *HydrolixLowerer) LowerToDDL(validatedJsons []types.JSON,
 	table *chLib.Table,
 	invalidJsons []types.JSON,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
-	alterCmd []string,
 	createTableCmd CreateTableStatement) ([]string, error) {
 	for i, preprocessedJson := range validatedJsons {
 		_ = i
@@ -552,8 +551,8 @@ func (ip *SqlLowerer) generateNewColumns(
 	attrsMap map[string][]interface{},
 	table *chLib.Table,
 	alteredAttributesIndexes []int,
-	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) []string {
-	var alterCmd []string
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) []AlterStatement {
+	var alterStatements []AlterStatement
 	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
 	attrTypes := getAttributesByArrayName(chLib.DeprecatedAttributesValueType, attrsMap)
 	var deleteIndexes []int
@@ -604,7 +603,7 @@ func (ip *SqlLowerer) generateNewColumns(
 			ColumnType: columnType,
 		}
 		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
-		alterCmd = append(alterCmd, alterColumn.ToSql())
+		alterStatements = append(alterStatements, alterColumn)
 
 		alterColumnComment := AlterStatement{
 			Type:       CommentColumn,
@@ -613,7 +612,7 @@ func (ip *SqlLowerer) generateNewColumns(
 			ColumnName: attrKeys[i],
 			Comment:    comment,
 		}
-		alterCmd = append(alterCmd, alterColumnComment.ToSql())
+		alterStatements = append(alterStatements, alterColumnComment)
 
 		deleteIndexes = append(deleteIndexes, i)
 	}
@@ -632,7 +631,7 @@ func (ip *SqlLowerer) generateNewColumns(
 		attrsMap[chLib.DeprecatedAttributesValueType] = append(attrsMap[chLib.DeprecatedAttributesValueType][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueType][deleteIndexes[i]+1:]...)
 		attrsMap[chLib.DeprecatedAttributesValueColumn] = append(attrsMap[chLib.DeprecatedAttributesValueColumn][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueColumn][deleteIndexes[i]+1:]...)
 	}
-	return alterCmd
+	return alterStatements
 }
 
 // This struct contains the information about the columns that aren't part of the schema
@@ -766,7 +765,7 @@ func (ip *SqlLowerer) shouldAlterColumns(table *chLib.Table, attrsMap map[string
 func (ip *SqlLowerer) GenerateIngestContent(table *chLib.Table,
 	data types.JSON,
 	inValidJson types.JSON,
-	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, types.JSON, []NonSchemaField, error) {
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]AlterStatement, types.JSON, []NonSchemaField, error) {
 
 	if len(table.Config.Attributes) == 0 {
 		return nil, data, nil, nil
@@ -789,10 +788,10 @@ func (ip *SqlLowerer) GenerateIngestContent(table *chLib.Table,
 	// otherwise it would contain invalid fields e.g. with wrong types
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
-	var alterCmd []string
+	var alterStatements []AlterStatement
 	atomic.AddInt64(&ip.ingestCounter, 1)
 	if ok, alteredAttributesIndexes := ip.shouldAlterColumns(table, attrsMap); ok {
-		alterCmd = ip.generateNewColumns(attrsMap, table, alteredAttributesIndexes, encodings)
+		alterStatements = ip.generateNewColumns(attrsMap, table, alteredAttributesIndexes, encodings)
 	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
@@ -808,7 +807,7 @@ func (ip *SqlLowerer) GenerateIngestContent(table *chLib.Table,
 
 	onlySchemaFields := RemoveNonSchemaFields(data, table)
 
-	return alterCmd, onlySchemaFields, nonSchemaFields, nil
+	return alterStatements, onlySchemaFields, nonSchemaFields, nil
 }
 
 func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) (string, error) {
@@ -825,12 +824,14 @@ func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types
 	return string(jsonBytes), nil
 }
 
-func generateSqlStatements(createTableCmd CreateTableStatement, alterCmd []string, insert string) []string {
+func generateSqlStatements(createTableCmd CreateTableStatement, alterStatments []AlterStatement, insert string) []string {
 	var statements []string
 	if createTableCmd.Name != "" {
 		statements = append(statements, createTableCmd.ToSQL())
 	}
-	statements = append(statements, alterCmd...)
+	for _, alter := range alterStatments {
+		statements = append(statements, alter.ToSql())
+	}
 	statements = append(statements, insert)
 	return statements
 }
@@ -937,7 +938,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
 	}
-	var alterCmd []string
 	var validatedJsons []types.JSON
 	var invalidJsons []types.JSON
 	validatedJsons, invalidJsons, err := ip.preprocessJsons(ctx, table.Name, transformedJsons)
@@ -948,7 +948,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if !ok {
 		return nil, fmt.Errorf("no lowerer registered for connector type %s", quesma_api.GetBackendConnectorNameFromType(ip.chDb.GetId()))
 	}
-	return ddlLowerer.LowerToDDL(validatedJsons, table, invalidJsons, encodings, alterCmd, createTableCmd)
+	return ddlLowerer.LowerToDDL(validatedJsons, table, invalidJsons, encodings, createTableCmd)
 }
 
 func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonData []types.JSON) error {

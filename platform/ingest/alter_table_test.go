@@ -55,7 +55,7 @@ func TestAlterTable(t *testing.T) {
 		assert.NoError(t, err)
 		insert, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		assert.Equal(t, expectedInsert[i], insert)
-		assert.Equal(t, alters[i], alter[0])
+		assert.Equal(t, alters[i], alter[0].ToSql())
 		// Table will grow with each iteration
 		assert.Equal(t, i+1, len(table.Cols))
 		for _, col := range columns[:i+1] {
