@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/telemetry/headers"
+	"github.com/goccy/go-json"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -20,6 +22,45 @@ type LogSender struct {
 	LastSendTime time.Time
 	Interval     time.Duration
 	httpClient   *http.Client
+}
+
+func (logSender *LogSender) cutMessage(msg []byte) ([]byte, bool) {
+
+	var msgMap map[string]any
+	if err := json.Unmarshal(msg, &msgMap); err != nil {
+
+		return nil, false // if not a valid JSON, return as is
+	}
+
+	message, ok := msgMap["message"].(string)
+
+	if !ok {
+		return nil, false // if "message" key is not present or not a string, return as is
+	}
+
+	cutMark := "..."
+	newLine := "\n"
+	charToCut := len(message) + len(cutMark) + len(newLine) - cap(logSender.LogBuffer)
+
+	log.Println("XXXX LogSender: cutting message to fit buffer, charToCut:", charToCut, "message length:", len(message), "buffer capacity:", cap(logSender.LogBuffer))
+
+	// cutting the message will not help, let's drop it
+	if charToCut < 0 {
+		return nil, false // if buffer has enough space, return original message
+	}
+
+	if charToCut < len(message) {
+		msgCut := message[:len(message)-charToCut]
+		msgMap["message"] = msgCut + cutMark
+	} else {
+		msgMap["message"] = message
+	}
+
+	trimmedMsg, err := json.Marshal(msgMap)
+	if err != nil {
+		return nil, false // if marshalling fails, return as is
+	}
+	return append(trimmedMsg, newLine...), ok // append newline to maintain log format
 }
 
 func (logSender *LogSender) EatLogMessage(msg []byte) struct {
@@ -38,14 +79,17 @@ func (logSender *LogSender) EatLogMessage(msg []byte) struct {
 	} else {
 		addedBefore := false
 		if !bufferLengthCondition && len(logSender.LogBuffer) == 0 { // msg longer than buffer, let's cut it
-			cutMark := []byte("...\n")
-			charToCut := len(msg) + len(cutMark) - cap(logSender.LogBuffer)
-			if charToCut < len(msg) {
-				msgCut := msg[:len(msg)-charToCut]
-				logSender.LogBuffer = append(logSender.LogBuffer, msgCut...)
-				logSender.LogBuffer = append(logSender.LogBuffer, cutMark...)
+
+			// we can the message part
+			trimmedMsg, ok := logSender.cutMessage(msg)
+			if ok {
+				log.Println("XXXX LogSender: message was too long, cutting it to fit buffer")
+				logSender.LogBuffer = append(logSender.LogBuffer, trimmedMsg...)
 				addedBefore = true
+			} else {
+				log.Println("XXXX LogSender: message was too long, but could not cut it, dropping it")
 			}
+
 		} else if len(logSender.LogBuffer)+len(msg) <= cap(logSender.LogBuffer) { // still fits in buffer
 			logSender.LogBuffer = append(logSender.LogBuffer, msg...)
 			addedBefore = true
