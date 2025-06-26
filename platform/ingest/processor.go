@@ -28,7 +28,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -83,107 +82,7 @@ type (
 		MapMetadataName string
 		Type            chLib.BaseType
 	}
-	Lowerer interface {
-		LowerToDDL(validatedJsons []types.JSON,
-			table *chLib.Table,
-			invalidJsons []types.JSON,
-			encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
-			createTableCmd CreateTableStatement) ([]string, error)
-	}
-	SqlLowerer struct {
-		virtualTableStorage       persistence.JSONDatabase
-		ingestCounter             int64
-		ingestFieldStatistics     IngestFieldStatistics
-		ingestFieldStatisticsLock sync.Mutex
-	}
-	HydrolixLowerer struct {
-		virtualTableStorage persistence.JSONDatabase
-	}
 )
-
-func NewSqlLowerer(virtualTableStorage persistence.JSONDatabase) *SqlLowerer {
-	return &SqlLowerer{
-		virtualTableStorage:   virtualTableStorage,
-		ingestFieldStatistics: make(IngestFieldStatistics),
-	}
-}
-
-func (l *SqlLowerer) LowerToDDL(validatedJsons []types.JSON,
-	table *chLib.Table,
-	invalidJsons []types.JSON,
-	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
-	createTableCmd CreateTableStatement) ([]string, error) {
-	var jsonsReadyForInsertion []string
-	var alterStatements []AlterStatement
-
-	for i, preprocessedJson := range validatedJsons {
-		alter, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
-			invalidJsons[i], encodings)
-
-		if err != nil {
-			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
-		}
-		insertJson, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
-		if err != nil {
-			return nil, fmt.Errorf("error generatateInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
-		}
-		alterStatements = append(alterStatements, alter...)
-		if err != nil {
-			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
-		}
-		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
-	}
-
-	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
-
-	insertStatement := InsertStatement{
-		TableName:    table.Name,
-		InsertValues: insertValues,
-	}
-
-	return generateSqlStatements(createTableCmd, alterStatements, insertStatement), nil
-}
-
-func NewHydrolixLowerer(virtualTableStorage persistence.JSONDatabase) *HydrolixLowerer {
-	return &HydrolixLowerer{
-		virtualTableStorage: virtualTableStorage,
-	}
-}
-
-func (l *HydrolixLowerer) LowerToDDL(validatedJsons []types.JSON,
-	table *chLib.Table,
-	invalidJsons []types.JSON,
-	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
-	createTableCmd CreateTableStatement) ([]string, error) {
-	for i, preprocessedJson := range validatedJsons {
-		_ = i
-		_ = preprocessedJson
-	}
-
-	result := []string{`{
-  "schema": {
-    "project": "",
-    "name": "test_index",
-    "time_column": "ingest_time",
-    "columns": [
-      { "name": "new_field", "type": "string" },
-      { "name": "ingest_time", "type": "datetime", "default": "NOW" }
-    ],
-    "partitioning": {
-      "strategy": "time",
-      "field": "ingest_time",
-      "granularity": "day"
-    }
-  },
-  "events": [
-    {
-      "new_field": "bar"
-    }
-  ]
-}`}
-
-	return result, nil
-}
 
 func (ip *IngestProcessor) RegisterLowerer(lowerer Lowerer, connectorType quesma_api.BackendConnectorType) {
 	ip.lowerers[connectorType] = lowerer
