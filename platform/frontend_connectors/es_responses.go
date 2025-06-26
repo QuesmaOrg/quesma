@@ -183,18 +183,32 @@ func putIndexResult(index string) (*quesma_api.Result, error) {
 	return &quesma_api.Result{StatusCode: http.StatusOK, Body: string(serialized), GenericResult: serialized}, nil
 }
 
-func getIndexMappingResult(index string, mappings map[string]any) (*quesma_api.Result, error) {
-	result := map[string]any{
-		index: map[string]any{
-			"mappings": mappings,
-		},
+func getIndexMappingResults(mappings map[string]map[string]any) (*quesma_api.Result, error) {
+
+	result := make(map[string]any)
+
+	for index, mapping := range mappings {
+		result[index] = map[string]any{
+			"mappings": mapping,
+		}
 	}
+
 	serialized, err := json.Marshal(result)
 	if err != nil {
 		return nil, err
 	}
-
 	return &quesma_api.Result{StatusCode: http.StatusOK, Body: string(serialized), GenericResult: serialized}, nil
+}
+
+func getIndexMappingResult(index string, mappings map[string]any) (*quesma_api.Result, error) {
+
+	// single index mapping result
+
+	allMappings := make(map[string]map[string]any)
+
+	allMappings[index] = mappings
+
+	return getIndexMappingResults(allMappings)
 }
 
 func getIndexResult(index string, mappings map[string]any) (*quesma_api.Result, error) {

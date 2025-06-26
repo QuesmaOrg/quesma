@@ -108,4 +108,5 @@ type PatternDecisions struct {
 const (
 	QueryPipeline  = "Query"
 	IngestPipeline = "Ingest"
+	MetaPipeline   = "Meta"
 )

@@ -91,3 +91,8 @@ func TestOnlyCommonTable(t *testing.T) {
 	testCase := testcases.NewOnlyCommonTableTestcase()
 	runIntegrationTest(t, testCase)
 }
+
+func TestCommonTableAndRegularTable(t *testing.T) {
+	testCase := testcases.NewCommonTableAndRegularTable()
+	runIntegrationTest(t, testCase)
+}
