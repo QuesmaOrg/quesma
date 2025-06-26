@@ -58,6 +58,11 @@ type AlterStatement struct {
 	Comment    string // used only for CommentColumn
 }
 
+type InsertStatement struct {
+	TableName    string
+	InsertValues string // expected to be JSONEachRow-compatible content
+}
+
 type (
 	IngestFieldBucketKey struct {
 		indexName string
@@ -151,9 +156,13 @@ func (l *SqlLowerer) LowerToDDL(validatedJsons []types.JSON,
 	}
 
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
-	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
 
-	return generateSqlStatements(createTableCmd, alterStatements, insert), nil
+	insertStatement := InsertStatement{
+		TableName:    table.Name,
+		InsertValues: insertValues,
+	}
+
+	return generateSqlStatements(createTableCmd, alterStatements, insertStatement), nil
 }
 
 func NewHydrolixLowerer(virtualTableStorage persistence.JSONDatabase) *HydrolixLowerer {
@@ -542,6 +551,10 @@ func (stmt AlterStatement) ToSql() string {
 	}
 }
 
+func (s InsertStatement) ToSQL() string {
+	return fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow %s`, s.TableName, s.InsertValues)
+}
+
 // This function generates ALTER TABLE commands for adding new columns
 // to the table based on the attributesMap and the table name
 // AttributesMap contains the attributes that are not part of the schema
@@ -824,7 +837,7 @@ func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types
 	return string(jsonBytes), nil
 }
 
-func generateSqlStatements(createTableCmd CreateTableStatement, alterStatments []AlterStatement, insert string) []string {
+func generateSqlStatements(createTableCmd CreateTableStatement, alterStatments []AlterStatement, insertStatement InsertStatement) []string {
 	var statements []string
 	if createTableCmd.Name != "" {
 		statements = append(statements, createTableCmd.ToSQL())
@@ -832,7 +845,7 @@ func generateSqlStatements(createTableCmd CreateTableStatement, alterStatments [
 	for _, alter := range alterStatments {
 		statements = append(statements, alter.ToSql())
 	}
-	statements = append(statements, insert)
+	statements = append(statements, insertStatement.ToSQL())
 	return statements
 }
 
