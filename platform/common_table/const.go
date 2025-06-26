@@ -65,3 +65,15 @@ type VirtualTable struct {
 	StoredAt string               `json:"stored_at"`
 	Columns  []VirtualTableColumn `json:"columns"`
 }
+
+// FilterCommonTableIndex filters out the common table index from the provided list of indexes
+func FilterCommonTableIndex(indexes []string) []string {
+	// filter out common table index
+	var filtered []string
+	for _, index := range indexes {
+		if index != TableName {
+			filtered = append(filtered, index)
+		}
+	}
+	return filtered
+}

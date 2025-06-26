@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -40,9 +41,9 @@ type basicResolver struct {
 	resolver func(part string) *quesma_api.Decision
 }
 
-type decisionMerger struct {
-	name   string
-	merger func(decisions []*quesma_api.Decision) *quesma_api.Decision
+type decisionMerger interface {
+	name() string
+	merge(decisions []*quesma_api.Decision) *quesma_api.Decision
 }
 
 // Compound resolver works in the following way:
@@ -75,7 +76,7 @@ func (ir *compoundResolver) resolve(indexName string) *quesma_api.Decision {
 		}
 	}
 
-	return ir.decisionMerger.merger(decisions)
+	return ir.decisionMerger.merge(decisions)
 }
 
 // HACK: we should have separate config for each pipeline
@@ -154,6 +155,9 @@ func (r *tableRegistryImpl) updateIndexes() {
 	clickhouseIndexes := make(map[string]table)
 
 	tableMap.Range(func(name string, tableDef *clickhouse.Table) bool {
+		if name == common_table.TableName {
+			return true
+		}
 		clickhouseIndexes[name] = table{
 			name:      name,
 			isVirtual: tableDef.VirtualTable,
@@ -314,10 +318,7 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 
 				{"defaultWildcard", makeDefaultWildcard(quesmaConf, quesma_api.IngestPipeline)},
 			},
-			decisionMerger: decisionMerger{
-				name:   "basicDecisionMerger",
-				merger: basicDecisionMerger,
-			},
+			decisionMerger: &basicDecisionMerger{checkIfMatchingDifferentTables: true},
 		},
 		recentDecisions: make(map[string]*quesma_api.Decision),
 	}
@@ -343,15 +344,38 @@ func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhous
 				// default action
 				{"defaultWildcard", makeDefaultWildcard(quesmaConf, quesma_api.QueryPipeline)},
 			},
-			decisionMerger: decisionMerger{
-				name:   "basicDecisionMerger",
-				merger: basicDecisionMerger,
-			},
+			decisionMerger: &basicDecisionMerger{checkIfMatchingDifferentTables: true},
 		},
 		recentDecisions: make(map[string]*quesma_api.Decision),
 	}
 
 	res.pipelineResolvers[quesma_api.QueryPipeline] = queryResolver
+
+	metaResolver := &pipelineResolver{
+		pipelineName: quesma_api.MetaPipeline,
+
+		resolver: &compoundResolver{
+			patternSplitter: patternSplitter{
+				name:     "wildcardPatternSplitter",
+				resolver: res.wildcardPatternSplitter,
+			},
+			decisionLadder: []basicResolver{
+				// checking if we can handle the parsedPattern
+				{"kibanaInternal", resolveInternalElasticName},
+				{"disabled", makeIsDisabledInConfig(indexConf, quesma_api.QueryPipeline)},
+
+				{"singleIndex", res.singleIndex(indexConf, quesma_api.QueryPipeline)},
+				{"commonTable", res.makeCommonTableResolver(indexConf, quesma_api.QueryPipeline)},
+
+				// default action
+				{"defaultWildcard", makeDefaultWildcard(quesmaConf, quesma_api.QueryPipeline)},
+			},
+			decisionMerger: &basicDecisionMerger{checkIfMatchingDifferentTables: false},
+		},
+		recentDecisions: make(map[string]*quesma_api.Decision),
+	}
+
+	res.pipelineResolvers[quesma_api.MetaPipeline] = metaResolver
 	// update the state ASAP
 	res.updateState()
 	return res
