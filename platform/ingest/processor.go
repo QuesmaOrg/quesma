@@ -42,6 +42,22 @@ const (
 	fieldFrequency        = 10
 )
 
+type AlterStatementType int
+
+const (
+	AddColumn AlterStatementType = iota
+	CommentColumn
+)
+
+type AlterStatement struct {
+	Type       AlterStatementType
+	TableName  string
+	OnCluster  string
+	ColumnName string
+	ColumnType string // used only for AddColumn
+	Comment    string // used only for CommentColumn
+}
+
 type (
 	IngestFieldBucketKey struct {
 		indexName string
@@ -505,6 +521,28 @@ func getAttributesByArrayName(arrayName string,
 	return attributes
 }
 
+func (stmt AlterStatement) ToSql() string {
+	var onCluster string
+	if stmt.OnCluster != "" {
+		onCluster = fmt.Sprintf(` ON CLUSTER "%s"`, stmt.OnCluster)
+	}
+
+	switch stmt.Type {
+	case AddColumn:
+		return fmt.Sprintf(
+			`ALTER TABLE "%s"%s ADD COLUMN IF NOT EXISTS "%s" %s`,
+			stmt.TableName, onCluster, stmt.ColumnName, stmt.ColumnType,
+		)
+	case CommentColumn:
+		return fmt.Sprintf(
+			`ALTER TABLE "%s"%s COMMENT COLUMN "%s" '%s'`,
+			stmt.TableName, onCluster, stmt.ColumnName, stmt.Comment,
+		)
+	default:
+		panic(fmt.Sprintf("unsupported AlterStatementType: %v", stmt.Type))
+	}
+}
+
 // This function generates ALTER TABLE commands for adding new columns
 // to the table based on the attributesMap and the table name
 // AttributesMap contains the attributes that are not part of the schema
@@ -558,17 +596,24 @@ func (ip *SqlLowerer) generateNewColumns(
 		metadata.Values[comment_metadata.ElasticFieldName] = propertyName
 		comment := metadata.Marshall()
 
-		var maybeOnClusterClause string
-		if table.ClusterName != "" {
-			maybeOnClusterClause = " ON CLUSTER " + strconv.Quote(table.ClusterName)
+		alterColumn := AlterStatement{
+			Type:       AddColumn,
+			TableName:  table.Name,
+			OnCluster:  table.ClusterName,
+			ColumnName: attrKeys[i],
+			ColumnType: columnType,
 		}
-
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\"%s ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, maybeOnClusterClause, attrKeys[i], columnType)
 		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
-		alterCmd = append(alterCmd, alterTable)
+		alterCmd = append(alterCmd, alterColumn.ToSql())
 
-		alterColumn := fmt.Sprintf("ALTER TABLE \"%s\"%s COMMENT COLUMN \"%s\" '%s'", table.Name, maybeOnClusterClause, attrKeys[i], comment)
-		alterCmd = append(alterCmd, alterColumn)
+		alterColumnComment := AlterStatement{
+			Type:       CommentColumn,
+			TableName:  table.Name,
+			OnCluster:  table.ClusterName,
+			ColumnName: attrKeys[i],
+			Comment:    comment,
+		}
+		alterCmd = append(alterCmd, alterColumnComment.ToSql())
 
 		deleteIndexes = append(deleteIndexes, i)
 	}
