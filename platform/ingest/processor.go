@@ -89,7 +89,7 @@ type (
 			invalidJsons []types.JSON,
 			encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
 			alterCmd []string,
-			createTableCmd string) ([]string, error)
+			createTableCmd CreateTableStatement) ([]string, error)
 	}
 	SqlLowerer struct {
 		virtualTableStorage       persistence.JSONDatabase
@@ -114,7 +114,7 @@ func (l *SqlLowerer) LowerToDDL(validatedJsons []types.JSON,
 	invalidJsons []types.JSON,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
 	alterCmd []string,
-	createTableCmd string) ([]string, error) {
+	createTableCmd CreateTableStatement) ([]string, error) {
 	var jsonsReadyForInsertion []string
 	for i, preprocessedJson := range validatedJsons {
 		alter, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
@@ -151,7 +151,7 @@ func (l *HydrolixLowerer) LowerToDDL(validatedJsons []types.JSON,
 	invalidJsons []types.JSON,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
 	alterCmd []string,
-	createTableCmd string) ([]string, error) {
+	createTableCmd CreateTableStatement) ([]string, error) {
 	for i, preprocessedJson := range validatedJsons {
 		_ = i
 		_ = preprocessedJson
@@ -780,10 +780,10 @@ func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types
 	return string(jsonBytes), nil
 }
 
-func generateSqlStatements(createTableCmd string, alterCmd []string, insert string) []string {
+func generateSqlStatements(createTableCmd CreateTableStatement, alterCmd []string, insert string) []string {
 	var statements []string
-	if createTableCmd != "" {
-		statements = append(statements, createTableCmd)
+	if createTableCmd.Name != "" {
+		statements = append(statements, createTableCmd.ToSQL())
 	}
 	statements = append(statements, alterCmd...)
 	statements = append(statements, insert)
@@ -903,7 +903,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if !ok {
 		return nil, fmt.Errorf("no lowerer registered for connector type %s", quesma_api.GetBackendConnectorNameFromType(ip.chDb.GetId()))
 	}
-	return ddlLowerer.LowerToDDL(validatedJsons, table, invalidJsons, encodings, alterCmd, createTableCmd.ToSQL())
+	return ddlLowerer.LowerToDDL(validatedJsons, table, invalidJsons, encodings, alterCmd, createTableCmd)
 }
 
 func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonData []types.JSON) error {
