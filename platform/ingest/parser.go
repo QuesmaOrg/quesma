@@ -67,22 +67,26 @@ func (ct CreateTableStatement) ToSQL() string {
 	var b strings.Builder
 
 	if ct.Cluster != "" {
-		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" ON CLUSTER "%s"`+"\n(\n", ct.Name, ct.Cluster))
+		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" ON CLUSTER "%s"`+" \n(\n\n", ct.Name, ct.Cluster))
 	} else {
-		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"`+"\n(\n", ct.Name))
+		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"`+" \n(\n\n", ct.Name))
 	}
 
-	for i, col := range ct.Columns {
-		if i > 0 {
+	first := true
+
+	for _, column := range ct.Columns {
+		if first {
+			first = false
+		} else {
 			b.WriteString(",\n")
 		}
 		b.WriteString(util.Indent(1))
-		b.WriteString(fmt.Sprintf(`"%s" %s COMMENT '%s'`, col.ColumnName, col.ColumnType, col.Comment))
+		b.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ColumnName, column.ColumnType+" COMMENT ", column.Comment))
 	}
 
-	b.WriteString("\n)\n")
-
 	b.WriteString(ct.Indexes)
+
+	b.WriteString("\n)\n")
 
 	if ct.PostClause != "" {
 		b.WriteString(ct.PostClause + "\n")
