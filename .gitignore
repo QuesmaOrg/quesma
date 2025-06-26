@@ -1,6 +1,8 @@
 ci/it/configs/*.yml
 elasticsearch-data
-.idea
+.idea/
+!.idea/runConfigurations/
+!.idea/codeStyles/
 __pycache__
 mitmproxy/requests/*.txt
 mitmproxy/requests/*.mitm
