@@ -43,11 +43,12 @@ func (tc *IntegrationTestcaseBase) Cleanup(ctx context.Context, t *testing.T) {
 }
 
 func (tc *IntegrationTestcaseBase) getQuesmaEndpoint() string {
-	ctx := context.Background()
-	q := *tc.Containers.Quesma
-	p, _ := q.MappedPort(ctx, "8080/tcp")
-	h, _ := q.Host(ctx)
-	return fmt.Sprintf("http://%s:%s", h, p.Port())
+	//ctx := context.Background()
+	//q := *tc.Containers.Quesma
+	//p, _ := q.MappedPort(ctx, "8080/tcp")
+	//h, _ := q.Host(ctx)
+	//_ = fmt.Sprintf("http://%s:%s", h, p.Port())
+	return "http://localhost:8080"
 }
 
 func (tc *IntegrationTestcaseBase) getElasticsearchEndpoint() string {
