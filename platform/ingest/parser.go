@@ -31,24 +31,7 @@ func reverseFieldEncoding(fieldEncodings map[schema.FieldEncodingKey]schema.Enco
 	return res
 }
 
-type ColumnProperties struct {
-	ColumnName         string
-	ColumnType         string
-	Comment            string
-	PropertyName       string
-	AdditionalMetadata string
-}
-
-type CreateTableStatement struct {
-	Name       string
-	Cluster    string // Optional: ON CLUSTER
-	Columns    []ColumnProperties
-	Indexes    string // Optional: INDEXES
-	Comment    string
-	PostClause string // e.g. ENGINE, ORDER BY, etc.
-}
-
-func BuildCreateTable(name string, columns []ColumnProperties, indexes string, config *clickhouse.ChTableConfig) CreateTableStatement {
+func BuildCreateTable(name string, columns []ColumnStatement, indexes string, config *clickhouse.ChTableConfig) CreateTableStatement {
 	var cluster string
 	if config.ClusterName != "" {
 		cluster = config.ClusterName
@@ -64,67 +47,16 @@ func BuildCreateTable(name string, columns []ColumnProperties, indexes string, c
 	}
 }
 
-func (ct CreateTableStatement) ToSQL() string {
-	if ct.Name == "" {
-		return ""
-	}
-	var b strings.Builder
-
-	if ct.Cluster != "" {
-		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" ON CLUSTER "%s"`+" \n(\n\n", ct.Name, ct.Cluster))
-	} else {
-		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"`, ct.Name))
-	}
-
-	first := true
-
-	if len(ct.Columns) > 0 {
-		b.WriteString(" \n(\n\n")
-
-	}
-
-	for _, column := range ct.Columns {
-		if first {
-			first = false
-		} else {
-			b.WriteString(",\n")
-		}
-		b.WriteString(util.Indent(1))
-		b.WriteString(fmt.Sprintf("\"%s\" %s", column.ColumnName, column.ColumnType))
-		if column.Comment != "" {
-			b.WriteString(fmt.Sprintf(" COMMENT '%s'", column.Comment))
-		}
-		if column.AdditionalMetadata != "" {
-			b.WriteString(fmt.Sprintf(" %s", column.AdditionalMetadata))
-		}
-	}
-
-	b.WriteString(ct.Indexes)
-
-	if len(ct.Columns) > 0 {
-		b.WriteString("\n)\n")
-	}
-
-	if ct.PostClause != "" {
-		b.WriteString(ct.PostClause + "\n")
-	}
-	if ct.Comment != "" {
-		b.WriteString(fmt.Sprintf("COMMENT '%s'", ct.Comment))
-	}
-
-	return b.String()
-}
-
 // Returns a slice of ColumnProperties containing all needed column properties
 func columnsToProperties(columnsFromJson []CreateTableEntry,
 	columnsFromSchema map[schema.FieldName]CreateTableEntry,
 	fieldEncodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
 	tableName string,
-) []ColumnProperties {
+) []ColumnStatement {
 
 	reverseMap := reverseFieldEncoding(fieldEncodings, tableName)
 
-	var columnProperties []ColumnProperties
+	var columnProperties []ColumnStatement
 	for _, columnFromJson := range columnsFromJson {
 		propertyName := reverseMap[schema.EncodedFieldName(columnFromJson.ClickHouseColumnName)].FieldName
 
@@ -138,14 +70,14 @@ func columnsToProperties(columnsFromJson []CreateTableEntry,
 				if strings.Count(columnFromJson.ClickHouseType, "Array") > 1 {
 					logger.Warn().Msgf("Column '%s' has type '%s' - an array nested multiple times. Such case might not be handled correctly.", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType)
 				}
-				columnProperties = append(columnProperties, ColumnProperties{
+				columnProperties = append(columnProperties, ColumnStatement{
 					ColumnName:   columnFromJson.ClickHouseColumnName,
 					ColumnType:   columnFromJson.ClickHouseType,
 					Comment:      comment,
 					PropertyName: propertyName,
 				})
 			} else {
-				columnProperties = append(columnProperties, ColumnProperties{
+				columnProperties = append(columnProperties, ColumnStatement{
 					ColumnName:   columnFromSchema.ClickHouseColumnName,
 					ColumnType:   columnFromSchema.ClickHouseType,
 					Comment:      comment,
@@ -153,7 +85,7 @@ func columnsToProperties(columnsFromJson []CreateTableEntry,
 				})
 			}
 		} else {
-			columnProperties = append(columnProperties, ColumnProperties{
+			columnProperties = append(columnProperties, ColumnStatement{
 				ColumnName:   columnFromJson.ClickHouseColumnName,
 				ColumnType:   columnFromJson.ClickHouseType,
 				Comment:      comment,
@@ -172,7 +104,7 @@ func columnsToProperties(columnsFromJson []CreateTableEntry,
 		columnMetadata.Values[comment_metadata.ElasticFieldName] = propertyName
 		comment := columnMetadata.Marshall()
 
-		columnProperties = append(columnProperties, ColumnProperties{
+		columnProperties = append(columnProperties, ColumnStatement{
 			ColumnName:   column.ClickHouseColumnName,
 			ColumnType:   column.ClickHouseType,
 			Comment:      comment,
@@ -184,7 +116,7 @@ func columnsToProperties(columnsFromJson []CreateTableEntry,
 }
 
 // Rendering columns to string
-func columnPropertiesToString(columnProperties []ColumnProperties) string {
+func columnPropertiesToString(columnProperties []ColumnStatement) string {
 	var result strings.Builder
 	first := true
 

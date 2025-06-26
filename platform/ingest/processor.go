@@ -42,27 +42,6 @@ const (
 	fieldFrequency        = 10
 )
 
-type AlterStatementType int
-
-const (
-	AddColumn AlterStatementType = iota
-	CommentColumn
-)
-
-type AlterStatement struct {
-	Type       AlterStatementType
-	TableName  string
-	OnCluster  string
-	ColumnName string
-	ColumnType string // used only for AddColumn
-	Comment    string // used only for CommentColumn
-}
-
-type InsertStatement struct {
-	TableName    string
-	InsertValues string // expected to be JSONEachRow-compatible content
-}
-
 type (
 	IngestFieldBucketKey struct {
 		indexName string
@@ -314,7 +293,7 @@ func addOurFieldsToCreateTableStatement(
 	for _, attr := range config.Attributes {
 		// Add metadata Map
 		if _, ok := table.Cols[attr.MapMetadataName]; !ok {
-			stmt.Columns = append([]ColumnProperties{
+			stmt.Columns = append([]ColumnStatement{
 				{
 					ColumnName:         attr.MapMetadataName,
 					ColumnType:         "Map(String,String)",
@@ -331,7 +310,7 @@ func addOurFieldsToCreateTableStatement(
 		}
 		// Add value Map
 		if _, ok := table.Cols[attr.MapValueName]; !ok {
-			stmt.Columns = append([]ColumnProperties{
+			stmt.Columns = append([]ColumnStatement{
 				{
 					ColumnName:         attr.MapValueName,
 					ColumnType:         "Map(String,String)",
@@ -358,7 +337,7 @@ func addOurFieldsToCreateTableStatement(
 			}
 
 			// Add to statement
-			stmt.Columns = append([]ColumnProperties{
+			stmt.Columns = append([]ColumnStatement{
 				{
 					ColumnName:         timestampFieldName,
 					ColumnType:         "DateTime64(3)",
@@ -527,32 +506,6 @@ func getAttributesByArrayName(arrayName string,
 		}
 	}
 	return attributes
-}
-
-func (stmt AlterStatement) ToSql() string {
-	var onCluster string
-	if stmt.OnCluster != "" {
-		onCluster = fmt.Sprintf(` ON CLUSTER "%s"`, stmt.OnCluster)
-	}
-
-	switch stmt.Type {
-	case AddColumn:
-		return fmt.Sprintf(
-			`ALTER TABLE "%s"%s ADD COLUMN IF NOT EXISTS "%s" %s`,
-			stmt.TableName, onCluster, stmt.ColumnName, stmt.ColumnType,
-		)
-	case CommentColumn:
-		return fmt.Sprintf(
-			`ALTER TABLE "%s"%s COMMENT COLUMN "%s" '%s'`,
-			stmt.TableName, onCluster, stmt.ColumnName, stmt.Comment,
-		)
-	default:
-		panic(fmt.Sprintf("unsupported AlterStatementType: %v", stmt.Type))
-	}
-}
-
-func (s InsertStatement) ToSQL() string {
-	return fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow %s`, s.TableName, s.InsertValues)
 }
 
 // This function generates ALTER TABLE commands for adding new columns
@@ -934,8 +887,6 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		// So we need to convert that separately
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter, tableName, ip.schemaRegistry.GetFieldEncodings())
 		resultColumns := columnsToProperties(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName)
-		// columnsAsString := columnsWithIndexes(columnPropertiesToString(resultColumns), Indexes(transformedJsons[0]))
-		// createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
 		createTableCmd = BuildCreateTable(tableName, resultColumns, Indexes(transformedJsons[0]), tableConfig)
 		var err error
 		table, err = ip.createTableObjectAndAttributes(ctx, tableName, columnsFromJson, columnsFromSchema, tableConfig, tableDefinitionChangeOnly)
