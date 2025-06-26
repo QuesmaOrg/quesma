@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Debug Quesma ITs" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="quesma" />
+    <working_directory value="$PROJECT_DIR$/cmd" />
+    <envs>
+      <env name="QUESMA_CONFIG_FILE" value="$PROJECT_DIR$/ci/it/configs/quesma-now-reads-clickhouse-tables.yml" />
+    </envs>
+    <kind value="PACKAGE" />
+    <package value="github.com/QuesmaOrg/quesma/quesma-cli" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/cmd/main.go" />
+    <method v="2" />
+  </configuration>
+</component>
