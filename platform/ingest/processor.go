@@ -274,6 +274,86 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 	return q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
 }
 
+func addOurFieldsToCreateTableStatement(
+	stmt CreateTableStatement,
+	config *chLib.ChTableConfig,
+	table *chLib.Table,
+) CreateTableStatement {
+	// Early exit if no attributes and timestamp is already handled
+	if len(config.Attributes) == 0 {
+		_, ok := table.Cols[timestampFieldName]
+		if !config.HasTimestamp || ok {
+			return stmt
+		}
+	}
+	// Handle attribute columns
+	for _, attr := range config.Attributes {
+		// Add metadata Map
+		if _, ok := table.Cols[attr.MapMetadataName]; !ok {
+			stmt.Columns = append([]ColumnProperties{
+				{
+					ColumnName:         attr.MapMetadataName,
+					ColumnType:         "Map(String,String)",
+					AdditionalMetadata: "",
+				},
+			}, stmt.Columns...)
+			table.Cols[attr.MapMetadataName] = &chLib.Column{
+				Name: attr.MapMetadataName,
+				Type: chLib.CompoundType{
+					Name:     "Map",
+					BaseType: chLib.NewBaseType("String, String"),
+				},
+			}
+		}
+		// Add value Map
+		if _, ok := table.Cols[attr.MapValueName]; !ok {
+			stmt.Columns = append([]ColumnProperties{
+				{
+					ColumnName:         attr.MapValueName,
+					ColumnType:         "Map(String,String)",
+					AdditionalMetadata: "",
+				},
+			}, stmt.Columns...)
+			table.Cols[attr.MapValueName] = &chLib.Column{
+				Name: attr.MapValueName,
+				Type: chLib.CompoundType{
+					Name:     "Map",
+					BaseType: chLib.NewBaseType("String, String"),
+				},
+			}
+		}
+
+	}
+
+	// Handle timestamp column
+	if config.HasTimestamp {
+		if _, ok := table.Cols[timestampFieldName]; !ok {
+			defaultStr := ""
+			if config.TimestampDefaultsNow {
+				defaultStr = "DEFAULT now64()"
+			}
+
+			// Add to statement
+			stmt.Columns = append([]ColumnProperties{
+				{
+					ColumnName:         timestampFieldName,
+					ColumnType:         "DateTime64(3)",
+					Comment:            "",
+					AdditionalMetadata: defaultStr,
+				},
+			}, stmt.Columns...)
+
+			// Update table metadata
+			table.Cols[timestampFieldName] = &chLib.Column{
+				Name: timestampFieldName,
+				Type: chLib.NewBaseType("DateTime64"),
+			}
+		}
+	}
+
+	return stmt
+}
+
 func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
 	err := ip.chDb.QueryRow(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
@@ -772,7 +852,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 
 	table := ip.FindTable(tableName)
 	var tableConfig *chLib.ChTableConfig
-	var createTableCmd string
+	var createTableCmd CreateTableStatement
 	if table == nil {
 		tableConfig = NewOnlySchemaFieldsCHConfig(ip.cfg.ClusterName)
 		if indexConfig, ok := ip.cfg.IndexConfig[tableName]; ok {
@@ -797,7 +877,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 		resultColumns := columnsToProperties(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName)
 		// columnsAsString := columnsWithIndexes(columnPropertiesToString(resultColumns), Indexes(transformedJsons[0]))
 		// createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
-		createTableCmd = BuildCreateTable(tableName, resultColumns, Indexes(transformedJsons[0]), tableConfig).ToSQL()
+		createTableCmd = BuildCreateTable(tableName, resultColumns, Indexes(transformedJsons[0]), tableConfig)
 		var err error
 		table, err = ip.createTableObjectAndAttributes(ctx, tableName, columnsFromJson, columnsFromSchema, tableConfig, tableDefinitionChangeOnly)
 		if err != nil {
@@ -805,9 +885,10 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			return nil, err
 		} else {
 			// Likely we want to remove below line
-			createTableCmd = addOurFieldsToCreateTableQuery(createTableCmd, tableConfig, table)
+			createTableCmd = addOurFieldsToCreateTableStatement(createTableCmd, tableConfig, table)
 		}
 	}
+
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
 	}
@@ -822,7 +903,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	if !ok {
 		return nil, fmt.Errorf("no lowerer registered for connector type %s", quesma_api.GetBackendConnectorNameFromType(ip.chDb.GetId()))
 	}
-	return ddlLowerer.LowerToDDL(validatedJsons, table, invalidJsons, encodings, alterCmd, createTableCmd)
+	return ddlLowerer.LowerToDDL(validatedJsons, table, invalidJsons, encodings, alterCmd, createTableCmd.ToSQL())
 }
 
 func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonData []types.JSON) error {

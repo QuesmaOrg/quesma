@@ -32,10 +32,11 @@ func reverseFieldEncoding(fieldEncodings map[schema.FieldEncodingKey]schema.Enco
 }
 
 type ColumnProperties struct {
-	ColumnName   string
-	ColumnType   string
-	Comment      string
-	PropertyName string
+	ColumnName         string
+	ColumnType         string
+	Comment            string
+	PropertyName       string
+	AdditionalMetadata string
 }
 
 type CreateTableStatement struct {
@@ -64,15 +65,23 @@ func BuildCreateTable(name string, columns []ColumnProperties, indexes string, c
 }
 
 func (ct CreateTableStatement) ToSQL() string {
+	if ct.Name == "" {
+		return ""
+	}
 	var b strings.Builder
 
 	if ct.Cluster != "" {
 		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" ON CLUSTER "%s"`+" \n(\n\n", ct.Name, ct.Cluster))
 	} else {
-		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"`+" \n(\n\n", ct.Name))
+		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"`, ct.Name))
 	}
 
 	first := true
+
+	if len(ct.Columns) > 0 {
+		b.WriteString(" \n(\n\n")
+
+	}
 
 	for _, column := range ct.Columns {
 		if first {
@@ -81,12 +90,20 @@ func (ct CreateTableStatement) ToSQL() string {
 			b.WriteString(",\n")
 		}
 		b.WriteString(util.Indent(1))
-		b.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ColumnName, column.ColumnType+" COMMENT ", column.Comment))
+		b.WriteString(fmt.Sprintf("\"%s\" %s", column.ColumnName, column.ColumnType))
+		if column.Comment != "" {
+			b.WriteString(fmt.Sprintf(" COMMENT '%s'", column.Comment))
+		}
+		if column.AdditionalMetadata != "" {
+			b.WriteString(fmt.Sprintf(" %s", column.AdditionalMetadata))
+		}
 	}
 
 	b.WriteString(ct.Indexes)
 
-	b.WriteString("\n)\n")
+	if len(ct.Columns) > 0 {
+		b.WriteString("\n)\n")
+	}
 
 	if ct.PostClause != "" {
 		b.WriteString(ct.PostClause + "\n")
