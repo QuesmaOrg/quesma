@@ -31,11 +31,13 @@ const (
 const configTemplatesDir = "configs"
 
 func GetInternalDockerHost() string {
-	return "localhost"
-	//if check := os.Getenv("EXECUTING_ON_GITHUB_CI"); check != "" {
-	//	return "localhost-for-github-ci"
-	//}
-	//return "host.docker.internal" // `host.testcontainers.internal` doesn't work for Docker Desktop for Mac.
+	if check := os.Getenv("EXECUTING_ON_GITHUB_CI"); check != "" {
+		return "localhost-for-github-ci"
+	}
+	if debugQuesmaDuringTestRun {
+		return "localhost"
+	}
+	return "host.docker.internal" // `host.testcontainers.internal` doesn't work for Docker Desktop for Mac.
 }
 
 type Containers struct {
