@@ -7,12 +7,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/exec"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,10 +27,11 @@ import (
 const configTemplatesDir = "configs"
 
 func GetInternalDockerHost() string {
-	if check := os.Getenv("EXECUTING_ON_GITHUB_CI"); check != "" {
-		return "localhost-for-github-ci"
-	}
-	return "host.docker.internal" // `host.testcontainers.internal` doesn't work for Docker Desktop for Mac.
+	return "localhost"
+	//if check := os.Getenv("EXECUTING_ON_GITHUB_CI"); check != "" {
+	//	return "localhost-for-github-ci"
+	//}
+	//return "host.docker.internal" // `host.testcontainers.internal` doesn't work for Docker Desktop for Mac.
 }
 
 type Containers struct {
@@ -264,26 +268,27 @@ func setupClickHouse(ctx context.Context) (testcontainers.Container, error) {
 	})
 }
 
-func RenderQuesmaConfig(configTemplate string, data map[string]string) error {
+func RenderQuesmaConfig(configTemplate string, data map[string]string) (string, error) {
 	absPath, err := filepath.Abs(filepath.Join(".", configTemplatesDir, configTemplate))
 	content, err := os.ReadFile(absPath)
 	if err != nil {
-		return fmt.Errorf("error reading YAML file: %v", err)
+		return "", fmt.Errorf("error reading YAML file: %v", err)
 	}
 	tmpl, err := template.New("yamlTemplate").Parse(string(content))
 	if err != nil {
-		return fmt.Errorf("error creating template: %v", err)
+		return "", fmt.Errorf("error creating template: %v", err)
 	}
 	var renderedContent bytes.Buffer
 	err = tmpl.Execute(&renderedContent, data)
 	if err != nil {
-		return fmt.Errorf("error executing template: %v", err)
+		return "", fmt.Errorf("error executing template: %v", err)
 	}
-	err = os.WriteFile(strings.TrimSuffix(absPath, ".template"), renderedContent.Bytes(), 0644)
+	configPath := strings.TrimSuffix(absPath, ".template")
+	err = os.WriteFile(configPath, renderedContent.Bytes(), 0644)
 	if err != nil {
-		return fmt.Errorf("error writing rendered YAML file: %v", err)
+		return "", fmt.Errorf("error writing rendered YAML file: %v", err)
 	}
-	return nil
+	return configPath, nil
 }
 
 func setupContainersForTransparentProxy(ctx context.Context, quesmaConfigTemplate string) (*Containers, error) {
@@ -300,7 +305,7 @@ func setupContainersForTransparentProxy(ctx context.Context, quesmaConfigTemplat
 		"elasticsearch_host": GetInternalDockerHost(),
 		"elasticsearch_port": esPort.Port(),
 	}
-	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
+	if _, err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
 		return &containers, fmt.Errorf("failed to render Quesma config: %v", err)
 	}
 
@@ -344,15 +349,35 @@ func setupAllContainersWithCh(ctx context.Context, quesmaConfigTemplate string) 
 		"clickhouse_host":    GetInternalDockerHost(),
 		"clickhouse_port":    chPort.Port(),
 	}
-	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
+	configPath, err := RenderQuesmaConfig(quesmaConfigTemplate, data)
+	if err != nil {
 		return &containers, fmt.Errorf("failed to render Quesma config: %v", err)
 	}
 
-	quesma, err := setupQuesma(ctx, quesmaConfigTemplate)
-	containers.Quesma = &quesma
+	debuggerQuesmaConfig := filepath.Join(filepath.Dir(configPath), "quesma-with-debugger.yml")
+	content, err := os.ReadFile(configPath)
 	if err != nil {
-		return &containers, fmt.Errorf("failed to start Quesma, %v", err)
+		return &containers, fmt.Errorf("failed to read rendered Quesma config: %v", err)
 	}
+	if err := os.WriteFile(debuggerQuesmaConfig, content, 0644); err != nil {
+		return &containers, fmt.Errorf("failed to write dupa.yml: %v", err)
+	}
+	log.Printf("Quesma config rendered to: %s", debuggerQuesmaConfig)
+
+	//containers.Quesma = &quesma
+	log.Printf("Waiting for you to start Quesma form your IDE using `Debug Quesma IT` configuration")
+	for {
+		resp, err := http.Get("http://localhost:8080")
+		if err == nil {
+			resp.Body.Close()
+			break
+		}
+		log.Printf("Waiting for Quesma HTTP server at port 8080...")
+		time.Sleep(1 * time.Second)
+	}
+
+	log.Printf("Okay you had your chance")
+	quesma := CreatedManuallyContainer{}
 
 	kibana, err := setupKibana(ctx, quesma)
 	containers.Kibana = &kibana
@@ -361,4 +386,149 @@ func setupAllContainersWithCh(ctx context.Context, quesmaConfigTemplate string) 
 	}
 
 	return &containers, nil
+}
+
+func NewCreatedManuallyContainer() *CreatedManuallyContainer {
+	return &CreatedManuallyContainer{}
+}
+
+type CreatedManuallyContainer struct{}
+
+func (c CreatedManuallyContainer) GetContainerID() string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) Endpoint(ctx context.Context, s string) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) PortEndpoint(ctx context.Context, port nat.Port, s string) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) Host(ctx context.Context) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) Inspect(ctx context.Context) (*types.ContainerJSON, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) MappedPort(ctx context.Context, port nat.Port) (nat.Port, error) {
+	return nat.Port("8080/tcp"), nil
+}
+
+func (c CreatedManuallyContainer) Ports(ctx context.Context) (nat.PortMap, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) SessionID() string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) IsRunning() bool {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) Start(ctx context.Context) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) Stop(ctx context.Context, duration *time.Duration) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) Terminate(ctx context.Context) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) Logs(ctx context.Context) (io.ReadCloser, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) FollowOutput(consumer testcontainers.LogConsumer) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) StartLogProducer(ctx context.Context, option ...testcontainers.LogProductionOption) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) StopLogProducer() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) Name(ctx context.Context) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) State(ctx context.Context) (*types.ContainerState, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) Networks(ctx context.Context) ([]string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) NetworkAliases(ctx context.Context) (map[string][]string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) Exec(ctx context.Context, cmd []string, options ...exec.ProcessOption) (int, io.Reader, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) ContainerIP(ctx context.Context) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) ContainerIPs(ctx context.Context) ([]string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) CopyToContainer(ctx context.Context, fileContent []byte, containerFilePath string, fileMode int64) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) CopyDirToContainer(ctx context.Context, hostDirPath string, containerParentPath string, fileMode int64) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) CopyFileToContainer(ctx context.Context, hostFilePath string, containerFilePath string, fileMode int64) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) CopyFileFromContainer(ctx context.Context, filePath string) (io.ReadCloser, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c CreatedManuallyContainer) GetLogProductionErrorChannel() <-chan error {
+	//TODO implement me
+	panic("implement me")
 }

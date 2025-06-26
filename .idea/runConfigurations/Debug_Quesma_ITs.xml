@@ -3,7 +3,7 @@
     <module name="quesma" />
     <working_directory value="$PROJECT_DIR$/cmd" />
     <envs>
-      <env name="QUESMA_CONFIG_FILE" value="$PROJECT_DIR$/ci/it/configs/quesma-now-reads-clickhouse-tables.yml" />
+      <env name="QUESMA_CONFIG_FILE" value="$PROJECT_DIR$/ci/it/configs/quesma-with-debugger.yml" />
     </envs>
     <kind value="PACKAGE" />
     <package value="github.com/QuesmaOrg/quesma/quesma-cli" />
