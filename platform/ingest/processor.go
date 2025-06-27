@@ -28,7 +28,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -54,28 +53,28 @@ type Ingester interface {
 	Ingest(ctx context.Context, tableName string, jsonData []types.JSON) error
 }
 
+type Processor struct {
+	ctx             context.Context
+	cancel          context.CancelFunc
+	chDb            quesma_api.BackendConnector
+	tableDiscovery  chLib.TableDiscovery
+	cfg             *config.QuesmaConfiguration
+	phoneHomeClient diag.PhoneHomeClient
+	schemaRegistry  schema.Registry
+	tableResolver   table_resolver.TableResolver
+
+	indexNameRewriter IndexNameRewriter
+
+	errorLogCounter atomic.Int64
+	lowerers        map[quesma_api.BackendConnectorType]Lowerer
+	lowerer         *SqlLowerer
+}
+
 type (
-	IngestProcessor struct {
-		ctx                       context.Context
-		cancel                    context.CancelFunc
-		chDb                      quesma_api.BackendConnector
-		tableDiscovery            chLib.TableDiscovery
-		cfg                       *config.QuesmaConfiguration
-		phoneHomeClient           diag.PhoneHomeClient
-		schemaRegistry            schema.Registry
-		ingestCounter             int64
-		ingestFieldStatistics     IngestFieldStatistics
-		ingestFieldStatisticsLock sync.Mutex
-		virtualTableStorage       persistence.JSONDatabase
-		tableResolver             table_resolver.TableResolver
-
-		indexNameRewriter IndexNameRewriter
-
-		errorLogCounter atomic.Int64
-	}
-	TableMap  = util.SyncMap[string, *chLib.Table]
-	SchemaMap = map[string]interface{} // TODO remove
-	Attribute struct {
+	IngestProcessor Processor
+	TableMap        = util.SyncMap[string, *chLib.Table]
+	SchemaMap       = map[string]interface{} // TODO remove
+	Attribute       struct {
 		KeysArrayName   string
 		ValuesArrayName string
 		TypesArrayName  string
@@ -84,6 +83,10 @@ type (
 		Type            chLib.BaseType
 	}
 )
+
+func (ip *IngestProcessor) RegisterLowerer(lowerer Lowerer, connectorType quesma_api.BackendConnectorType) {
+	ip.lowerers[connectorType] = lowerer
+}
 
 func NewTableMap() *TableMap {
 	return util.NewSyncMap[string, *chLib.Table]()
@@ -171,6 +174,86 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 
 	i := strings.Index(q, "(")
 	return q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
+}
+
+func addOurFieldsToCreateTableStatement(
+	stmt CreateTableStatement,
+	config *chLib.ChTableConfig,
+	table *chLib.Table,
+) CreateTableStatement {
+	// Early exit if no attributes and timestamp is already handled
+	if len(config.Attributes) == 0 {
+		_, ok := table.Cols[timestampFieldName]
+		if !config.HasTimestamp || ok {
+			return stmt
+		}
+	}
+	// Handle attribute columns
+	for _, attr := range config.Attributes {
+		// Add metadata Map
+		if _, ok := table.Cols[attr.MapMetadataName]; !ok {
+			stmt.Columns = append([]ColumnStatement{
+				{
+					ColumnName:         attr.MapMetadataName,
+					ColumnType:         "Map(String,String)",
+					AdditionalMetadata: "",
+				},
+			}, stmt.Columns...)
+			table.Cols[attr.MapMetadataName] = &chLib.Column{
+				Name: attr.MapMetadataName,
+				Type: chLib.CompoundType{
+					Name:     "Map",
+					BaseType: chLib.NewBaseType("String, String"),
+				},
+			}
+		}
+		// Add value Map
+		if _, ok := table.Cols[attr.MapValueName]; !ok {
+			stmt.Columns = append([]ColumnStatement{
+				{
+					ColumnName:         attr.MapValueName,
+					ColumnType:         "Map(String,String)",
+					AdditionalMetadata: "",
+				},
+			}, stmt.Columns...)
+			table.Cols[attr.MapValueName] = &chLib.Column{
+				Name: attr.MapValueName,
+				Type: chLib.CompoundType{
+					Name:     "Map",
+					BaseType: chLib.NewBaseType("String, String"),
+				},
+			}
+		}
+
+	}
+
+	// Handle timestamp column
+	if config.HasTimestamp {
+		if _, ok := table.Cols[timestampFieldName]; !ok {
+			defaultStr := ""
+			if config.TimestampDefaultsNow {
+				defaultStr = "DEFAULT now64()"
+			}
+
+			// Add to statement
+			stmt.Columns = append([]ColumnStatement{
+				{
+					ColumnName:         timestampFieldName,
+					ColumnType:         "DateTime64(3)",
+					Comment:            "",
+					AdditionalMetadata: defaultStr,
+				},
+			}, stmt.Columns...)
+
+			// Update table metadata
+			table.Cols[timestampFieldName] = &chLib.Column{
+				Name: timestampFieldName,
+				Type: chLib.NewBaseType("DateTime64"),
+			}
+		}
+	}
+
+	return stmt
 }
 
 func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, error) {
@@ -329,12 +412,12 @@ func getAttributesByArrayName(arrayName string,
 // AttributesMap contains the attributes that are not part of the schema
 // Function has side effects, it modifies the table.Cols map
 // and removes the attributes that were promoted to columns
-func (ip *IngestProcessor) generateNewColumns(
+func (ip *SqlLowerer) generateNewColumns(
 	attrsMap map[string][]interface{},
 	table *chLib.Table,
 	alteredAttributesIndexes []int,
-	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) []string {
-	var alterCmd []string
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) []AlterStatement {
+	var alterStatements []AlterStatement
 	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
 	attrTypes := getAttributesByArrayName(chLib.DeprecatedAttributesValueType, attrsMap)
 	var deleteIndexes []int
@@ -377,17 +460,24 @@ func (ip *IngestProcessor) generateNewColumns(
 		metadata.Values[comment_metadata.ElasticFieldName] = propertyName
 		comment := metadata.Marshall()
 
-		var maybeOnClusterClause string
-		if table.ClusterName != "" {
-			maybeOnClusterClause = " ON CLUSTER " + strconv.Quote(table.ClusterName)
+		alterColumn := AlterStatement{
+			Type:       AddColumn,
+			TableName:  table.Name,
+			OnCluster:  table.ClusterName,
+			ColumnName: attrKeys[i],
+			ColumnType: columnType,
 		}
-
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\"%s ADD COLUMN IF NOT EXISTS \"%s\" %s", table.Name, maybeOnClusterClause, attrKeys[i], columnType)
 		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
-		alterCmd = append(alterCmd, alterTable)
+		alterStatements = append(alterStatements, alterColumn)
 
-		alterColumn := fmt.Sprintf("ALTER TABLE \"%s\"%s COMMENT COLUMN \"%s\" '%s'", table.Name, maybeOnClusterClause, attrKeys[i], comment)
-		alterCmd = append(alterCmd, alterColumn)
+		alterColumnComment := AlterStatement{
+			Type:       CommentColumn,
+			TableName:  table.Name,
+			OnCluster:  table.ClusterName,
+			ColumnName: attrKeys[i],
+			Comment:    comment,
+		}
+		alterStatements = append(alterStatements, alterColumnComment)
 
 		deleteIndexes = append(deleteIndexes, i)
 	}
@@ -395,7 +485,7 @@ func (ip *IngestProcessor) generateNewColumns(
 	table.Cols = newColumns
 
 	if table.VirtualTable {
-		err := ip.storeVirtualTable(table)
+		err := storeVirtualTable(table, ip.virtualTableStorage)
 		if err != nil {
 			logger.Error().Msgf("error storing virtual table: %v", err)
 		}
@@ -406,7 +496,7 @@ func (ip *IngestProcessor) generateNewColumns(
 		attrsMap[chLib.DeprecatedAttributesValueType] = append(attrsMap[chLib.DeprecatedAttributesValueType][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueType][deleteIndexes[i]+1:]...)
 		attrsMap[chLib.DeprecatedAttributesValueColumn] = append(attrsMap[chLib.DeprecatedAttributesValueColumn][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueColumn][deleteIndexes[i]+1:]...)
 	}
-	return alterCmd
+	return alterStatements
 }
 
 // This struct contains the information about the columns that aren't part of the schema
@@ -482,7 +572,7 @@ func generateNonSchemaFields(attrsMap map[string][]interface{}) ([]NonSchemaFiel
 }
 
 // This function implements heuristic for deciding if we should add new columns
-func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[string][]interface{}) (bool, []int) {
+func (ip *SqlLowerer) shouldAlterColumns(table *chLib.Table, attrsMap map[string][]interface{}) (bool, []int) {
 	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
 	alterColumnIndexes := make([]int, 0)
 
@@ -537,10 +627,10 @@ func (ip *IngestProcessor) shouldAlterColumns(table *chLib.Table, attrsMap map[s
 	return false, nil
 }
 
-func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
+func (ip *SqlLowerer) GenerateIngestContent(table *chLib.Table,
 	data types.JSON,
 	inValidJson types.JSON,
-	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]string, types.JSON, []NonSchemaField, error) {
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]AlterStatement, types.JSON, []NonSchemaField, error) {
 
 	if len(table.Config.Attributes) == 0 {
 		return nil, data, nil, nil
@@ -563,10 +653,10 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 	// otherwise it would contain invalid fields e.g. with wrong types
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
-	var alterCmd []string
+	var alterStatements []AlterStatement
 	atomic.AddInt64(&ip.ingestCounter, 1)
 	if ok, alteredAttributesIndexes := ip.shouldAlterColumns(table, attrsMap); ok {
-		alterCmd = ip.generateNewColumns(attrsMap, table, alteredAttributesIndexes, encodings)
+		alterStatements = ip.generateNewColumns(attrsMap, table, alteredAttributesIndexes, encodings)
 	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
@@ -582,7 +672,7 @@ func (ip *IngestProcessor) GenerateIngestContent(table *chLib.Table,
 
 	onlySchemaFields := RemoveNonSchemaFields(data, table)
 
-	return alterCmd, onlySchemaFields, nonSchemaFields, nil
+	return alterStatements, onlySchemaFields, nonSchemaFields, nil
 }
 
 func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) (string, error) {
@@ -599,13 +689,15 @@ func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types
 	return string(jsonBytes), nil
 }
 
-func generateSqlStatements(createTableCmd string, alterCmd []string, insert string) []string {
+func generateSqlStatements(createTableCmd CreateTableStatement, alterStatments []AlterStatement, insertStatement InsertStatement) []string {
 	var statements []string
-	if createTableCmd != "" {
-		statements = append(statements, createTableCmd)
+	if createTableCmd.Name != "" {
+		statements = append(statements, createTableCmd.ToSQL())
 	}
-	statements = append(statements, alterCmd...)
-	statements = append(statements, insert)
+	for _, alter := range alterStatments {
+		statements = append(statements, alter.ToSql())
+	}
+	statements = append(statements, insertStatement.ToSQL())
 	return statements
 }
 
@@ -671,7 +763,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 
 	table := ip.FindTable(tableName)
 	var tableConfig *chLib.ChTableConfig
-	var createTableCmd string
+	var createTableCmd CreateTableStatement
 	if table == nil {
 		tableConfig = NewOnlySchemaFieldsCHConfig(ip.cfg.ClusterName)
 		if indexConfig, ok := ip.cfg.IndexConfig[tableName]; ok {
@@ -689,11 +781,10 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 
 		ip.schemaRegistry.UpdateFieldsOrigins(schema.IndexName(tableName), fieldOrigins)
 
-		// This comes externally from (configuration)
-		// So we need to convert that separately
+		// This comes externally from (configuration), therefore we need to convert that separately
 		columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), tableFormatter, tableName, ip.schemaRegistry.GetFieldEncodings())
-		columnsAsString := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName), Indexes(transformedJsons[0]))
-		createTableCmd = createTableQuery(tableName, columnsAsString, tableConfig)
+		resultColumns := columnsToProperties(columnsFromJson, columnsFromSchema, ip.schemaRegistry.GetFieldEncodings(), tableName)
+		createTableCmd = BuildCreateTable(tableName, resultColumns, Indexes(transformedJsons[0]), tableConfig)
 		var err error
 		table, err = ip.createTableObjectAndAttributes(ctx, tableName, columnsFromJson, columnsFromSchema, tableConfig, tableDefinitionChangeOnly)
 		if err != nil {
@@ -701,42 +792,24 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 			return nil, err
 		} else {
 			// Likely we want to remove below line
-			createTableCmd = addOurFieldsToCreateTableQuery(createTableCmd, tableConfig, table)
+			createTableCmd = addOurFieldsToCreateTableStatement(createTableCmd, tableConfig, table)
 		}
 	}
+
 	if table == nil {
 		return nil, fmt.Errorf("table %s not found", tableName)
 	}
-	var jsonsReadyForInsertion []string
-	var alterCmd []string
 	var validatedJsons []types.JSON
 	var invalidJsons []types.JSON
 	validatedJsons, invalidJsons, err := ip.preprocessJsons(ctx, table.Name, transformedJsons)
 	if err != nil {
 		return nil, fmt.Errorf("error preprocessJsons: %v", err)
 	}
-	for i, preprocessedJson := range validatedJsons {
-		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, preprocessedJson,
-			invalidJsons[i], encodings)
-
-		if err != nil {
-			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
-		}
-		insertJson, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
-		if err != nil {
-			return nil, fmt.Errorf("error generatateInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
-		}
-		alterCmd = append(alterCmd, alter...)
-		if err != nil {
-			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", table.Name, PrettyJson(insertJson), err)
-		}
-		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
+	ddlLowerer, ok := ip.lowerers[ip.chDb.GetId()]
+	if !ok {
+		return nil, fmt.Errorf("no lowerer registered for connector type %s", quesma_api.GetBackendConnectorNameFromType(ip.chDb.GetId()))
 	}
-
-	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
-	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", table.Name, insertValues)
-
-	return generateSqlStatements(createTableCmd, alterCmd, insert), nil
+	return ddlLowerer.LowerToDDL(validatedJsons, table, invalidJsons, encodings, createTableCmd)
 }
 
 func (lm *IngestProcessor) Ingest(ctx context.Context, indexName string, jsonData []types.JSON) error {
@@ -984,7 +1057,7 @@ func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {
 	return result
 }
 
-func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
+func storeVirtualTable(table *chLib.Table, virtualTableStorage persistence.JSONDatabase) error {
 
 	now := time.Now()
 
@@ -1026,7 +1099,7 @@ func (ip *IngestProcessor) storeVirtualTable(table *chLib.Table) error {
 		return err
 	}
 
-	return ip.virtualTableStorage.Put(table.Name, string(data))
+	return virtualTableStorage.Put(table.Name, string(data))
 }
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
@@ -1036,7 +1109,7 @@ func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
 		table.ApplyIndexConfig(ip.cfg)
 
 		if table.VirtualTable {
-			err := ip.storeVirtualTable(table)
+			err := storeVirtualTable(table, ip.lowerer.virtualTableStorage)
 			if err != nil {
 				logger.Error().Msgf("error storing virtual table: %v", err)
 			}
@@ -1063,10 +1136,13 @@ func (ip *IngestProcessor) GetIndexNameRewriter() IndexNameRewriter {
 	return ip.indexNameRewriter
 }
 
-func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, virtualTableStorage persistence.JSONDatabase, tableResolver table_resolver.TableResolver) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, lowerer *SqlLowerer, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
 	indexRewriter := NewIndexNameRewriter(cfg)
-	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient, schemaRegistry: schemaRegistry, virtualTableStorage: virtualTableStorage, tableResolver: tableResolver, indexNameRewriter: indexRewriter}
+	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb,
+		tableDiscovery: loader, cfg: cfg, phoneHomeClient: phoneHomeClient,
+		schemaRegistry: schemaRegistry, lowerers: make(map[quesma_api.BackendConnectorType]Lowerer),
+		lowerer: lowerer, tableResolver: tableResolver, indexNameRewriter: indexRewriter}
 }
 
 func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {
