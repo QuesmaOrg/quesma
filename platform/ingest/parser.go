@@ -67,6 +67,10 @@ func columnsToProperties(columnsFromJson []CreateTableEntry,
 		if columnFromSchema, found := columnsFromSchema[schema.FieldName(columnFromJson.ClickHouseColumnName)]; found {
 			// Check if the type is an Array – if so, fallback to JSON type
 			if strings.Contains(columnFromJson.ClickHouseType, "Array") {
+				// The schema (e.g. PUT /:index/_mapping) doesn't contain information about whether a field is an array or not.
+				// Therefore, we have to combine the information from the schema and the JSON in such case.
+				// For example: in the mapping we have a field "products.name" with type "keyword" (String)
+				// and in the JSON "products.name" is an array of strings (Array(String)).
 				if strings.Count(columnFromJson.ClickHouseType, "Array") > 1 {
 					logger.Warn().Msgf("Column '%s' has type '%s' - an array nested multiple times. Such case might not be handled correctly.", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType)
 				}
