@@ -3,9 +3,7 @@ elasticsearch-data
 .idea/*
 !.idea/runConfigurations/
 !.idea/runConfigurations/*.xml
-#!.idea/codeStyles/
-#!.idea/codeStyles/*
-# User-specific files
+# User-specific IDEA files
 .idea/workspace.xml
 .idea/tasks.xml
 .idea/usage.statistics.xml
