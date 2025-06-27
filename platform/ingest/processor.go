@@ -627,54 +627,6 @@ func (ip *SqlLowerer) shouldAlterColumns(table *chLib.Table, attrsMap map[string
 	return false, nil
 }
 
-func (ip *SqlLowerer) GenerateIngestContent(table *chLib.Table,
-	data types.JSON,
-	inValidJson types.JSON,
-	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]AlterStatement, types.JSON, []NonSchemaField, error) {
-
-	if len(table.Config.Attributes) == 0 {
-		return nil, data, nil, nil
-	}
-
-	mDiff := DifferenceMap(data, table) // TODO change to DifferenceMap(m, t)
-
-	if len(mDiff) == 0 && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return nil, data, nil, nil
-	}
-
-	// check attributes precondition
-	if len(table.Config.Attributes) <= 0 {
-		return nil, nil, nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
-	}
-	attrsMap, _ := BuildAttrsMap(mDiff, table.Config)
-
-	// generateNewColumns is called on original attributes map
-	// before adding invalid fields to it
-	// otherwise it would contain invalid fields e.g. with wrong types
-	// we only want to add fields that are not part of the schema e.g we don't
-	// have columns for them
-	var alterStatements []AlterStatement
-	atomic.AddInt64(&ip.ingestCounter, 1)
-	if ok, alteredAttributesIndexes := ip.shouldAlterColumns(table, attrsMap); ok {
-		alterStatements = ip.generateNewColumns(attrsMap, table, alteredAttributesIndexes, encodings)
-	}
-	// If there are some invalid fields, we need to add them to the attributes map
-	// to not lose them and be able to store them later by
-	// generating correct update query
-	// addInvalidJsonFieldsToAttributes returns a new map with invalid fields added
-	// this map is then used to generate non-schema fields string
-	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
-	nonSchemaFields, err := generateNonSchemaFields(attrsMapWithInvalidFields)
-
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	onlySchemaFields := RemoveNonSchemaFields(data, table)
-
-	return alterStatements, onlySchemaFields, nonSchemaFields, nil
-}
-
 func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) (string, error) {
 	result := convertNonSchemaFieldsToMap(nonSchemaFields)
 
