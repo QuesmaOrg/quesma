@@ -115,11 +115,20 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 		fmt.Errorf("not implemented, queryType: %s, origExpr: %s", debugQueryType, model.AsString(origExpr))
 }
 
-func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMetricAggregation, groupByColumns []model.GroupByExpr, hasMoreBucketAggregations bool) (addSelectColumns []model.AliasedExpr, err error) {
+func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMetricAggregation, groupByColumns []model.GroupByExpr, hasMoreBucketAggregations bool, bucketSelectedColumns map[string]struct{}) (addSelectColumns []model.AliasedExpr, err error) {
 	for columnId, column := range metric.selectedColumns {
 		finalColumn := column
 
 		if hasMoreBucketAggregations {
+			if len(bucketSelectedColumns) > 0 {
+				if fun, ok := column.(model.FunctionExpr); ok {
+					if columnRef, ok := fun.Args[0].(model.ColumnRef); ok {
+						if _, exists := bucketSelectedColumns[columnRef.ColumnName]; !exists {
+							continue
+						}
+					}
+				}
+			}
 			partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metric.queryType)
 			if err != nil {
 				return nil, err
@@ -346,13 +355,25 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	var optTopHitsOrMetrics *pancakeModelMetricAggregation
 
 	for i, layer := range aggregation.layers {
+		// In doris's syntax, the group by column must appear in the select condition.
+		// like: select col1 from tab group by col1, col2. the col2 must be in the select condition.
+		bucketSelectedColumns := make(map[string]struct{})
+		if layer.nextBucketAggregation != nil {
+			if _, isTerms := layer.nextBucketAggregation.queryType.(bucket_aggregations.Terms); isTerms {
+				for _, column := range layer.nextBucketAggregation.selectedColumns {
+					if columnRef, ok := column.(model.ColumnRef); ok {
+						bucketSelectedColumns[columnRef.ColumnName] = struct{}{}
+					}
+				}
+			}
+		}
 		for _, metric := range layer.currentMetricAggregations {
 			switch metric.queryType.(type) {
 			case *metrics_aggregations.TopMetrics, *metrics_aggregations.TopHits:
 				optTopHitsOrMetrics = metric
 			default:
 				hasMoreBucketAggregations := bucketAggregationSoFar < bucketAggregationCount
-				addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
+				addSelectColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations, bucketSelectedColumns)
 				if err != nil {
 					return nil, "", err
 				}

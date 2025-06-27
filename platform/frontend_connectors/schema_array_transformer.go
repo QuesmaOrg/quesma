@@ -228,7 +228,7 @@ func NewArrayJoinVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
 		dbType := resolver.dbColumnType(e.ColumnName)
 		if strings.HasPrefix(dbType, array) {
-			return model.NewFunction("arrayJoin", model.NewFunction("arrayDistinct", e))
+			return model.NewFunction("CONCAT_WS", model.NewLiteral("','"), model.NewFunction("ARRAY_DISTINCT", e))
 		}
 		return e
 	}
