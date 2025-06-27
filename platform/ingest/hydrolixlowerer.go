@@ -3,6 +3,7 @@
 package ingest
 
 import (
+	"fmt"
 	chLib "github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
@@ -29,10 +30,10 @@ func (l *HydrolixLowerer) LowerToDDL(validatedJsons []types.JSON,
 		_ = preprocessedJson
 	}
 
-	result := []string{`{
+	result := []string{fmt.Sprintf(`{
   "schema": {
     "project": "",
-    "name": "test_index",
+    "name": %s,
     "time_column": "ingest_time",
     "columns": [
       { "name": "new_field", "type": "string" },
@@ -49,7 +50,7 @@ func (l *HydrolixLowerer) LowerToDDL(validatedJsons []types.JSON,
       "new_field": "bar"
     }
   ]
-}`}
+}`, table.Name)}
 
 	return result, nil
 }
