@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
+	"strings"
 )
 
 type HydrolixLowerer struct {
@@ -20,37 +21,67 @@ func NewHydrolixLowerer(virtualTableStorage persistence.JSONDatabase) *HydrolixL
 	}
 }
 
-func (l *HydrolixLowerer) LowerToDDL(validatedJsons []types.JSON,
+func (l *HydrolixLowerer) LowerToDDL(
+	validatedJsons []types.JSON,
 	table *chLib.Table,
 	invalidJsons []types.JSON,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
-	createTableCmd CreateTableStatement) ([]string, error) {
-	for i, preprocessedJson := range validatedJsons {
-		_ = i
-		_ = preprocessedJson
+	createTableCmd CreateTableStatement,
+) ([]string, error) {
+	// Construct columns array
+	var columnsJSON strings.Builder
+	columnsJSON.WriteString("[\n")
+
+	for i, col := range createTableCmd.Columns {
+		if i > 0 {
+			columnsJSON.WriteString(",\n")
+		}
+		columnsJSON.WriteString(fmt.Sprintf(`  { "name": "%s", "type": "%s"`, col.ColumnName, col.ColumnType))
+		if col.Comment != "" {
+			columnsJSON.WriteString(fmt.Sprintf(`, "comment": "%s"`, col.Comment))
+		}
+		if col.AdditionalMetadata != "" {
+			columnsJSON.WriteString(fmt.Sprintf(`, "metadata": "%s"`, col.AdditionalMetadata))
+		}
+		columnsJSON.WriteString(" }")
 	}
 
-	result := []string{fmt.Sprintf(`{
+	columnsJSON.WriteString("\n]")
+
+	const timeColumnName = "ingest_time"
+
+	const (
+		partitioningStrategy    = "strategy"
+		partitioningField       = "field"
+		partitioningGranularity = "granularity"
+
+		defaultStrategy    = "time"
+		defaultField       = "ingest_time"
+		defaultGranularity = "day"
+	)
+	partitioningJSON := fmt.Sprintf(`"partitioning": {
+  "%s": "%s",
+  "%s": "%s",
+  "%s": "%s"
+}`,
+		partitioningStrategy, defaultStrategy,
+		partitioningField, defaultField,
+		partitioningGranularity, defaultGranularity)
+
+	result := fmt.Sprintf(`{
   "schema": {
-    "project": "",
-    "name": %s,
-    "time_column": "ingest_time",
-    "columns": [
-      { "name": "new_field", "type": "string" },
-      { "name": "ingest_time", "type": "datetime", "default": "NOW" }
-    ],
-    "partitioning": {
-      "strategy": "time",
-      "field": "ingest_time",
-      "granularity": "day"
-    }
+    "project": "%s",
+    "name": "%s",
+    "time_column": "%s",
+    "columns": %s,
+    %s,
   },
   "events": [
     {
       "new_field": "bar"
     }
   ]
-}`, table.Name)}
+}`, table.DatabaseName, table.Name, timeColumnName, columnsJSON.String(), partitioningJSON)
 
-	return result, nil
+	return []string{result}, nil
 }
