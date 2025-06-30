@@ -48,5 +48,10 @@ func (p *HydrolixBackendConnector) InstanceName() string {
 }
 
 func (p *HydrolixBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
-	return nil
+	if len(args) == 0 {
+		_, err := p.connection.ExecContext(ctx, query)
+		return err
+	}
+	_, err := p.connection.ExecContext(ctx, query, args...)
+	return err
 }

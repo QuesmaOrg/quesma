@@ -156,7 +156,5 @@ func (l *HydrolixLowerer) LowerToDDL(
   },
   "events": %s
 }`, table.DatabaseName, table.Name, timeColumnName, columnsJSON.String(), partitioningJSON, eventJSON)
-
-	fmt.Println(result)
 	return []string{result}, nil
 }
