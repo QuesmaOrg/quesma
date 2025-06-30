@@ -360,18 +360,18 @@ func setupAllContainersWithCh(ctx context.Context, quesmaConfigTemplate string) 
 		return &containers, fmt.Errorf("failed to render Quesma config: %v", err)
 	}
 
-	debuggerQuesmaConfig := filepath.Join(filepath.Dir(configPath), "quesma-with-debugger.yml")
-	content, err := os.ReadFile(configPath)
-	if err != nil {
-		return &containers, fmt.Errorf("failed to read rendered Quesma config: %v", err)
-	}
-	if err := os.WriteFile(debuggerQuesmaConfig, content, 0644); err != nil {
-		return &containers, fmt.Errorf("failed to write dupa.yml: %v", err)
-	}
-	log.Printf("Quesma config rendered to: %s", debuggerQuesmaConfig)
-
 	var quesma testcontainers.Container
 	if debugQuesmaDuringTestRun {
+		debuggerQuesmaConfig := filepath.Join(filepath.Dir(configPath), "quesma-with-debugger.yml")
+		content, err := os.ReadFile(configPath)
+		if err != nil {
+			return &containers, fmt.Errorf("failed to read rendered Quesma config: %v", err)
+		}
+		if err := os.WriteFile(debuggerQuesmaConfig, content, 0644); err != nil {
+			return &containers, fmt.Errorf("failed to write quesma-with-debugger.yml: %v", err)
+		}
+		log.Printf("Quesma config rendered to: %s", debuggerQuesmaConfig)
+
 		log.Printf("Waiting for you to start Quesma form your IDE using `Debug Quesma IT` configuration")
 		for {
 			if resp, err := http.Get("http://localhost:8080"); err == nil {
@@ -383,7 +383,7 @@ func setupAllContainersWithCh(ctx context.Context, quesmaConfigTemplate string) 
 			quesma = NewManuallyCreatedContainer()
 		}
 	} else {
-		quesma, err = setupQuesma(ctx, debuggerQuesmaConfig)
+		quesma, err = setupQuesma(ctx, quesmaConfigTemplate)
 		if err != nil {
 			return &containers, fmt.Errorf("failed to start Quesma: %v", err)
 		}
