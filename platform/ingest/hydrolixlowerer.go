@@ -3,6 +3,7 @@
 package ingest
 
 import (
+	"encoding/json"
 	"fmt"
 	chLib "github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
@@ -117,17 +118,33 @@ func (l *HydrolixLowerer) LowerToDDL(
 		partitioningStrategy, defaultStrategy,
 		partitioningField, defaultField,
 		partitioningGranularity, defaultGranularity)
-
+	events := make(map[string]any)
 	for i, preprocessedJson := range validatedJsons {
-		alter, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
+		_, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], encodings)
-		_ = alter
-		_ = onlySchemaFields
-		_ = nonSchemaFields
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
 		}
+		if err != nil {
+			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
+		}
+		content := convertNonSchemaFieldsToMap(nonSchemaFields)
+
+		for k, v := range onlySchemaFields {
+			content[k] = v
+		}
+
+		for k, v := range content {
+			events[k] = v
+		}
 	}
+
+	eventList := []map[string]any{events}
+	eventBytes, err := json.MarshalIndent(eventList, "    ", "  ")
+	if err != nil {
+		return nil, err
+	}
+	eventJSON := string(eventBytes)
 
 	result := fmt.Sprintf(`{
   "schema": {
@@ -137,12 +154,9 @@ func (l *HydrolixLowerer) LowerToDDL(
     "columns": %s,
     %s,
   },
-  "events": [
-    {
-      "new_field": "bar"
-    }
-  ]
-}`, table.DatabaseName, table.Name, timeColumnName, columnsJSON.String(), partitioningJSON)
+  "events": %s
+}`, table.DatabaseName, table.Name, timeColumnName, columnsJSON.String(), partitioningJSON, eventJSON)
 
+	fmt.Println(result)
 	return []string{result}, nil
 }
