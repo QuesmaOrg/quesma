@@ -13,6 +13,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,11 +22,20 @@ import (
 	"time"
 )
 
+const (
+	// debugQuesmaDuringTestRun should be set to `true` if you would like to run Quesma in IDE with debugger on
+	// during the integration test run.
+	debugQuesmaDuringTestRun = false
+)
+
 const configTemplatesDir = "configs"
 
 func GetInternalDockerHost() string {
 	if check := os.Getenv("EXECUTING_ON_GITHUB_CI"); check != "" {
 		return "localhost-for-github-ci"
+	}
+	if debugQuesmaDuringTestRun {
+		return "localhost"
 	}
 	return "host.docker.internal" // `host.testcontainers.internal` doesn't work for Docker Desktop for Mac.
 }
@@ -264,26 +274,27 @@ func setupClickHouse(ctx context.Context) (testcontainers.Container, error) {
 	})
 }
 
-func RenderQuesmaConfig(configTemplate string, data map[string]string) error {
+func RenderQuesmaConfig(configTemplate string, data map[string]string) (string, error) {
 	absPath, err := filepath.Abs(filepath.Join(".", configTemplatesDir, configTemplate))
 	content, err := os.ReadFile(absPath)
 	if err != nil {
-		return fmt.Errorf("error reading YAML file: %v", err)
+		return "", fmt.Errorf("error reading YAML file: %v", err)
 	}
 	tmpl, err := template.New("yamlTemplate").Parse(string(content))
 	if err != nil {
-		return fmt.Errorf("error creating template: %v", err)
+		return "", fmt.Errorf("error creating template: %v", err)
 	}
 	var renderedContent bytes.Buffer
 	err = tmpl.Execute(&renderedContent, data)
 	if err != nil {
-		return fmt.Errorf("error executing template: %v", err)
+		return "", fmt.Errorf("error executing template: %v", err)
 	}
-	err = os.WriteFile(strings.TrimSuffix(absPath, ".template"), renderedContent.Bytes(), 0644)
+	configPath := strings.TrimSuffix(absPath, ".template")
+	err = os.WriteFile(configPath, renderedContent.Bytes(), 0644)
 	if err != nil {
-		return fmt.Errorf("error writing rendered YAML file: %v", err)
+		return "", fmt.Errorf("error writing rendered YAML file: %v", err)
 	}
-	return nil
+	return configPath, nil
 }
 
 func setupContainersForTransparentProxy(ctx context.Context, quesmaConfigTemplate string) (*Containers, error) {
@@ -300,7 +311,7 @@ func setupContainersForTransparentProxy(ctx context.Context, quesmaConfigTemplat
 		"elasticsearch_host": GetInternalDockerHost(),
 		"elasticsearch_port": esPort.Port(),
 	}
-	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
+	if _, err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
 		return &containers, fmt.Errorf("failed to render Quesma config: %v", err)
 	}
 
@@ -344,14 +355,39 @@ func setupAllContainersWithCh(ctx context.Context, quesmaConfigTemplate string) 
 		"clickhouse_host":    GetInternalDockerHost(),
 		"clickhouse_port":    chPort.Port(),
 	}
-	if err := RenderQuesmaConfig(quesmaConfigTemplate, data); err != nil {
+	configPath, err := RenderQuesmaConfig(quesmaConfigTemplate, data)
+	if err != nil {
 		return &containers, fmt.Errorf("failed to render Quesma config: %v", err)
 	}
 
-	quesma, err := setupQuesma(ctx, quesmaConfigTemplate)
-	containers.Quesma = &quesma
-	if err != nil {
-		return &containers, fmt.Errorf("failed to start Quesma, %v", err)
+	var quesma testcontainers.Container
+	if debugQuesmaDuringTestRun {
+		debuggerQuesmaConfig := filepath.Join(filepath.Dir(configPath), "quesma-with-debugger.yml")
+		content, err := os.ReadFile(configPath)
+		if err != nil {
+			return &containers, fmt.Errorf("failed to read rendered Quesma config: %v", err)
+		}
+		if err := os.WriteFile(debuggerQuesmaConfig, content, 0644); err != nil {
+			return &containers, fmt.Errorf("failed to write quesma-with-debugger.yml: %v", err)
+		}
+		log.Printf("Quesma config rendered to: %s", debuggerQuesmaConfig)
+
+		log.Printf("Waiting for you to start Quesma form your IDE using `Debug Quesma IT` configuration")
+		for {
+			if resp, err := http.Get("http://localhost:8080"); err == nil {
+				resp.Body.Close()
+				break
+			}
+			log.Printf("Waiting for Quesma HTTP server at port 8080...")
+			time.Sleep(1 * time.Second)
+			quesma = NewManuallyCreatedContainer()
+		}
+	} else {
+		quesma, err = setupQuesma(ctx, quesmaConfigTemplate)
+		if err != nil {
+			return &containers, fmt.Errorf("failed to start Quesma: %v", err)
+		}
+		containers.Quesma = &quesma
 	}
 
 	kibana, err := setupKibana(ctx, quesma)
