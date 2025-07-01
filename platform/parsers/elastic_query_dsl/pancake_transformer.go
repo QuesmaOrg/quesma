@@ -174,7 +174,8 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 		case model.BucketAggregation:
 			filter, isFilter := childAgg.queryType.(bucket_aggregations.FilterAgg)
 			if isFilter && len(childAgg.children) == 0 {
-				childAgg.selectedColumns = append(childAgg.selectedColumns, model.NewFunction("countIf", filter.WhereClause))
+				ifFunction := model.NewFunction("IF", filter.WhereClause, model.NewLiteral(1), model.NewLiteral(0))
+				childAgg.selectedColumns = append(childAgg.selectedColumns, model.NewFunction("SUM", ifFunction))
 				metric, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
 				if err != nil {
 					return nil, err

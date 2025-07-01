@@ -101,10 +101,10 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string, dateInSch
 	if col, ok := t.Cols[fieldName]; ok {
 		typeName := col.Type.String()
 		// hasPrefix, not equal, because we can have DateTime64(3) and we want to catch it
-		if strings.HasPrefix(typeName, "DateTime64") {
+		if strings.HasPrefix(typeName, "datetime") {
 			return DateTime64
 		}
-		if strings.HasPrefix(typeName, "DateTime") {
+		if strings.HasPrefix(typeName, "date") {
 			return DateTime
 		}
 	}

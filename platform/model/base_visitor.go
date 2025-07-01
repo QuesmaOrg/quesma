@@ -12,6 +12,7 @@ type BaseExprVisitor struct {
 	OverrideVisitNestedProperty func(b *BaseExprVisitor, e NestedProperty) interface{}
 	OverrideVisitArrayAccess    func(b *BaseExprVisitor, e ArrayAccess) interface{}
 	OverrideVisitOrderByExpr    func(b *BaseExprVisitor, e OrderByExpr) interface{}
+	OverrideVisitGroupByExpr    func(b *BaseExprVisitor, e GroupByExpr) interface{}
 	OverrideVisitDistinctExpr   func(b *BaseExprVisitor, e DistinctExpr) interface{}
 	OverrideVisitTableRef       func(b *BaseExprVisitor, e TableRef) interface{}
 	OverrideVisitAliasedExpr    func(b *BaseExprVisitor, e AliasedExpr) interface{}
@@ -105,6 +106,13 @@ func (v *BaseExprVisitor) VisitTableRef(e TableRef) interface{} {
 		return v.OverrideVisitTableRef(v, e)
 	}
 	return e
+}
+
+func (v *BaseExprVisitor) VisitGroupByExpr(e GroupByExpr) interface{} {
+	if v.OverrideVisitGroupByExpr != nil {
+		return v.OverrideVisitGroupByExpr(v, e)
+	}
+	return GroupByExpr{Expr: e.Expr.Accept(v).(Expr), GroupAlias: e.GroupAlias}
 }
 
 func (v *BaseExprVisitor) VisitOrderByExpr(e OrderByExpr) interface{} {

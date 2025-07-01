@@ -25,7 +25,7 @@ const (
 
 	ElasticsearchBackendConnectorName = "elasticsearch"
 	ClickHouseOSBackendConnectorName  = "clickhouse-os"
-	ClickHouseBackendConnectorName    = "clickhouse"
+	ClickHouseBackendConnectorName    = "doris"
 	HydrolixBackendConnectorName      = "hydrolix"
 
 	ElasticABOptimizerName = "elastic_ab_testing"

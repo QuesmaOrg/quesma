@@ -117,6 +117,11 @@ func (query Quantile) processResult(colName string, percentileReturnedByClickhou
 			percentileIsNanOrInvalid = math.IsNaN(percentileTyped[0])
 			percentile = percentileTyped[0]
 		}
+	case float64:
+		// Handle direct float64 value (not in array)
+		percentileAsArrayLen = 1
+		percentileIsNanOrInvalid = math.IsNaN(percentileTyped)
+		percentile = percentileTyped
 	case []time.Time:
 		percentileAsArrayLen = len(percentileTyped)
 		if len(percentileTyped) > 0 {

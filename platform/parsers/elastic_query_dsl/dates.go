@@ -24,6 +24,8 @@ func NewDateManager(ctx context.Context) DateManager {
 var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-01-02", "2006-01-02T15",
 	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
 
+const FROM_UNIXTIME = "FROM_UNIXTIME"
+
 // parseStrictDateOptionalTimeOrEpochMillis parses date, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
 func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTimestamp time.Time, parsingSucceeded bool) {
@@ -80,7 +82,7 @@ func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType cli
 		case clickhouse.DateTime64:
 			threeDigitsOfPrecisionSuffice := utcTs.UnixNano()%1_000_000 == 0
 			if threeDigitsOfPrecisionSuffice {
-				return model.NewFunction("fromUnixTimestamp64Milli", addFormat(utcTs.UnixMilli())), true
+				return model.NewFunction(FROM_UNIXTIME, addFormat(utcTs.UnixMilli()/1000)), true
 			} else {
 				return model.NewFunction(
 					"toDateTime64",
@@ -93,7 +95,7 @@ func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType cli
 				), true
 			}
 		case clickhouse.DateTime:
-			return model.NewFunction("fromUnixTimestamp", addFormat(utcTs.Unix())), true
+			return model.NewFunction(FROM_UNIXTIME, addFormat(utcTs.Unix())), true
 		default:
 			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
 		}

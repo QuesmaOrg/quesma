@@ -189,15 +189,19 @@ func (s *SchemaCheckPass) applyGeoTransformations(schemaInstance schema.Schema, 
 			lon := model.NewColumnRef(field.InternalPropertyName.AsString() + "_lon")
 			lat := model.NewColumnRef(field.InternalPropertyName.AsString() + "_lat")
 
+			lonFun := model.NewFunction("CAST", model.NewAliasedExpr(model.NewColumnRef(field.InternalPropertyName.AsString()+"_lon"), "string"))
+			latFun := model.NewFunction("CAST", model.NewAliasedExpr(model.NewColumnRef(field.InternalPropertyName.AsString()+"_lat"), "string"))
+
 			// This is a workaround. Clickhouse Point is defined as Tuple. We need to know the type of the tuple.
 			// In this step we merge two columns into single map here. Map is in elastic format.
 
 			// In this point we assume that Quesma point type is stored into two separate columns.
-			replace[field.InternalPropertyName.AsString()] = model.NewFunction("map",
-				model.NewLiteral("'lat'"),
-				lat,
-				model.NewLiteral("'lon'"),
-				lon)
+			replace[field.InternalPropertyName.AsString()] = model.NewFunction("CONCAT",
+				model.NewLiteral("'{\"lat\":'"),
+				latFun,
+				model.NewLiteral("',\"lon\":'"),
+				lonFun,
+				model.NewLiteral("'}'"))
 
 			// these a just if we need multifields support
 			replace[field.InternalPropertyName.AsString()+".lat"] = lat
@@ -310,7 +314,7 @@ func (s *SchemaCheckPass) applyArrayTransformations(indexSchema schema.Schema, q
 	hasArrayColumn := false
 	for _, col := range allColumns {
 		dbType := arrayTypeResolver.dbColumnType(col.ColumnName)
-		if strings.HasPrefix(dbType, "Array") {
+		if strings.HasPrefix(dbType, "array") {
 			hasArrayColumn = true
 			break
 		}
@@ -620,6 +624,9 @@ func (s *SchemaCheckPass) applyFullTextField(indexSchema schema.Schema, query *m
 					if (strings.ToUpper(e.Op) == "LIKE" || strings.ToUpper(e.Op) == "ILIKE") && model.AsString(e.Right) == "'%'" {
 						return model.TrueExpr
 					}
+					if strings.ToUpper(e.Op) == "MATCH" {
+						return model.TrueExpr
+					}
 					return model.FalseExpr
 				}
 
@@ -657,6 +664,9 @@ func (s *SchemaCheckPass) applyTimestampField(indexSchema schema.Schema, query *
 
 	// check if the schema has a timestamp field configured
 	if column, ok := indexSchema.Fields[model.TimestampFieldName]; ok {
+		timestampColumnName = column.InternalPropertyName.AsString()
+	}
+	if column, ok := indexSchema.Fields["collect_time"]; ok {
 		timestampColumnName = column.InternalPropertyName.AsString()
 	}
 	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
@@ -867,7 +877,7 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 			if len(e.Args) != 1 {
 				return e
 			}
-			return model.NewFunction("toHour", e.Args[0].Accept(b).(model.Expr))
+			return model.NewFunction("HOUR", e.Args[0].Accept(b).(model.Expr))
 
 			// TODO this is a place for over date/time related functions
 			// add more
@@ -1169,6 +1179,57 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			}
 		}
 
+		if okLeft && okRight && e.Op == model.MatchPhraseOperator {
+			field, found := indexSchema.ResolveFieldByInternalName(lhsCol.ColumnName)
+			if !found {
+				// indexSchema won't find attributes columns, that's why this check
+				if clickhouse.IsColumnAttributes(lhsCol.ColumnName) {
+					colIsAttributes = true
+				} else {
+					logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsCol.ColumnName, query.TableName)
+					goto experimental
+				}
+			}
+
+			rhsValue = strings.TrimPrefix(rhsValue, "'")
+			rhsValue = strings.TrimSuffix(rhsValue, "'")
+
+			matchParse := func() model.Expr {
+				return model.NewInfixExpr(lhs, "MATCH_PHRASE", rhs.Clone())
+			}
+			equal := func() model.Expr {
+				return model.NewInfixExpr(lhs, "=", rhs.Clone())
+			}
+
+			// handling case when e.Left is an array access
+			if lhsIsArrayAccess {
+				if colIsAttributes || field.IsMapWithStringValues() { // attributes always have string values, so ilike
+					return matchParse()
+				} else {
+					return equal()
+				}
+			}
+
+			// handling case when e.Left is a simple column ref
+			// TODO: improve? we seem to be `ilike'ing` too much
+			switch field.Type.String() {
+			case schema.QuesmaTypeInteger.Name, schema.QuesmaTypeLong.Name, schema.QuesmaTypeUnsignedLong.Name, schema.QuesmaTypeFloat.Name, schema.QuesmaTypeBoolean.Name:
+				rhs.Value = strings.Trim(rhsValue, "%")
+				rhs.Attrs[model.EscapeKey] = model.NormalNotEscaped
+				return equal()
+			case schema.QuesmaTypeKeyword.Name:
+				rhs.Value = strings.Trim(rhsValue, "%")
+				rhs.Attrs[model.EscapeKey] = model.FullyEscaped
+				return equal()
+			default:
+				if rhsValue == "%%" { // ILIKE '%%' has terrible performance, but semantically means "is not null", hence this transformation
+					return model.NewInfixExpr(lhs, "IS", model.NewLiteral("NOT NULL"))
+				}
+				return matchParse()
+			}
+
+		}
+
 		if okLeft && okRight && e.Op == model.MatchOperator {
 			field, found := indexSchema.ResolveFieldByInternalName(lhsCol.ColumnName)
 			if !found {
@@ -1185,7 +1246,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			rhsValue = strings.TrimSuffix(rhsValue, "'")
 
 			ilike := func() model.Expr {
-				return model.NewInfixExpr(lhs, "ILIKE", rhs.Clone())
+				return model.NewInfixExpr(lhs, "MATCH", rhs.Clone())
 			}
 			equal := func() model.Expr {
 				return model.NewInfixExpr(lhs, "=", rhs.Clone())

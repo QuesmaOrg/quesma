@@ -19,15 +19,59 @@ func NewSchemaTypeAdapter(defaultType string) SchemaTypeAdapter {
 	}
 }
 
+//func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
+//	for isArray(s) {
+//		s = arrayType(s)
+//	}
+//	switch {
+//	case strings.HasPrefix(s, "Unknown"):
+//		return schema.QuesmaTypeUnknown, true
+//	case strings.HasPrefix(s, "Tuple"):
+//		return schema.QuesmaTypeObject, true
+//	}
+//
+//	switch s {
+//	case "String":
+//		return schema.QuesmaTypeText, true
+//	case "LowCardinality(String)", "UUID", "FixedString":
+//		return schema.QuesmaTypeKeyword, true
+//	case "Int", "Int8", "Int16", "Int32", "Int64":
+//		return schema.QuesmaTypeLong, true
+//	case "UInt8", "UInt16", "UInt32", "UInt64", "UInt128", "UInt256":
+//		return schema.QuesmaTypeInteger, true
+//	case "Bool":
+//		return schema.QuesmaTypeBoolean, true
+//	case "Float32", "Float64":
+//		return schema.QuesmaTypeFloat, true
+//	case "DateTime", "DateTime64":
+//		return schema.QuesmaTypeTimestamp, true
+//	case "Date":
+//		return schema.QuesmaTypeDate, true
+//	case "Point":
+//		return schema.QuesmaTypePoint, true
+//	case "Map(String, Nullable(String))", "Map(String, String)", "Map(LowCardinality(String), Nullable(String))", "Map(LowCardinality(String), String)",
+//		"Map(String, Int)", "Map(LowCardinality(String), Int)", "Map(String, Nullable(Int))", "Map(LowCardinality(String), Nullable(Int))":
+//		return schema.QuesmaTypeMap, true
+//	default:
+//		return schema.QuesmaTypeUnknown, false
+//	}
+//}
+
 func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
+	s = strings.ToUpper(s)
+
 	for isArray(s) {
 		s = arrayType(s)
+		s = strings.ToUpper(s)
 	}
+
 	switch {
-	case strings.HasPrefix(s, "Unknown"):
+	case strings.HasPrefix(s, "UNKNOWN"):
 		return schema.QuesmaTypeUnknown, true
-	case strings.HasPrefix(s, "Tuple"):
+	case strings.HasPrefix(s, "STRUCT"):
 		return schema.QuesmaTypeObject, true
+	case strings.HasPrefix(s, "MAP"):
+		return schema.QuesmaTypeMap, true
 	}
 
 	switch s {
@@ -43,26 +87,28 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
 			logger.Error().Msgf("Unknown field type %s", c.defaultStringColumnType)
 			return schema.QuesmaTypeUnknown, false
 		}
-
 	case "LowCardinality(String)", "UUID", "FixedString":
 		return schema.QuesmaTypeKeyword, true
 	case "Int", "Int8", "Int16", "Int32", "Int64":
 		return schema.QuesmaTypeLong, true
 	case "UInt8", "UInt16", "UInt32", "UInt64", "UInt128", "UInt256":
 		return schema.QuesmaTypeInteger, true
-	case "Bool":
+	case "BOOLEAN":
 		return schema.QuesmaTypeBoolean, true
-	case "Float32", "Float64":
+	case "TINYINT", "SMALLINT", "INT", "BIGINT", "LARGEINT":
+		return schema.QuesmaTypeLong, true
+	case "FLOAT", "DOUBLE":
 		return schema.QuesmaTypeFloat, true
-	case "DateTime", "DateTime64":
-		return schema.QuesmaTypeTimestamp, true
-	case "Date":
+	case "DECIMAL", "DECIMAL32", "DECIMAL64", "DECIMAL128":
+		return schema.QuesmaTypeKeyword, true // mapping to keyword type
+	case "STRING", "CHAR", "VARCHAR":
+		return schema.QuesmaTypeText, true
+	//case "DATETIME", "DATETIMEV2":
+	//	return schema.QuesmaTypeTimestamp, true
+	case "DATE", "DATEV2", "DATETIME", "DATETIMEV2":
 		return schema.QuesmaTypeDate, true
-	case "Point":
-		return schema.QuesmaTypePoint, true
-	case "Map(String, Nullable(String))", "Map(String, String)", "Map(LowCardinality(String), Nullable(String))", "Map(LowCardinality(String), String)",
-		"Map(String, Int)", "Map(LowCardinality(String), Int)", "Map(String, Nullable(Int))", "Map(LowCardinality(String), Nullable(Int))":
-		return schema.QuesmaTypeMap, true
+	case "JSON", "VARIANT":
+		return schema.QuesmaTypeObject, true
 	default:
 		return schema.QuesmaTypeUnknown, false
 	}

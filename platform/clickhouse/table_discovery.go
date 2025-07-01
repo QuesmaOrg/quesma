@@ -805,7 +805,8 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]col
 		return map[string]map[string]columnMetadata{}, fmt.Errorf("database connection pool is nil, cannot describe tables")
 	}
 
-	rows, err := td.dbConnPool.Query(context.Background(), "SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
+	querySql := fmt.Sprintf("SELECT table_name, column_name, data_type, column_comment FROM information_schema.columns WHERE table_schema = '%s'", database)
+	rows, err := td.dbConnPool.Query(context.Background(), querySql)
 
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
@@ -864,18 +865,18 @@ func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string)
 }
 
 func (td *tableDiscovery) tableComment(database, table string) (comment string) {
-	err := td.dbConnPool.QueryRow(context.Background(), "SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
-	if err != nil {
-		logger.Error().Msgf("could not get table comment: %v", err)
-	}
+	//err := td.dbConnPool.QueryRow(context.Background(), "SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
+	//if err != nil {
+	//	logger.Error().Msgf("could not get table comment: %v", err)
+	//}
 	return comment
 }
 
 func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) {
-	err := td.dbConnPool.QueryRow(context.Background(), "SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
-	if err != nil {
-		logger.Error().Msgf("could not get create table statement: %v", err)
-	}
+	//err := td.dbConnPool.QueryRow(context.Background(), "SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
+	//if err != nil {
+	//	logger.Error().Msgf("could not get create table statement: %v", err)
+	//}
 	return ddl
 }
 

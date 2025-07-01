@@ -73,6 +73,7 @@ const (
 	DateTime64 DateTimeType = iota
 	DateTime
 	Invalid
+	datetime
 )
 
 func (c *Column) String() string {
@@ -220,34 +221,74 @@ func NewBaseType(clickHouseTypeName string) BaseType {
 // this is catch all type for all types we do not exlicitly support
 type UnknownType struct{}
 
-func ResolveType(clickHouseTypeName string) reflect.Type {
-	switch clickHouseTypeName {
-	case "String", "LowCardinality(String)", "UUID", "FixedString":
+func ResolveType(dorisTypeName string) reflect.Type {
+	dorisTypeName = strings.ToLower(dorisTypeName)
+	switch dorisTypeName {
+	case "char", "varchar", "string", "text":
 		return reflect.TypeOf("")
-	case "DateTime64", "DateTime", "Date", "DateTime64(3)":
+	case "date", "datetime", "datev2", "datetimev2":
 		return reflect.TypeOf(time.Time{})
-	case "UInt8", "UInt16", "UInt32", "UInt64":
-		return reflect.TypeOf(uint64(0))
-	case "Int8", "Int16", "Int32":
+	case "tinyint", "smallint", "int":
 		return reflect.TypeOf(int32(0))
-	case "Int64":
+	case "bigint":
 		return reflect.TypeOf(int64(0))
-	case "Float32", "Float64":
-		return reflect.TypeOf(float64(0))
-	case "Point":
-		return reflect.TypeOf(Point{})
-	case "Bool":
+	case "largeint":
+		return reflect.TypeOf("") // LargeInt is typically handled as string due to size
+	case "boolean":
 		return reflect.TypeOf(true)
-	case "JSON":
+	case "float":
+		return reflect.TypeOf(float32(0))
+	case "double":
+		return reflect.TypeOf(float64(0))
+	case "decimal", "decimalv2", "decimal32", "decimal64", "decimal128":
+		return reflect.TypeOf("") // Decimals often handled as strings for precision
+	case "json":
 		return reflect.TypeOf(map[string]interface{}{})
-	case "Map(String, Nullable(String))", "Map(String, String)", "Map(LowCardinality(String), String)", "Map(LowCardinality(String), Nullable(String))":
-		return reflect.TypeOf(map[string]string{})
-	case "Unknown":
-		return reflect.TypeOf(UnknownType{})
+	case "hll":
+		return reflect.TypeOf([]byte{}) // HLL is a binary type
+	case "bitmap":
+		return reflect.TypeOf([]byte{}) // Bitmap is also binary
+	case "array":
+		return reflect.TypeOf([]interface{}{})
+	case "map":
+		return reflect.TypeOf(map[string]interface{}{})
+	case "struct":
+		return reflect.TypeOf(map[string]interface{}{})
+	case "null":
+		return reflect.TypeOf(nil)
 	}
 
 	return nil
 }
+
+//func ResolveType(clickHouseTypeName string) reflect.Type {
+//	switch clickHouseTypeName {
+//	case "String", "LowCardinality(String)", "UUID", "FixedString":
+//		return reflect.TypeOf("")
+//	case "DateTime64", "DateTime", "Date", "DateTime64(3)":
+//		return reflect.TypeOf(time.Time{})
+//	case "UInt8", "UInt16", "UInt32", "UInt64":
+//		return reflect.TypeOf(uint64(0))
+//	case "Int8", "Int16", "Int32":
+//		return reflect.TypeOf(int32(0))
+//	case "Int64":
+//		return reflect.TypeOf(int64(0))
+//	case "Float32", "Float64":
+//		return reflect.TypeOf(float64(0))
+//	case "Point":
+//		return reflect.TypeOf(Point{})
+//	case "Bool":
+//		return reflect.TypeOf(true)
+//	case "JSON":
+//		return reflect.TypeOf(map[string]interface{}{})
+//	case "Map(String, Nullable(String))", "Map(String, String)", "Map(LowCardinality(String), String)", "Map(LowCardinality(String), Nullable(String))":
+//		return reflect.TypeOf(map[string]string{})
+//	case "Unknown":
+//		return reflect.TypeOf(UnknownType{})
+//	}
+//
+//	return nil
+//}
 
 // 'value': value of a field, from unmarshalled JSON
 // 'valueOrigin': name of the field (for error messages)
@@ -418,7 +459,7 @@ func NewDefaultBoolAttribute() Attribute {
 }
 
 func (dt DateTimeType) String() string {
-	return []string{"DateTime64", "DateTime", "Invalid"}[dt]
+	return []string{"DateTime64", "DateTime", "datetime", "Invalid"}[dt]
 }
 
 func IsColumnAttributes(colName string) bool {

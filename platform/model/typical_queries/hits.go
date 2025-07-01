@@ -196,6 +196,8 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 				switch valueAsString := vals[i].(type) {
 				case string:
 					hit.Highlight[columnName] = query.highlighter.HighlightValue(fieldName, valueAsString)
+				case int64:
+					hit.Highlight[columnName] = query.highlighter.HighlightValue(fieldName, strconv.FormatInt(valueAsString, 10))
 				case *string:
 					if valueAsString != nil {
 						hit.Highlight[columnName] = query.highlighter.HighlightValue(fieldName, *valueAsString)

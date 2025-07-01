@@ -101,7 +101,11 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 		if docCountAsInt < int64(query.minDocCount) {
 			continue
 		}
-		originalKey := query.getKey(row)
+		originalKey, err := query.getKey(row)
+		if err != nil {
+			logger.ErrorWithCtx(query.ctx).Msgf("error parsing key: %v", err)
+			continue
+		}
 		responseKey := query.calculateResponseKey(originalKey)
 		var keyAsString string
 		if query.defaultFormat {
@@ -221,8 +225,24 @@ func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
 	return model.InvalidExpr
 }
 
-func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
-	return row.Cols[len(row.Cols)-2].Value.(int64)
+func (query *DateHistogram) getKey(row model.QueryResultRow) (int64, error) {
+	value := row.Cols[len(row.Cols)-2].Value
+	switch v := value.(type) {
+	case int64:
+		return v, nil
+	case string:
+		// Trying to parse a string as an int64 (e.g. a Unix clock)
+		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return parsed, nil
+		}
+		// Or try parsing a date string like "2024-01-01"
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			return t.Unix(), nil
+		}
+		return 0, fmt.Errorf("invalid date format: %v", v)
+	default:
+		return 0, fmt.Errorf("unsupported key type: %T", v)
+	}
 }
 
 func (query *DateHistogram) Interval() (interval time.Duration, ok bool) {
@@ -245,12 +265,13 @@ func (query *DateHistogram) calculateResponseKeyInUTC(originalKey int64) int64 {
 // originalKey is the key as it came from our SQL request (e.g. returned by query.getKey)
 func (query *DateHistogram) calculateResponseKey(originalKey int64) int64 {
 	keyInUTC := query.calculateResponseKeyInUTC(originalKey)
+	return keyInUTC
 
-	ts := time.UnixMilli(keyInUTC)
-	intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
-
-	_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
-	return keyInUTC - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
+	//ts := time.UnixMilli(keyInUTC)
+	//intervalStartNotUTC := time.Date(ts.Year(), ts.Month(), ts.Day(), ts.Hour(), ts.Minute(), ts.Second(), ts.Nanosecond(), query.wantedTimezone)
+	//
+	//_, timezoneOffsetInSeconds := intervalStartNotUTC.Zone()
+	//return keyInUTC - int64(timezoneOffsetInSeconds*1000) // seconds -> milliseconds
 }
 
 func (query *DateHistogram) fromUTCToWantedTimezone(tsUTC int64) int64 {
@@ -262,7 +283,7 @@ func (query *DateHistogram) fromUTCToWantedTimezone(tsUTC int64) int64 {
 }
 
 func (query *DateHistogram) calculateKeyAsString(key int64) string {
-	return time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000") // TODO: check if this necessary Format("2006/01/02 15:04:05")
+	return time.UnixMilli(key).In(query.wantedTimezone).Format("2006-01-02T15:04:05.000") // TODO: check if this necessary Format("2006/01/02 15:04:05")
 }
 
 func (query *DateHistogram) OriginalKeyToKeyAsString(originalKey any) string {
@@ -416,7 +437,21 @@ func (qt *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromD
 }
 
 func (qt *DateHistogramRowsTransformer) getKey(row model.QueryResultRow) int64 {
-	return row.Cols[len(row.Cols)-2].Value.(int64)
+	value := row.Cols[len(row.Cols)-2].Value
+	switch v := value.(type) {
+	case int64:
+		return v
+	case string:
+		val, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			logger.Error().Msgf("string conver to int64 failed %T", v, err)
+			return 0
+		}
+		return val
+	default:
+		logger.Error().Msgf("unsupported key type: %T", v)
+		return 0
+	}
 }
 
 func (qt *DateHistogramRowsTransformer) nextKey(key int64) int64 {

@@ -6,9 +6,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/buildinfo"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
@@ -19,39 +17,67 @@ import (
 
 func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql.DB {
 
-	options := clickhouse.Options{Addr: []string{c.ClickHouse.Url.Host}}
-	if c.ClickHouse.User != "" || c.ClickHouse.Password != "" || c.ClickHouse.Database != "" {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=true&loc=Asia%%2FShanghai",
+		c.ClickHouse.User,
+		c.ClickHouse.Password,
+		c.ClickHouse.Url.Host,
+		c.ClickHouse.Database)
 
-		options.Auth = clickhouse.Auth{
-			Username: c.ClickHouse.User,
-			Password: c.ClickHouse.Password,
-			Database: c.ClickHouse.Database,
-		}
-	}
-	if !c.ClickHouse.DisableTLS {
-		options.TLS = tlsConfig
-	}
-
-	info := struct {
-		Name    string
-		Version string
-	}{
-		Name:    "quesma",
-		Version: buildinfo.Version,
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to initialize Doris connection pool")
+		return nil
 	}
 
-	// Setting limit here is not working. It causes runtime error.
-	// Set it after opening the connection.
-	//
-	//	options.MaxIdleConns = 50
-	//	options.MaxOpenConns = 50
-	//	options.ConnMaxLifetime = 0
+	db.SetMaxOpenConns(30)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(time.Hour)
 
-	options.ClientInfo.Products = append(options.ClientInfo.Products, info)
+	if err := db.Ping(); err != nil {
+		logger.Error().Err(err).Msg("failed to ping Doris server")
+		return nil
+	}
 
-	return clickhouse.OpenDB(&options)
+	logger.Info().Msg("Doris connection pool initialized successfully")
+	return db
 
 }
+
+//func initDBConnection(c *config.QuesmaConfiguration, tlsConfig *tls.Config) *sql.DB {
+//
+//	options := clickhouse.Options{Addr: []string{c.ClickHouse.Url.Host}}
+//	if c.ClickHouse.User != "" || c.ClickHouse.Password != "" || c.ClickHouse.Database != "" {
+//
+//		options.Auth = clickhouse.Auth{
+//			Username: c.ClickHouse.User,
+//			Password: c.ClickHouse.Password,
+//			Database: c.ClickHouse.Database,
+//		}
+//	}
+//	if !c.ClickHouse.DisableTLS {
+//		options.TLS = tlsConfig
+//	}
+//
+//	info := struct {
+//		Name    string
+//		Version string
+//	}{
+//		Name:    "quesma",
+//		Version: buildinfo.Version,
+//	}
+//
+//	// Setting limit here is not working. It causes runtime error.
+//	// Set it after opening the connection.
+//	//
+//	//	options.MaxIdleConns = 50
+//	//	options.MaxOpenConns = 50
+//	//	options.ConnMaxLifetime = 0
+//
+//	options.ClientInfo.Products = append(options.ClientInfo.Products, info)
+//
+//	return clickhouse.OpenDB(&options)
+//
+//}
 
 func InitDBConnectionPool(c *config.QuesmaConfiguration) quesma_api.BackendConnector {
 	if c.ClickHouse.Url == nil {

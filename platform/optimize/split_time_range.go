@@ -82,14 +82,12 @@ func (s splitTimeRange) checkAndFindTimeLimits(selectCommand *model.SelectComman
 		if columnName, ok := e.Left.(model.ColumnRef); ok && columnName.ColumnName == orderByColumnName {
 			switch e.Op {
 			case "<", "<=":
-				if functionExpr, ok := e.Right.(model.FunctionExpr); ok &&
-					(functionExpr.Name == "fromUnixTimestamp64Milli" || functionExpr.Name == "fromUnixTimestamp") {
+				if functionExpr, ok := e.Right.(model.FunctionExpr); ok && (functionExpr.Name == "FROM_UNIXTIME") {
 					upperBoundValue := functionExpr.Args[0].(model.LiteralExpr).Value.(int64)
 					upperLimit = &timeRangeLimit{value: upperBoundValue, funcName: functionExpr.Name}
 				}
 			case ">", ">=":
-				if functionExpr, ok := e.Right.(model.FunctionExpr); ok &&
-					(functionExpr.Name == "fromUnixTimestamp64Milli" || functionExpr.Name == "fromUnixTimestamp") {
+				if functionExpr, ok := e.Right.(model.FunctionExpr); ok && (functionExpr.Name == "FROM_UNIXTIME") {
 					lowerBoundValue := functionExpr.Args[0].(model.LiteralExpr).Value.(int64)
 					lowerLimit = &timeRangeLimit{value: lowerBoundValue, funcName: functionExpr.Name}
 				}

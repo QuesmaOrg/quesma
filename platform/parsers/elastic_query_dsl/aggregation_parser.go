@@ -285,7 +285,13 @@ func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName 
 		if asFloat, ok := valueRaw.(float64); ok {
 			return int(asFloat)
 		}
-		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default: %d", fieldName, valueRaw, valueRaw, defaultValue)
+		if asString, ok := valueRaw.(string); ok {
+			if intValue, err := strconv.Atoi(asString); err == nil {
+				return intValue
+			}
+			logger.WarnWithCtx(cw.Ctx).Msgf("%s is a string but cannot be converted to int, value: %v. Using default: %d", fieldName, asString, defaultValue)
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64 or string, but %T, value: %v. Using default: %d", fieldName, valueRaw, valueRaw, defaultValue)
 	}
 	return defaultValue
 }
@@ -399,7 +405,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap
 	wantedRegex := regexp.MustCompile(`^doc\['(\w+)']\.value\.(?:getHour\(\)|hourOfDay)$`)
 	matches := wantedRegex.FindStringSubmatch(source)
 	if len(matches) == 2 {
-		return model.NewFunction("toHour", model.NewColumnRef(matches[1])), true
+		return model.NewFunction("HOUR", model.NewColumnRef(matches[1])), true
 	}
 
 	// b) source: "if (doc['field_name_1'].value == doc['field_name_2'].value") { return 1; } else { return 0; }"

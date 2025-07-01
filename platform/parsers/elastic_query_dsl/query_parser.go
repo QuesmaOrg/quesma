@@ -343,8 +343,9 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
 			return model.NewSimpleQueryInvalid()
 		} else {
-			tsWithoutTZ := strings.TrimSuffix(string(idAsStr), " +0000 UTC")
-			ids[i] = fmt.Sprintf("'%s'", tsWithoutTZ)
+			// "2025-06-18 22:13:16.468 +0800 CST"  -> "2025-06-18 22:13:16.468"
+			timeSplit := strings.Split(string(idAsStr), " ")
+			ids[i] = fmt.Sprintf("'%s'", strings.Join(timeSplit[:2], " "))
 		}
 		uniqueIds = append(uniqueIds, id)
 	}
@@ -353,44 +354,47 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	var timestampColumnName string
 	if cw.Table.DiscoveredTimestampFieldName != nil {
 		timestampColumnName = *cw.Table.DiscoveredTimestampFieldName
-	} else {
+	} else if _, exits := cw.Schema.Fields[model.TimestampFieldName]; exits {
 		timestampColumnName = model.TimestampFieldName
+	} else {
+		timestampColumnName = "collect_time"
 	}
 
-	if column, ok := cw.Table.Cols[timestampColumnName]; ok {
-		switch column.Type.String() {
-		case clickhouse.DateTime64.String():
-			idToSql = func(id string) (model.Expr, error) {
-				precision, success := util.FindTimestampPrecision(id[1 : len(id)-1]) // strip quotes added above
-				if !success {
-					return nil, fmt.Errorf("invalid timestamp format: %s", id)
-				}
-				return model.NewFunction("toDateTime64", model.NewLiteral(id), model.NewLiteral(precision)), nil
-			}
-		case clickhouse.DateTime.String():
-			idToSql = func(id string) (model.Expr, error) {
-				return model.NewFunction("toDateTime", model.NewLiteral(id)), nil
-			}
-		default:
-			logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field of unsupported type %s", column.Type.String())
-			return model.NewSimpleQueryInvalid()
-		}
-	} else {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field %s not found in schema", timestampColumnName)
-		return model.NewSimpleQueryInvalid()
-	}
+	//if column, ok := cw.Table.Cols[timestampColumnName]; ok {
+	//	switch column.Type.String() {
+	//	case clickhouse.DateTime64.String():
+	//		idToSql = func(id string) (model.Expr, error) {
+	//			precision, success := util.FindTimestampPrecision(id[1 : len(id)-1]) // strip quotes added above
+	//			if !success {
+	//				return nil, fmt.Errorf("invalid timestamp format: %s", id)
+	//			}
+	//			return model.NewFunction("toDateTime64", model.NewLiteral(id), model.NewLiteral(precision)), nil
+	//		}
+	//	case clickhouse.DateTime.String():
+	//		idToSql = func(id string) (model.Expr, error) {
+	//			return model.NewFunction("toDateTime", model.NewLiteral(id)), nil
+	//		}
+	//	default:
+	//		logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field of unsupported type %s", column.Type.String())
+	//		return model.NewSimpleQueryInvalid()
+	//	}
+	//} else {
+	//	logger.ErrorWithCtx(cw.Ctx).Msgf("timestamp field %s not found in schema", timestampColumnName)
+	//	return model.NewSimpleQueryInvalid()
+	//}
 
 	var whereStmt model.Expr
 	switch len(ids) {
 	case 0:
 		whereStmt = model.FalseExpr // timestamp IN [] <=> false
 	case 1:
-		sql, err := idToSql(ids[0])
-		if err != nil {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("error converting id to sql: %v", err)
-			return model.NewSimpleQueryInvalid()
-		}
-		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", sql)
+		//sql = ids[0]
+		//sql, err := idToSql(ids[0])
+		//if err != nil {
+		//	logger.ErrorWithCtx(cw.Ctx).Msgf("error converting id to sql: %v", err)
+		//	return model.NewSimpleQueryInvalid()
+		//}
+		whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", model.NewLiteral(ids[0]))
 	default:
 		idsAsExprs := make([]model.Expr, len(ids))
 		for i, id := range ids {
@@ -587,9 +591,15 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
 				} else {
-					fullLiteral := model.NewLiteralWithEscapeType("'"+subQuery+"'", model.NotEscapedLikeFull)
-					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, fullLiteral)
-					statements = append(statements, simpleStat)
+					if matchPhrase {
+						fullLiteral := model.NewLiteralWithEscapeType("'"+subQuery+"'", model.NotEscapedLikeFull)
+						simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchPhraseOperator, fullLiteral)
+						statements = append(statements, simpleStat)
+					} else {
+						fullLiteral := model.NewLiteralWithEscapeType("'"+subQuery+"'", model.NotEscapedLikeFull)
+						simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), model.MatchOperator, fullLiteral)
+						statements = append(statements, simpleStat)
+					}
 				}
 			}
 			return model.NewSimpleQuery(model.Or(statements), true)
@@ -651,7 +661,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 	i := 0
 	for _, field := range fields {
 		for _, subQ := range subQueries {
-			simpleStat := model.NewInfixExpr(model.NewColumnRef(field), "iLIKE", model.NewLiteral("'%"+subQ+"%'"))
+			simpleStat := model.NewInfixExpr(model.NewColumnRef(field), "MATCH", model.NewLiteral("'"+subQ+"'"))
 			sqls[i] = simpleStat
 			i++
 		}
