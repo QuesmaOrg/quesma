@@ -3,7 +3,7 @@
 package async_search_storage
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"

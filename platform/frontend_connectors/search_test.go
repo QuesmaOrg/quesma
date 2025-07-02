@@ -17,6 +17,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
+	quesma_api_util "github.com/QuesmaOrg/quesma/platform/v2/core/util"
 	"github.com/goccy/go-json"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
@@ -44,7 +45,7 @@ var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.Get
 func TestAsyncSearchHandler(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
 
-	table := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	table := quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
@@ -144,7 +145,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 
 			mock.ExpectQuery(tt.ExpectedPancakeSQL).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 
-			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
+			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, quesma_api_util.NewSyncMapWith(tableName, &table), s)
 			_, err := queryRunner.HandleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryRequestJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
@@ -155,7 +156,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	}
 }
 
-var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+var table = quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 	Name:   tableName,
 	Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 	Cols: map[string]*clickhouse.Column{
@@ -261,7 +262,7 @@ func TestSearchHandler(t *testing.T) {
 		},
 	}
 
-	tableMap := util.NewSyncMapWith(tableName, tab)
+	tableMap := quesma_api_util.NewSyncMapWith(tableName, tab)
 
 	fields := map[schema.FieldName]schema.Field{
 		"message":                         {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeText},
@@ -356,7 +357,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
 	}
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -413,7 +414,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigNoAttrs(),
 		Cols: map[string]*clickhouse.Column{
@@ -504,7 +505,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 				}
 			}
 
-			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, table), s)
+			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, quesma_api_util.NewSyncMapWith(tableName, table), s)
 			_, _ = queryRunner.HandleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -628,7 +629,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
-		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
+		queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, quesma_api_util.NewSyncMapWith(tableName, &table), s)
 		response, err := queryRunner.HandleAsyncSearch(ctx, tableName, types.MustJSON(query(fieldName)), defaultAsyncSearchTimeout, true)
 		assert.NoError(t, err)
 
@@ -665,7 +666,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 			},
 		},
 	}
-	table := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	table := quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
@@ -762,7 +763,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		},
 	}
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -867,7 +868,7 @@ func TestFullQueryTestWIP(t *testing.T) {
 		},
 	}
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -979,7 +980,7 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -1116,7 +1117,7 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigNoAttrs(),
 		Cols: map[string]*clickhouse.Column{
@@ -1232,7 +1233,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -1389,7 +1390,7 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{

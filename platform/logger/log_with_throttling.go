@@ -4,7 +4,7 @@ package logger
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/util"
 	"time"
 )
 

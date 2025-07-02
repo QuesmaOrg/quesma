@@ -8,6 +8,7 @@ import (
 	schema2 "github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
+	quesma_api_util "github.com/QuesmaOrg/quesma/platform/v2/core/util"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -629,49 +630,49 @@ func TestLogManager_GetTable(t *testing.T) {
 	}{
 		{
 			name:             "empty",
-			predefinedTables: *util.NewSyncMap[string, *Table](),
+			predefinedTables: *quesma_api_util.NewSyncMap[string, *Table](),
 			tableNamePattern: "table",
 			found:            false,
 		},
 		{
 			name:             "should find by name",
-			predefinedTables: *util.NewSyncMapWith("table1", &Table{Name: "table1"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("table1", &Table{Name: "table1"}),
 			tableNamePattern: "table1",
 			found:            true,
 		},
 		{
 			name:             "should not find by name",
-			predefinedTables: *util.NewSyncMapWith("table1", &Table{Name: "table1"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("table1", &Table{Name: "table1"}),
 			tableNamePattern: "foo",
 			found:            false,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-generic-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*-*-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-*-default",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*",
 			found:            true,
 		},
 		{
 			name:             "should not find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "foo-*",
 			found:            false,
 		},
@@ -775,7 +776,7 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 }
 
 func newTableMap(tables ...string) *TableMap {
-	newMap := util.NewSyncMap[string, *Table]()
+	newMap := quesma_api_util.NewSyncMap[string, *Table]()
 	for _, table := range tables {
 		newMap.Store(table, &Table{Name: table})
 	}

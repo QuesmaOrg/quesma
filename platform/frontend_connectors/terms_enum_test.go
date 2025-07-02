@@ -20,6 +20,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
+	quesma_api_util "github.com/QuesmaOrg/quesma/platform/v2/core/util"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"regexp"
@@ -100,7 +101,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName stri
 	conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 	defer db.Close()
-	lm := clickhouse.NewLogManagerWithConnection(db, util.NewSyncMapWith(testTableName, table))
+	lm := clickhouse.NewLogManagerWithConnection(db, quesma_api_util.NewSyncMapWith(testTableName, table))
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
 			testTableName: {

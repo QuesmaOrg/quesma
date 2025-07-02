@@ -15,6 +15,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
+	quesma_api_util "github.com/QuesmaOrg/quesma/platform/v2/core/util"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -35,7 +36,7 @@ type (
 		cfg            *config.QuesmaConfiguration
 		phoneHomeAgent diag.PhoneHomeClient
 	}
-	TableMap  = util.SyncMap[string, *Table]
+	TableMap  = quesma_api_util.SyncMap[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
 	Attribute struct {
 		KeysArrayName   string
@@ -79,7 +80,7 @@ type LogManagerIFace interface {
 }
 
 func NewTableMap() *TableMap {
-	return util.NewSyncMap[string, *Table]()
+	return quesma_api_util.NewSyncMap[string, *Table]()
 }
 
 func (lm *LogManager) Start() {

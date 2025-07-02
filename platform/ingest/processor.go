@@ -23,6 +23,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
+	quesma_api_util "github.com/QuesmaOrg/quesma/platform/v2/core/util"
 	"github.com/goccy/go-json"
 	"slices"
 	"sort"
@@ -72,7 +73,7 @@ type Processor struct {
 
 type (
 	IngestProcessor Processor
-	TableMap        = util.SyncMap[string, *chLib.Table]
+	TableMap        = quesma_api_util.SyncMap[string, *chLib.Table]
 	SchemaMap       = map[string]interface{} // TODO remove
 	Attribute       struct {
 		KeysArrayName   string
@@ -89,7 +90,7 @@ func (ip *IngestProcessor) RegisterLowerer(lowerer Lowerer, connectorType quesma
 }
 
 func NewTableMap() *TableMap {
-	return util.NewSyncMap[string, *chLib.Table]()
+	return quesma_api_util.NewSyncMap[string, *chLib.Table]()
 }
 
 func (ip *IngestProcessor) Start() {

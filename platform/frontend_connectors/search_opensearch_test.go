@@ -13,6 +13,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/testdata"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
+	quesma_api_util "github.com/QuesmaOrg/quesma/platform/v2/core/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -45,7 +46,7 @@ func TestSearchOpensearch(t *testing.T) {
 			defer conn.Close()
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
-			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
+			queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, quesma_api_util.NewSyncMapWith(tableName, &table), s)
 			cw := elastic_query_dsl.ClickhouseQueryTranslator{Table: &table, Ctx: context.Background(), Schema: s.Tables[tableName]}
 
 			body, parseErr := types.ParseJSON(tt.QueryJson)
@@ -196,7 +197,7 @@ func TestHighlighter(t *testing.T) {
 		AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
 		AddRow("text", "text", "text"))
 
-	queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, util.NewSyncMapWith(tableName, &table), s)
+	queryRunner := NewQueryRunnerDefaultForTests(db, &DefaultConfig, tableName, quesma_api_util.NewSyncMapWith(tableName, &table), s)
 	response, err := queryRunner.HandleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {

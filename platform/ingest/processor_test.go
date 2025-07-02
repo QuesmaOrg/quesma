@@ -12,6 +12,7 @@ import (
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
+	quesma_api_util "github.com/QuesmaOrg/quesma/platform/v2/core/util"
 	"github.com/goccy/go-json"
 	"strings"
 	"sync/atomic"
@@ -74,7 +75,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","non-schema2":"2","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z","non-schema1":{"a":"b"}}`
 	var emptyMap TableMap
 	// TODO fix clickhouse.Columns
-	fieldsMap := util.NewSyncMapWith("tableName", &clickhouse.Table{
+	fieldsMap := quesma_api_util.NewSyncMapWith("tableName", &clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"host::name":    nil,
 			"message":       nil,
@@ -784,49 +785,49 @@ func TestLogManager_GetTable(t *testing.T) {
 	}{
 		{
 			name:             "empty",
-			predefinedTables: *util.NewSyncMap[string, *clickhouse.Table](),
+			predefinedTables: *quesma_api_util.NewSyncMap[string, *clickhouse.Table](),
 			tableNamePattern: "table",
 			found:            false,
 		},
 		{
 			name:             "should find by name",
-			predefinedTables: *util.NewSyncMapWith("table1", &clickhouse.Table{Name: "table1"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("table1", &clickhouse.Table{Name: "table1"}),
 			tableNamePattern: "table1",
 			found:            true,
 		},
 		{
 			name:             "should not find by name",
-			predefinedTables: *util.NewSyncMapWith("table1", &clickhouse.Table{Name: "table1"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("table1", &clickhouse.Table{Name: "table1"}),
 			tableNamePattern: "foo",
 			found:            false,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-generic-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*-*-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-*-default",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*",
 			found:            true,
 		},
 		{
 			name:             "should not find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *quesma_api_util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "foo-*",
 			found:            false,
 		},

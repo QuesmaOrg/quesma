@@ -15,6 +15,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	mux "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
+	quesma_api_util "github.com/QuesmaOrg/quesma/platform/v2/core/util"
 	"github.com/stretchr/testify/assert"
 	"slices"
 	"strconv"
@@ -142,7 +143,7 @@ func (*IngestTransformerTest) Transform(document types.JSON) (types.JSON, error)
 func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHelper {
 	lms := make([]ingestProcessorHelper, 0, 4)
 	for _, created := range []bool{true, false} {
-		full := util.NewSyncMapWith(tableName, &clickhouse.Table{
+		full := quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 			Name:   tableName,
 			Config: cfg,
 			Cols: map[string]*clickhouse.Column{
@@ -306,7 +307,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	}
 
 	// big integer as an attribute field
-	tableMapNoSchemaFields := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tableMapNoSchemaFields := quesma_api_util.NewSyncMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: NewChTableConfigFourAttrs(),
 		Cols:   map[string]*clickhouse.Column{},
