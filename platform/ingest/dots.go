@@ -3,7 +3,7 @@
 package ingest
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 )
 
 type FieldTransformer func(field string) string

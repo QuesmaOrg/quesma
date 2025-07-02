@@ -8,7 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 )
 
 // This is an extracted interface for query translation.

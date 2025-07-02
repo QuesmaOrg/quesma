@@ -5,7 +5,7 @@ package elastic_query_dsl
 import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/parsers/painful"
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 )
 
 func ParseRuntimeMappings(body types.JSON) (map[string]model.RuntimeMapping, error) {

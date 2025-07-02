@@ -4,8 +4,8 @@ package stats
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"sort"
 	"strconv"
 	"strings"

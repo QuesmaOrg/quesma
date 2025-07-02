@@ -14,8 +14,8 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"github.com/goccy/go-json"
 )
 

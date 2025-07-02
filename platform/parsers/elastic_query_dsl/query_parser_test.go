@@ -13,9 +13,9 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/testdata"
-	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"strings"
 	"testing"
 

@@ -14,8 +14,8 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/processors"
-	"github.com/QuesmaOrg/quesma/platform/types"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"net/http"
 	"sync/atomic"
 )

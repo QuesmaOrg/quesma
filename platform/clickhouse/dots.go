@@ -3,7 +3,7 @@
 package clickhouse
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 )
 
 func transformFieldName(jsonInsert types.JSON, transformer func(field string) string) bool {

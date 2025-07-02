@@ -8,7 +8,7 @@ import (
 
 	"github.com/k0kubun/pp"
 
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"testing"
 )
 

@@ -17,7 +17,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/processors"
 	"github.com/QuesmaOrg/quesma/platform/processors/es_to_ch_common"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"github.com/rs/zerolog/log"
 	"net/http"
 )

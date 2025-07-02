@@ -11,8 +11,8 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/recovery"
-	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/v2/core"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"sort"
 	"sync"
 )

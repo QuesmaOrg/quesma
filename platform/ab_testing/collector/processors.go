@@ -4,7 +4,7 @@ package collector
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"github.com/goccy/go-json"
 	"regexp"
 )

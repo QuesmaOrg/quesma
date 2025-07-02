@@ -4,8 +4,8 @@ package ingest
 
 import (
 	"github.com/QuesmaOrg/quesma/platform/config"
-	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"strings"
 )
 

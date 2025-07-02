@@ -8,8 +8,8 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/functionality/bulk"
 	"github.com/QuesmaOrg/quesma/platform/ingest"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
-	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 )
 
 func Write(ctx context.Context, tableName *string, body types.JSON, ip *ingest.IngestProcessor, ingestStatsEnabled bool, phoneHomeAgent diag.PhoneHomeClient, registry table_resolver.TableResolver, elasticsearchConnector *backend_connectors.ElasticsearchBackendConnector) (bulk.BulkItem, error) {

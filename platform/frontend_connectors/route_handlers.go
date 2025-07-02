@@ -22,9 +22,9 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
-	"github.com/QuesmaOrg/quesma/platform/types"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"net/http"
 )
 

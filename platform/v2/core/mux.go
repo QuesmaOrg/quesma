@@ -3,6 +3,7 @@
 package quesma_api
 
 import (
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
@@ -43,7 +44,7 @@ type (
 		QueryParams url.Values
 
 		Body       string
-		ParsedBody RequestBody
+		ParsedBody types.RequestBody
 		// OriginalRequest is the original http.Request object that was received by the server.
 		OriginalRequest *http.Request
 		Decision        *Decision

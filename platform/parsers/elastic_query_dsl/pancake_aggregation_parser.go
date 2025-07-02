@@ -9,7 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 )
 
 const PancakeOptimizerName = "pancake"

@@ -4,7 +4,7 @@ package elasticsearch
 
 import (
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

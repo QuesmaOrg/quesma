@@ -3,7 +3,7 @@
 package painful
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"net/http"
 )
 

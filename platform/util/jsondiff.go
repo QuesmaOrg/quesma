@@ -7,7 +7,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"reflect"
 	"regexp"
 	"sort"

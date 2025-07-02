@@ -5,9 +5,9 @@ package frontend_connectors
 import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/painful"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
-	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/tracing"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"github.com/goccy/go-json"
 	"strings"
 )

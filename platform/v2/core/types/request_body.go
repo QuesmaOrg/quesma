@@ -5,11 +5,14 @@ package types
 import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
-	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
+
 	"strings"
 )
 
 // There we can add methods to iterate over NDJSON
+type RequestBody interface {
+	IsParsedRequestBody() // this is a marker method
+}
 
 type Unknown struct {
 	Body             string
@@ -27,7 +30,7 @@ func (j JSON) IsParsedRequestBody()     {}
 func (n NDJSON) IsParsedRequestBody()   {}
 func (u *Unknown) IsParsedRequestBody() {}
 
-func ParseRequestBody(body string) quesma_api.RequestBody {
+func ParseRequestBody(body string) RequestBody {
 
 	unknow := &Unknown{}
 	unknow.Body = body
@@ -60,7 +63,7 @@ func ParseRequestBody(body string) quesma_api.RequestBody {
 	return unknow
 }
 
-func ExpectJSON(body quesma_api.RequestBody) (JSON, error) {
+func ExpectJSON(body RequestBody) (JSON, error) {
 
 	switch b := body.(type) {
 	case JSON:
@@ -70,7 +73,7 @@ func ExpectJSON(body quesma_api.RequestBody) (JSON, error) {
 	}
 }
 
-func ExpectNDJSON(body quesma_api.RequestBody) (NDJSON, error) {
+func ExpectNDJSON(body RequestBody) (NDJSON, error) {
 
 	switch b := body.(type) {
 	case JSON:

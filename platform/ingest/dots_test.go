@@ -3,8 +3,8 @@
 package ingest
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/QuesmaOrg/quesma/platform/v2/core/types"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
