@@ -633,6 +633,7 @@ func (ip *SqlLowerer) GenerateIngestContent(table *chLib.Table,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]AlterStatement, types.JSON, []NonSchemaField, error) {
 
 	if len(table.Config.Attributes) == 0 {
+		// This implies that the table has no `attributes_*` columns, most likely it's a Bring Your Own Table (BYOT) situation, ref: https://github.com/QuesmaOrg/quesma/pull/1484
 		logger.Error().Msg("received non-schema fields but no attributes config found. Extra fields will not be stored")
 		return nil, data, nil, nil
 	}
