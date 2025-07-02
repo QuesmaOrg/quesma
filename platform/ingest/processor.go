@@ -633,7 +633,7 @@ func (ip *SqlLowerer) GenerateIngestContent(table *chLib.Table,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]AlterStatement, types.JSON, []NonSchemaField, error) {
 
 	if len(table.Config.Attributes) == 0 {
-		logger.Error().Msg("received non-schema fields but no attributes config found. Extra fields will be DROPPED")
+		logger.Error().Msg("received non-schema fields but no attributes config found. Extra fields will not be stored")
 		return nil, data, nil, nil
 	}
 
