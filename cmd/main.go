@@ -87,6 +87,7 @@ func main() {
 	}()
 
 	var connectionPool = clickhouse.InitDBConnectionPool(&cfg)
+	//var connectionPool = doris.InitDBConnectionPool(&cfg)
 
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(&cfg, connectionPool, licenseMod.License.ClientID)
 	phoneHomeAgent.Start()
@@ -94,6 +95,7 @@ func main() {
 	virtualTableStorage := persistence.NewElasticJSONDatabase(cfg.Elasticsearch, common_table.VirtualTableElasticIndexName)
 	tableDisco := database_common.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
 	schemaRegistry := schema.NewSchemaRegistry(database_common.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.NewClickhouseSchemaTypeAdapter(cfg.DefaultStringColumnType))
+	//schemaRegistry := schema.NewSchemaRegistry(database_common.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, doris.NewDorisSchemaTypeAdapter(cfg.DefaultStringColumnType))
 	schemaRegistry.Start()
 
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch)
