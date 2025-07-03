@@ -4,7 +4,7 @@
 package ingest
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
@@ -46,7 +46,7 @@ func TestJsonToColumns(t *testing.T) {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
 			json, _ := types.ParseJSON(tt.payload)
 
-			result := JsonToColumns(json, &clickhouse.ChTableConfig{
+			result := JsonToColumns(json, &database_common.ChTableConfig{
 				TimestampDefaultsNow: true,
 			})
 
