@@ -26,7 +26,7 @@ func NewHydrolixLowerer(virtualTableStorage persistence.JSONDatabase) *HydrolixL
 
 func (ip *HydrolixLowerer) GenerateIngestContent(table *chLib.Table,
 	data types.JSON,
-	inValidJson types.JSON,
+	invalidJson types.JSON,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]AlterStatement, types.JSON, []NonSchemaField, error) {
 
 	if len(table.Config.Attributes) == 0 {
