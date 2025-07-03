@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/errors"
 	"github.com/QuesmaOrg/quesma/platform/ingest"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -103,7 +103,7 @@ func ConfigureIngestRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 	return router
 }
 
-func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesma_api.Dependencies, sr schema.Registry, lm *clickhouse.LogManager, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) quesma_api.Router {
+func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesma_api.Dependencies, sr schema.Registry, lm *database_common.LogManager, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver) quesma_api.Router {
 
 	// some syntactic sugar
 	method := quesma_api.IsHTTPMethod

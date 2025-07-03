@@ -5,9 +5,9 @@ package frontend_connectors
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
@@ -20,11 +20,11 @@ import (
 
 type SchemaCheckPass struct {
 	cfg                 *config.QuesmaConfiguration
-	tableDiscovery      clickhouse.TableDiscovery
+	tableDiscovery      database_common.TableDiscovery
 	searchAfterStrategy searchAfterStrategy
 }
 
-func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery clickhouse.TableDiscovery, strategyType searchAfterStrategyType) *SchemaCheckPass {
+func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery database_common.TableDiscovery, strategyType searchAfterStrategyType) *SchemaCheckPass {
 	return &SchemaCheckPass{
 		cfg:                 cfg,
 		tableDiscovery:      tableDiscovery,
@@ -726,7 +726,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 	if !ok {
 		return nil, fmt.Errorf("table %s not found", query.TableName)
 	}
-	_, hasAttributesValuesColumn := table.Cols[clickhouse.AttributesValuesColumn]
+	_, hasAttributesValuesColumn := table.Cols[database_common.AttributesValuesColumn]
 
 	visitor := model.NewBaseVisitor()
 
@@ -751,7 +751,7 @@ func (s *SchemaCheckPass) applyFieldEncoding(indexSchema schema.Schema, query *m
 			// maybe we should use attributes
 
 			if hasAttributesValuesColumn {
-				return model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
+				return model.NewArrayAccess(model.NewColumnRef(database_common.AttributesValuesColumn), model.NewLiteral(fmt.Sprintf("'%s'", e.ColumnName)))
 			} else {
 				return model.NullExpr
 			}
@@ -915,7 +915,7 @@ func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema,
 					}
 					// attributes values are always string,
 					if access, ok := e.Args[0].(model.ArrayAccess); ok {
-						if access.ColumnRef.ColumnName == clickhouse.AttributesValuesColumn {
+						if access.ColumnRef.ColumnName == database_common.AttributesValuesColumn {
 							logger.Warn().Msgf("Unsupported case. Aggregation '%s' over attribute named: '%s'", e.Name, access.Index)
 							args := b.VisitChildren(e.Args)
 							args[0] = model.NullExpr
@@ -1003,11 +1003,11 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 			if f, ok := lit.Format(); ok {
 				format = f
 			}
-			expr, ok := dateManager.ParseDateUsualFormat(ts, clickhouse.DateTime64, format)
+			expr, ok := dateManager.ParseDateUsualFormat(ts, database_common.DateTime64, format)
 			if !ok {
 				// FIXME hacky but seems working
 				if tsStr, ok_ := ts.(string); ok_ && len(tsStr) > 2 {
-					expr, ok = dateManager.ParseDateUsualFormat(tsStr[1:len(tsStr)-1], clickhouse.DateTime64, format)
+					expr, ok = dateManager.ParseDateUsualFormat(tsStr[1:len(tsStr)-1], database_common.DateTime64, format)
 				}
 			}
 			if ok {
@@ -1173,7 +1173,7 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 			field, found := indexSchema.ResolveFieldByInternalName(lhsCol.ColumnName)
 			if !found {
 				// indexSchema won't find attributes columns, that's why this check
-				if clickhouse.IsColumnAttributes(lhsCol.ColumnName) {
+				if database_common.IsColumnAttributes(lhsCol.ColumnName) {
 					colIsAttributes = true
 				} else {
 					logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsCol.ColumnName, query.TableName)

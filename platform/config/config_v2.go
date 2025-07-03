@@ -27,6 +27,7 @@ const (
 	ClickHouseOSBackendConnectorName  = "clickhouse-os"
 	ClickHouseBackendConnectorName    = "clickhouse"
 	HydrolixBackendConnectorName      = "hydrolix"
+	DorisBackendConnectorName         = "doris"
 
 	ElasticABOptimizerName = "elastic_ab_testing"
 )
@@ -710,7 +711,7 @@ func (c *QuesmaNewConfiguration) getElasticsearchBackendConnector() *BackendConn
 
 func (c *QuesmaNewConfiguration) getRelationalDBBackendConnector() (*BackendConnector, string) {
 	for _, backendConn := range c.BackendConnectors {
-		if backendConn.Type == ClickHouseBackendConnectorName || backendConn.Type == ClickHouseOSBackendConnectorName || backendConn.Type == HydrolixBackendConnectorName {
+		if backendConn.Type == ClickHouseBackendConnectorName || backendConn.Type == ClickHouseOSBackendConnectorName || backendConn.Type == HydrolixBackendConnectorName || backendConn.Type == DorisBackendConnectorName {
 			return &backendConn, backendConn.Type
 		}
 	}
@@ -739,7 +740,7 @@ func (c *QuesmaNewConfiguration) getRelationalDBConf() (*RelationalDbConfigurati
 }
 
 func (c *QuesmaNewConfiguration) validateBackendConnectors() error {
-	elasticBackendConnectors, clickhouseBackendConnectors := 0, 0
+	elasticBackendConnectors, clickhouseBackendConnectors, dorisBackendConnectors := 0, 0, 0
 	for _, backendConn := range c.BackendConnectors {
 		if len(backendConn.Name) == 0 {
 			return fmt.Errorf("backend connector must have a non-empty name")
@@ -748,6 +749,8 @@ func (c *QuesmaNewConfiguration) validateBackendConnectors() error {
 			elasticBackendConnectors += 1
 		} else if backendConn.Type == ClickHouseBackendConnectorName || backendConn.Type == ClickHouseOSBackendConnectorName || backendConn.Type == HydrolixBackendConnectorName {
 			clickhouseBackendConnectors += 1
+		} else if backendConn.Type == DorisBackendConnectorName {
+			dorisBackendConnectors += 1
 		} else {
 			return fmt.Errorf("backend connector type '%s' not recognized", backendConn.Type)
 		}
@@ -757,6 +760,9 @@ func (c *QuesmaNewConfiguration) validateBackendConnectors() error {
 	}
 	if clickhouseBackendConnectors > 1 {
 		return fmt.Errorf("only one clickhouse-compatible backend connector is allowed, found %d many", clickhouseBackendConnectors)
+	}
+	if dorisBackendConnectors > 1 {
+		return fmt.Errorf("only one doris backend connector is allowed, found %d many", dorisBackendConnectors)
 	}
 	return nil
 }

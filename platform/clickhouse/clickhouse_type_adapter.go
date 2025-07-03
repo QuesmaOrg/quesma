@@ -8,18 +8,17 @@ import (
 	"strings"
 )
 
-type SchemaTypeAdapter struct {
+type ClickhouseSchemaTypeAdapter struct {
 	defaultStringColumnType string
 }
 
-func NewSchemaTypeAdapter(defaultType string) SchemaTypeAdapter {
-
-	return SchemaTypeAdapter{
+func NewClickhouseSchemaTypeAdapter(defaultType string) ClickhouseSchemaTypeAdapter {
+	return ClickhouseSchemaTypeAdapter{
 		defaultStringColumnType: defaultType,
 	}
 }
 
-func (c SchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
+func (c ClickhouseSchemaTypeAdapter) Convert(s string) (schema.QuesmaType, bool) {
 	for isArray(s) {
 		s = arrayType(s)
 	}

@@ -7,8 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
@@ -77,7 +77,7 @@ type (
 		startedAt                 time.Time
 		clickhouseStatusCache     healthCheckStatusCache
 		elasticStatusCache        healthCheckStatusCache
-		logManager                *clickhouse.LogManager
+		logManager                *database_common.LogManager
 		phoneHomeAgent            diag.PhoneHomeRecentStatsProvider
 		schemasProvider           SchemasProvider
 		totalUnsupportedQueries   int
@@ -91,7 +91,7 @@ type (
 	}
 )
 
-func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *clickhouse.LogManager, logChan <-chan logger.LogWithLevel, phoneHomeAgent diag.PhoneHomeRecentStatsProvider, schemasProvider SchemasProvider, indexRegistry table_resolver.TableResolver) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(cfg *config.QuesmaConfiguration, logManager *database_common.LogManager, logChan <-chan logger.LogWithLevel, phoneHomeAgent diag.PhoneHomeRecentStatsProvider, schemasProvider SchemasProvider, indexRegistry table_resolver.TableResolver) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *diag.QueryDebugPrimarySource, 10),
 		queryDebugSecondarySource: make(chan *diag.QueryDebugSecondarySource, 10),

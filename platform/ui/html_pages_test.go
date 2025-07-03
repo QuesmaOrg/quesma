@@ -4,8 +4,8 @@ package ui
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/stats"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
@@ -59,7 +59,7 @@ func TestHtmlPages(t *testing.T) {
 	})
 
 	t.Run("statistics got no XSS", func(t *testing.T) {
-		stats.GlobalStatistics.Process(false, xss, types.MustJSON("{}"), clickhouse.NestedSeparator)
+		stats.GlobalStatistics.Process(false, xss, types.MustJSON("{}"), database_common.NestedSeparator)
 		response := string(qmc.generateStatistics())
 		assert.NotContains(t, response, xss)
 	})
@@ -76,31 +76,31 @@ func TestHtmlSchemaPage(t *testing.T) {
 
 	logChan := make(chan logger.LogWithLevel, 5)
 
-	var columnsMap = make(map[string]*clickhouse.Column)
+	var columnsMap = make(map[string]*database_common.Column)
 
-	column := &clickhouse.Column{
+	column := &database_common.Column{
 		Name:      xss,
 		Modifiers: xss,
-		Type:      clickhouse.NewBaseType(xss),
+		Type:      database_common.NewBaseType(xss),
 	}
 
 	columnsMap[xss] = column
 
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Name:         xss,
 		DatabaseName: xss,
 		Cols:         columnsMap,
-		Config:       &clickhouse.ChTableConfig{},
+		Config:       &database_common.ChTableConfig{},
 	}
 
 	cfg := config.QuesmaConfiguration{}
 
 	cfg.IndexConfig = map[string]config.IndexConfiguration{xss: {}}
 
-	tables := util.NewSyncMap[string, *clickhouse.Table]()
+	tables := util.NewSyncMap[string, *database_common.Table]()
 	tables.Store(table.Name, table)
 
-	logManager := clickhouse.NewLogManager(tables, &cfg)
+	logManager := database_common.NewLogManager(tables, &cfg)
 
 	resolver := table_resolver.NewEmptyTableResolver()
 	qmc := NewQuesmaManagementConsole(&cfg, logManager, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)

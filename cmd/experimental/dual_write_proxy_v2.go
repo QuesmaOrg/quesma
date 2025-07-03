@@ -7,8 +7,8 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
 	"github.com/QuesmaOrg/quesma/platform/async_search_storage"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/ingest"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -51,19 +51,19 @@ func (c *simultaneousClientsLimiterV2) ServeHTTP(w http.ResponseWriter, r *http.
 
 type dualWriteHttpProxyV2 struct {
 	quesmaV2            quesma_api.QuesmaBuilder
-	logManager          *clickhouse.LogManager
+	logManager          *database_common.LogManager
 	publicPort          util.Port
 	asyncQueriesEvictor *async_search_storage.AsyncQueriesEvictor
 	queryRunner         *frontend_connectors.QueryRunner
 	schemaRegistry      schema.Registry
-	schemaLoader        clickhouse.TableDiscovery
+	schemaLoader        database_common.TableDiscovery
 }
 
 func (q *dualWriteHttpProxyV2) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader clickhouse.TableDiscovery, logManager *clickhouse.LogManager, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
+func newDualWriteProxyV2(dependencies quesma_api.Dependencies, schemaLoader database_common.TableDiscovery, logManager *database_common.LogManager, registry schema.Registry, config *config.QuesmaConfiguration, ingestProcessor *ingest.IngestProcessor, resolver table_resolver.TableResolver, abResultsRepository ab_testing.Sender) *dualWriteHttpProxyV2 {
 
 	queryProcessor := frontend_connectors.NewQueryRunner(logManager, config, dependencies.DebugInfoCollector(), registry, abResultsRepository, resolver, schemaLoader)
 

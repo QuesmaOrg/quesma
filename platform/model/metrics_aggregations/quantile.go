@@ -5,7 +5,7 @@ package metrics_aggregations
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"math"
@@ -18,10 +18,10 @@ type Quantile struct {
 	ctx             context.Context
 	percentileNames []string // there may be multiple in one aggregation, it's a list of them in order of occurrence, e.g. ["25", "95"]
 	keyed           bool     // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html#_keyed_response_6
-	fieldType       clickhouse.DateTimeType
+	fieldType       database_common.DateTimeType
 }
 
-func NewQuantile(ctx context.Context, percentileNames []string, keyed bool, fieldType clickhouse.DateTimeType) Quantile {
+func NewQuantile(ctx context.Context, percentileNames []string, keyed bool, fieldType database_common.DateTimeType) Quantile {
 	return Quantile{ctx, percentileNames, keyed, fieldType}
 }
 

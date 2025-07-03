@@ -8,9 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	quesma_errors "github.com/QuesmaOrg/quesma/platform/errors"
 	"github.com/QuesmaOrg/quesma/platform/functionality/bulk"
@@ -117,7 +117,7 @@ func HandleIndexCount(ctx context.Context, indexPattern string, queryRunner Quer
 	}
 }
 
-func HandleFieldCaps(ctx context.Context, indexPattern string, allowNoIndices, ignoreUnavailable bool, cfg map[string]config.IndexConfiguration, sr schema.Registry, lm clickhouse.LogManagerIFace) (*quesma_api.Result, error) {
+func HandleFieldCaps(ctx context.Context, indexPattern string, allowNoIndices, ignoreUnavailable bool, cfg map[string]config.IndexConfiguration, sr schema.Registry, lm database_common.LogManagerIFace) (*quesma_api.Result, error) {
 	responseBody, err := field_capabilities.HandleFieldCaps(ctx, cfg, sr, indexPattern, lm)
 	if err != nil {
 		if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
@@ -178,7 +178,7 @@ func HandleIndexRefresh() (*quesma_api.Result, error) {
 	return ElasticsearchInsertResult(`{"_shards":{"total":1,"successful":1,"failed":0}}`, http.StatusOK), nil
 }
 
-func HandleGetIndexMapping(ctx context.Context, sr schema.Registry, lm clickhouse.LogManagerIFace, index string) (*quesma_api.Result, error) {
+func HandleGetIndexMapping(ctx context.Context, sr schema.Registry, lm database_common.LogManagerIFace, index string) (*quesma_api.Result, error) {
 
 	indexes, err := lm.ResolveIndexPattern(ctx, sr, index)
 	if err != nil {

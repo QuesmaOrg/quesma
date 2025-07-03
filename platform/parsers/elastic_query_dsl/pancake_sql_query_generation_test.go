@@ -5,7 +5,7 @@ package elastic_query_dsl
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
 	"github.com/QuesmaOrg/quesma/platform/schema"
@@ -22,18 +22,18 @@ const TableName = model.SingleTableNamePlaceHolder
 func TestPancakeQueryGeneration(t *testing.T) {
 
 	// logger.InitSimpleLoggerForTestsWarnLevel()
-	table := clickhouse.Table{
-		Cols: map[string]*clickhouse.Column{
-			"@timestamp":                     {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"timestamp":                      {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"order_date":                     {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":                        {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"bytes_gauge":                    {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
-			"customer_birth_date":            {Name: "customer_birth_date", Type: clickhouse.NewBaseType("DateTime")},
-			"customer_birth_date_datetime64": {Name: "customer_birth_date_datetime64", Type: clickhouse.NewBaseType("DateTime64")},
+	table := database_common.Table{
+		Cols: map[string]*database_common.Column{
+			"@timestamp":                     {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"timestamp":                      {Name: "timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"order_date":                     {Name: "order_date", Type: database_common.NewBaseType("DateTime64")},
+			"message":                        {Name: "message", Type: database_common.NewBaseType("String")},
+			"bytes_gauge":                    {Name: "bytes_gauge", Type: database_common.NewBaseType("UInt64")},
+			"customer_birth_date":            {Name: "customer_birth_date", Type: database_common.NewBaseType("DateTime")},
+			"customer_birth_date_datetime64": {Name: "customer_birth_date_datetime64", Type: database_common.NewBaseType("DateTime64")},
 		},
 		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
+		Config: database_common.NewDefaultCHConfig(),
 	}
 
 	currentSchema := schema.Schema{
@@ -201,16 +201,16 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 
 	debug := false
 
-	table := clickhouse.Table{
-		Cols: map[string]*clickhouse.Column{
-			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"order_date":  {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":     {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
+	table := database_common.Table{
+		Cols: map[string]*database_common.Column{
+			"@timestamp":  {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"timestamp":   {Name: "timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"order_date":  {Name: "order_date", Type: database_common.NewBaseType("DateTime64")},
+			"message":     {Name: "message", Type: database_common.NewBaseType("String")},
+			"bytes_gauge": {Name: "bytes_gauge", Type: database_common.NewBaseType("UInt64")},
 		},
 		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
+		Config: database_common.NewDefaultCHConfig(),
 	}
 
 	currentSchema := schema.NewSchema(

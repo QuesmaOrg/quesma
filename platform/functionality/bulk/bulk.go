@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
 	"github.com/QuesmaOrg/quesma/platform/ingest"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -281,7 +281,7 @@ func sendToClickhouse(ctx context.Context, clickhouseBulkEntries map[string][]Bu
 		emptyPhoneHomeClient.IngestCounters().Add(indexName, int64(len(documents)))
 
 		for _, document := range documents {
-			stats.GlobalStatistics.Process(ingestStatsEnabled, indexName, document.document, clickhouse.NestedSeparator)
+			stats.GlobalStatistics.Process(ingestStatsEnabled, indexName, document.document, database_common.NestedSeparator)
 		}
 
 		inserts := make([]types.JSON, len(documents))

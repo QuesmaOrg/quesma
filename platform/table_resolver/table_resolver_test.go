@@ -7,6 +7,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	mux "github.com/QuesmaOrg/quesma/platform/v2/core"
@@ -405,13 +406,13 @@ func TestTableResolver(t *testing.T) {
 			tableDiscovery := clickhouse.NewEmptyTableDiscovery()
 
 			for _, index := range tt.clickhouseIndexes {
-				tableDiscovery.TableMap.Store(index, &clickhouse.Table{
+				tableDiscovery.TableMap.Store(index, &database_common.Table{
 					Name: index,
 				})
 			}
 
 			for _, index := range tt.virtualTables {
-				tableDiscovery.TableMap.Store(index, &clickhouse.Table{
+				tableDiscovery.TableMap.Store(index, &database_common.Table{
 					Name:         index,
 					VirtualTable: true,
 				})

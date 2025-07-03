@@ -6,6 +6,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
@@ -74,7 +75,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","non-schema2":"2","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z","non-schema1":{"a":"b"}}`
 	var emptyMap TableMap
 	// TODO fix clickhouse.Columns
-	fieldsMap := util.NewSyncMapWith("tableName", &clickhouse.Table{
+	fieldsMap := util.NewSyncMapWith("tableName", &database_common.Table{
 		Cols: map[string]*clickhouse.Column{
 			"host::name":    nil,
 			"message":       nil,
@@ -202,7 +203,7 @@ func TestDifferenceMapSimple_1(t *testing.T) {
 		"source":       nil,
 		"timestamp":    nil,
 	}
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Cols: map[string]*clickhouse.Column{
 			"host.name":    nil,
 			"message":      nil,
@@ -227,7 +228,7 @@ func TestDifferenceMapSimple_2(t *testing.T) {
 		"source":       "e",
 		"timestamp":    "f",
 	}
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Cols: map[string]*clickhouse.Column{
 			"message":      nil,
 			"service.name": nil,
@@ -254,7 +255,7 @@ func TestDifferenceMapNested(t *testing.T) {
 		"source":       nil,
 		"timestamp":    nil,
 	}
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Cols: map[string]*clickhouse.Column{
 			"message":      nil,
 			"service.name": nil,
@@ -286,7 +287,7 @@ func TestDifferenceMapSimpleAndNested_1(t *testing.T) {
 		"timestamp":    nil,
 		"non-schema":   nil,
 	}
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Cols: map[string]*clickhouse.Column{
 			"message":      nil,
 			"service.name": nil,
@@ -322,7 +323,7 @@ func TestDifferenceMapSimpleAndNested_2(t *testing.T) {
 		"timestamp":    nil,
 		"non-schema":   nil,
 	}
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Cols: map[string]*clickhouse.Column{
 			"host.name": {Name: "host.name", Codec: clickhouse.Codec{Name: ""}, Type: clickhouse.MultiValueType{
 				Name: "Tuple", Cols: []*clickhouse.Column{
@@ -386,7 +387,7 @@ func TestDifferenceMapBig(t *testing.T) {
 			},
 		},
 	}
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Cols: map[string]*clickhouse.Column{
 			"host.name": {Name: "host.name", Type: clickhouse.MultiValueType{
 				Name: "Tuple", Cols: []*clickhouse.Column{
@@ -493,7 +494,7 @@ func TestRemovingNonSchemaFields(t *testing.T) {
 		},
 		"non-schema2": nil,
 	}
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Cols: map[string]*clickhouse.Column{
 			"schema1": {Name: "schema1", Type: clickhouse.MultiValueType{
 				Name: "Tuple", Cols: []*clickhouse.Column{
@@ -624,7 +625,7 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_1(t *testing.T) {
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name: "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
 		Cols: map[string]*clickhouse.Column{
 			"doc": {
@@ -711,7 +712,7 @@ func TestCreateTableString_1(t *testing.T) {
 
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_NewDateTypes(t *testing.T) {
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name: "abc",
 		Cols: map[string]*clickhouse.Column{
 			"low_card_string": {
@@ -784,49 +785,49 @@ func TestLogManager_GetTable(t *testing.T) {
 	}{
 		{
 			name:             "empty",
-			predefinedTables: *util.NewSyncMap[string, *clickhouse.Table](),
+			predefinedTables: *util.NewSyncMap[string, *database_common.Table](),
 			tableNamePattern: "table",
 			found:            false,
 		},
 		{
 			name:             "should find by name",
-			predefinedTables: *util.NewSyncMapWith("table1", &clickhouse.Table{Name: "table1"}),
+			predefinedTables: *util.NewSyncMapWith("table1", &database_common.Table{Name: "table1"}),
 			tableNamePattern: "table1",
 			found:            true,
 		},
 		{
 			name:             "should not find by name",
-			predefinedTables: *util.NewSyncMapWith("table1", &clickhouse.Table{Name: "table1"}),
+			predefinedTables: *util.NewSyncMapWith("table1", &database_common.Table{Name: "table1"}),
 			tableNamePattern: "foo",
 			found:            false,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &database_common.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-generic-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &database_common.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*-*-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &database_common.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-*-default",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &database_common.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*",
 			found:            true,
 		},
 		{
 			name:             "should not find by pattern",
-			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &clickhouse.Table{Name: "logs-generic-default"}),
+			predefinedTables: *util.NewSyncMapWith("logs-generic-default", &database_common.Table{Name: "logs-generic-default"}),
 			tableNamePattern: "foo-*",
 			found:            false,
 		},

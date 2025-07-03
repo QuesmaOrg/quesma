@@ -6,10 +6,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
-	chLib "github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/comment_metadata"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
+	chLib "github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -80,7 +81,7 @@ type (
 		TypesArrayName  string
 		MapValueName    string
 		MapMetadataName string
-		Type            chLib.BaseType
+		Type            database_common.BaseType
 	}
 )
 
@@ -89,7 +90,7 @@ func (ip *IngestProcessor) RegisterLowerer(lowerer Lowerer, connectorType quesma
 }
 
 func NewTableMap() *TableMap {
-	return util.NewSyncMap[string, *chLib.Table]()
+	return util.NewSyncMap[string, *database_common.Table]()
 }
 
 func (ip *IngestProcessor) Start() {
@@ -137,7 +138,7 @@ func (ip *IngestProcessor) Close() {
 }
 
 // updates also Table TODO stop updating table here, find a better solution
-func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table *chLib.Table) string {
+func addOurFieldsToCreateTableQuery(q string, config *database_common.ChTableConfig, table *database_common.Table) string {
 	if len(config.Attributes) == 0 {
 		_, ok := table.Cols[timestampFieldName]
 		if !config.HasTimestamp || ok {
@@ -154,7 +155,7 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 				defaultStr = " DEFAULT now64()"
 			}
 			timestampStr = fmt.Sprintf("%s\"%s\" DateTime64(3)%s,\n", util.Indent(1), timestampFieldName, defaultStr)
-			table.Cols[timestampFieldName] = &chLib.Column{Name: timestampFieldName, Type: chLib.NewBaseType("DateTime64")}
+			table.Cols[timestampFieldName] = &database_common.Column{Name: timestampFieldName, Type: database_common.NewBaseType("DateTime64")}
 		}
 	}
 	if len(config.Attributes) > 0 {
@@ -162,12 +163,12 @@ func addOurFieldsToCreateTableQuery(q string, config *chLib.ChTableConfig, table
 			_, ok := table.Cols[a.MapValueName]
 			if !ok {
 				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapValueName)
-				table.Cols[a.MapValueName] = &chLib.Column{Name: a.MapValueName, Type: chLib.CompoundType{Name: "Map", BaseType: chLib.NewBaseType("String, String")}}
+				table.Cols[a.MapValueName] = &database_common.Column{Name: a.MapValueName, Type: database_common.CompoundType{Name: "Map", BaseType: database_common.NewBaseType("String, String")}}
 			}
 			_, ok = table.Cols[a.MapMetadataName]
 			if !ok {
 				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapMetadataName)
-				table.Cols[a.MapMetadataName] = &chLib.Column{Name: a.MapMetadataName, Type: chLib.CompoundType{Name: "Map", BaseType: chLib.NewBaseType("String, String")}}
+				table.Cols[a.MapMetadataName] = &database_common.Column{Name: a.MapMetadataName, Type: database_common.CompoundType{Name: "Map", BaseType: database_common.NewBaseType("String, String")}}
 			}
 		}
 	}
@@ -265,33 +266,33 @@ func (ip *IngestProcessor) Count(ctx context.Context, table string) (int64, erro
 	return count, nil
 }
 
-func (ip *IngestProcessor) createTableObject(tableName string, columnsFromJson []CreateTableEntry, columnsFromSchema map[schema.FieldName]CreateTableEntry, tableConfig *chLib.ChTableConfig) *chLib.Table {
-	resolveType := func(name, colType string) chLib.Type {
+func (ip *IngestProcessor) createTableObject(tableName string, columnsFromJson []CreateTableEntry, columnsFromSchema map[schema.FieldName]CreateTableEntry, tableConfig *database_common.ChTableConfig) *database_common.Table {
+	resolveType := func(name, colType string) database_common.Type {
 		if strings.Contains(colType, " DEFAULT") {
 			// Remove DEFAULT clause from the type
 			colType = strings.Split(colType, " DEFAULT")[0]
 		}
-		resCol := chLib.ResolveColumn(name, colType)
+		resCol := database_common.ResolveColumn(name, colType)
 		return resCol.Type
 	}
 
-	tableColumns := make(map[string]*chLib.Column)
+	tableColumns := make(map[string]*database_common.Column)
 	for _, c := range columnsFromJson {
-		tableColumns[c.ClickHouseColumnName] = &chLib.Column{
+		tableColumns[c.ClickHouseColumnName] = &database_common.Column{
 			Name: c.ClickHouseColumnName,
 			Type: resolveType(c.ClickHouseColumnName, c.ClickHouseType),
 		}
 	}
 	for _, c := range columnsFromSchema {
 		if _, exists := tableColumns[c.ClickHouseColumnName]; !exists {
-			tableColumns[c.ClickHouseColumnName] = &chLib.Column{
+			tableColumns[c.ClickHouseColumnName] = &database_common.Column{
 				Name: c.ClickHouseColumnName,
 				Type: resolveType(c.ClickHouseColumnName, c.ClickHouseType),
 			}
 		}
 	}
 
-	table := chLib.Table{
+	table := database_common.Table{
 		Name:   tableName,
 		Cols:   tableColumns,
 		Config: tableConfig,
@@ -300,7 +301,7 @@ func (ip *IngestProcessor) createTableObject(tableName string, columnsFromJson [
 	return &table
 }
 
-func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, tableName string, columnsFromJson []CreateTableEntry, columnsFromSchema map[schema.FieldName]CreateTableEntry, tableConfig *chLib.ChTableConfig, tableDefinitionChangeOnly bool) (*chLib.Table, error) {
+func (ip *IngestProcessor) createTableObjectAndAttributes(ctx context.Context, tableName string, columnsFromJson []CreateTableEntry, columnsFromSchema map[schema.FieldName]CreateTableEntry, tableConfig *database_common.ChTableConfig, tableDefinitionChangeOnly bool) (*database_common.Table, error) {
 	table := ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
 
 	// This is a HACK.
@@ -331,7 +332,7 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 func Indexes(m SchemaMap) string {
 	var result strings.Builder
 	for col := range m {
-		index := chLib.GetIndexStatement(col)
+		index := database_common.GetIndexStatement(col)
 		if index != "" {
 			result.WriteString(",\n")
 			result.WriteString(util.Indent(1))
@@ -342,7 +343,7 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
-func createTableQuery(name string, columns string, config *chLib.ChTableConfig) string {
+func createTableQuery(name string, columns string, config *database_common.ChTableConfig) string {
 	var onClusterClause string
 	if config.ClusterName != "" {
 		onClusterClause = "ON CLUSTER " + strconv.Quote(config.ClusterName) + " "
@@ -379,14 +380,14 @@ func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]i
 func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) map[string][]interface{} {
 	newAttrsMap := deepCopyMapSliceInterface(attrsMap)
 	for k, v := range invalidJson {
-		newAttrsMap[chLib.DeprecatedAttributesKeyColumn] = append(newAttrsMap[chLib.DeprecatedAttributesKeyColumn], k)
-		newAttrsMap[chLib.DeprecatedAttributesValueColumn] = append(newAttrsMap[chLib.DeprecatedAttributesValueColumn], v)
+		newAttrsMap[database_common.DeprecatedAttributesKeyColumn] = append(newAttrsMap[database_common.DeprecatedAttributesKeyColumn], k)
+		newAttrsMap[database_common.DeprecatedAttributesValueColumn] = append(newAttrsMap[database_common.DeprecatedAttributesValueColumn], v)
 
-		valueType, err := chLib.NewType(v, k)
+		valueType, err := database_common.NewType(v, k)
 		if err != nil {
-			newAttrsMap[chLib.DeprecatedAttributesValueType] = append(newAttrsMap[chLib.DeprecatedAttributesValueType], chLib.UndefinedType)
+			newAttrsMap[database_common.DeprecatedAttributesValueType] = append(newAttrsMap[database_common.DeprecatedAttributesValueType], database_common.UndefinedType)
 		} else {
-			newAttrsMap[chLib.DeprecatedAttributesValueType] = append(newAttrsMap[chLib.DeprecatedAttributesValueType], valueType.String())
+			newAttrsMap[database_common.DeprecatedAttributesValueType] = append(newAttrsMap[database_common.DeprecatedAttributesValueType], valueType.String())
 		}
 	}
 	return newAttrsMap
@@ -414,7 +415,7 @@ func getAttributesByArrayName(arrayName string,
 // and removes the attributes that were promoted to columns
 func (ip *SqlLowerer) generateNewColumns(
 	attrsMap map[string][]interface{},
-	table *chLib.Table,
+	table *database_common.Table,
 	alteredAttributesIndexes []int,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) []AlterStatement {
 	var alterStatements []AlterStatement
@@ -428,7 +429,7 @@ func (ip *SqlLowerer) generateNewColumns(
 	// We must avoid altering the table.Cols map and reading at the same time.
 	// This should be protected by a lock or a copy of the table should be used.
 	//
-	newColumns := make(map[string]*chLib.Column)
+	newColumns := make(map[string]*database_common.Column)
 	for k, v := range table.Cols {
 		newColumns[k] = v
 	}
@@ -438,7 +439,7 @@ func (ip *SqlLowerer) generateNewColumns(
 		columnType := ""
 		modifiers := ""
 
-		if attrTypes[i] == chLib.UndefinedType {
+		if attrTypes[i] == database_common.UndefinedType {
 			continue
 		}
 
@@ -492,9 +493,9 @@ func (ip *SqlLowerer) generateNewColumns(
 	}
 
 	for i := len(deleteIndexes) - 1; i >= 0; i-- {
-		attrsMap[chLib.DeprecatedAttributesKeyColumn] = append(attrsMap[chLib.DeprecatedAttributesKeyColumn][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesKeyColumn][deleteIndexes[i]+1:]...)
-		attrsMap[chLib.DeprecatedAttributesValueType] = append(attrsMap[chLib.DeprecatedAttributesValueType][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueType][deleteIndexes[i]+1:]...)
-		attrsMap[chLib.DeprecatedAttributesValueColumn] = append(attrsMap[chLib.DeprecatedAttributesValueColumn][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueColumn][deleteIndexes[i]+1:]...)
+		attrsMap[database_common.DeprecatedAttributesKeyColumn] = append(attrsMap[database_common.DeprecatedAttributesKeyColumn][:deleteIndexes[i]], attrsMap[database_common.DeprecatedAttributesKeyColumn][deleteIndexes[i]+1:]...)
+		attrsMap[database_common.DeprecatedAttributesValueType] = append(attrsMap[database_common.DeprecatedAttributesValueType][:deleteIndexes[i]], attrsMap[database_common.DeprecatedAttributesValueType][deleteIndexes[i]+1:]...)
+		attrsMap[database_common.DeprecatedAttributesValueColumn] = append(attrsMap[database_common.DeprecatedAttributesValueColumn][:deleteIndexes[i]], attrsMap[database_common.DeprecatedAttributesValueColumn][deleteIndexes[i]+1:]...)
 	}
 	return alterStatements
 }
@@ -523,10 +524,10 @@ func convertNonSchemaFieldsToMap(nonSchemaFields []NonSchemaField) map[string]an
 	result := make(map[string]any)
 
 	if len(valuesMap) > 0 {
-		result[chLib.AttributesValuesColumn] = valuesMap
+		result[database_common.AttributesValuesColumn] = valuesMap
 	}
 	if len(typesMap) > 0 {
-		result[chLib.AttributesMetadataColumn] = typesMap
+		result[database_common.AttributesMetadataColumn] = typesMap
 	}
 
 	return result
@@ -537,11 +538,11 @@ func generateNonSchemaFields(attrsMap map[string][]interface{}) ([]NonSchemaFiel
 	if len(attrsMap) <= 0 {
 		return nonSchemaFields, nil
 	}
-	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
-	attrValues := getAttributesByArrayName(chLib.DeprecatedAttributesValueColumn, attrsMap)
-	attrTypes := getAttributesByArrayName(chLib.DeprecatedAttributesValueType, attrsMap)
+	attrKeys := getAttributesByArrayName(database_common.DeprecatedAttributesKeyColumn, attrsMap)
+	attrValues := getAttributesByArrayName(database_common.DeprecatedAttributesValueColumn, attrsMap)
+	attrTypes := getAttributesByArrayName(database_common.DeprecatedAttributesValueType, attrsMap)
 
-	attributesColumns := []string{chLib.AttributesValuesColumn, chLib.AttributesMetadataColumn}
+	attributesColumns := []string{database_common.AttributesValuesColumn, database_common.AttributesMetadataColumn}
 
 	for columnIndex := range attributesColumns {
 		var value string
@@ -1043,10 +1044,10 @@ func (ip *IngestProcessor) preprocessJsons(ctx context.Context,
 	return validatedJsons, invalidJsons, nil
 }
 
-func (ip *IngestProcessor) FindTable(tableName string) (result *chLib.Table) {
+func (ip *IngestProcessor) FindTable(tableName string) (result *database_common.Table) {
 	tableNamePattern := util.TableNamePatternRegexp(tableName)
 	ip.tableDiscovery.TableDefinitions().
-		Range(func(name string, table *chLib.Table) bool {
+		Range(func(name string, table *database_common.Table) bool {
 			if tableNamePattern.MatchString(name) {
 				result = table
 				return false
@@ -1066,7 +1067,7 @@ func storeVirtualTable(table *chLib.Table, virtualTableStorage persistence.JSOND
 	var columnsToStore []string
 	for _, col := range table.Cols {
 		// We don't want to store attributes columns in the virtual table
-		if col.Name == chLib.AttributesValuesColumn || col.Name == chLib.AttributesMetadataColumn {
+		if col.Name == database_common.AttributesValuesColumn || col.Name == database_common.AttributesMetadataColumn {
 			continue
 		}
 		columnsToStore = append(columnsToStore, col.Name)
@@ -1103,7 +1104,7 @@ func storeVirtualTable(table *chLib.Table, virtualTableStorage persistence.JSOND
 }
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
-func (ip *IngestProcessor) AddTableIfDoesntExist(table *chLib.Table) bool {
+func (ip *IngestProcessor) AddTableIfDoesntExist(table *database_common.Table) bool {
 	t := ip.FindTable(table.Name)
 	if t == nil {
 		table.ApplyIndexConfig(ip.cfg)
@@ -1145,8 +1146,8 @@ func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.Backend
 		lowerer: lowerer, tableResolver: tableResolver, indexNameRewriter: indexRewriter}
 }
 
-func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {
-	return &chLib.ChTableConfig{
+func NewOnlySchemaFieldsCHConfig(clusterName string) *database_common.ChTableConfig {
+	return &database_common.ChTableConfig{
 		HasTimestamp:                          true,
 		TimestampDefaultsNow:                  true,
 		Engine:                                "MergeTree",
@@ -1154,26 +1155,26 @@ func NewOnlySchemaFieldsCHConfig(clusterName string) *chLib.ChTableConfig {
 		ClusterName:                           clusterName,
 		PrimaryKey:                            "",
 		Ttl:                                   "",
-		Attributes:                            []chLib.Attribute{chLib.NewDefaultStringAttribute()},
+		Attributes:                            []database_common.Attribute{database_common.NewDefaultStringAttribute()},
 		CastUnsupportedAttrValueTypesToString: false,
 		PreferCastingToOthers:                 false,
 	}
 }
 
 // NewDefaultCHConfig is used only in tests
-func NewDefaultCHConfig() *chLib.ChTableConfig {
-	return &chLib.ChTableConfig{
+func NewDefaultCHConfig() *database_common.ChTableConfig {
+	return &database_common.ChTableConfig{
 		HasTimestamp:         true,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + `"@timestamp"` + ")",
 		PrimaryKey:           "",
 		Ttl:                  "",
-		Attributes: []chLib.Attribute{
-			chLib.NewDefaultInt64Attribute(),
-			chLib.NewDefaultFloat64Attribute(),
-			chLib.NewDefaultBoolAttribute(),
-			chLib.NewDefaultStringAttribute(),
+		Attributes: []database_common.Attribute{
+			database_common.NewDefaultInt64Attribute(),
+			database_common.NewDefaultFloat64Attribute(),
+			database_common.NewDefaultBoolAttribute(),
+			database_common.NewDefaultStringAttribute(),
 		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
@@ -1181,30 +1182,30 @@ func NewDefaultCHConfig() *chLib.ChTableConfig {
 }
 
 // NewChTableConfigNoAttrs is used only in tests
-func NewChTableConfigNoAttrs() *chLib.ChTableConfig {
-	return &chLib.ChTableConfig{
+func NewChTableConfigNoAttrs() *database_common.ChTableConfig {
+	return &database_common.ChTableConfig{
 		HasTimestamp:                          false,
 		TimestampDefaultsNow:                  false,
 		Engine:                                "MergeTree",
 		OrderBy:                               "(" + `"@timestamp"` + ")",
-		Attributes:                            []chLib.Attribute{},
+		Attributes:                            []database_common.Attribute{},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
 	}
 }
 
 // NewChTableConfigFourAttrs is used only in tests
-func NewChTableConfigFourAttrs() *chLib.ChTableConfig {
-	return &chLib.ChTableConfig{
+func NewChTableConfigFourAttrs() *database_common.ChTableConfig {
+	return &database_common.ChTableConfig{
 		HasTimestamp:         false,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(" + "`@timestamp`" + ")",
-		Attributes: []chLib.Attribute{
-			chLib.NewDefaultInt64Attribute(),
-			chLib.NewDefaultFloat64Attribute(),
-			chLib.NewDefaultBoolAttribute(),
-			chLib.NewDefaultStringAttribute(),
+		Attributes: []database_common.Attribute{
+			database_common.NewDefaultInt64Attribute(),
+			database_common.NewDefaultFloat64Attribute(),
+			database_common.NewDefaultBoolAttribute(),
+			database_common.NewDefaultStringAttribute(),
 		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,

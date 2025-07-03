@@ -5,12 +5,10 @@ package main
 
 import (
 	"context"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 
-	// TODO elastic query parser needs a clickhouse package
-	// due to the table dependency
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/frontend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/processors"
@@ -388,15 +386,15 @@ func (p *QueryTransformationPipeline) ParseQuery(message any) (*model.ExecutionP
 	// TODO this is a hack to create a table for the query
 	// Why parser needs a table?
 	tableName := "test_table"
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name:         tableName,
 		DatabaseName: "default",
-		Cols: map[string]*clickhouse.Column{
-			"message":           {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"@timestamp":        {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"attributes_values": {Name: "attributes_values", Type: clickhouse.NewBaseType("Map(String,String)")},
+		Cols: map[string]*database_common.Column{
+			"message":           {Name: "message", Type: database_common.NewBaseType("String")},
+			"@timestamp":        {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"attributes_values": {Name: "attributes_values", Type: database_common.NewBaseType("Map(String,String)")},
 		},
-		Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+		Config: database_common.NewNoTimestampOnlyStringAttrCHConfig(),
 	}
 	cw := elastic_query_dsl.ClickhouseQueryTranslator{
 		Ctx:   req.OriginalRequest.Context(),

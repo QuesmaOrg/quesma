@@ -4,8 +4,8 @@ package ingest
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/comment_metadata"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
@@ -137,11 +137,11 @@ func columnPropertiesToString(columnProperties []ColumnStatement) string {
 	return result.String()
 }
 
-func JsonToColumns(m SchemaMap, chConfig *clickhouse.ChTableConfig) []CreateTableEntry {
+func JsonToColumns(m SchemaMap, chConfig *database_common.ChTableConfig) []CreateTableEntry {
 	var resultColumns []CreateTableEntry
 
 	for name, value := range m {
-		fType, err := clickhouse.NewType(value, name)
+		fType, err := database_common.NewType(value, name)
 		if err != nil {
 			// Skip column with invalid/incomplete type
 			logger.Warn().Msgf("Skipping field '%s' with invalid/incomplete type: %v", name, err)
@@ -222,7 +222,7 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameF
 // Returns map with fields that are in 'sm', but not in our table schema 't'.
 // Works with nested JSONs.
 // Doesn't check any types of fields, only names.
-func DifferenceMap(sm SchemaMap, t *clickhouse.Table) SchemaMap {
+func DifferenceMap(sm SchemaMap, t *database_common.Table) SchemaMap {
 	mDiff := make(SchemaMap)
 	var keysNested []string
 
@@ -239,13 +239,13 @@ func DifferenceMap(sm SchemaMap, t *clickhouse.Table) SchemaMap {
 	}
 
 	// 'schemaCol' isn't nil
-	var descendRec func(mCur SchemaMap, schemaCol *clickhouse.Column)
-	descendRec = func(mCur SchemaMap, schemaCol *clickhouse.Column) {
+	var descendRec func(mCur SchemaMap, schemaCol *database_common.Column)
+	descendRec = func(mCur SchemaMap, schemaCol *database_common.Column) {
 		// create a map of fields that exist in 'mCur', but not in 'schemaCol'
 		// done in a way like below, because we want to iterate over columns,
 		// which are an array, and not over mCur which is a map (faster this way)
 
-		mvc, ok := schemaCol.Type.(clickhouse.MultiValueType)
+		mvc, ok := schemaCol.Type.(database_common.MultiValueType)
 		if !ok {
 			// most likely case first
 			if _, ok = mCur[schemaCol.Name]; ok {
@@ -290,10 +290,10 @@ func DifferenceMap(sm SchemaMap, t *clickhouse.Table) SchemaMap {
 }
 
 // removes fields from 'm' that are not in 't'
-func RemoveNonSchemaFields(m SchemaMap, t *clickhouse.Table) SchemaMap {
-	var descendRec func(_ *clickhouse.Column, _ SchemaMap)
-	descendRec = func(col *clickhouse.Column, mCur SchemaMap) {
-		mvc, ok := col.Type.(clickhouse.MultiValueType)
+func RemoveNonSchemaFields(m SchemaMap, t *database_common.Table) SchemaMap {
+	var descendRec func(_ *database_common.Column, _ SchemaMap)
+	descendRec = func(col *database_common.Column, mCur SchemaMap) {
+		mvc, ok := col.Type.(database_common.MultiValueType)
 		if !ok {
 			return
 		}
@@ -352,7 +352,7 @@ func RemoveNonSchemaFields(m SchemaMap, t *clickhouse.Table) SchemaMap {
 	return m
 }
 
-func BuildAttrsMap(m SchemaMap, config *clickhouse.ChTableConfig) (map[string][]interface{}, error) {
+func BuildAttrsMap(m SchemaMap, config *database_common.ChTableConfig) (map[string][]interface{}, error) {
 	result := make(map[string][]interface{}) // check if works
 	for _, name := range sortedKeys(m) {
 		value := m[name]
@@ -362,9 +362,9 @@ func BuildAttrsMap(m SchemaMap, config *clickhouse.ChTableConfig) (map[string][]
 				result[a.KeysArrayName] = append(result[a.KeysArrayName], name)
 				result[a.ValuesArrayName] = append(result[a.ValuesArrayName], fmt.Sprintf("%v", value))
 
-				valueType, err := clickhouse.NewType(value, name)
+				valueType, err := database_common.NewType(value, name)
 				if err != nil {
-					result[a.TypesArrayName] = append(result[a.TypesArrayName], clickhouse.UndefinedType)
+					result[a.TypesArrayName] = append(result[a.TypesArrayName], database_common.UndefinedType)
 				} else {
 					result[a.TypesArrayName] = append(result[a.TypesArrayName], valueType.String())
 				}

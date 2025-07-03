@@ -11,6 +11,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/testdata"
@@ -44,7 +45,7 @@ var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.Get
 func TestAsyncSearchHandler(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
 
-	table := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	table := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
@@ -105,7 +106,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 }
 
 func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
@@ -155,7 +156,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	}
 }
 
-var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+var table = util.NewSyncMapWith(tableName, &database_common.Table{
 	Name:   tableName,
 	Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 	Cols: map[string]*clickhouse.Column{
@@ -170,7 +171,7 @@ var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
 
 func TestSearchHandler(t *testing.T) {
 
-	tab := &clickhouse.Table{
+	tab := &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -356,7 +357,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
 	}
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -413,7 +414,7 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigNoAttrs(),
 		Cols: map[string]*clickhouse.Column{
@@ -454,7 +455,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 }
 
 func TestAsyncSearchFilter(t *testing.T) {
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -546,7 +547,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		},
 	}
 
-	table := clickhouse.Table{Name: tableName, Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+	table := database_common.Table{Name: tableName, Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
 			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime")},
 			"timestamp64": {Name: "timestamp64", Type: clickhouse.NewBaseType("DateTime64")},
@@ -665,7 +666,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 			},
 		},
 	}
-	table := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	table := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
@@ -762,7 +763,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		},
 	}
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -867,7 +868,7 @@ func TestFullQueryTestWIP(t *testing.T) {
 		},
 	}
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -979,7 +980,7 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -1116,7 +1117,7 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigNoAttrs(),
 		Cols: map[string]*clickhouse.Column{
@@ -1232,7 +1233,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{
@@ -1389,7 +1390,7 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 		Cols: map[string]*clickhouse.Column{

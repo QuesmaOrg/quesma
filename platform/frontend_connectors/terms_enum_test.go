@@ -10,6 +10,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
@@ -69,7 +70,7 @@ var rawRequestBody = []byte(`{
 }`)
 
 func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName string) {
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Name:   testTableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{

@@ -6,9 +6,9 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
@@ -225,9 +225,9 @@ func TestSearchCommonTable(t *testing.T) {
 	schemaRegistry := schema.StaticRegistry{
 		Tables: make(map[schema.IndexName]schema.Schema),
 	}
-	tableMap := clickhouse.NewTableMap()
+	tableMap := database_common.NewTableMap()
 
-	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery := database_common.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 
 	schemaRegistry.Tables["logs-1"] = schema.Schema{
@@ -237,9 +237,9 @@ func TestSearchCommonTable(t *testing.T) {
 		},
 	}
 
-	tableMap.Store("logs-1", &clickhouse.Table{
+	tableMap.Store("logs-1", &database_common.Table{
 		Name: "logs-1",
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"@timestamp": {Name: "@timestamp"},
 			"message":    {Name: "message"},
 		},
@@ -253,9 +253,9 @@ func TestSearchCommonTable(t *testing.T) {
 		},
 	}
 
-	tableMap.Store("logs-2", &clickhouse.Table{
+	tableMap.Store("logs-2", &database_common.Table{
 		Name: "logs-2",
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"@timestamp": {Name: "@timestamp"},
 			"message":    {Name: "message"},
 		},
@@ -269,9 +269,9 @@ func TestSearchCommonTable(t *testing.T) {
 		},
 	}
 
-	tableMap.Store("logs-3", &clickhouse.Table{
+	tableMap.Store("logs-3", &database_common.Table{
 		Name: "logs-3",
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"@timestamp": {Name: "@timestamp"},
 			"message":    {Name: "message"},
 		},
@@ -286,9 +286,9 @@ func TestSearchCommonTable(t *testing.T) {
 		},
 	}
 
-	tableMap.Store(common_table.TableName, &clickhouse.Table{
+	tableMap.Store(common_table.TableName, &database_common.Table{
 		Name: common_table.TableName,
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"@timestamp":                 {Name: "@timestamp"},
 			"message":                    {Name: "message"},
 			common_table.IndexNameColumn: {Name: common_table.IndexNameColumn},
@@ -304,9 +304,9 @@ func TestSearchCommonTable(t *testing.T) {
 			},
 		}
 
-		tableMap.Store(dailyIndex, &clickhouse.Table{
+		tableMap.Store(dailyIndex, &database_common.Table{
 			Name: dailyIndex,
-			Cols: map[string]*clickhouse.Column{
+			Cols: map[string]*database_common.Column{
 				"@timestamp": {Name: "@timestamp"},
 				"message":    {Name: "message"},
 			},
@@ -391,7 +391,7 @@ func TestSearchCommonTable(t *testing.T) {
 
 			defer db.Close()
 
-			lm := clickhouse.NewLogManagerWithConnection(db, tableMap)
+			lm := database_common.NewLogManagerWithConnection(db, tableMap)
 
 			managementConsole := ui.NewQuesmaManagementConsole(quesmaConfig, nil, make(<-chan logger.LogWithLevel, 50000), diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
 

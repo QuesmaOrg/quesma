@@ -5,7 +5,7 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
@@ -19,7 +19,7 @@ type DateHistogramIntervalType bool
 const (
 	DateHistogramFixedInterval    DateHistogramIntervalType = true
 	DateHistogramCalendarInterval DateHistogramIntervalType = false
-	defaultDateTimeType                                     = clickhouse.DateTime64
+	defaultDateTimeType                                     = database_common.DateTime64
 	// OriginalKeyName is an original date_histogram's key, as it came from our SQL request.
 	// It's needed when date_histogram has subaggregations, because when we process them, we're merging subaggregation's
 	// map (it has the original key, doesn't know about the processed one)
@@ -40,11 +40,11 @@ type DateHistogram struct {
 	extendedBoundsMax int64
 	minDocCount       int
 	intervalType      DateHistogramIntervalType
-	fieldDateTimeType clickhouse.DateTimeType
+	fieldDateTimeType database_common.DateTimeType
 }
 
 func NewDateHistogram(ctx context.Context, field model.Expr, interval, timezone, format string, minDocCount int,
-	extendedBoundsMin, extendedBoundsMax int64, intervalType DateHistogramIntervalType, fieldDateTimeType clickhouse.DateTimeType) *DateHistogram {
+	extendedBoundsMin, extendedBoundsMax int64, intervalType DateHistogramIntervalType, fieldDateTimeType database_common.DateTimeType) *DateHistogram {
 
 	wantedTimezone, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -164,11 +164,11 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 		logger.ErrorWithCtx(query.ctx).Msg(err.Error())
 	}
 	dateTimeType := query.fieldDateTimeType
-	if query.fieldDateTimeType == clickhouse.Invalid {
+	if query.fieldDateTimeType == database_common.Invalid {
 		logger.ErrorWithCtx(query.ctx).Msgf("invalid date type for DateHistogram %+v. Using DateTime64 as default.", query)
 		dateTimeType = defaultDateTimeType
 	}
-	return clickhouse.TimestampGroupByWithTimezone(query.field, dateTimeType, interval, query.timezone)
+	return database_common.TimestampGroupByWithTimezone(query.field, dateTimeType, interval, query.timezone)
 }
 
 func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {

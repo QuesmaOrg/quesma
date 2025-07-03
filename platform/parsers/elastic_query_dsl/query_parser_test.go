@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
@@ -29,7 +30,7 @@ import (
 func TestQueryParserStringAttrConfig(t *testing.T) {
 	logger.InitSimpleLoggerForTestsWarnLevel()
 	tableName := "logs-generic-default"
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name: tableName,
 		Cols: map[string]*clickhouse.Column{
 			"message":           {Name: "message", Type: clickhouse.NewBaseType("String")},
@@ -93,7 +94,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 }
 
 func TestQueryParserNoFullTextFields(t *testing.T) {
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
@@ -159,7 +160,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 // TODO this test gives wrong results??
 func TestQueryParserNoAttrsConfig(t *testing.T) {
 	tableName := "logs-generic-default"
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name: tableName,
 		Cols: map[string]*clickhouse.Column{
 			"message":           {Name: "message", Type: clickhouse.NewBaseType("String")},
@@ -273,7 +274,7 @@ func Test_parseSortFields(t *testing.T) {
 			sortFieldNames: []string{"@timestamp", "_doc"},
 		},
 	}
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name: tableName,
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":                   {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -295,7 +296,7 @@ func Test_parseSortFields(t *testing.T) {
 
 func TestInvalidQueryRequests(t *testing.T) {
 	t.Skip("Test in the making. Need 1-2 more PRs in 'Report errors in queries better' series.")
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":                     {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
 			"timestamp":                      {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},

@@ -7,8 +7,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
@@ -24,7 +24,7 @@ type BasicHTTPFrontendConnector struct {
 	responseMutator func(w http.ResponseWriter) http.ResponseWriter
 	endpoint        string
 	dispatcher      *Dispatcher
-	logManager      *clickhouse.LogManager
+	logManager      *database_common.LogManager
 	registry        schema.Registry
 	config          *config.QuesmaConfiguration
 

@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func handleTermsEnumInternal(ctx context.Context, index string, body types.JSON, lm clickhouse.LogManagerIFace,
+func handleTermsEnumInternal(ctx context.Context, index string, body types.JSON, lm database_common.LogManagerIFace,
 	schemaRegistry schema.Registry, isFieldMapSyntaxEnabled bool, qmc diag.DebugInfoCollector) ([]byte, error) {
 
 	if indices, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index); err != nil || len(indices) != 1 { // multi index terms enum is not yet supported
@@ -41,7 +41,7 @@ func handleTermsEnumInternal(ctx context.Context, index string, body types.JSON,
 	}
 }
 
-func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm clickhouse.LogManagerIFace, qt *elastic_query_dsl.ClickhouseQueryTranslator,
+func handleTermsEnumRequest(ctx context.Context, body types.JSON, lm database_common.LogManagerIFace, qt *elastic_query_dsl.ClickhouseQueryTranslator,
 	isFieldMapSyntaxEnabled bool, qmc diag.DebugInfoCollector) (result []byte, err error) {
 
 	startTime := time.Now()

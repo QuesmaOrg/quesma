@@ -5,7 +5,7 @@ package ingest
 import (
 	"errors"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
@@ -120,10 +120,10 @@ func validateNumericType(columnType string, incomingValueType string, value inte
 	return false
 }
 
-func validateValueAgainstType(fieldName string, value interface{}, columnType clickhouse.Type) (isValid bool) {
+func validateValueAgainstType(fieldName string, value interface{}, columnType database_common.Type) (isValid bool) {
 	switch columnType := columnType.(type) {
-	case clickhouse.BaseType:
-		incomingValueType, err := clickhouse.NewType(value, fieldName)
+	case database_common.BaseType:
+		incomingValueType, err := database_common.NewType(value, fieldName)
 		if err != nil {
 			return false
 		}
@@ -131,19 +131,19 @@ func validateValueAgainstType(fieldName string, value interface{}, columnType cl
 		columnTypeName := removeLowCardinality(columnType.Name)
 
 		if isNumericType(columnTypeName) {
-			if incomingValueType, isBaseType := incomingValueType.(clickhouse.BaseType); isBaseType && validateNumericType(columnTypeName, incomingValueType.Name, value) {
+			if incomingValueType, isBaseType := incomingValueType.(database_common.BaseType); isBaseType && validateNumericType(columnTypeName, incomingValueType.Name, value) {
 				// Numeric types match!
 				return true
 			}
 		}
 
-		if incomingValueType, isBaseType := incomingValueType.(clickhouse.BaseType); isBaseType && incomingValueType.Name == columnTypeName {
+		if incomingValueType, isBaseType := incomingValueType.(database_common.BaseType); isBaseType && incomingValueType.Name == columnTypeName {
 			// Types match exactly!
 			return true
 		}
 
 		return false
-	case clickhouse.MultiValueType:
+	case database_common.MultiValueType:
 		if columnType.Name == "Tuple" {
 			if value, isMap := value.(map[string]interface{}); isMap {
 				for key, elem := range value {
@@ -162,7 +162,7 @@ func validateValueAgainstType(fieldName string, value interface{}, columnType cl
 		}
 
 		return false
-	case clickhouse.CompoundType:
+	case database_common.CompoundType:
 		if columnType.Name == "Array" {
 			if value, isArray := value.([]interface{}); isArray {
 				for i, elem := range value {
