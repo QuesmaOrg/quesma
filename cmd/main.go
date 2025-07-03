@@ -23,6 +23,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
 	"github.com/QuesmaOrg/quesma/platform/telemetry"
 	"github.com/QuesmaOrg/quesma/platform/ui"
+	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"log"
 	"os"
 	"os/signal"
@@ -111,8 +112,11 @@ func main() {
 			// Ensure common table exists. This table have to be created before ingest processor starts
 			common_table.EnsureCommonTableExists(connectionPool, cfg.ClusterName)
 		}
-
-		ingestProcessor = ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage, tableResolver)
+		sqlLowerer := ingest.NewSqlLowerer(virtualTableStorage)
+		hydrolixLowerer := ingest.NewHydrolixLowerer(virtualTableStorage)
+		ingestProcessor = ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, sqlLowerer, tableResolver)
+		ingestProcessor.RegisterLowerer(sqlLowerer, quesma_api.ClickHouseSQLBackend)
+		ingestProcessor.RegisterLowerer(hydrolixLowerer, quesma_api.HydrolixSQLBackend)
 	} else {
 		logger.Info().Msg("Ingest processor is disabled.")
 	}

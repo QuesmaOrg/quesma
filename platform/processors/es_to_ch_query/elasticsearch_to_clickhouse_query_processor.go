@@ -124,7 +124,7 @@ func (p *ElasticsearchToClickHouseQueryProcessor) Handle(metadata map[string]int
 			if indexNotInConfig {
 				return p.routeToElasticsearch(metadata, req)
 			}
-			res, err := frontend_connectors.HandleGetIndexMapping(p.queryRunner.GetSchemaRegistry(), indexPattern)
+			res, err := frontend_connectors.HandleGetIndexMapping(ctx, p.queryRunner.GetSchemaRegistry(), p.queryRunner.GetLogManager(), indexPattern)
 			if err != nil {
 				return metadata, nil, err
 			}

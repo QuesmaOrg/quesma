@@ -67,8 +67,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.HandleFunc(healthPath, qmc.checkHealth)
 	router.Handle(metricsPath, promhttp.Handler())
 
-	qmc.initPprof(router)
-
 	// just for oauth compliance
 	router.HandleFunc("/auth/{provider}", gothic.BeginAuthHandler)
 	router.HandleFunc("/auth/{provider}/callback", authCallbackHandler)
@@ -85,6 +83,8 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		qmc.isAuthEnabled = true
 		authenticatedRoutes.Use(authMiddleware)
 	}
+
+	qmc.initPprof(authenticatedRoutes)
 
 	authenticatedRoutes.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateDashboard()
@@ -317,6 +317,7 @@ func (qmc *QuesmaManagementConsole) initPprof(router *mux.Router) {
 	router.HandleFunc("/debug/pprof/allocs", pprof.Handler("allocs").ServeHTTP)
 	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	router.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	router.HandleFunc("/debug/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
 }
 
 // Here we generate keys for the session store.

@@ -38,6 +38,7 @@ require (
 	github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 	golang.org/x/oauth2 v0.27.0
+	golang.org/x/time v0.12.0
 	vitess.io/vitess v0.21.2
 )
 

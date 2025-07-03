@@ -122,7 +122,8 @@ func makeDefaultWildcard(quesmaConf config.QuesmaConfiguration, pipeline string)
 		switch pipeline {
 		case quesma_api.IngestPipeline:
 			targets = quesmaConf.DefaultIngestTarget
-		case quesma_api.QueryPipeline:
+
+		case quesma_api.QueryPipeline, quesma_api.MetaPipeline:
 			targets = quesmaConf.DefaultQueryTarget
 		default:
 			return &quesma_api.Decision{
@@ -215,7 +216,7 @@ func (r *tableRegistryImpl) singleIndex(indexConfig map[string]config.IndexConfi
 								&quesma_api.ConnectorDecisionElastic{}},
 						}
 
-					case quesma_api.QueryPipeline:
+					case quesma_api.QueryPipeline, quesma_api.MetaPipeline:
 
 						if targets[0] == config.ClickhouseTarget && targets[1] == config.ElasticsearchTarget {
 
@@ -319,7 +320,15 @@ func (r *tableRegistryImpl) makeCommonTableResolver(cfg map[string]config.IndexC
 	}
 }
 
-func mergeUseConnectors(lhs []quesma_api.ConnectorDecision, rhs []quesma_api.ConnectorDecision, rhsIndexName string) ([]quesma_api.ConnectorDecision, *quesma_api.Decision) {
+type basicDecisionMerger struct {
+	checkIfMatchingDifferentTables bool
+}
+
+func (b *basicDecisionMerger) name() string {
+	return "basicDecisionMerger"
+}
+
+func (b *basicDecisionMerger) mergeUseConnectors(lhs []quesma_api.ConnectorDecision, rhs []quesma_api.ConnectorDecision, rhsIndexName string) ([]quesma_api.ConnectorDecision, *quesma_api.Decision) {
 	for _, connDecisionRhs := range rhs {
 		foundMatching := false
 		for _, connDecisionLhs := range lhs {
@@ -330,29 +339,33 @@ func mergeUseConnectors(lhs []quesma_api.ConnectorDecision, rhs []quesma_api.Con
 			}
 			if rhsClickhouse, ok := connDecisionRhs.(*quesma_api.ConnectorDecisionClickhouse); ok {
 				if lhsClickhouse, ok := connDecisionLhs.(*quesma_api.ConnectorDecisionClickhouse); ok {
-					if lhsClickhouse.ClickhouseTableName != rhsClickhouse.ClickhouseTableName {
-						return nil, &quesma_api.Decision{
-							Reason: "Incompatible decisions for two indexes - they use a different ClickHouse table",
-							Err:    fmt.Errorf("incompatible decisions for two indexes (different ClickHouse table) - %s and %s", connDecisionRhs, connDecisionLhs),
-						}
-					}
-					if lhsClickhouse.IsCommonTable {
-						if !rhsClickhouse.IsCommonTable {
+
+					if b.checkIfMatchingDifferentTables {
+						if lhsClickhouse.ClickhouseTableName != rhsClickhouse.ClickhouseTableName {
 							return nil, &quesma_api.Decision{
-								Reason: "Incompatible decisions for two indexes - one uses the common table, the other does not",
-								Err:    fmt.Errorf("incompatible decisions for two indexes (common table usage) - %s and %s", connDecisionRhs, connDecisionLhs),
+								Reason: "Incompatible decisions for two indexes - they use a different ClickHouse table",
+								Err:    fmt.Errorf("incompatible decisions for two indexes (different ClickHouse table) - %s and %s", connDecisionRhs, connDecisionLhs),
 							}
 						}
-						lhsClickhouse.ClickhouseIndexes = append(lhsClickhouse.ClickhouseIndexes, rhsClickhouse.ClickhouseIndexes...)
-						lhsClickhouse.ClickhouseIndexes = util.Distinct(lhsClickhouse.ClickhouseIndexes)
-					} else {
-						if !reflect.DeepEqual(lhsClickhouse, rhsClickhouse) {
-							return nil, &quesma_api.Decision{
-								Reason: "Incompatible decisions for two indexes - they use ClickHouse tables differently",
-								Err:    fmt.Errorf("incompatible decisions for two indexes (different usage of ClickHouse) - %s and %s", connDecisionRhs, connDecisionLhs),
+						if lhsClickhouse.IsCommonTable {
+							if !rhsClickhouse.IsCommonTable {
+								return nil, &quesma_api.Decision{
+									Reason: "Incompatible decisions for two indexes - one uses the common table, the other does not",
+									Err:    fmt.Errorf("incompatible decisions for two indexes (common table usage) - %s and %s", connDecisionRhs, connDecisionLhs),
+								}
+							}
+							lhsClickhouse.ClickhouseIndexes = append(lhsClickhouse.ClickhouseIndexes, rhsClickhouse.ClickhouseIndexes...)
+							lhsClickhouse.ClickhouseIndexes = util.Distinct(lhsClickhouse.ClickhouseIndexes)
+						} else {
+							if !reflect.DeepEqual(lhsClickhouse, rhsClickhouse) {
+								return nil, &quesma_api.Decision{
+									Reason: "Incompatible decisions for two indexes - they use ClickHouse tables differently",
+									Err:    fmt.Errorf("incompatible decisions for two indexes (different usage of ClickHouse) - %s and %s", connDecisionRhs, connDecisionLhs),
+								}
 							}
 						}
 					}
+
 					foundMatching = true
 				}
 			}
@@ -368,7 +381,7 @@ func mergeUseConnectors(lhs []quesma_api.ConnectorDecision, rhs []quesma_api.Con
 	return lhs, nil
 }
 
-func basicDecisionMerger(decisions []*quesma_api.Decision) *quesma_api.Decision {
+func (b *basicDecisionMerger) merge(decisions []*quesma_api.Decision) *quesma_api.Decision {
 	if len(decisions) == 0 {
 		return &quesma_api.Decision{
 			IsEmpty: true,
@@ -435,7 +448,7 @@ func basicDecisionMerger(decisions []*quesma_api.Decision) *quesma_api.Decision 
 			}
 		}
 
-		newUseConnectors, mergeDecision := mergeUseConnectors(useConnectors, decision.UseConnectors, decision.IndexPattern)
+		newUseConnectors, mergeDecision := b.mergeUseConnectors(useConnectors, decision.UseConnectors, decision.IndexPattern)
 		if mergeDecision != nil {
 			return mergeDecision
 		}

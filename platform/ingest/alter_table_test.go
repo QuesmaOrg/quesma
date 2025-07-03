@@ -36,8 +36,8 @@ func TestAlterTable(t *testing.T) {
 		"{\"Test1\":1,\"Test2\":2}",
 	}
 	alters := []string{
-		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test1\" Nullable(Int64), COMMENT COLUMN \"Test1\" 'quesmaMetadataV1:fieldName=Test1'",
-		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test2\" Nullable(Int64), COMMENT COLUMN \"Test2\" 'quesmaMetadataV1:fieldName=Test2'",
+		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test1\" Nullable(Int64)",
+		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test2\" Nullable(Int64)",
 	}
 	columns := []string{"Test1", "Test2"}
 	table := &clickhouse.Table{
@@ -51,11 +51,11 @@ func TestAlterTable(t *testing.T) {
 
 	ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
-		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, encodings)
+		alter, onlySchemaFields, nonSchemaFields, err := ip.lowerer.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, encodings)
 		assert.NoError(t, err)
 		insert, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		assert.Equal(t, expectedInsert[i], insert)
-		assert.Equal(t, alters[i], alter[0])
+		assert.Equal(t, alters[i], alter[0].ToSql())
 		// Table will grow with each iteration
 		assert.Equal(t, i+1, len(table.Cols))
 		for _, col := range columns[:i+1] {
@@ -128,9 +128,9 @@ func TestAlterTableHeuristic(t *testing.T) {
 			previousRow = currentRow
 		}
 
-		assert.Equal(t, int64(0), ip.ingestCounter)
+		assert.Equal(t, int64(0), ip.lowerer.ingestCounter)
 		for i := range rowsToInsert {
-			_, _, _, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, encodings)
+			_, _, _, err := ip.lowerer.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, encodings)
 			assert.NoError(t, err)
 		}
 		assert.Equal(t, tc.expected, len(table.Cols))

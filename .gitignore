@@ -1,6 +1,13 @@
 ci/it/configs/*.yml
 elasticsearch-data
-.idea
+.idea/*
+!.idea/runConfigurations/
+!.idea/runConfigurations/*.xml
+# User-specific IDEA files
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/dictionaries/
 __pycache__
 mitmproxy/requests/*.txt
 mitmproxy/requests/*.mitm

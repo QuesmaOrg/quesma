@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	quesma_errors "github.com/QuesmaOrg/quesma/platform/errors"
@@ -177,16 +178,35 @@ func HandleIndexRefresh() (*quesma_api.Result, error) {
 	return ElasticsearchInsertResult(`{"_shards":{"total":1,"successful":1,"failed":0}}`, http.StatusOK), nil
 }
 
-func HandleGetIndexMapping(sr schema.Registry, index string) (*quesma_api.Result, error) {
-	foundSchema, found := sr.FindSchema(schema.IndexName(index))
-	if !found {
+func HandleGetIndexMapping(ctx context.Context, sr schema.Registry, lm clickhouse.LogManagerIFace, index string) (*quesma_api.Result, error) {
+
+	indexes, err := lm.ResolveIndexPattern(ctx, sr, index)
+	if err != nil {
+		return nil, err
+	}
+
+	allMappings := make(map[string]map[string]any)
+
+	indexes = common_table.FilterCommonTableIndex(indexes)
+
+	for _, resolvedIndex := range indexes {
+
+		foundSchema, found := sr.FindSchema(schema.IndexName(resolvedIndex))
+		if !found {
+			continue
+		}
+
+		hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
+		mappings := elasticsearch.GenerateMappings(hierarchicalSchema)
+
+		allMappings[resolvedIndex] = mappings
+	}
+
+	if len(allMappings) == 0 {
 		return &quesma_api.Result{StatusCode: http.StatusNotFound, GenericResult: make([]byte, 0)}, nil
 	}
 
-	hierarchicalSchema := schema.SchemaToHierarchicalSchema(&foundSchema)
-	mappings := elasticsearch.GenerateMappings(hierarchicalSchema)
-
-	return getIndexMappingResult(index, mappings)
+	return getIndexMappingResults(allMappings)
 }
 
 func HandlePitStore(indexPattern string) (*quesma_api.Result, error) {

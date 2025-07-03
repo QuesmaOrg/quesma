@@ -102,11 +102,14 @@ var configs = []*clickhouse.ChTableConfig{
 var expectedInserts = [][]string{
 	[]string{EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","service_name":"frontend","severity":"debug","source":"rhel"}`)},
 	[]string{
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "service_name" Nullable(String), COMMENT COLUMN "service_name" 'quesmaMetadataV1:fieldName=service.name'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "service_name" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "service_name" 'quesmaMetadataV1:fieldName=service.name`),
 
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String), COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
 
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "source" Nullable(String), COMMENT COLUMN "source" 'quesmaMetadataV1:fieldName=source'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "source" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "source" 'quesmaMetadataV1:fieldName=source'`),
 
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","service_name":"frontend","severity":"debug","source":"rhel"}`),
 	},
@@ -114,9 +117,12 @@ var expectedInserts = [][]string{
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
 	},
 	[]string{
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Array(String), COMMENT COLUMN "random1" 'quesmaMetadataV1:fieldName=random1'`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random2" Nullable(String), COMMENT COLUMN "random2" 'quesmaMetadataV1:fieldName=random2'`),
-		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String), COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random1" Array(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "random1" 'quesmaMetadataV1:fieldName=random1'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "random2" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "random2" 'quesmaMetadataV1:fieldName=random2'`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" ADD COLUMN IF NOT EXISTS "severity" Nullable(String)`),
+		EscapeBrackets(`ALTER TABLE "` + tableName + `" COMMENT COLUMN "severity" 'quesmaMetadataV1:fieldName=severity'`),
 		EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host_name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
 	},
 }
@@ -166,7 +172,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					encodings := populateFieldEncodings([]types.JSON{types.MustJSON(tt.insertJson)}, tableName)
 					columnsFromJson := JsonToColumns(types.MustJSON(tt.insertJson), tableConfig)
 					columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.ip.schemaRegistry, tableName), &columNameFormatter{separator: "::"}, tableName, encodings)
-					columns := columnsWithIndexes(columnsToString(columnsFromJson, columnsFromSchema, encodings, tableName), Indexes(types.MustJSON(tt.insertJson)))
+					columns := columnsWithIndexes(columnPropertiesToString(columnsToProperties(columnsFromJson, columnsFromSchema, encodings, tableName)), Indexes(types.MustJSON(tt.insertJson)))
 					query := createTableQuery(tableName, columns, tableConfig)
 
 					table := ip.ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
@@ -429,7 +435,7 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 
 			ingest := newIngestProcessorWithEmptyTableMap(tables, quesmaConfig)
 			ingest.chDb = db
-			ingest.virtualTableStorage = virtualTableStorage
+			ingest.lowerer.virtualTableStorage = virtualTableStorage
 			ingest.schemaRegistry = schemaRegistry
 			ingest.tableResolver = resolver
 
@@ -444,6 +450,103 @@ func TestCreateTableIfSomeFieldsExistsInSchemaAlready(t *testing.T) {
 
 			err = ingest.ProcessInsertQuery(ctx, indexName, tt.documents, transformer, formatter)
 
+			if err != nil {
+				t.Fatalf("error processing insert query: %v", err)
+			}
+
+		})
+	}
+}
+
+func TestHydrolixIngest(t *testing.T) {
+	indexName := "test_index"
+
+	quesmaConfig := &config.QuesmaConfiguration{
+		IndexConfig: map[string]config.IndexConfiguration{
+			indexName: {},
+		},
+	}
+	projectName := quesmaConfig.Hydrolix.Database
+	tests := []struct {
+		name               string
+		documents          []types.JSON
+		expectedStatements []string
+	}{
+		{
+			name: "simple single insert",
+			documents: []types.JSON{
+				{"new_field": "bar"},
+			},
+
+			expectedStatements: []string{
+				fmt.Sprintf(`{
+  "schema": {
+    "project": "%s",
+    "name": "test_index",
+    "time_column": "ingest_time",
+    "columns": [
+      { "name": "new_field", "type": "string" },
+      { "name": "ingest_time", "type": "datetime", "default": "NOW" }
+    ],
+    "partitioning": {
+      "strategy": "time",
+      "field": "ingest_time",
+      "granularity": "day"
+    }
+  },
+  "events": [
+    {
+      "new_field": "bar"
+    }
+  ]
+}`, projectName),
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
+
+			indexSchema := schema.Schema{}
+
+			tables := NewTableMap()
+
+			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			db := backend_connectors.NewHydrolixBackendConnectorWithConnection("", conn)
+			if err != nil {
+				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+
+			schemaRegistry := &schema.StaticRegistry{
+				Tables: make(map[schema.IndexName]schema.Schema),
+			}
+			schemaRegistry.Tables[schema.IndexName(indexName)] = indexSchema
+
+			resolver := table_resolver.NewEmptyTableResolver()
+			decision := &mux.Decision{
+				UseConnectors: []mux.ConnectorDecision{&mux.ConnectorDecisionClickhouse{
+					ClickhouseTableName: "test_index",
+				}}}
+			resolver.Decisions["test_index"] = decision
+
+			ingest := newIngestProcessorWithHydrolixLowerer(tables, quesmaConfig)
+			ingest.chDb = db
+
+			ingest.schemaRegistry = schemaRegistry
+			ingest.tableResolver = resolver
+
+			ctx := context.Background()
+			formatter := DefaultColumnNameFormatter()
+
+			transformer := IngestTransformerFor(indexName, quesmaConfig)
+
+			for _, stm := range tt.expectedStatements {
+				mock.ExpectExec(stm).WillReturnResult(sqlmock.NewResult(1, 1))
+			}
+
+			err = ingest.ProcessInsertQuery(ctx, indexName, tt.documents, transformer, formatter)
+
+			// For now we expect an error because the Hydrolix backend connector does not implement the Exec method
 			if err != nil {
 				t.Fatalf("error processing insert query: %v", err)
 			}
