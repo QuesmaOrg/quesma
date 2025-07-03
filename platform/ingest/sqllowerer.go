@@ -4,7 +4,7 @@ package ingest
 
 import (
 	"fmt"
-	chLib "github.com/QuesmaOrg/quesma/platform/clickhouse"
+	chLib "github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"

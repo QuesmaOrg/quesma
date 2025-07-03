@@ -4,6 +4,7 @@ package database_common
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
@@ -236,7 +237,7 @@ func ResolveType(clickHouseTypeName string) reflect.Type {
 	case "Float32", "Float64":
 		return reflect.TypeOf(float64(0))
 	case "Point":
-		return reflect.TypeOf(Point{})
+		return reflect.TypeOf(clickhouse.Point{})
 	case "Bool":
 		return reflect.TypeOf(true)
 	case "JSON":

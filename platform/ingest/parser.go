@@ -31,7 +31,7 @@ func reverseFieldEncoding(fieldEncodings map[schema.FieldEncodingKey]schema.Enco
 	return res
 }
 
-func BuildCreateTable(name string, columns []ColumnStatement, indexes string, config *clickhouse.ChTableConfig) CreateTableStatement {
+func BuildCreateTable(name string, columns []ColumnStatement, indexes string, config *database_common.ChTableConfig) CreateTableStatement {
 	var cluster string
 	if config.ClusterName != "" {
 		cluster = config.ClusterName
