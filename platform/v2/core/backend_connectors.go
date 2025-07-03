@@ -13,6 +13,7 @@ const (
 	ClickHouseSQLBackend
 	ElasticsearchBackend
 	TcpBackend
+	HydrolixSQLBackend
 )
 
 func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string {
@@ -25,6 +26,8 @@ func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string 
 		return "clickhouse"
 	case ElasticsearchBackend:
 		return "elasticsearch"
+	case HydrolixSQLBackend:
+		return "hydrolix"
 	default:
 		return "noop"
 	}

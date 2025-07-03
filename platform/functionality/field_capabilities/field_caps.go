@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch/elasticsearch_field_types"
@@ -46,6 +47,8 @@ func handleFieldCapsIndex(cfg map[string]config.IndexConfiguration, schemaRegist
 	fields := make(map[string]map[string]model.FieldCapability)
 
 	schemas := schemaRegistry.AllSchemas()
+
+	indexes = common_table.FilterCommonTableIndex(indexes)
 
 	for _, resolvedIndex := range indexes {
 		if len(resolvedIndex) == 0 {

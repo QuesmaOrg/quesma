@@ -207,11 +207,11 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		return HandleMultiSearch(ctx, req, "", queryRunner)
 	})
 
-	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(routes.IndexMappingPath, and(method("GET", "PUT"), matchAgainstTableResolver(tableResolver, quesma_api.MetaPipeline)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 		index := req.Params["index"]
 		switch req.Method {
 		case "GET":
-			return HandleGetIndexMapping(sr, index)
+			return HandleGetIndexMapping(ctx, sr, lm, index)
 		case "PUT":
 			if body, err := types.ExpectJSON(req.ParsedBody); err != nil {
 				return nil, err
@@ -236,7 +236,7 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		return nil, errors.New("unsupported method")
 	})
 
-	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(tableResolver)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchAgainstTableResolver(tableResolver, quesma_api.MetaPipeline)), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
 		return HandleFieldCaps(ctx, req.Params["index"],
 			req.QueryParams.Get("allow_no_indices") == "true",
 			req.QueryParams.Get("ignore_unavailable") == "true",
@@ -308,6 +308,17 @@ func ConfigureSearchRouterV2(cfg *config.QuesmaConfiguration, dependencies quesm
 		}
 
 		return &quesma_api.Result{Body: string(body), StatusCode: http.StatusOK, GenericResult: body}, nil
+	})
+
+	router.Register(routes.QuesmaReloadTablsPath, method("POST"), func(ctx context.Context, req *quesma_api.Request, _ http.ResponseWriter) (*quesma_api.Result, error) {
+
+		lm.ReloadTables()
+
+		return &quesma_api.Result{
+			Body:          "Table reloaded successfully",
+			StatusCode:    http.StatusOK,
+			GenericResult: []byte("Table reloaded successfully"),
+		}, nil
 	})
 
 	return router

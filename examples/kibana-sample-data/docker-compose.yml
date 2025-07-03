@@ -21,7 +21,7 @@ services:
       resources:
         limits:
           memory: 512M
-    restart: unless-stopped
+    restart: on-failure
   log-generator:
     build: log-generator
     depends_on:

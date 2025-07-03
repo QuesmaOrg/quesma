@@ -427,7 +427,11 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				VirtualTable:                 resTable.virtualTable,
 				ExistsOnAllNodes:             resTable.existsOnAllNodes,
 			}
-			if containsAttributes(resTable.columnTypes) {
+
+			// We're adding default attributes to the virtual tables. We store virtual tables in the elastic as a list of essential column names.
+			// Quesma heavily relies on the attributes when it alters schema on ingest (see processor.go)
+			// If we don't add attributes to the virtual tables, virtual tables will be not altered on ingest.
+			if containsAttributes(resTable.columnTypes) || resTable.virtualTable {
 				table.Config.Attributes = []Attribute{NewDefaultStringAttribute()}
 			}
 

@@ -76,3 +76,23 @@ func TestIndexNameRewrite(t *testing.T) {
 	testCase := testcases.NewIndexNameRewriteTestcase()
 	runIntegrationTest(t, testCase)
 }
+
+func TestDefaultSchemaOverride(t *testing.T) {
+	testCase := testcases.NewDefaultSchemaOverrideTestcase()
+	runIntegrationTest(t, testCase)
+}
+
+func TestSplitTimeRange(t *testing.T) {
+	testCase := testcases.NewSplitTimeRangeTestcase()
+	runIntegrationTest(t, testCase)
+}
+
+func TestOnlyCommonTable(t *testing.T) {
+	testCase := testcases.NewOnlyCommonTableTestcase()
+	runIntegrationTest(t, testCase)
+}
+
+func TestCommonTableAndRegularTable(t *testing.T) {
+	testCase := testcases.NewCommonTableAndRegularTable()
+	runIntegrationTest(t, testCase)
+}

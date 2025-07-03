@@ -41,8 +41,9 @@ func TestAlterTable(t *testing.T) {
 	}
 	columns := []string{"Test1", "Test2"}
 	table := &clickhouse.Table{
-		Name: "tableName",
-		Cols: map[string]*clickhouse.Column{},
+		Name:   "tableName",
+		Cols:   map[string]*clickhouse.Column{},
+		Config: chConfig,
 	}
 	fieldsMap := util.NewSyncMapWith("tableName", table)
 
@@ -50,11 +51,11 @@ func TestAlterTable(t *testing.T) {
 
 	ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
 	for i := range rowsToInsert {
-		alter, onlySchemaFields, nonSchemaFields, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig, encodings)
+		alter, onlySchemaFields, nonSchemaFields, err := ip.lowerer.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, encodings)
 		assert.NoError(t, err)
 		insert, err := generateInsertJson(nonSchemaFields, onlySchemaFields)
 		assert.Equal(t, expectedInsert[i], insert)
-		assert.Equal(t, alters[i], alter[0])
+		assert.Equal(t, alters[i], alter[0].ToSql())
 		// Table will grow with each iteration
 		assert.Equal(t, i+1, len(table.Cols))
 		for _, col := range columns[:i+1] {
@@ -103,8 +104,9 @@ func TestAlterTableHeuristic(t *testing.T) {
 	for _, tc := range testcases {
 		const tableName = "tableName"
 		table := &clickhouse.Table{
-			Name: tableName,
-			Cols: map[string]*clickhouse.Column{},
+			Name:   tableName,
+			Cols:   map[string]*clickhouse.Column{},
+			Config: chConfig,
 		}
 		fieldsMap := util.NewSyncMapWith(tableName, table)
 		ip := newIngestProcessorWithEmptyTableMap(fieldsMap, &config.QuesmaConfiguration{})
@@ -126,9 +128,9 @@ func TestAlterTableHeuristic(t *testing.T) {
 			previousRow = currentRow
 		}
 
-		assert.Equal(t, int64(0), ip.ingestCounter)
+		assert.Equal(t, int64(0), ip.lowerer.ingestCounter)
 		for i := range rowsToInsert {
-			_, _, _, err := ip.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, chConfig, encodings)
+			_, _, _, err := ip.lowerer.GenerateIngestContent(table, types.MustJSON(rowsToInsert[i]), nil, encodings)
 			assert.NoError(t, err)
 		}
 		assert.Equal(t, tc.expected, len(table.Cols))

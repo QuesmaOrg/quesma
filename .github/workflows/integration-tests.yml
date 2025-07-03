@@ -52,6 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-quesma-docker-image, check-comment]
     if: ${{ always() && (github.event_name != 'issue_comment' || needs.check-comment.result == 'success') }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -105,7 +106,7 @@ jobs:
 
       - name: Run integration tests
         working-directory: ci/it
-        run: go test -v
+        run: go test -timeout 20m -v
 
       - name: Send Slack notification on failure
         if: ${{ failure() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}

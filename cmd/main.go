@@ -23,6 +23,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
 	"github.com/QuesmaOrg/quesma/platform/telemetry"
 	"github.com/QuesmaOrg/quesma/platform/ui"
+	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"log"
 	"os"
 	"os/signal"
@@ -58,7 +59,10 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	doneCh := make(chan struct{})
 
-	var newConfiguration = config.LoadV2Config()
+	var newConfiguration, configErr = config.LoadV2Config()
+	if configErr != nil {
+		return // We log error in LoadV2Config
+	}
 	var cfg = newConfiguration.TranslateToLegacyConfig()
 
 	if err := cfg.Validate(); err != nil {
@@ -108,8 +112,11 @@ func main() {
 			// Ensure common table exists. This table have to be created before ingest processor starts
 			common_table.EnsureCommonTableExists(connectionPool, cfg.ClusterName)
 		}
-
-		ingestProcessor = ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, virtualTableStorage, tableResolver)
+		sqlLowerer := ingest.NewSqlLowerer(virtualTableStorage)
+		hydrolixLowerer := ingest.NewHydrolixLowerer(virtualTableStorage)
+		ingestProcessor = ingest.NewIngestProcessor(&cfg, connectionPool, phoneHomeAgent, tableDisco, schemaRegistry, sqlLowerer, tableResolver)
+		ingestProcessor.RegisterLowerer(sqlLowerer, quesma_api.ClickHouseSQLBackend)
+		ingestProcessor.RegisterLowerer(hydrolixLowerer, quesma_api.HydrolixSQLBackend)
 	} else {
 		logger.Info().Msg("Ingest processor is disabled.")
 	}
