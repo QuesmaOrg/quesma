@@ -43,6 +43,9 @@ func (tc *IntegrationTestcaseBase) Cleanup(ctx context.Context, t *testing.T) {
 }
 
 func (tc *IntegrationTestcaseBase) getQuesmaEndpoint() string {
+	if debugQuesmaDuringTestRun { // If debug mode is enabled, return a hardcoded endpoint for Quesma
+		return "http://localhost:8080"
+	}
 	ctx := context.Background()
 	q := *tc.Containers.Quesma
 	p, _ := q.MappedPort(ctx, "8080/tcp")
