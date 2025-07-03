@@ -4,7 +4,6 @@ package ingest
 
 import (
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
@@ -25,7 +24,7 @@ func newIngestProcessorWithEmptyTableMap(tables *TableMap, cfg *config.QuesmaCon
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
 	lowerer := NewSqlLowerer(persistence.NewStaticJSONDatabase())
-	processor := &IngestProcessor{chDb: nil, tableDiscovery: clickhouse.NewTableDiscoveryWith(cfg, nil, *tables),
+	processor := &IngestProcessor{chDb: nil, tableDiscovery: database_common.NewTableDiscoveryWith(cfg, nil, *tables),
 		cfg: cfg, phoneHomeClient: diag.NewPhoneHomeEmptyAgent(),
 		lowerers: make(map[quesma_api.BackendConnectorType]Lowerer),
 		lowerer:  lowerer,
@@ -38,7 +37,7 @@ func newIngestProcessorWithHydrolixLowerer(tables *TableMap, cfg *config.QuesmaC
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
 	lowerer := NewHydrolixLowerer(persistence.NewStaticJSONDatabase())
-	processor := &IngestProcessor{chDb: backend_connectors.NewHydrolixBackendConnector(&cfg.Hydrolix), tableDiscovery: clickhouse.NewTableDiscoveryWith(cfg, nil, *tables),
+	processor := &IngestProcessor{chDb: backend_connectors.NewHydrolixBackendConnector(&cfg.Hydrolix), tableDiscovery: database_common.NewTableDiscoveryWith(cfg, nil, *tables),
 		cfg: cfg, phoneHomeClient: diag.NewPhoneHomeEmptyAgent(),
 		lowerers: make(map[quesma_api.BackendConnectorType]Lowerer),
 	}
@@ -51,32 +50,32 @@ func newIngestProcessorEmpty() *IngestProcessor {
 	tableDefinitions.Store(NewTableMap())
 	cfg := &config.QuesmaConfiguration{}
 	lowerer := NewSqlLowerer(persistence.NewStaticJSONDatabase())
-	processor := &IngestProcessor{tableDiscovery: clickhouse.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
+	processor := &IngestProcessor{tableDiscovery: database_common.NewTableDiscovery(cfg, nil, persistence.NewStaticJSONDatabase()), cfg: cfg,
 		phoneHomeClient: diag.NewPhoneHomeEmptyAgent(), lowerers: make(map[quesma_api.BackendConnectorType]Lowerer), lowerer: lowerer}
 	processor.RegisterLowerer(lowerer, quesma_api.ClickHouseSQLBackend)
 	return processor
 }
 
-var hasOthersConfig = &clickhouse.ChTableConfig{
+var hasOthersConfig = &database_common.ChTableConfig{
 	HasTimestamp:                          false,
 	TimestampDefaultsNow:                  false,
 	Engine:                                "MergeTree",
 	OrderBy:                               "(timestamp)",
 	PrimaryKey:                            "",
 	Ttl:                                   "",
-	Attributes:                            []clickhouse.Attribute{},
+	Attributes:                            []database_common.Attribute{},
 	CastUnsupportedAttrValueTypesToString: false,
 	PreferCastingToOthers:                 false,
 }
 
 // inserting row with 2 non-schema fields
-// they are added to "others" clickhouse.Column as JSON (one is nested)
+// they are added to "others" database_common.Column as JSON (one is nested)
 func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","non-schema2":"2","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z","non-schema1":{"a":"b"}}`
 	var emptyMap TableMap
-	// TODO fix clickhouse.Columns
+	// TODO fix database_common.Columns
 	fieldsMap := util.NewSyncMapWith("tableName", &database_common.Table{
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"host::name":    nil,
 			"message":       nil,
 			"service::name": nil,
@@ -114,10 +113,10 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 func TestInsertNonSchemaFields_2(t *testing.T) {
 	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z"}`
 	var emptyMap TableMap
-	// TODO fix clickhouse.Columns
+	// TODO fix database_common.Columns
 	fieldsMap := TableMap{
-		"tableName": &clickhouse.Table{
-			Cols: map[string]*clickhouse.Column{
+		"tableName": &database_common.Table{
+			Cols: map[string]*database_common.Column{
 				"host.name":    nil,
 				"message":      nil,
 				"service.name": nil,
@@ -148,14 +147,14 @@ func TestInsertNonSchemaFields_2(t *testing.T) {
 */
 
 func TestAddTimestamp(t *testing.T) {
-	tableConfig := &clickhouse.ChTableConfig{
+	tableConfig := &database_common.ChTableConfig{
 		HasTimestamp:                          true,
 		TimestampDefaultsNow:                  true,
 		Engine:                                "MergeTree",
 		OrderBy:                               "(@timestamp)",
 		PrimaryKey:                            "",
 		Ttl:                                   "",
-		Attributes:                            []clickhouse.Attribute{},
+		Attributes:                            []database_common.Attribute{},
 		CastUnsupportedAttrValueTypesToString: false,
 		PreferCastingToOthers:                 false,
 	}
@@ -204,7 +203,7 @@ func TestDifferenceMapSimple_1(t *testing.T) {
 		"timestamp":    nil,
 	}
 	table := &database_common.Table{
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"host.name":    nil,
 			"message":      nil,
 			"service.name": nil,
@@ -229,7 +228,7 @@ func TestDifferenceMapSimple_2(t *testing.T) {
 		"timestamp":    "f",
 	}
 	table := &database_common.Table{
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"message":      nil,
 			"service.name": nil,
 			"severity":     nil,
@@ -256,7 +255,7 @@ func TestDifferenceMapNested(t *testing.T) {
 		"timestamp":    nil,
 	}
 	table := &database_common.Table{
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"message":      nil,
 			"service.name": nil,
 			"severity":     nil,
@@ -288,7 +287,7 @@ func TestDifferenceMapSimpleAndNested_1(t *testing.T) {
 		"non-schema":   nil,
 	}
 	table := &database_common.Table{
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"message":      nil,
 			"service.name": nil,
 			"severity":     nil,
@@ -324,10 +323,10 @@ func TestDifferenceMapSimpleAndNested_2(t *testing.T) {
 		"non-schema":   nil,
 	}
 	table := &database_common.Table{
-		Cols: map[string]*clickhouse.Column{
-			"host.name": {Name: "host.name", Codec: clickhouse.Codec{Name: ""}, Type: clickhouse.MultiValueType{
-				Name: "Tuple", Cols: []*clickhouse.Column{
-					{Name: "b", Type: clickhouse.NewBaseType("String")},
+		Cols: map[string]*database_common.Column{
+			"host.name": {Name: "host.name", Codec: database_common.Codec{Name: ""}, Type: database_common.MultiValueType{
+				Name: "Tuple", Cols: []*database_common.Column{
+					{Name: "b", Type: database_common.NewBaseType("String")},
 				},
 			}},
 			"message":      nil,
@@ -388,37 +387,37 @@ func TestDifferenceMapBig(t *testing.T) {
 		},
 	}
 	table := &database_common.Table{
-		Cols: map[string]*clickhouse.Column{
-			"host.name": {Name: "host.name", Type: clickhouse.MultiValueType{
-				Name: "Tuple", Cols: []*clickhouse.Column{
-					{Name: "b", Type: clickhouse.NewBaseType("String")},
+		Cols: map[string]*database_common.Column{
+			"host.name": {Name: "host.name", Type: database_common.MultiValueType{
+				Name: "Tuple", Cols: []*database_common.Column{
+					{Name: "b", Type: database_common.NewBaseType("String")},
 				},
 			}},
-			"message": {Name: "message", Type: clickhouse.MultiValueType{
-				Name: "Tuple", Cols: []*clickhouse.Column{
-					{Name: "m", Type: clickhouse.NewBaseType("String")},
+			"message": {Name: "message", Type: database_common.MultiValueType{
+				Name: "Tuple", Cols: []*database_common.Column{
+					{Name: "m", Type: database_common.NewBaseType("String")},
 				},
 			}},
 			"service.name": nil,
 			"severity":     nil,
 			"timestamp":    nil,
 			"source":       nil,
-			"nested": {Name: "nested", Type: clickhouse.MultiValueType{
-				Name: "Tuple", Cols: []*clickhouse.Column{
-					{Name: "n1", Type: clickhouse.MultiValueType{
-						Name: "Tuple", Cols: []*clickhouse.Column{
-							{Name: "n11", Type: clickhouse.MultiValueType{
-								Name: "Tuple", Cols: []*clickhouse.Column{
-									{Name: "n111", Type: clickhouse.NewBaseType("String")},
+			"nested": {Name: "nested", Type: database_common.MultiValueType{
+				Name: "Tuple", Cols: []*database_common.Column{
+					{Name: "n1", Type: database_common.MultiValueType{
+						Name: "Tuple", Cols: []*database_common.Column{
+							{Name: "n11", Type: database_common.MultiValueType{
+								Name: "Tuple", Cols: []*database_common.Column{
+									{Name: "n111", Type: database_common.NewBaseType("String")},
 								},
 							},
 							},
-							{Name: "n12", Type: clickhouse.NewBaseType("String")},
+							{Name: "n12", Type: database_common.NewBaseType("String")},
 						},
 					}},
-					{Name: "n2", Type: clickhouse.MultiValueType{
-						Name: "Tuple", Cols: []*clickhouse.Column{
-							{Name: "n21", Type: clickhouse.NewBaseType("String")},
+					{Name: "n2", Type: database_common.MultiValueType{
+						Name: "Tuple", Cols: []*database_common.Column{
+							{Name: "n21", Type: database_common.NewBaseType("String")},
 						},
 					}},
 				},
@@ -495,31 +494,31 @@ func TestRemovingNonSchemaFields(t *testing.T) {
 		"non-schema2": nil,
 	}
 	table := &database_common.Table{
-		Cols: map[string]*clickhouse.Column{
-			"schema1": {Name: "schema1", Type: clickhouse.MultiValueType{
-				Name: "Tuple", Cols: []*clickhouse.Column{
-					{Name: "schema11", Type: clickhouse.MultiValueType{
-						Name: "Tuple", Cols: []*clickhouse.Column{
-							{Name: "schema111", Type: clickhouse.NewBaseType("String")},
+		Cols: map[string]*database_common.Column{
+			"schema1": {Name: "schema1", Type: database_common.MultiValueType{
+				Name: "Tuple", Cols: []*database_common.Column{
+					{Name: "schema11", Type: database_common.MultiValueType{
+						Name: "Tuple", Cols: []*database_common.Column{
+							{Name: "schema111", Type: database_common.NewBaseType("String")},
 						},
 					}},
 				},
 			}},
-			"schema2": {Name: "schema2", Type: clickhouse.MultiValueType{
-				Name: "Tuple", Cols: []*clickhouse.Column{
-					{Name: "schema21", Type: clickhouse.MultiValueType{
-						Name: "Tuple", Cols: []*clickhouse.Column{
-							{Name: "schema212", Type: clickhouse.MultiValueType{
-								Name: "Tuple", Cols: []*clickhouse.Column{
-									{Name: "schema2121", Type: clickhouse.NewBaseType("String")},
+			"schema2": {Name: "schema2", Type: database_common.MultiValueType{
+				Name: "Tuple", Cols: []*database_common.Column{
+					{Name: "schema21", Type: database_common.MultiValueType{
+						Name: "Tuple", Cols: []*database_common.Column{
+							{Name: "schema212", Type: database_common.MultiValueType{
+								Name: "Tuple", Cols: []*database_common.Column{
+									{Name: "schema2121", Type: database_common.NewBaseType("String")},
 								},
 							}},
-							{Name: "schema211", Type: clickhouse.NewBaseType("String")},
+							{Name: "schema211", Type: database_common.NewBaseType("String")},
 						},
 					}},
-					{Name: "schema22", Type: clickhouse.MultiValueType{
-						Name: "Tuple", Cols: []*clickhouse.Column{
-							{Name: "schema221", Type: clickhouse.NewBaseType("String")},
+					{Name: "schema22", Type: database_common.MultiValueType{
+						Name: "Tuple", Cols: []*database_common.Column{
+							{Name: "schema221", Type: database_common.NewBaseType("String")},
 						},
 					}},
 				},
@@ -556,18 +555,18 @@ func TestRemovingNonSchemaFields(t *testing.T) {
 }
 
 func TestJsonFlatteningToStringAttr(t *testing.T) {
-	config := &clickhouse.ChTableConfig{
+	config := &database_common.ChTableConfig{
 		HasTimestamp:         true,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(@timestamp)",
 		PrimaryKey:           "",
 		Ttl:                  "",
-		Attributes: []clickhouse.Attribute{
-			clickhouse.NewDefaultInt64Attribute(),
-			clickhouse.NewDefaultFloat64Attribute(),
-			clickhouse.NewDefaultBoolAttribute(),
-			clickhouse.NewDefaultStringAttribute(),
+		Attributes: []database_common.Attribute{
+			database_common.NewDefaultInt64Attribute(),
+			database_common.NewDefaultFloat64Attribute(),
+			database_common.NewDefaultBoolAttribute(),
+			database_common.NewDefaultStringAttribute(),
 		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
@@ -590,15 +589,15 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 }
 
 func TestJsonConvertingBoolToStringAttr(t *testing.T) {
-	config := &clickhouse.ChTableConfig{
+	config := &database_common.ChTableConfig{
 		HasTimestamp:         true,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(@timestamp)",
 		PrimaryKey:           "",
 		Ttl:                  "",
-		Attributes: []clickhouse.Attribute{
-			clickhouse.NewDefaultStringAttribute(),
+		Attributes: []database_common.Attribute{
+			database_common.NewDefaultStringAttribute(),
 		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
@@ -627,57 +626,57 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 func TestCreateTableString_1(t *testing.T) {
 	table := database_common.Table{
 		Name: "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"doc": {
 				Name: "doc",
-				Type: clickhouse.MultiValueType{
+				Type: database_common.MultiValueType{
 					Name: "Tuple",
-					Cols: []*clickhouse.Column{
+					Cols: []*database_common.Column{
 						{
 							Name: "Tuple",
-							Type: clickhouse.MultiValueType{
+							Type: database_common.MultiValueType{
 								Name: "Tuple",
-								Cols: []*clickhouse.Column{
+								Cols: []*database_common.Column{
 									{
 										Name: "runAt",
-										Type: clickhouse.NewBaseType("DateTime64"),
+										Type: database_common.NewBaseType("DateTime64"),
 									},
 									{
 										Name: "startedAt",
-										Type: clickhouse.NewBaseType("DateTime64"),
+										Type: database_common.NewBaseType("DateTime64"),
 									},
 									{
 										Name: "Tuple",
-										Type: clickhouse.NewBaseType("String"),
+										Type: database_common.NewBaseType("String"),
 									},
 									{
 										Name: "status",
-										Type: clickhouse.NewBaseType("String"),
+										Type: database_common.NewBaseType("String"),
 									},
 								},
 							},
 						},
 						{
 							Name: "updated_at",
-							Type: clickhouse.NewBaseType("DateTime64"),
+							Type: database_common.NewBaseType("DateTime64"),
 						},
 					},
 				},
 			},
 			"@timestamp": {
 				Name: "@timestamp",
-				Type: clickhouse.NewBaseType("DateTime64"),
+				Type: database_common.NewBaseType("DateTime64"),
 			},
 		},
-		Config: &clickhouse.ChTableConfig{
+		Config: &database_common.ChTableConfig{
 			HasTimestamp:         true,
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
 			OrderBy:              "(@timestamp)",
 			PrimaryKey:           "",
 			Ttl:                  "",
-			Attributes: []clickhouse.Attribute{
-				clickhouse.NewDefaultStringAttribute(),
+			Attributes: []database_common.Attribute{
+				database_common.NewDefaultStringAttribute(),
 			},
 			CastUnsupportedAttrValueTypesToString: false,
 			PreferCastingToOthers:                 false,
@@ -714,39 +713,39 @@ func TestCreateTableString_1(t *testing.T) {
 func TestCreateTableString_NewDateTypes(t *testing.T) {
 	table := database_common.Table{
 		Name: "abc",
-		Cols: map[string]*clickhouse.Column{
+		Cols: map[string]*database_common.Column{
 			"low_card_string": {
 				Name: "low_card_string",
-				Type: clickhouse.NewBaseType("LowCardinality(String)"),
+				Type: database_common.NewBaseType("LowCardinality(String)"),
 			},
 			"uuid": {
 				Name: "uuid",
-				Type: clickhouse.NewBaseType("UUID"),
+				Type: database_common.NewBaseType("UUID"),
 			},
 			"int32": {
 				Name: "int32",
-				Type: clickhouse.NewBaseType("Int32"),
+				Type: database_common.NewBaseType("Int32"),
 			},
 			"epoch_time": {
 				Name:      "epoch_time",
-				Type:      clickhouse.NewBaseType("DateTime('Asia/Kolkata')"),
+				Type:      database_common.NewBaseType("DateTime('Asia/Kolkata')"),
 				Modifiers: "CODEC(DoubleDelta, LZ4)",
 			},
 			"estimated_connection_speedinkbps": {
 				Name:      "estimated_connection_speedinkbps",
-				Type:      clickhouse.NewBaseType("Float64"),
+				Type:      database_common.NewBaseType("Float64"),
 				Modifiers: "CODEC(DoubleDelta, LZ4)",
 			},
 		},
-		Config: &clickhouse.ChTableConfig{
+		Config: &database_common.ChTableConfig{
 			HasTimestamp:         true,
 			TimestampDefaultsNow: true,
 			Engine:               "MergeTree",
 			OrderBy:              "(@timestamp)",
 			PrimaryKey:           "",
 			Ttl:                  "",
-			Attributes: []clickhouse.Attribute{
-				clickhouse.NewDefaultInt64Attribute(),
+			Attributes: []database_common.Attribute{
+				database_common.NewDefaultInt64Attribute(),
 			},
 			CastUnsupportedAttrValueTypesToString: true,
 			PreferCastingToOthers:                 true,

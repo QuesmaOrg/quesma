@@ -4,7 +4,7 @@ package metrics_aggregations
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"math"
 	"testing"
@@ -29,7 +29,7 @@ func equalStrings(a, b *string) bool {
 }
 
 func Test_processResult(t *testing.T) {
-	quantile := NewQuantile(context.Background(), []string{}, false, clickhouse.DateTime)
+	quantile := NewQuantile(context.Background(), []string{}, false, database_common.DateTime)
 	colName := "not-important"
 	wantedStr := "2024-05-02T21:58:16.297Z"
 	tests := []struct {

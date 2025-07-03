@@ -5,7 +5,6 @@ package elastic_query_dsl
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -32,19 +31,19 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	tableName := "logs-generic-default"
 	table := database_common.Table{
 		Name: tableName,
-		Cols: map[string]*clickhouse.Column{
-			"message":           {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"@timestamp":        {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"tsAsUInt64":        {Name: "tsAsUInt64", Type: clickhouse.NewBaseType("UInt64")},
-			"attributes_values": {Name: "attributes_values", Type: clickhouse.NewBaseType("Map(String,String)")},
+		Cols: map[string]*database_common.Column{
+			"message":           {Name: "message", Type: database_common.NewBaseType("String")},
+			"@timestamp":        {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"tsAsUInt64":        {Name: "tsAsUInt64", Type: database_common.NewBaseType("UInt64")},
+			"attributes_values": {Name: "attributes_values", Type: database_common.NewBaseType("Map(String,String)")},
 		},
-		Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+		Config: database_common.NewNoTimestampOnlyStringAttrCHConfig(),
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
 	cfg.IndexConfig["logs-generic-default"] = config.IndexConfiguration{}
 
-	lm := clickhouse.NewEmptyLogManager(&cfg, nil, diag.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
+	lm := database_common.NewEmptyLogManager(&cfg, nil, diag.NewPhoneHomeEmptyAgent(), database_common.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(&table)
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
@@ -96,14 +95,14 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 func TestQueryParserNoFullTextFields(t *testing.T) {
 	table := database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
-			"-@timestamp":  {Name: "-@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String")},
-			"-@bytes":      {Name: "-@bytes", Type: clickhouse.NewBaseType("Int64")},
+		Config: database_common.NewDefaultCHConfig(),
+		Cols: map[string]*database_common.Column{
+			"-@timestamp":  {Name: "-@timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"message$*%:;": {Name: "message$*%:;", Type: database_common.NewBaseType("String")},
+			"-@bytes":      {Name: "-@bytes", Type: database_common.NewBaseType("Int64")},
 		},
 	}
-	lm := clickhouse.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, diag.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
+	lm := database_common.NewEmptyLogManager(&config.QuesmaConfiguration{}, nil, diag.NewPhoneHomeEmptyAgent(), database_common.NewTableDiscovery(&config.QuesmaConfiguration{}, nil, persistence.NewStaticJSONDatabase()))
 	lm.AddTableIfDoesntExist(&table)
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
@@ -162,12 +161,12 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	tableName := "logs-generic-default"
 	table := database_common.Table{
 		Name: tableName,
-		Cols: map[string]*clickhouse.Column{
-			"message":           {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"@timestamp":        {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"attributes_values": {Name: "attributes_values", Type: clickhouse.NewBaseType("Map(String,String)")},
+		Cols: map[string]*database_common.Column{
+			"message":           {Name: "message", Type: database_common.NewBaseType("String")},
+			"@timestamp":        {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"attributes_values": {Name: "attributes_values", Type: database_common.NewBaseType("Map(String,String)")},
 		},
-		Config: clickhouse.NewChTableConfigNoAttrs(),
+		Config: database_common.NewChTableConfigNoAttrs(),
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
@@ -276,13 +275,13 @@ func Test_parseSortFields(t *testing.T) {
 	}
 	table := database_common.Table{
 		Name: tableName,
-		Cols: map[string]*clickhouse.Column{
-			"@timestamp":                   {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"service.name":                 {Name: "service.name", Type: clickhouse.NewBaseType("String")},
-			"no_order_field":               {Name: "no_order_field", Type: clickhouse.NewBaseType("String")},
-			"_table_field_with_underscore": {Name: "_table_field_with_underscore", Type: clickhouse.NewBaseType("Int64")},
+		Cols: map[string]*database_common.Column{
+			"@timestamp":                   {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"service.name":                 {Name: "service.name", Type: database_common.NewBaseType("String")},
+			"no_order_field":               {Name: "no_order_field", Type: database_common.NewBaseType("String")},
+			"_table_field_with_underscore": {Name: "_table_field_with_underscore", Type: database_common.NewBaseType("Int64")},
 		},
-		Config: clickhouse.NewChTableConfigNoAttrs(),
+		Config: database_common.NewChTableConfigNoAttrs(),
 	}
 	cw := ClickhouseQueryTranslator{Table: &table, Ctx: context.Background()}
 	for i, tt := range tests {
@@ -297,17 +296,17 @@ func Test_parseSortFields(t *testing.T) {
 func TestInvalidQueryRequests(t *testing.T) {
 	t.Skip("Test in the making. Need 1-2 more PRs in 'Report errors in queries better' series.")
 	table := database_common.Table{
-		Cols: map[string]*clickhouse.Column{
-			"@timestamp":                     {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"timestamp":                      {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"order_date":                     {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":                        {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"bytes_gauge":                    {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
-			"customer_birth_date":            {Name: "customer_birth_date", Type: clickhouse.NewBaseType("DateTime")},
-			"customer_birth_date_datetime64": {Name: "customer_birth_date_datetime64", Type: clickhouse.NewBaseType("DateTime64")},
+		Cols: map[string]*database_common.Column{
+			"@timestamp":                     {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"timestamp":                      {Name: "timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"order_date":                     {Name: "order_date", Type: database_common.NewBaseType("DateTime64")},
+			"message":                        {Name: "message", Type: database_common.NewBaseType("String")},
+			"bytes_gauge":                    {Name: "bytes_gauge", Type: database_common.NewBaseType("UInt64")},
+			"customer_birth_date":            {Name: "customer_birth_date", Type: database_common.NewBaseType("DateTime")},
+			"customer_birth_date_datetime64": {Name: "customer_birth_date_datetime64", Type: database_common.NewBaseType("DateTime64")},
 		},
 		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
+		Config: database_common.NewDefaultCHConfig(),
 	}
 
 	currentSchema := schema.Schema{
