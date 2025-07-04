@@ -10,7 +10,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/database_common"
-	chLib "github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -58,7 +57,7 @@ type Processor struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
 	chDb            quesma_api.BackendConnector
-	tableDiscovery  chLib.TableDiscovery
+	tableDiscovery  database_common.TableDiscovery
 	cfg             *config.QuesmaConfiguration
 	phoneHomeClient diag.PhoneHomeClient
 	schemaRegistry  schema.Registry
@@ -73,7 +72,7 @@ type Processor struct {
 
 type (
 	IngestProcessor Processor
-	TableMap        = util.SyncMap[string, *chLib.Table]
+	TableMap        = util.SyncMap[string, *database_common.Table]
 	SchemaMap       = map[string]interface{} // TODO remove
 	Attribute       struct {
 		KeysArrayName   string
@@ -179,8 +178,8 @@ func addOurFieldsToCreateTableQuery(q string, config *database_common.ChTableCon
 
 func addOurFieldsToCreateTableStatement(
 	stmt CreateTableStatement,
-	config *chLib.ChTableConfig,
-	table *chLib.Table,
+	config *database_common.ChTableConfig,
+	table *database_common.Table,
 ) CreateTableStatement {
 	// Early exit if no attributes and timestamp is already handled
 	if len(config.Attributes) == 0 {
@@ -200,11 +199,11 @@ func addOurFieldsToCreateTableStatement(
 					AdditionalMetadata: "",
 				},
 			}, stmt.Columns...)
-			table.Cols[attr.MapMetadataName] = &chLib.Column{
+			table.Cols[attr.MapMetadataName] = &database_common.Column{
 				Name: attr.MapMetadataName,
-				Type: chLib.CompoundType{
+				Type: database_common.CompoundType{
 					Name:     "Map",
-					BaseType: chLib.NewBaseType("String, String"),
+					BaseType: database_common.NewBaseType("String, String"),
 				},
 			}
 		}
@@ -217,11 +216,11 @@ func addOurFieldsToCreateTableStatement(
 					AdditionalMetadata: "",
 				},
 			}, stmt.Columns...)
-			table.Cols[attr.MapValueName] = &chLib.Column{
+			table.Cols[attr.MapValueName] = &database_common.Column{
 				Name: attr.MapValueName,
-				Type: chLib.CompoundType{
+				Type: database_common.CompoundType{
 					Name:     "Map",
-					BaseType: chLib.NewBaseType("String, String"),
+					BaseType: database_common.NewBaseType("String, String"),
 				},
 			}
 		}
@@ -247,9 +246,9 @@ func addOurFieldsToCreateTableStatement(
 			}, stmt.Columns...)
 
 			// Update table metadata
-			table.Cols[timestampFieldName] = &chLib.Column{
+			table.Cols[timestampFieldName] = &database_common.Column{
 				Name: timestampFieldName,
-				Type: chLib.NewBaseType("DateTime64"),
+				Type: database_common.NewBaseType("DateTime64"),
 			}
 		}
 	}
@@ -419,8 +418,8 @@ func (ip *SqlLowerer) generateNewColumns(
 	alteredAttributesIndexes []int,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) []AlterStatement {
 	var alterStatements []AlterStatement
-	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
-	attrTypes := getAttributesByArrayName(chLib.DeprecatedAttributesValueType, attrsMap)
+	attrKeys := getAttributesByArrayName(database_common.DeprecatedAttributesKeyColumn, attrsMap)
+	attrTypes := getAttributesByArrayName(database_common.DeprecatedAttributesValueType, attrsMap)
 	var deleteIndexes []int
 
 	reverseMap := reverseFieldEncoding(encodings, table.Name)
@@ -468,7 +467,7 @@ func (ip *SqlLowerer) generateNewColumns(
 			ColumnName: attrKeys[i],
 			ColumnType: columnType,
 		}
-		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
+		newColumns[attrKeys[i]] = &database_common.Column{Name: attrKeys[i], Type: database_common.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
 		alterStatements = append(alterStatements, alterColumn)
 
 		alterColumnComment := AlterStatement{
@@ -573,8 +572,8 @@ func generateNonSchemaFields(attrsMap map[string][]interface{}) ([]NonSchemaFiel
 }
 
 // This function implements heuristic for deciding if we should add new columns
-func (ip *SqlLowerer) shouldAlterColumns(table *chLib.Table, attrsMap map[string][]interface{}) (bool, []int) {
-	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
+func (ip *SqlLowerer) shouldAlterColumns(table *database_common.Table, attrsMap map[string][]interface{}) (bool, []int) {
+	attrKeys := getAttributesByArrayName(database_common.DeprecatedAttributesKeyColumn, attrsMap)
 	alterColumnIndexes := make([]int, 0)
 
 	// this is special case for common table storage
@@ -628,7 +627,7 @@ func (ip *SqlLowerer) shouldAlterColumns(table *chLib.Table, attrsMap map[string
 	return false, nil
 }
 
-func (ip *SqlLowerer) GenerateIngestContent(table *chLib.Table,
+func (ip *SqlLowerer) GenerateIngestContent(table *database_common.Table,
 	data types.JSON,
 	inValidJson types.JSON,
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) ([]AlterStatement, types.JSON, []NonSchemaField, error) {
@@ -763,7 +762,7 @@ func (ip *IngestProcessor) processInsertQuery(ctx context.Context,
 	}
 
 	table := ip.FindTable(tableName)
-	var tableConfig *chLib.ChTableConfig
+	var tableConfig *database_common.ChTableConfig
 	var createTableCmd CreateTableStatement
 	if table == nil {
 		tableConfig = NewOnlySchemaFieldsCHConfig(ip.cfg.ClusterName)
@@ -1058,7 +1057,7 @@ func (ip *IngestProcessor) FindTable(tableName string) (result *database_common.
 	return result
 }
 
-func storeVirtualTable(table *chLib.Table, virtualTableStorage persistence.JSONDatabase) error {
+func storeVirtualTable(table *database_common.Table, virtualTableStorage persistence.JSONDatabase) error {
 
 	now := time.Now()
 
@@ -1137,7 +1136,7 @@ func (ip *IngestProcessor) GetIndexNameRewriter() IndexNameRewriter {
 	return ip.indexNameRewriter
 }
 
-func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader chLib.TableDiscovery, schemaRegistry schema.Registry, lowerer *SqlLowerer, tableResolver table_resolver.TableResolver) *IngestProcessor {
+func NewIngestProcessor(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeClient diag.PhoneHomeClient, loader database_common.TableDiscovery, schemaRegistry schema.Registry, lowerer *SqlLowerer, tableResolver table_resolver.TableResolver) *IngestProcessor {
 	ctx, cancel := context.WithCancel(context.Background())
 	indexRewriter := NewIndexNameRewriter(cfg)
 	return &IngestProcessor{ctx: ctx, cancel: cancel, chDb: chDb,
