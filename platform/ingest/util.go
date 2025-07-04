@@ -5,7 +5,7 @@ package ingest
 import (
 	"bytes"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/goccy/go-json"
 	"strings"
 )
@@ -31,7 +31,7 @@ func DefaultColumnNameFormatter() TableColumNameFormatter {
 
 // Code doesn't need to be pretty, 99.9% it's just for our purposes
 // Parses type from SHOW COLUMNS FROM "table"
-func parseTypeFromShowColumns(typ, name string) (clickhouse.Type, string) {
+func parseTypeFromShowColumns(typ, name string) (database_common.Type, string) {
 	// i1, i2, i3 indices of results of strings.Index
 	// returns if i1 is closer to the beginning than i2 and i3
 	isClosest := func(i1, i2, i3 int) bool {
@@ -59,14 +59,14 @@ func parseTypeFromShowColumns(typ, name string) (clickhouse.Type, string) {
 	}
 
 	// s - type string
-	var parseTypeRec func(s, colName string) (clickhouse.Type, string)
-	parseTypeRec = func(s, colName string) (clickhouse.Type, string) {
-		cols := make([]*clickhouse.Column, 0)
-		finish := func() (clickhouse.Type, string) {
+	var parseTypeRec func(s, colName string) (database_common.Type, string)
+	parseTypeRec = func(s, colName string) (database_common.Type, string) {
+		cols := make([]*database_common.Column, 0)
+		finish := func() (database_common.Type, string) {
 			if len(cols) == 1 {
 				return cols[0].Type, colName
 			} else {
-				return clickhouse.MultiValueType{Name: "Tuple", Cols: cols}, colName
+				return database_common.MultiValueType{Name: "Tuple", Cols: cols}, colName
 			}
 		}
 		for {
@@ -79,7 +79,7 @@ func parseTypeFromShowColumns(typ, name string) (clickhouse.Type, string) {
 			iLeft := strings.Index(s, "(")
 			iRight := strings.Index(s, ")")
 			if iSpace == -1 && iComma == -1 && iLeft == -1 && iRight == -1 {
-				cols = append(cols, &clickhouse.Column{Name: colName, Type: clickhouse.NewBaseType(s)})
+				cols = append(cols, &database_common.Column{Name: colName, Type: database_common.NewBaseType(s)})
 				return finish()
 			}
 
@@ -92,10 +92,10 @@ func parseTypeFromShowColumns(typ, name string) (clickhouse.Type, string) {
 			if isClosest(iLeft, iComma, iRight) { // '(' is closest
 				if name == "Array" {
 					baseType, _ := parseTypeRec(s[iLeft+1:], "")
-					return clickhouse.CompoundType{Name: "Array", BaseType: baseType}, name
+					return database_common.CompoundType{Name: "Array", BaseType: baseType}, name
 				} else {
 					colType, _ := parseTypeRec(s[iLeft+1:], name)
-					cols = append(cols, &clickhouse.Column{Name: "Tuple", Type: colType})
+					cols = append(cols, &database_common.Column{Name: "Tuple", Type: colType})
 					if iComma != -1 {
 						s = s[iComma+2:]
 					} else {
@@ -107,7 +107,7 @@ func parseTypeFromShowColumns(typ, name string) (clickhouse.Type, string) {
 				if isClosest(iRight, iComma, -1) {
 					end = iRight
 				}
-				cols = append(cols, &clickhouse.Column{Name: name, Type: clickhouse.NewBaseType(s[iSpace+1 : end])}) // TODO inspect type
+				cols = append(cols, &database_common.Column{Name: name, Type: database_common.NewBaseType(s[iSpace+1 : end])}) // TODO inspect type
 			}
 			if isClosest(iComma, iLeft, iRight) { // ',' closest (same ind lvl)
 				// TODO

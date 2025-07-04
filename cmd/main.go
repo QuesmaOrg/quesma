@@ -12,6 +12,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/connectors"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch/feature"
 	"github.com/QuesmaOrg/quesma/platform/ingest"
@@ -86,13 +87,15 @@ func main() {
 	}()
 
 	var connectionPool = clickhouse.InitDBConnectionPool(&cfg)
+	//var connectionPool = doris.InitDBConnectionPool(&cfg)
 
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(&cfg, connectionPool, licenseMod.License.ClientID)
 	phoneHomeAgent.Start()
 
 	virtualTableStorage := persistence.NewElasticJSONDatabase(cfg.Elasticsearch, common_table.VirtualTableElasticIndexName)
-	tableDisco := clickhouse.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.NewSchemaTypeAdapter(cfg.DefaultStringColumnType))
+	tableDisco := database_common.NewTableDiscovery(&cfg, connectionPool, virtualTableStorage)
+	schemaRegistry := schema.NewSchemaRegistry(database_common.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, clickhouse.NewClickhouseSchemaTypeAdapter(cfg.DefaultStringColumnType))
+	//schemaRegistry := schema.NewSchemaRegistry(database_common.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, &cfg, doris.NewDorisSchemaTypeAdapter(cfg.DefaultStringColumnType))
 	schemaRegistry.Start()
 
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch)
@@ -147,7 +150,7 @@ func main() {
 
 }
 
-func constructQuesma(cfg *config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *Quesma {
+func constructQuesma(cfg *config.QuesmaConfiguration, sl database_common.TableDiscovery, lm *database_common.LogManager, ip *ingest.IngestProcessor, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *Quesma {
 	if cfg.TransparentProxy {
 		return NewQuesmaTcpProxy(cfg, quesmaManagementConsole, logChan, false)
 	} else {

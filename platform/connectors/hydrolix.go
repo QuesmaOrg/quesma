@@ -3,23 +3,23 @@
 package connectors
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 )
 
 type HydrolixConnector struct {
-	Connector *clickhouse.LogManager
+	Connector *database_common.LogManager
 }
 
 const hydrolixConnectorTypeName = "hydrolix"
 
 func (h *HydrolixConnector) LicensingCheck() error {
-	return h.Connector.CheckIfConnectedPaidService(clickhouse.CHCloudServiceName)
+	return h.Connector.CheckIfConnectedPaidService(database_common.CHCloudServiceName)
 }
 
 func (h *HydrolixConnector) Type() string {
 	return hydrolixConnectorTypeName
 }
 
-func (h *HydrolixConnector) GetConnector() *clickhouse.LogManager {
+func (h *HydrolixConnector) GetConnector() *database_common.LogManager {
 	return h.Connector
 }

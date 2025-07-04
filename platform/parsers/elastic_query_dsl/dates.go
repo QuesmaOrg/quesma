@@ -5,7 +5,7 @@ package elastic_query_dsl
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
@@ -66,7 +66,7 @@ func (dm DateManager) parseStrictDateOptionalTimeOrEpochMillis(date any) (utcTim
 // ParseDateUsualFormat parses date expression, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
 // It's most usual format for date in Kibana, used e.g. in Query DSL's range, or date_histogram.
-func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType clickhouse.DateTimeType, format any) (
+func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType database_common.DateTimeType, format any) (
 	resultExpr model.Expr, parsingSucceeded bool) {
 	addFormat := func(v any) model.LiteralExpr {
 		l := model.NewLiteral(v)
@@ -77,7 +77,7 @@ func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType cli
 	}
 	if utcTs, success := dm.parseStrictDateOptionalTimeOrEpochMillis(exprFromRequest); success {
 		switch datetimeType {
-		case clickhouse.DateTime64:
+		case database_common.DateTime64:
 			threeDigitsOfPrecisionSuffice := utcTs.UnixNano()%1_000_000 == 0
 			if threeDigitsOfPrecisionSuffice {
 				return model.NewFunction("fromUnixTimestamp64Milli", addFormat(utcTs.UnixMilli())), true
@@ -92,7 +92,7 @@ func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType cli
 					model.NewLiteral(9),
 				), true
 			}
-		case clickhouse.DateTime:
+		case database_common.DateTime:
 			return model.NewFunction("fromUnixTimestamp", addFormat(utcTs.Unix())), true
 		default:
 			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)

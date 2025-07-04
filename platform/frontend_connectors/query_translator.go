@@ -4,7 +4,7 @@ package frontend_connectors
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
@@ -24,6 +24,6 @@ type IQueryTranslator interface {
 	MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp
 }
 
-func NewQueryTranslator(ctx context.Context, schema schema.Schema, table *clickhouse.Table, logManager clickhouse.LogManagerIFace, dateMathRenderer string, indexes []string) (queryTranslator IQueryTranslator) {
+func NewQueryTranslator(ctx context.Context, schema schema.Schema, table *database_common.Table, logManager database_common.LogManagerIFace, dateMathRenderer string, indexes []string) (queryTranslator IQueryTranslator) {
 	return &elastic_query_dsl.ClickhouseQueryTranslator{Ctx: ctx, DateMathRenderer: dateMathRenderer, Indexes: indexes, Schema: schema, Table: table}
 }

@@ -5,8 +5,8 @@ package frontend_connectors
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
 	quesma_errors "github.com/QuesmaOrg/quesma/platform/errors"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -75,7 +75,7 @@ func (q *QueryRunner) checkDecision(ctx context.Context, decision *quesma_api.De
 }
 
 func (q *QueryRunner) resolveIndexes(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
-	tables clickhouse.TableMap, optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *clickhouse.Table, respWhenError []byte, err error) {
+	tables database_common.TableMap, optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *database_common.Table, respWhenError []byte, err error) {
 
 	if clickhouseConnector.IsCommonTable {
 		return q.resolveIndexesCommonTable(ctx, clickhouseConnector, tables, optAsync)
@@ -85,7 +85,7 @@ func (q *QueryRunner) resolveIndexes(ctx context.Context, clickhouseConnector *q
 }
 
 func (q *QueryRunner) resolveIndexesNonCommonTable(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
-	tables clickhouse.TableMap) (resolvedIndexes []string, currentSchema schema.Schema, table *clickhouse.Table, respWhenError []byte, err error) {
+	tables database_common.TableMap) (resolvedIndexes []string, currentSchema schema.Schema, table *database_common.Table, respWhenError []byte, err error) {
 
 	resolvedIndexes = clickhouseConnector.ClickhouseIndexes
 	if len(resolvedIndexes) < 1 {
@@ -135,7 +135,7 @@ func (q *QueryRunner) resolveIndexesNonCommonTable(ctx context.Context, clickhou
 }
 
 func (q *QueryRunner) resolveIndexesCommonTable(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
-	tables clickhouse.TableMap, optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *clickhouse.Table, respWhenError []byte, err error) {
+	tables database_common.TableMap, optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *database_common.Table, respWhenError []byte, err error) {
 
 	// here we filter out indexes that are not stored in the common table
 	var virtualOnlyTables []string

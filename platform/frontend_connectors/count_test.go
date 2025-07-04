@@ -6,7 +6,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
@@ -27,29 +27,29 @@ func TestCountEndpoint(t *testing.T) {
 		},
 	}
 
-	tables := clickhouse.NewTableMap()
-	tables.Store("no_db_name", &clickhouse.Table{
-		Name: "no_db_name", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Cols: map[string]*clickhouse.Column{},
+	tables := database_common.NewTableMap()
+	tables.Store("no_db_name", &database_common.Table{
+		Name: "no_db_name", Config: database_common.NewChTableConfigTimestampStringAttr(), Cols: map[string]*database_common.Column{},
 	})
-	tables.Store("with_db_name", &clickhouse.Table{
-		Name: "with_db_name", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Cols: map[string]*clickhouse.Column{}, DatabaseName: "db_name",
+	tables.Store("with_db_name", &database_common.Table{
+		Name: "with_db_name", Config: database_common.NewChTableConfigTimestampStringAttr(), Cols: map[string]*database_common.Column{}, DatabaseName: "db_name",
 	})
-	tables.Store("common_prefix_1", &clickhouse.Table{
-		Name: "common_prefix_1", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Cols: map[string]*clickhouse.Column{}, DatabaseName: "db_name",
+	tables.Store("common_prefix_1", &database_common.Table{
+		Name: "common_prefix_1", Config: database_common.NewChTableConfigTimestampStringAttr(), Cols: map[string]*database_common.Column{}, DatabaseName: "db_name",
 	})
-	tables.Store("common_prefix_2", &clickhouse.Table{
-		Name: "common_prefix_2", Config: clickhouse.NewChTableConfigTimestampStringAttr(), Cols: map[string]*clickhouse.Column{},
+	tables.Store("common_prefix_2", &database_common.Table{
+		Name: "common_prefix_2", Config: database_common.NewChTableConfigTimestampStringAttr(), Cols: map[string]*database_common.Column{},
 	})
 
 	conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 	defer conn.Close()
 	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 
-	lm := clickhouse.NewLogManagerWithConnection(db, tables)
+	lm := database_common.NewLogManagerWithConnection(db, tables)
 	logChan := logger.InitOnlyChannelLoggerForTests()
 	resolver := table_resolver.NewEmptyTableResolver()
 
-	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery := database_common.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tables
 
 	managementConsole := ui.NewQuesmaManagementConsole(&DefaultConfig, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)

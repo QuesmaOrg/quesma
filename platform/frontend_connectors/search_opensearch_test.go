@@ -6,7 +6,7 @@ import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
@@ -19,13 +19,13 @@ import (
 
 func TestSearchOpensearch(t *testing.T) {
 
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
-			"__timestamp":  {Name: "__timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"message_____": {Name: "message_____", Type: clickhouse.NewBaseType("String")},
-			"__bytes":      {Name: "__bytes", Type: clickhouse.NewBaseType("Int64")},
+		Config: database_common.NewDefaultCHConfig(),
+		Cols: map[string]*database_common.Column{
+			"__timestamp":  {Name: "__timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"message_____": {Name: "message_____", Type: database_common.NewBaseType("String")},
+			"__bytes":      {Name: "__bytes", Type: database_common.NewBaseType("Int64")},
 		},
 	}
 
@@ -165,13 +165,13 @@ func TestHighlighter(t *testing.T) {
 		],
 		"version": true
 	}`
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
-			"message_____": {Name: "message_____", Type: clickhouse.NewBaseType("String")},
-			"host_name":    {Name: "host_name", Type: clickhouse.NewBaseType("String")},
-			"_timestamp":   {Name: "_timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+		Config: database_common.NewDefaultCHConfig(),
+		Cols: map[string]*database_common.Column{
+			"message_____": {Name: "message_____", Type: database_common.NewBaseType("String")},
+			"host_name":    {Name: "host_name", Type: database_common.NewBaseType("String")},
+			"_timestamp":   {Name: "_timestamp", Type: database_common.NewBaseType("DateTime64")},
 		},
 	}
 	fields := map[schema.FieldName]schema.Field{

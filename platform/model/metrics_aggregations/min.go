@@ -4,16 +4,16 @@ package metrics_aggregations
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 )
 
 type Min struct {
 	ctx       context.Context
-	fieldType clickhouse.DateTimeType
+	fieldType database_common.DateTimeType
 }
 
-func NewMin(ctx context.Context, fieldType clickhouse.DateTimeType) Min {
+func NewMin(ctx context.Context, fieldType database_common.DateTimeType) Min {
 	return Min{ctx: ctx, fieldType: fieldType}
 }
 

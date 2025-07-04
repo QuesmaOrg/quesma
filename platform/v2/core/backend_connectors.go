@@ -14,6 +14,7 @@ const (
 	ElasticsearchBackend
 	TcpBackend
 	HydrolixSQLBackend
+	DorisSQLBackend
 )
 
 func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string {
@@ -28,6 +29,8 @@ func GetBackendConnectorNameFromType(connectorType BackendConnectorType) string 
 		return "elasticsearch"
 	case HydrolixSQLBackend:
 		return "hydrolix"
+	case DorisSQLBackend:
+		return "doris"
 	default:
 		return "noop"
 	}

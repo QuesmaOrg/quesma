@@ -5,8 +5,8 @@ package frontend_connectors
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"net/http"
@@ -17,7 +17,7 @@ type ElasticHttpIngestFrontendConnector struct {
 }
 
 func NewElasticHttpIngestFrontendConnector(endpoint string,
-	logManager *clickhouse.LogManager,
+	logManager *database_common.LogManager,
 	registry schema.Registry,
 	config *config.QuesmaConfiguration, router quesma_api.Router) *ElasticHttpIngestFrontendConnector {
 
@@ -40,7 +40,7 @@ type ElasticHttpQueryFrontendConnector struct {
 }
 
 func NewElasticHttpQueryFrontendConnector(endpoint string,
-	logManager *clickhouse.LogManager,
+	logManager *database_common.LogManager,
 	registry schema.Registry,
 	config *config.QuesmaConfiguration, router quesma_api.Router) *ElasticHttpIngestFrontendConnector {
 

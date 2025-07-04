@@ -7,8 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch/feature"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
@@ -172,7 +172,7 @@ func (*Dispatcher) closedIndexResponse(ctx context.Context, w http.ResponseWrite
 
 func (r *Dispatcher) ElasticFallback(decision *quesma_api.Decision,
 	ctx context.Context, w http.ResponseWriter,
-	req *http.Request, reqBody []byte, logManager *clickhouse.LogManager, schemaRegistry schema.Registry) {
+	req *http.Request, reqBody []byte, logManager *database_common.LogManager, schemaRegistry schema.Registry) {
 
 	var sendToElastic bool
 

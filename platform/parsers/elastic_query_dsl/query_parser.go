@@ -7,7 +7,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
@@ -359,7 +359,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 
 	if column, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch column.Type.String() {
-		case clickhouse.DateTime64.String():
+		case database_common.DateTime64.String():
 			idToSql = func(id string) (model.Expr, error) {
 				precision, success := util.FindTimestampPrecision(id[1 : len(id)-1]) // strip quotes added above
 				if !success {
@@ -367,7 +367,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 				}
 				return model.NewFunction("toDateTime64", model.NewLiteral(id), model.NewLiteral(precision)), nil
 			}
-		case clickhouse.DateTime.String():
+		case database_common.DateTime.String():
 			idToSql = func(id string) (model.Expr, error) {
 				return model.NewFunction("toDateTime", model.NewLiteral(id)), nil
 			}
@@ -820,7 +820,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			var finalValue model.Expr
 			doneParsing, isQuoted := false, len(value) > 2 && value[0] == '\'' && value[len(value)-1] == '\''
 			switch fieldType {
-			case clickhouse.DateTime, clickhouse.DateTime64:
+			case database_common.DateTime, database_common.DateTime64:
 				// TODO add support for "time_zone" parameter in ParseDateUsualFormat
 				finalValue, doneParsing = dateManager.ParseDateUsualFormat(value, fieldType, format) // stage 1
 				if !doneParsing && (op == "gte" || op == "lte" || op == "gt" || op == "lt") {        // stage 2
@@ -837,7 +837,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 				if !doneParsing && isQuoted { // stage 3
 					finalValue, doneParsing = dateManager.ParseDateUsualFormat(value[1:len(value)-1], fieldType, format)
 				}
-			case clickhouse.Invalid:
+			case database_common.Invalid:
 				if isQuoted {
 					isNumber, unquoted := true, value[1:len(value)-1]
 					for _, c := range unquoted {
@@ -1112,7 +1112,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 			for k, v := range sortMap {
 				sortFieldNames = append(sortFieldNames, k)
 				// TODO replace cw.Table.GetFieldInfo with schema.Field[]
-				if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, ResolveField(cw.Ctx, k, cw.Schema)) == clickhouse.NotExists {
+				if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, ResolveField(cw.Ctx, k, cw.Schema)) == database_common.NotExists {
 					// we're skipping ELK internal fields, like "_doc", "_id", etc.
 					continue
 				}
@@ -1147,7 +1147,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 	case map[string]interface{}:
 		for fieldName, fieldValue := range sortMaps {
 			sortFieldNames = append(sortFieldNames, fieldName)
-			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, ResolveField(cw.Ctx, fieldName, cw.Schema)) == clickhouse.NotExists {
+			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, ResolveField(cw.Ctx, fieldName, cw.Schema)) == database_common.NotExists {
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
 			}
@@ -1165,7 +1165,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 	case map[string]string:
 		for fieldName, fieldValue := range sortMaps {
 			sortFieldNames = append(sortFieldNames, fieldName)
-			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, ResolveField(cw.Ctx, fieldName, cw.Schema)) == clickhouse.NotExists {
+			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, ResolveField(cw.Ctx, fieldName, cw.Schema)) == database_common.NotExists {
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
 			}
@@ -1262,11 +1262,11 @@ func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize in
 }
 
 func (cw *ClickhouseQueryTranslator) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr,
-	dateInSchemaExpected bool) clickhouse.DateTimeType {
+	dateInSchemaExpected bool) database_common.DateTimeType {
 	if ref, ok := expr.(model.ColumnRef); ok {
 		return cw.Table.GetDateTimeType(ctx, ResolveField(ctx, ref.ColumnName, cw.Schema), dateInSchemaExpected)
 	}
-	return clickhouse.Invalid
+	return database_common.Invalid
 }
 
 func (cw *ClickhouseQueryTranslator) parseGeoBoundingBox(queryMap QueryMap) model.SimpleQuery {

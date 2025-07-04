@@ -8,8 +8,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
@@ -29,7 +29,7 @@ import (
 // But it works, and because of that we can unify response creation part of Quesma, so it's very useful.
 type Hits struct {
 	ctx                context.Context
-	table              *clickhouse.Table
+	table              *database_common.Table
 	highlighter        *model.Highlighter
 	sortFieldNames     []string
 	addSource          bool // true <=> we add hit.Source field to the response
@@ -39,7 +39,7 @@ type Hits struct {
 	timestampFieldName string
 }
 
-func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Highlighter,
+func NewHits(ctx context.Context, table *database_common.Table, highlighter *model.Highlighter,
 	sortFieldNames []string, addSource, addScore, addVersion bool, indexes []string) Hits {
 
 	return Hits{ctx: ctx, table: table, highlighter: highlighter, sortFieldNames: sortFieldNames,

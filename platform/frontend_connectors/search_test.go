@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/testdata"
@@ -44,29 +44,29 @@ var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.Get
 func TestAsyncSearchHandler(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
 
-	table := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	table := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
+		Config: database_common.NewDefaultCHConfig(),
+		Cols: map[string]*database_common.Column{
 			"@timestamp": {
 				Name: "@timestamp",
-				Type: clickhouse.NewBaseType("DateTime64"),
+				Type: database_common.NewBaseType("DateTime64"),
 			},
 			"message": {
 				Name: "message",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"host_name": {
 				Name: "host_name",
-				Type: clickhouse.NewBaseType("LowCardinality(String)"),
+				Type: database_common.NewBaseType("LowCardinality(String)"),
 			},
 			"properties_isreg": {
 				Name: "properties_isreg",
-				Type: clickhouse.NewBaseType("UInt8"),
+				Type: database_common.NewBaseType("UInt8"),
 			},
 			"event_dataset": {
 				Name: "event_dataset",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 		},
 	})
@@ -105,13 +105,13 @@ func TestAsyncSearchHandler(t *testing.T) {
 }
 
 func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
-			"__timestamp":  {Name: "__timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"message_____": {Name: "message_____", Type: clickhouse.NewBaseType("String")},
-			"__bytes":      {Name: "__bytes", Type: clickhouse.NewBaseType("Int64")},
+		Config: database_common.NewDefaultCHConfig(),
+		Cols: map[string]*database_common.Column{
+			"__timestamp":  {Name: "__timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"message_____": {Name: "message_____", Type: database_common.NewBaseType("String")},
+			"__bytes":      {Name: "__bytes", Type: database_common.NewBaseType("Int64")},
 		},
 	}
 	fields := map[schema.FieldName]schema.Field{
@@ -155,108 +155,108 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	}
 }
 
-var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+var table = util.NewSyncMapWith(tableName, &database_common.Table{
 	Name:   tableName,
-	Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-	Cols: map[string]*clickhouse.Column{
+	Config: database_common.NewChTableConfigTimestampStringAttr(),
+	Cols: map[string]*database_common.Column{
 		// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 		// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
 		"message": {
 			Name: "message",
-			Type: clickhouse.NewBaseType("String"),
+			Type: database_common.NewBaseType("String"),
 		},
 	},
 })
 
 func TestSearchHandler(t *testing.T) {
 
-	tab := &clickhouse.Table{
+	tab := &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-		Cols: map[string]*clickhouse.Column{
+		Config: database_common.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*database_common.Column{
 			"message": {
 				Name: "message",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"type": {
 				Name: "type",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"task_enabled": {
 				Name: "task_enabled",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"@timestamp": {
 				Name: "@timestamp",
-				Type: clickhouse.NewBaseType("DateTime64"),
+				Type: database_common.NewBaseType("DateTime64"),
 			},
 			"tsAsUInt64": {
 				Name: "tsAsUInt64",
-				Type: clickhouse.NewBaseType("UInt64"),
+				Type: database_common.NewBaseType("UInt64"),
 			},
 			"user_id": {
 				Name: "user_id",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"tags": {
 				Name: "tags",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"age": {
 				Name: "age",
-				Type: clickhouse.NewBaseType("UInt8"),
+				Type: database_common.NewBaseType("UInt8"),
 			},
 			"host_name": {
 				Name: "host_name",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"status": {
 				Name: "status",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"namespace": {
 				Name: "namespace",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"namespaces": {
 				Name: "namespaces",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"cliIP": {
 				Name: "cliIP",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"field": {
 				Name: "field",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"exception-list-agnostic_list_id": {
 				Name: "exception-list-agnostic_list_id",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"task_taskType": {
 				Name: "task.taskType",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"alert_actions_actionRef": {
 				Name: "alert_actions_actionRef",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"user": {
 				Name: "user",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"references_type": {
 				Name: "references_type",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"stream_namespace": {
 				Name: "stream_namespace",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"service_name": {
 				Name: "service_name",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 		},
 	}
@@ -356,17 +356,17 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 		"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.QuesmaTypeKeyword},
 	}
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-		Cols: map[string]*clickhouse.Column{
+		Config: database_common.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*database_common.Column{
 			"@timestamp": {
 				Name: "@timestamp",
-				Type: clickhouse.NewBaseType("DateTime64"),
+				Type: database_common.NewBaseType("DateTime64"),
 			},
 			"message": {
 				Name: "message",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 		},
 	})
@@ -413,12 +413,12 @@ func TestSearchHandlerRuntimeMappings(t *testing.T) {
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigNoAttrs(),
-		Cols: map[string]*clickhouse.Column{
-			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+		Config: database_common.NewChTableConfigNoAttrs(),
+		Cols: map[string]*database_common.Column{
+			"message":    {Name: "message", Type: database_common.NewBaseType("String")},
+			"@timestamp": {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
 		},
 	})
 
@@ -454,21 +454,21 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 }
 
 func TestAsyncSearchFilter(t *testing.T) {
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-		Cols: map[string]*clickhouse.Column{
+		Config: database_common.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*database_common.Column{
 			"message": {
 				Name: "message",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"@timestamp": {
 				Name: "@timestamp",
-				Type: clickhouse.NewBaseType("DateTime64"),
+				Type: database_common.NewBaseType("DateTime64"),
 			},
-			clickhouse.AttributesValuesColumn: {
-				Name: clickhouse.AttributesValuesColumn,
-				Type: clickhouse.BaseType{Name: "Map(String, String)"},
+			database_common.AttributesValuesColumn: {
+				Name: database_common.AttributesValuesColumn,
+				Type: database_common.BaseType{Name: "Map(String, String)"},
 			},
 		},
 	}
@@ -546,10 +546,10 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		},
 	}
 
-	table := clickhouse.Table{Name: tableName, Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-		Cols: map[string]*clickhouse.Column{
-			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime")},
-			"timestamp64": {Name: "timestamp64", Type: clickhouse.NewBaseType("DateTime64")},
+	table := database_common.Table{Name: tableName, Config: database_common.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*database_common.Column{
+			"timestamp":   {Name: "timestamp", Type: database_common.NewBaseType("DateTime")},
+			"timestamp64": {Name: "timestamp64", Type: database_common.NewBaseType("DateTime64")},
 		},
 	}
 	query := func(fieldName string) string {
@@ -665,17 +665,17 @@ func TestNumericFacetsQueries(t *testing.T) {
 			},
 		},
 	}
-	table := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	table := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
+		Config: database_common.NewDefaultCHConfig(),
+		Cols: map[string]*database_common.Column{
 			"int64-field": {
 				Name: "int64-field",
-				Type: clickhouse.NewBaseType("Int64"),
+				Type: database_common.NewBaseType("Int64"),
 			},
 			"float64-field": {
 				Name: "float64-field",
-				Type: clickhouse.NewBaseType("Float64"),
+				Type: database_common.NewBaseType("Float64"),
 			},
 		},
 	})
@@ -762,14 +762,14 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		},
 	}
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-		Cols: map[string]*clickhouse.Column{
+		Config: database_common.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*database_common.Column{
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
-			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"message":    {Name: "message", Type: database_common.NewBaseType("String")},
+			"@timestamp": {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
 		},
 	})
 
@@ -867,14 +867,14 @@ func TestFullQueryTestWIP(t *testing.T) {
 		},
 	}
 
-	var table = util.NewSyncMapWith(tableName, &clickhouse.Table{
+	var table = util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-		Cols: map[string]*clickhouse.Column{
+		Config: database_common.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*database_common.Column{
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 			// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
-			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"message":    {Name: "message", Type: database_common.NewBaseType("String")},
+			"@timestamp": {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
 		},
 	})
 
@@ -979,12 +979,12 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-		Cols: map[string]*clickhouse.Column{
-			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+		Config: database_common.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*database_common.Column{
+			"message":    {Name: "message", Type: database_common.NewBaseType("String")},
+			"@timestamp": {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
 		},
 	})
 
@@ -1116,11 +1116,11 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigNoAttrs(),
-		Cols: map[string]*clickhouse.Column{
-			"message": {Name: "message", Type: clickhouse.NewBaseType("String")},
+		Config: database_common.NewChTableConfigNoAttrs(),
+		Cols: map[string]*database_common.Column{
+			"message": {Name: "message", Type: database_common.NewBaseType("String")},
 		},
 	})
 
@@ -1232,13 +1232,13 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-		Cols: map[string]*clickhouse.Column{
-			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"bicep_size": {Name: "bicep_size", Type: clickhouse.NewBaseType("Int64")},
-			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+		Config: database_common.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*database_common.Column{
+			"message":    {Name: "message", Type: database_common.NewBaseType("String")},
+			"bicep_size": {Name: "bicep_size", Type: database_common.NewBaseType("Int64")},
+			"@timestamp": {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
 		},
 	})
 
@@ -1389,13 +1389,13 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 		map[string]schema.Table{},
 		map[schema.FieldEncodingKey]schema.EncodedFieldName{},
 	)
-	tab := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tab := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
-		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-		Cols: map[string]*clickhouse.Column{
-			"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"bicep_size": {Name: "bicep_size", Type: clickhouse.NewBaseType("Int64")},
-			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+		Config: database_common.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*database_common.Column{
+			"message":    {Name: "message", Type: database_common.NewBaseType("String")},
+			"bicep_size": {Name: "bicep_size", Type: database_common.NewBaseType("Int64")},
+			"@timestamp": {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
 		},
 	})
 

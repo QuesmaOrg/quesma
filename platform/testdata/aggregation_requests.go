@@ -3,17 +3,17 @@
 package testdata
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"math"
 	"time"
 )
 
-var timestampGroupByClause = model.AsString(clickhouse.TimestampGroupBy(
-	model.NewColumnRef("@timestamp"), clickhouse.DateTime64, 30*time.Second))
+var timestampGroupByClause = model.AsString(database_common.TimestampGroupBy(
+	model.NewColumnRef("@timestamp"), database_common.DateTime64, 30*time.Second))
 
-func groupBySQL(fieldName string, typ clickhouse.DateTimeType, groupByInterval time.Duration) string {
-	return model.AsString(clickhouse.TimestampGroupBy(model.NewColumnRef(fieldName), typ, groupByInterval))
+func groupBySQL(fieldName string, typ database_common.DateTimeType, groupByInterval time.Duration) string {
+	return model.AsString(database_common.TimestampGroupBy(model.NewColumnRef(fieldName), typ, groupByInterval))
 }
 
 const fullTextFieldName = `"` + model.FullTextFieldNamePlaceHolder + `"`

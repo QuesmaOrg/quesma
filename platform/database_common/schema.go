@@ -1,9 +1,10 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package clickhouse
+package database_common
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
@@ -73,6 +74,7 @@ const (
 	DateTime64 DateTimeType = iota
 	DateTime
 	Invalid
+	datetime
 )
 
 func (c *Column) String() string {
@@ -235,7 +237,7 @@ func ResolveType(clickHouseTypeName string) reflect.Type {
 	case "Float32", "Float64":
 		return reflect.TypeOf(float64(0))
 	case "Point":
-		return reflect.TypeOf(Point{})
+		return reflect.TypeOf(clickhouse.Point{})
 	case "Bool":
 		return reflect.TypeOf(true)
 	case "JSON":

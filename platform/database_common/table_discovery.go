@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package clickhouse
+package database_common
 
 import (
 	"context"
@@ -804,8 +804,13 @@ func (td *tableDiscovery) readTables(database string) (map[string]map[string]col
 	if td.dbConnPool == nil {
 		return map[string]map[string]columnMetadata{}, fmt.Errorf("database connection pool is nil, cannot describe tables")
 	}
-
-	rows, err := td.dbConnPool.Query(context.Background(), "SELECT table, name, type, comment FROM system.columns WHERE database = ?", database)
+	var querySql string
+	if td.dbConnPool.InstanceName() == "doris" {
+		querySql = fmt.Sprintf("SELECT table_name, column_name, data_type, column_comment FROM information_schema.columns WHERE table_schema = '%s'", database)
+	} else {
+		querySql = fmt.Sprintf("SELECT table, name, type, comment FROM system.columns WHERE database = '%s'", database)
+	}
+	rows, err := td.dbConnPool.Query(context.Background(), querySql)
 
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
@@ -864,6 +869,10 @@ func (td *tableDiscovery) getTimestampFieldForClickHouse(database, table string)
 }
 
 func (td *tableDiscovery) tableComment(database, table string) (comment string) {
+	if td.dbConnPool.InstanceName() == "doris" {
+		// todo add doris comment
+		return comment
+	}
 	err := td.dbConnPool.QueryRow(context.Background(), "SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
@@ -872,6 +881,10 @@ func (td *tableDiscovery) tableComment(database, table string) (comment string) 
 }
 
 func (td *tableDiscovery) createTableQuery(database, table string) (ddl string) {
+	if td.dbConnPool.InstanceName() == "doris" {
+		// todo add doris ddl
+		return ddl
+	}
 	err := td.dbConnPool.QueryRow(context.Background(), "SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
 	if err != nil {
 		logger.Error().Msgf("could not get create table statement: %v", err)

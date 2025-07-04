@@ -4,7 +4,7 @@ package elastic_query_dsl
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +14,7 @@ import (
 type parseRangeTest struct {
 	name             string
 	rangePartOfQuery QueryMap
-	table            clickhouse.Table
+	table            database_common.Table
 	expectedWhere    string
 }
 
@@ -28,13 +28,13 @@ var parseRangeTests = []parseRangeTest{
 				"lte":    "2024-02-09T13:47:16.029Z",
 			},
 		},
-		clickhouse.Table{
+		database_common.Table{
 			Name: tableName,
-			Cols: map[string]*clickhouse.Column{
-				"message":   {Name: "message", Type: clickhouse.NewBaseType("String")},
-				"timestamp": {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			Cols: map[string]*database_common.Column{
+				"message":   {Name: "message", Type: database_common.NewBaseType("String")},
+				"timestamp": {Name: "timestamp", Type: database_common.NewBaseType("DateTime64")},
 			},
-			Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+			Config: database_common.NewNoTimestampOnlyStringAttrCHConfig(),
 		},
 		`("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))`,
 	},
@@ -47,13 +47,13 @@ var parseRangeTests = []parseRangeTest{
 				"lte":    "2024-02-09T13:47:16.029Z",
 			},
 		},
-		clickhouse.Table{
+		database_common.Table{
 			Name: tableName,
-			Cols: map[string]*clickhouse.Column{
-				"message":   {Name: "message", Type: clickhouse.NewBaseType("String")},
-				"timestamp": {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime")},
+			Cols: map[string]*database_common.Column{
+				"message":   {Name: "message", Type: database_common.NewBaseType("String")},
+				"timestamp": {Name: "timestamp", Type: database_common.NewBaseType("DateTime")},
 			},
-			Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+			Config: database_common.NewNoTimestampOnlyStringAttrCHConfig(),
 		},
 		`("timestamp">=fromUnixTimestamp(1706881636) AND "timestamp"<=fromUnixTimestamp(1707486436))`,
 	},
@@ -64,13 +64,13 @@ var parseRangeTests = []parseRangeTest{
 				"gt": "100",
 			},
 		},
-		clickhouse.Table{
+		database_common.Table{
 			Name: tableName,
-			Cols: map[string]*clickhouse.Column{
-				"message":    {Name: "message", Type: clickhouse.NewBaseType("String")},
-				"time_taken": {Name: "time_taken", Type: clickhouse.NewBaseType("UInt32")},
+			Cols: map[string]*database_common.Column{
+				"message":    {Name: "message", Type: database_common.NewBaseType("String")},
+				"time_taken": {Name: "time_taken", Type: database_common.NewBaseType("UInt32")},
 			},
-			Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+			Config: database_common.NewNoTimestampOnlyStringAttrCHConfig(),
 		},
 		`"time_taken">100`,
 	},
@@ -83,13 +83,13 @@ var parseRangeTests = []parseRangeTest{
 				"lte":    "2024-02-09T13:47:16",
 			},
 		},
-		clickhouse.Table{
+		database_common.Table{
 			Name: tableName,
-			Cols: map[string]*clickhouse.Column{
-				"message":   {Name: "message", Type: clickhouse.NewBaseType("String")},
-				"timestamp": {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			Cols: map[string]*database_common.Column{
+				"message":   {Name: "message", Type: database_common.NewBaseType("String")},
+				"timestamp": {Name: "timestamp", Type: database_common.NewBaseType("DateTime64")},
 			},
-			Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+			Config: database_common.NewNoTimestampOnlyStringAttrCHConfig(),
 		},
 		`("timestamp">=fromUnixTimestamp64Milli(1706881636000) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436000))`,
 	},

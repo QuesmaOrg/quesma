@@ -9,6 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	quesma_errors "github.com/QuesmaOrg/quesma/platform/errors"
 	"github.com/QuesmaOrg/quesma/platform/functionality/bulk"
@@ -38,7 +39,7 @@ import (
 
 var skipMessage = "Skipping test. These will be replaced with table resolver tests."
 
-func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver, elasticsearchConnector *backend_connectors.ElasticsearchBackendConnector) *quesma_api.PathRouter {
+func configureRouter(cfg *config.QuesmaConfiguration, sr schema.Registry, lm *database_common.LogManager, ip *ingest.IngestProcessor, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, tableResolver table_resolver.TableResolver, elasticsearchConnector *backend_connectors.ElasticsearchBackendConnector) *quesma_api.PathRouter {
 
 	// some syntactic sugar
 	method := quesma_api.IsHTTPMethod
@@ -693,11 +694,11 @@ func TestConfigureRouter(t *testing.T) {
 	}
 	tr := TestTableResolver{}
 
-	schemaRegistry := schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.SchemaTypeAdapter{})
+	schemaRegistry := schema.NewSchemaRegistry(fixedTableProvider{}, cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 	schemaRegistry.Start()
 	defer schemaRegistry.Stop()
 
-	testRouter := configureRouter(cfg, schemaRegistry, &clickhouse.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr, nil)
+	testRouter := configureRouter(cfg, schemaRegistry, &database_common.LogManager{}, &ingest.IngestProcessor{}, &ui.QuesmaManagementConsole{}, telemetry.NewPhoneHomeAgent(cfg, nil, ""), &QueryRunner{}, tr, nil)
 	tests := []struct {
 		path                string
 		method              string

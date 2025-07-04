@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
 	"github.com/QuesmaOrg/quesma/platform/async_search_storage"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
@@ -112,7 +112,7 @@ func (q *QueryRunner) runABTestingResultsCollector(ctx context.Context, indexPat
 	return optComparePlansCh, backgroundContext
 }
 
-func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, decision *quesma_api.Decision, indexPattern string) ([]byte, error) {
+func (q *QueryRunner) executeABTesting(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *database_common.Table, body types.JSON, optAsync *AsyncQuery, decision *quesma_api.Decision, indexPattern string) ([]byte, error) {
 
 	optComparePlansCh, backgroundContext := q.runABTestingResultsCollector(ctx, indexPattern, body)
 

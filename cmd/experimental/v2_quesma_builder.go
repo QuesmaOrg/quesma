@@ -46,7 +46,14 @@ func BuildNewQuesma() quesma_api.QuesmaBuilder {
 
 	deps := quesma_api.EmptyDependencies()
 
-	legacyDependencies := es_to_ch_common.InitializeLegacyQuesmaDependencies(deps, &cfg, logChan)
+	logger.Info().Msgf("loaded config: %s", cfg.String())
+
+	var legacyDependencies *es_to_ch_common.LegacyQuesmaDependencies
+	if cfg.ClickHouse.ConnectorType == "doris" {
+		legacyDependencies = es_to_ch_common.InitializeLegacyDorisQuesmaDependencies(deps, &cfg, logChan)
+	} else {
+		legacyDependencies = es_to_ch_common.InitializeLegacyQuesmaDependencies(deps, &cfg, logChan)
+	}
 
 	return buildQuesmaFromV2Config(newConfiguration, legacyDependencies)
 }
@@ -97,6 +104,10 @@ func buildQuesmaFromV2Config(cfg config.QuesmaNewConfiguration, deps *es_to_ch_c
 			case config.ElasticsearchBackendConnectorName:
 				connectorDeclaration := cfg.GetBackendConnectorByType(config.ElasticsearchBackendConnectorName)
 				backendConnector := backend_connectors.NewElasticsearchBackendConnectorFromDbConfig(connectorDeclaration.Config)
+				pipeline.AddBackendConnector(backendConnector)
+			case config.DorisBackendConnectorName:
+				connectorDeclaration := cfg.GetBackendConnectorByType(config.DorisBackendConnectorName)
+				backendConnector := backend_connectors.NewDorisBackendConnector(&connectorDeclaration.Config)
 				pipeline.AddBackendConnector(backendConnector)
 			default:
 				log.Fatalf("unknown backend connector type: %s", bc.Type)

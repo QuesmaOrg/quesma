@@ -4,8 +4,8 @@ package frontend_connectors
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
@@ -64,11 +64,11 @@ func Test_applySearchAfterParameter(t *testing.T) {
 
 	indexConfig := map[string]config.IndexConfiguration{"kibana_sample_data_ecommerce": {}}
 
-	tableMap := clickhouse.NewTableMap()
-	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableMap := database_common.NewTableMap()
+	tableDiscovery := database_common.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 	for indexName := range indexConfig {
-		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+		tableMap.Store(indexName, database_common.NewEmptyTable(indexName))
 	}
 
 	singleOrderBy := []model.OrderByExpr{model.NewOrderByExpr(model.NewColumnRef("@timestamp"), model.DescOrder)}

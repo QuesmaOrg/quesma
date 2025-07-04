@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
@@ -21,16 +21,16 @@ import (
 )
 
 func TestValidateIngest(t *testing.T) {
-	floatCol := &clickhouse.Column{Name: "float_field", Type: clickhouse.BaseType{
+	floatCol := &database_common.Column{Name: "float_field", Type: database_common.BaseType{
 		Name:   "Float64",
-		GoType: clickhouse.NewBaseType("float64").GoType,
+		GoType: database_common.NewBaseType("float64").GoType,
 	}}
 
 	invalidJson := validateValueAgainstType("float", 1, floatCol.Type)
 	assert.True(t, invalidJson)
-	StringCol := &clickhouse.Column{Name: "float_field", Type: clickhouse.BaseType{
+	StringCol := &database_common.Column{Name: "float_field", Type: database_common.BaseType{
 		Name:   "String",
-		GoType: clickhouse.NewBaseType("string").GoType,
+		GoType: database_common.NewBaseType("string").GoType,
 	}}
 
 	invalidJson = validateValueAgainstType("string", 1, StringCol.Type)
@@ -156,75 +156,75 @@ func TestIngestValidation(t *testing.T) {
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"nested_array_map_field":[[[{"field1":"value1","field2":[1,2,3]},{"field1":"value2","field2":[4,5,6]}],[{"field1":"value3","field2":[7,8,9]},{"field1":"value4","field2":[10,11,12]}]],[[{"field1":"value1","field2":[1,2,3]}]],[]]}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"nested_array_map_field":[[],[[],[{}],[{"field1":"value1","field2":[1,2,3]},{"field1":"value2","field2":[4,5,6]}],[{"field1":"value3","field2":[7,8,9]},{"field1":"value4","field2":[10,11,12]}]],[[{"field1":"value1","field2":[1,2,3]}]]]}`, tableName),
 	}
-	tableMap := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tableMap := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: NewChTableConfigFourAttrs(),
-		Cols: map[string]*clickhouse.Column{
-			"string_field": {Name: "string_field", Type: clickhouse.BaseType{
+		Cols: map[string]*database_common.Column{
+			"string_field": {Name: "string_field", Type: database_common.BaseType{
 				Name:   "String",
-				GoType: clickhouse.NewBaseType("String").GoType,
+				GoType: database_common.NewBaseType("String").GoType,
 			}},
-			"int_field": {Name: "int_field", Type: clickhouse.BaseType{
+			"int_field": {Name: "int_field", Type: database_common.BaseType{
 				Name:   "Int64",
-				GoType: clickhouse.NewBaseType("Int64").GoType,
+				GoType: database_common.NewBaseType("Int64").GoType,
 			}},
-			"int32_field": {Name: "int32_field", Type: clickhouse.BaseType{
+			"int32_field": {Name: "int32_field", Type: database_common.BaseType{
 				Name:   "Int32",
-				GoType: clickhouse.NewBaseType("Int32").GoType,
+				GoType: database_common.NewBaseType("Int32").GoType,
 			}},
-			"uint8_field": {Name: "uint8_field", Type: clickhouse.BaseType{
+			"uint8_field": {Name: "uint8_field", Type: database_common.BaseType{
 				Name:   "UInt8",
-				GoType: clickhouse.NewBaseType("UInt8").GoType,
+				GoType: database_common.NewBaseType("UInt8").GoType,
 			}},
-			"float_field": {Name: "float_field", Type: clickhouse.BaseType{
+			"float_field": {Name: "float_field", Type: database_common.BaseType{
 				Name:   "Float32",
-				GoType: clickhouse.NewBaseType("Float32").GoType,
+				GoType: database_common.NewBaseType("Float32").GoType,
 			}},
-			"string_array_field": {Name: "string_array_field", Type: clickhouse.CompoundType{
+			"string_array_field": {Name: "string_array_field", Type: database_common.CompoundType{
 				Name: "Array",
-				BaseType: clickhouse.BaseType{
+				BaseType: database_common.BaseType{
 					Name:   "String",
-					GoType: clickhouse.NewBaseType("String").GoType,
+					GoType: database_common.NewBaseType("String").GoType,
 				},
 			}},
-			"int_array_field": {Name: "int_array_field", Type: clickhouse.CompoundType{
+			"int_array_field": {Name: "int_array_field", Type: database_common.CompoundType{
 				Name: "Array",
-				BaseType: clickhouse.BaseType{
+				BaseType: database_common.BaseType{
 					Name:   "Int64",
-					GoType: clickhouse.NewBaseType("Int64").GoType,
+					GoType: database_common.NewBaseType("Int64").GoType,
 				},
 			}},
-			"float_array_field": {Name: "float_array_field", Type: clickhouse.CompoundType{
+			"float_array_field": {Name: "float_array_field", Type: database_common.CompoundType{
 				Name: "Array",
-				BaseType: clickhouse.BaseType{
+				BaseType: database_common.BaseType{
 					Name:   "Float64",
-					GoType: clickhouse.NewBaseType("Float64").GoType,
+					GoType: database_common.NewBaseType("Float64").GoType,
 				},
 			}},
 			// Array(Array(Array(Tuple(field1 String, field2 Array(Int64)))))
-			"nested_array_map_field": {Name: "nested_array_map_field", Type: clickhouse.CompoundType{
+			"nested_array_map_field": {Name: "nested_array_map_field", Type: database_common.CompoundType{
 				Name: "Array",
-				BaseType: clickhouse.CompoundType{
+				BaseType: database_common.CompoundType{
 					Name: "Array",
-					BaseType: clickhouse.CompoundType{
+					BaseType: database_common.CompoundType{
 						Name: "Array",
-						BaseType: clickhouse.MultiValueType{
+						BaseType: database_common.MultiValueType{
 							Name: "Tuple",
-							Cols: []*clickhouse.Column{
+							Cols: []*database_common.Column{
 								{
 									Name: "field1",
-									Type: clickhouse.BaseType{
+									Type: database_common.BaseType{
 										Name:   "String",
-										GoType: clickhouse.NewBaseType("String").GoType,
+										GoType: database_common.NewBaseType("String").GoType,
 									},
 								},
 								{
 									Name: "field2",
-									Type: clickhouse.CompoundType{
+									Type: database_common.CompoundType{
 										Name: "Array",
-										BaseType: clickhouse.BaseType{
+										BaseType: database_common.BaseType{
 											Name:   "Int64",
-											GoType: clickhouse.NewBaseType("Int64").GoType,
+											GoType: database_common.NewBaseType("Int64").GoType,
 										},
 									},
 								},
@@ -298,7 +298,7 @@ func TestIngestValidation(t *testing.T) {
 		db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 		ip := newIngestProcessorEmpty()
 		ip.chDb = db
-		ip.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
+		ip.tableDiscovery = database_common.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMap)
 
 		resolver := table_resolver.NewEmptyTableResolver()
 		decision := &mux.Decision{

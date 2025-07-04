@@ -11,6 +11,7 @@ import (
 const (
 	ElasticsearchTarget = "elasticsearch"
 	ClickhouseTarget    = "clickhouse"
+	DorisTarget         = "doris"
 )
 
 // PartitionStrategy represents a configurable partitioning strategy for ClickHouse tables created by Quesma

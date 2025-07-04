@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
 	"github.com/QuesmaOrg/quesma/platform/async_search_storage"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
 	"github.com/QuesmaOrg/quesma/platform/errors"
@@ -46,11 +46,11 @@ type QueryRunner struct {
 	cancel               context.CancelFunc
 	AsyncRequestStorage  async_search_storage.AsyncRequestResultStorage
 	AsyncQueriesContexts async_search_storage.AsyncQueryContextStorage
-	logManager           clickhouse.LogManagerIFace
+	logManager           database_common.LogManagerIFace
 	cfg                  *config.QuesmaConfiguration
 	debugInfoCollector   diag.DebugInfoCollector
 
-	tableDiscovery clickhouse.TableDiscovery
+	tableDiscovery database_common.TableDiscovery
 	// configuration
 
 	// this is passed to the QueryTranslator to render date math expressions
@@ -74,7 +74,7 @@ type QueryRunnerIFace interface {
 	HandleTermsEnum(ctx context.Context, indexPattern string, body types.JSON, something bool) ([]byte, error)
 	// Todo: consider removing this getters for these two below, this was required for temporary Field Caps impl in v2 api
 	GetSchemaRegistry() schema.Registry
-	GetLogManager() clickhouse.LogManagerIFace
+	GetLogManager() database_common.LogManagerIFace
 	DeleteAsyncSearch(id string) ([]byte, error)
 	HandlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error)
 	HandleMultiSearch(ctx context.Context, defaultIndexName string, body types.NDJSON) ([]byte, error)
@@ -84,13 +84,13 @@ func (q *QueryRunner) EnableQueryOptimization(cfg *config.QuesmaConfiguration) {
 	q.transformationPipeline.AddTransformer(optimize.NewOptimizePipeline(cfg))
 }
 
-func NewQueryRunner(lm clickhouse.LogManagerIFace,
+func NewQueryRunner(lm database_common.LogManagerIFace,
 	cfg *config.QuesmaConfiguration,
 	qmc diag.DebugInfoCollector,
 	schemaRegistry schema.Registry,
 	abResultsRepository ab_testing.Sender,
 	resolver table_resolver.TableResolver,
-	tableDiscovery clickhouse.TableDiscovery) *QueryRunner {
+	tableDiscovery database_common.TableDiscovery) *QueryRunner {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	transformationPipeline := model.NewTransformationPipeline()
@@ -112,14 +112,14 @@ func (q *QueryRunner) GetSchemaRegistry() schema.Registry {
 	return q.schemaRegistry
 }
 
-func (q *QueryRunner) GetLogManager() clickhouse.LogManagerIFace {
+func (q *QueryRunner) GetLogManager() database_common.LogManagerIFace {
 	return q.logManager
 }
 
 func NewQueryRunnerDefaultForTests(db quesma_api.BackendConnector, cfg *config.QuesmaConfiguration,
-	tableName string, tables *clickhouse.TableMap, staticRegistry *schema.StaticRegistry) *QueryRunner {
+	tableName string, tables *database_common.TableMap, staticRegistry *schema.StaticRegistry) *QueryRunner {
 
-	lm := clickhouse.NewLogManagerWithConnection(db, tables)
+	lm := database_common.NewLogManagerWithConnection(db, tables)
 	logChan := logger.InitOnlyChannelLoggerForTests()
 
 	resolver := table_resolver.NewEmptyTableResolver()
@@ -132,7 +132,7 @@ func NewQueryRunnerDefaultForTests(db quesma_api.BackendConnector, cfg *config.Q
 		},
 	}
 
-	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery := database_common.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tables
 
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, logChan, diag.EmptyPhoneHomeRecentStatsProvider(), nil, resolver)
@@ -157,7 +157,7 @@ func (q *QueryRunner) HandleCount(ctx context.Context, indexPattern string) (int
 		}
 	}
 
-	tables := make([]*clickhouse.Table, 0, len(indexes))
+	tables := make([]*database_common.Table, 0, len(indexes))
 	if tableMap, err := q.logManager.GetTableDefinitions(); err == nil {
 		for _, index := range indexes {
 			if table, ok := tableMap.Load(index); ok {
@@ -371,7 +371,7 @@ func (q *QueryRunner) transformQueries(plan *model.ExecutionPlan) error {
 	return nil
 }
 
-func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, doneCh chan asyncSearchWithError, optAsync *AsyncQuery) {
+func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *database_common.Table, doneCh chan asyncSearchWithError, optAsync *AsyncQuery) {
 	go func() {
 		defer recovery.LogAndHandlePanic(ctx, func(err error) {
 			doneCh <- asyncSearchWithError{err: err}
@@ -401,7 +401,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 	}()
 }
 
-func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, optComparePlansCh chan<- executionPlanResult, abTestingMainPlan bool) (responseBody []byte, err error) {
+func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *database_common.Table, body types.JSON, optAsync *AsyncQuery, optComparePlansCh chan<- executionPlanResult, abTestingMainPlan bool) (responseBody []byte, err error) {
 	contextValues := tracing.ExtractValues(ctx)
 	id := contextValues.RequestId
 	path := contextValues.RequestPath
@@ -469,8 +469,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		queryTranslator     IQueryTranslator
 		plan                *model.ExecutionPlan
 		clickhouseConnector *quesma_api.ConnectorDecisionClickhouse
-		table               *clickhouse.Table // TODO we should use schema here only
-		tables              clickhouse.TableMap
+		table               *database_common.Table // TODO we should use schema here only
+		tables              database_common.TableMap
 		currentSchema       schema.Schema
 		respWhenError       []byte
 		weEndSearch         bool
@@ -675,11 +675,11 @@ func (q *QueryRunner) isInternalKibanaQuery(query *model.Query) bool {
 	return false
 }
 
-type QueryJob func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResultRow, clickhouse.PerformanceResult, error)
+type QueryJob func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResultRow, database_common.PerformanceResult, error)
 
-func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
+func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []database_common.PerformanceResult, error) {
 	var results = make([][]model.QueryResultRow, 0)
-	var performance = make([]clickhouse.PerformanceResult, 0)
+	var performance = make([]database_common.PerformanceResult, 0)
 	for n, job := range jobs {
 		plan, rows, perf, err := job(ctx)
 		performance = append(performance, perf)
@@ -697,17 +697,17 @@ func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob)
 
 func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob) (
 	[][]model.QueryResultRow,
-	[]clickhouse.PerformanceResult,
+	[]database_common.PerformanceResult,
 	error,
 ) {
 	var (
 		results      = make([][]model.QueryResultRow, len(jobs))
-		performances = make([]clickhouse.PerformanceResult, len(jobs))
+		performances = make([]database_common.PerformanceResult, len(jobs))
 	)
 	type result struct {
 		plan  *model.ExecutionPlan
 		rows  []model.QueryResultRow
-		perf  clickhouse.PerformanceResult
+		perf  database_common.PerformanceResult
 		err   error
 		jobId int
 	}
@@ -766,7 +766,7 @@ func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob)
 
 	return results, performances, nil
 }
-func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
+func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []database_common.PerformanceResult, error) {
 
 	numberOfJobs := len(jobs)
 
@@ -795,8 +795,8 @@ func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]mo
 
 }
 
-func (q *QueryRunner) makeJob(plan *model.ExecutionPlan, table *clickhouse.Table, query *model.Query) QueryJob {
-	return func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResultRow, clickhouse.PerformanceResult, error) {
+func (q *QueryRunner) makeJob(plan *model.ExecutionPlan, table *database_common.Table, query *model.Query) QueryJob {
+	return func(ctx context.Context) (*model.ExecutionPlan, []model.QueryResultRow, database_common.PerformanceResult, error) {
 		var err error
 		rows, performance, err := q.logManager.ProcessQuery(ctx, table, query)
 
@@ -813,7 +813,7 @@ func (q *QueryRunner) makeJob(plan *model.ExecutionPlan, table *clickhouse.Table
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	plan *model.ExecutionPlan,
-	table *clickhouse.Table) (translatedQueryBody []diag.TranslatedSQLQuery, hits [][]model.QueryResultRow, err error) {
+	table *database_common.Table) (translatedQueryBody []diag.TranslatedSQLQuery, hits [][]model.QueryResultRow, err error) {
 
 	queries := plan.Queries
 
@@ -889,7 +889,7 @@ func (q *QueryRunner) searchWorkerCommon(
 
 func (q *QueryRunner) searchWorker(ctx context.Context,
 	plan *model.ExecutionPlan,
-	table *clickhouse.Table,
+	table *database_common.Table,
 	doneCh chan<- asyncSearchWithError,
 	optAsync *AsyncQuery) (translatedQueryBody []diag.TranslatedSQLQuery, resultRows [][]model.QueryResultRow, err error) {
 	if optAsync != nil {

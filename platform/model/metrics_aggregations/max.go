@@ -4,16 +4,16 @@ package metrics_aggregations
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 )
 
 type Max struct {
 	ctx       context.Context
-	fieldType clickhouse.DateTimeType
+	fieldType database_common.DateTimeType
 }
 
-func NewMax(ctx context.Context, fieldType clickhouse.DateTimeType) Max {
+func NewMax(ctx context.Context, fieldType database_common.DateTimeType) Max {
 	return Max{ctx: ctx, fieldType: fieldType}
 }
 

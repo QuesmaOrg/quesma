@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package clickhouse
+package database_common
 
 import (
 	"context"
@@ -223,7 +223,14 @@ func read(ctx context.Context, rows quesma_api.Rows, selectFields []string, rowT
 		}
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, len(selectFields))}
 		for i, field := range selectFields {
-			resultRow.Cols[i] = model.QueryResultCol{ColName: field, Value: rowToScan[i]}
+			var val interface{}
+			switch v := rowToScan[i].(type) {
+			case []uint8:
+				val = string(v)
+			default:
+				val = v
+			}
+			resultRow.Cols[i] = model.QueryResultCol{ColName: field, Value: val}
 		}
 		resultRows = append(resultRows, resultRow)
 	}
