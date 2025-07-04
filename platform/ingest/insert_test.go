@@ -480,25 +480,27 @@ func TestHydrolixIngest(t *testing.T) {
 
 			expectedStatements: []string{
 				fmt.Sprintf(`{
-  "schema": {
+"schema": {
     "project": "%s",
     "name": "test_index",
     "time_column": "ingest_time",
     "columns": [
-      { "name": "new_field", "type": "string" },
-      { "name": "ingest_time", "type": "datetime", "default": "NOW" }
-    ],
+  { "name": "@timestamp", "type": "DateTime64(3)", "metadata": "DEFAULT now64()" },
+  { "name": "attributes_values", "type": "Map(String,String)" },
+  { "name": "attributes_metadata", "type": "Map(String,String)" },
+  { "name": "new_field", "type": "Nullable(String)", "comment": "quesmaMetadataV1:fieldName=new_field" }
+],
     "partitioning": {
-      "strategy": "time",
-      "field": "ingest_time",
-      "granularity": "day"
-    }
+  "strategy": "time",
+  "field": "ingest_time",
+  "granularity": "day"
+},
   },
   "events": [
-    {
-      "new_field": "bar"
-    }
-  ]
+      {
+        "new_field": "bar"
+      }
+    ]
 }`, projectName),
 			},
 		},
