@@ -627,7 +627,6 @@ func (ip *SqlLowerer) shouldAlterColumns(table *database_common.Table, attrsMap 
 	return false, nil
 }
 
-
 func generateInsertJson(nonSchemaFields []NonSchemaField, onlySchemaFields types.JSON) (string, error) {
 	result := convertNonSchemaFieldsToMap(nonSchemaFields)
 
