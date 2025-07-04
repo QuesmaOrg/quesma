@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -55,12 +56,21 @@ func (p *HydrolixBackendConnector) InstanceName() string {
 	return "hydrolix" // TODO add name taken from config
 }
 
+func isValidJSON(s string) bool {
+	var js interface{}
+	return json.Unmarshal([]byte(s), &js) == nil
+}
+
 func (p *HydrolixBackendConnector) Exec(ctx context.Context, query string, args ...interface{}) error {
 	if p.IngestURL == "" || p.AccessToken == "" {
 		logger.Info().Msg("missing ingest URL or access token")
 		// TODO for fallback, execute the query directly on the database connection
 		_, err := p.connection.ExecContext(ctx, query)
 		return err
+	}
+
+	if !isValidJSON(query) {
+		return fmt.Errorf("invalid JSON payload: %s", query)
 	}
 
 	// Create HTTP request using the JSON payload from query
