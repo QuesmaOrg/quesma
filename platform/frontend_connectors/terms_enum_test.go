@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -72,27 +71,27 @@ var rawRequestBody = []byte(`{
 func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName string) {
 	table := &database_common.Table{
 		Name:   testTableName,
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
+		Config: database_common.NewDefaultCHConfig(),
+		Cols: map[string]*database_common.Column{
 			"epoch_time": {
 				Name: "epoch_time",
-				Type: clickhouse.NewBaseType("DateTime"),
+				Type: database_common.NewBaseType("DateTime"),
 			},
 			"epoch_time_datetime64": {
 				Name: "epoch_time_datetime64",
-				Type: clickhouse.NewBaseType("DateTime64"),
+				Type: database_common.NewBaseType("DateTime64"),
 			},
 			"message": {
 				Name: "message",
-				Type: clickhouse.NewBaseType("String"),
+				Type: database_common.NewBaseType("String"),
 			},
 			"client_name": {
 				Name: "client_name",
-				Type: clickhouse.NewBaseType("Map(String, Nullable(String))"),
+				Type: database_common.NewBaseType("Map(String, Nullable(String))"),
 			},
 			"map_name": {
 				Name: "map_name",
-				Type: clickhouse.NewBaseType("LowCardinality(String)"),
+				Type: database_common.NewBaseType("LowCardinality(String)"),
 			},
 		},
 	}
@@ -101,7 +100,7 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName stri
 	conn, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 	defer db.Close()
-	lm := clickhouse.NewLogManagerWithConnection(db, util.NewSyncMapWith(testTableName, table))
+	lm := database_common.NewLogManagerWithConnection(db, util.NewSyncMapWith(testTableName, table))
 	s := schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
 			testTableName: {

@@ -186,7 +186,7 @@ func Test_ipRangeTransform(t *testing.T) {
 		{
 			TableName: "kibana_sample_data_logs_nested", FieldName: "nested.clientip"}: "nested_clientip",
 	}
-	s := schema.NewSchemaRegistry(tableProvider, &cfg, database_common.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableProvider, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 	s.Start()
 	defer s.Stop()
 	transform := NewSchemaCheckPass(&cfg, tableDiscovery, defaultSearchAfterStrategy)
@@ -1217,7 +1217,7 @@ func TestFullTextFields(t *testing.T) {
 				IndexConfig: indexConfig,
 			}
 
-			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, database_common.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
 			transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
@@ -1491,7 +1491,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				IndexConfig: indexConfig,
 			}
 
-			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, database_common.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
 
@@ -1594,7 +1594,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 				IndexConfig: indexConfig,
 			}
 
-			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, database_common.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
 			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
@@ -2133,7 +2133,7 @@ func Test_acceptIntsAsTimestamps(t *testing.T) {
 			td := database_common.NewEmptyTableDiscovery()
 			td.TableMap = tableMap
 
-			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, database_common.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
 			transform := NewSchemaCheckPass(&cfg, td, defaultSearchAfterStrategy)
