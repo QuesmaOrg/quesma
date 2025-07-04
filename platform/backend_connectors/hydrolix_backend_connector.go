@@ -18,6 +18,7 @@ import (
 
 type HydrolixBackendConnector struct {
 	BasicSqlBackendConnector
+	// TODO for now we still have reference for RelationalDbConfiguration for fallback
 	cfg         *config.RelationalDbConfiguration
 	IngestURL   string
 	AccessToken string
