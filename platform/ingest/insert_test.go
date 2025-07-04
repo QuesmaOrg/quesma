@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
@@ -94,7 +94,7 @@ var insertTests = []struct {
 	},
 }
 
-var configs = []*clickhouse.ChTableConfig{
+var configs = []*database_common.ChTableConfig{
 	NewChTableConfigNoAttrs(),
 	NewDefaultCHConfig(),
 }
@@ -139,13 +139,13 @@ func (*IngestTransformerTest) Transform(document types.JSON) (types.JSON, error)
 	return document, nil
 }
 
-func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHelper {
+func ingestProcessorsNonEmpty(cfg *database_common.ChTableConfig) []ingestProcessorHelper {
 	lms := make([]ingestProcessorHelper, 0, 4)
 	for _, created := range []bool{true, false} {
-		full := util.NewSyncMapWith(tableName, &clickhouse.Table{
+		full := util.NewSyncMapWith(tableName, &database_common.Table{
 			Name:   tableName,
 			Config: cfg,
-			Cols: map[string]*clickhouse.Column{
+			Cols: map[string]*database_common.Column{
 				"@timestamp":       dateTime("@timestamp"),
 				"host_name":        genericString("host_name"),
 				"message":          lowCardinalityString("message"),
@@ -157,7 +157,7 @@ func ingestProcessorsNonEmpty(cfg *clickhouse.ChTableConfig) []ingestProcessorHe
 	return lms
 }
 
-func ingestProcessors(config *clickhouse.ChTableConfig) []ingestProcessorHelper {
+func ingestProcessors(config *database_common.ChTableConfig) []ingestProcessorHelper {
 	ingestProcessor := newIngestProcessorEmpty()
 	ingestProcessor.schemaRegistry = &schema.StaticRegistry{}
 	return append([]ingestProcessorHelper{{ingestProcessor, false}}, ingestProcessorsNonEmpty(config)...)
@@ -306,10 +306,10 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	}
 
 	// big integer as an attribute field
-	tableMapNoSchemaFields := util.NewSyncMapWith(tableName, &clickhouse.Table{
+	tableMapNoSchemaFields := util.NewSyncMapWith(tableName, &database_common.Table{
 		Name:   tableName,
 		Config: NewChTableConfigFourAttrs(),
-		Cols:   map[string]*clickhouse.Column{},
+		Cols:   map[string]*database_common.Column{},
 	})
 
 	for i, bigInt := range bigInts {
@@ -318,7 +318,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
 			lm := newIngestProcessorEmpty()
 			lm.chDb = db
-			lm.tableDiscovery = clickhouse.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
+			lm.tableDiscovery = database_common.NewTableDiscoveryWith(&config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
 			defer db.Close()
 
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
@@ -335,33 +335,33 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	}
 }
 
-func genericString(name string) *clickhouse.Column {
-	return &clickhouse.Column{
+func genericString(name string) *database_common.Column {
+	return &database_common.Column{
 		Name: name,
-		Type: clickhouse.BaseType{
+		Type: database_common.BaseType{
 			Name:   "String",
-			GoType: clickhouse.NewBaseType("String").GoType,
+			GoType: database_common.NewBaseType("String").GoType,
 		},
 		Modifiers: "CODEC(ZSTD(1))",
 	}
 }
 
-func lowCardinalityString(name string) *clickhouse.Column {
-	return &clickhouse.Column{
+func lowCardinalityString(name string) *database_common.Column {
+	return &database_common.Column{
 		Name: name,
-		Type: clickhouse.BaseType{
+		Type: database_common.BaseType{
 			Name:   "LowCardinality(String)",
-			GoType: clickhouse.NewBaseType("LowCardinality(String)").GoType,
+			GoType: database_common.NewBaseType("LowCardinality(String)").GoType,
 		},
 	}
 }
 
-func dateTime(name string) *clickhouse.Column {
-	return &clickhouse.Column{
+func dateTime(name string) *database_common.Column {
+	return &database_common.Column{
 		Name: name,
-		Type: clickhouse.BaseType{
+		Type: database_common.BaseType{
 			Name:   "DateTime64",
-			GoType: clickhouse.NewBaseType("DateTime64").GoType,
+			GoType: database_common.NewBaseType("DateTime64").GoType,
 		},
 		Modifiers: "CODEC(DoubleDelta, LZ4)",
 	}

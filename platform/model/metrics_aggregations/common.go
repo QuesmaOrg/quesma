@@ -4,7 +4,7 @@ package metrics_aggregations
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"time"
@@ -33,8 +33,8 @@ func metricsTranslateSqlResponseToJsonZeroDefault(ctx context.Context, rows []mo
 // metricsTranslateSqlResponseToJsonWithFieldTypeCheck is the same as metricsTranslateSqlResponseToJson for all types except DateTimes.
 // With DateTimes, we need to return 2 values, instead of 1, that's the difference.
 func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
-	ctx context.Context, rows []model.QueryResultRow, fieldType clickhouse.DateTimeType) model.JsonMap {
-	if fieldType == clickhouse.Invalid {
+	ctx context.Context, rows []model.QueryResultRow, fieldType database_common.DateTimeType) model.JsonMap {
+	if fieldType == database_common.Invalid {
 		// if it's not a date, we do just a normal response
 		return metricsTranslateSqlResponseToJson(ctx, rows)
 	}

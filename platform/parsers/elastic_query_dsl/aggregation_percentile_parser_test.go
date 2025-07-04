@@ -5,7 +5,7 @@ package elastic_query_dsl
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/stretchr/testify/assert"
@@ -35,7 +35,7 @@ func Test_parsePercentilesAggregationWithDefaultPercents(t *testing.T) {
 			},
 		},
 	}
-	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background(), Schema: s.Tables[schema.IndexName("logs-generic-default")]}
+	cw := &ClickhouseQueryTranslator{Table: &database_common.Table{}, Ctx: context.Background(), Schema: s.Tables[schema.IndexName("logs-generic-default")]}
 	field, _, userSpecifiedPercents := cw.parsePercentilesAggregation(payload)
 	assert.Equal(t, model.NewColumnRef("custom_name"), field)
 	assert.Equal(t, defaultPercentiles, userSpecifiedPercents)
@@ -83,7 +83,7 @@ func Test_parsePercentilesAggregationWithUserSpecifiedPercents(t *testing.T) {
 			},
 		},
 	}
-	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background(), Schema: s.Tables[schema.IndexName("logs-generic-default")]}
+	cw := &ClickhouseQueryTranslator{Table: &database_common.Table{}, Ctx: context.Background(), Schema: s.Tables[schema.IndexName("logs-generic-default")]}
 	fieldName, _, parsedMap := cw.parsePercentilesAggregation(payload)
 	assert.Equal(t, model.NewColumnRef("custom_name"), fieldName)
 
@@ -108,7 +108,7 @@ func Test_parsePercentilesAggregationWithUserSpecifiedPercents(t *testing.T) {
 }
 
 func Test_parsePercentilesAggregationKeyed(t *testing.T) {
-	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background()}
+	cw := &ClickhouseQueryTranslator{Table: &database_common.Table{}, Ctx: context.Background()}
 	payload := QueryMap{
 		"field": "custom_name",
 		"keyed": true,

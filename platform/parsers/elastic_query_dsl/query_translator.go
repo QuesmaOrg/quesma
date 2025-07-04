@@ -4,7 +4,7 @@ package elastic_query_dsl
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
@@ -26,7 +26,7 @@ type ClickhouseQueryTranslator struct {
 	Indexes []string
 
 	// TODO this will be removed
-	Table                   *clickhouse.Table
+	Table                   *database_common.Table
 	UniqueIDsUsedInTheQuery []string // A list of UniqueIDs used in the query (via `_id` field), which has to be passed to the JSON response rendering stage.
 	// That's because it has to be used both in the SQL query and during the response rendering, see https://github.com/QuesmaOrg/quesma/pull/1435 for more details.
 }

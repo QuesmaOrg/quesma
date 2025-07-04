@@ -37,6 +37,14 @@ func Init(config *config.QuesmaConfiguration) *LicenseModule {
 		Config:     config,
 		LicenseKey: []byte(config.LicenseKey),
 	}
+	// todo just for Doris to pass the license verification
+	if config.ClickHouse.ConnectorType == "doris" {
+		l.License = &License{
+			InstallationID: "air-gapped-installation-id",
+			ClientID:       "air-gapped-client-id",
+		}
+		return l
+	}
 	if airgapKey, isSet := os.LookupEnv(quesmaAirGapModeEnvVar); isSet {
 		if isAirgapKeyValid(airgapKey) {
 			l.logInfo("Running Quesma in airgapped mode")

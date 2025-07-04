@@ -8,6 +8,8 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
+	"github.com/QuesmaOrg/quesma/platform/doris"
 	"github.com/QuesmaOrg/quesma/platform/ingest"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
@@ -97,13 +99,13 @@ type LegacyQuesmaDependencies struct {
 	OldQuesmaConfig     *config.QuesmaConfiguration
 	ConnectionPool      quesma_api.BackendConnector
 	VirtualTableStorage persistence.ElasticJSONDatabase
-	TableDiscovery      clickhouse.TableDiscovery
+	TableDiscovery      database_common.TableDiscovery
 	SchemaRegistry      schema.Registry
 	TableResolver       table_resolver.TableResolver
 	UIConsole           *ui.QuesmaManagementConsole
 	AbTestingController *sender.SenderCoordinator
 	IngestProcessor     *ingest.IngestProcessor
-	LogManager          clickhouse.LogManagerIFace
+	LogManager          database_common.LogManagerIFace
 	LogChan             <-chan logger.LogWithLevel
 }
 
@@ -112,12 +114,12 @@ func newLegacyQuesmaDependencies(
 	oldQuesmaConfig *config.QuesmaConfiguration,
 	connectionPool quesma_api.BackendConnector,
 	virtualTableStorage persistence.ElasticJSONDatabase,
-	tableDiscovery clickhouse.TableDiscovery,
+	tableDiscovery database_common.TableDiscovery,
 	schemaRegistry schema.Registry,
 	tableResolver table_resolver.TableResolver,
 	abTestingController *sender.SenderCoordinator,
 	ingestProcessor *ingest.IngestProcessor,
-	logManager clickhouse.LogManagerIFace,
+	logManager database_common.LogManagerIFace,
 	logChan <-chan logger.LogWithLevel,
 	uiConsole *ui.QuesmaManagementConsole,
 ) *LegacyQuesmaDependencies {
@@ -137,11 +139,11 @@ func newLegacyQuesmaDependencies(
 	}
 }
 
-func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, oldQuesmaConfig *config.QuesmaConfiguration, logChan <-chan logger.LogWithLevel) *LegacyQuesmaDependencies {
-	connectionPool := clickhouse.InitDBConnectionPool(oldQuesmaConfig)
+func InitializeLegacyDorisQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, oldQuesmaConfig *config.QuesmaConfiguration, logChan <-chan logger.LogWithLevel) *LegacyQuesmaDependencies {
+	connectionPool := doris.InitDBConnectionPool(oldQuesmaConfig)
 	virtualTableStorage := persistence.NewElasticJSONDatabase(oldQuesmaConfig.Elasticsearch, common_table.VirtualTableElasticIndexName)
-	tableDisco := clickhouse.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.SchemaTypeAdapter{})
+	tableDisco := database_common.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
+	schemaRegistry := schema.NewSchemaRegistry(database_common.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, doris.DorisSchemaTypeAdapter{})
 	schemaRegistry.Start()
 	dummyTableResolver := table_resolver.NewDummyTableResolver(oldQuesmaConfig.IndexConfig, oldQuesmaConfig.UseCommonTableForWildcard)
 	//phoneHomeAgent := baseDeps.PhoneHomeAgent() //TODO perhaps remove? we could get away with Client if not the UI console. Because of that we have to use Agent
@@ -162,7 +164,43 @@ func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, o
 	abTestingController := sender.NewSenderCoordinator(oldQuesmaConfig, ingestProcessor)
 	abTestingController.Start()
 
-	logManager := clickhouse.NewEmptyLogManager(oldQuesmaConfig, connectionPool, phoneHomeAgent, tableDisco)
+	logManager := database_common.NewEmptyLogManager(oldQuesmaConfig, connectionPool, phoneHomeAgent, tableDisco)
+	logManager.Start()
+
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(oldQuesmaConfig, logManager, logChan, phoneHomeAgent, schemaRegistry, dummyTableResolver)
+	go quesmaManagementConsole.Run()
+
+	legacyDependencies := newLegacyQuesmaDependencies(*baseDeps, oldQuesmaConfig, connectionPool, *virtualTableStorage, tableDisco, schemaRegistry, dummyTableResolver, abTestingController, ingestProcessor, logManager, logChan, quesmaManagementConsole)
+	return legacyDependencies
+}
+
+func InitializeLegacyQuesmaDependencies(baseDeps *quesma_api.DependenciesImpl, oldQuesmaConfig *config.QuesmaConfiguration, logChan <-chan logger.LogWithLevel) *LegacyQuesmaDependencies {
+	connectionPool := clickhouse.InitDBConnectionPool(oldQuesmaConfig)
+	virtualTableStorage := persistence.NewElasticJSONDatabase(oldQuesmaConfig.Elasticsearch, common_table.VirtualTableElasticIndexName)
+	tableDisco := database_common.NewTableDiscovery(oldQuesmaConfig, connectionPool, virtualTableStorage)
+	schemaRegistry := schema.NewSchemaRegistry(database_common.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, oldQuesmaConfig, clickhouse.ClickhouseSchemaTypeAdapter{})
+	schemaRegistry.Start()
+	dummyTableResolver := table_resolver.NewDummyTableResolver(oldQuesmaConfig.IndexConfig, oldQuesmaConfig.UseCommonTableForWildcard)
+	//phoneHomeAgent := baseDeps.PhoneHomeAgent() //TODO perhaps remove? we could get away with Client if not the UI console. Because of that we have to use Agent
+	phoneHomeAgent := telemetry.NewPhoneHomeAgent(oldQuesmaConfig, connectionPool, "DuMMY_CLIENT_ID")
+	phoneHomeAgent.Start()
+
+	lowerer := ingest.NewSqlLowerer(virtualTableStorage)
+	ingestProcessor := ingest.NewIngestProcessor(
+		oldQuesmaConfig,
+		connectionPool,
+		phoneHomeAgent,
+		tableDisco,
+		schemaRegistry,
+		lowerer,
+		dummyTableResolver,
+	)
+	ingestProcessor.Start()
+
+	abTestingController := sender.NewSenderCoordinator(oldQuesmaConfig, ingestProcessor)
+	abTestingController.Start()
+
+	logManager := database_common.NewEmptyLogManager(oldQuesmaConfig, connectionPool, phoneHomeAgent, tableDisco)
 	logManager.Start()
 
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(oldQuesmaConfig, logManager, logChan, phoneHomeAgent, schemaRegistry, dummyTableResolver)

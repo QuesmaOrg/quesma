@@ -5,8 +5,8 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"sort"
@@ -18,7 +18,7 @@ func (qmc *QuesmaManagementConsole) generateQuesmaAllLogs() []byte {
 	buffer.Write(qmc.generateTopNavigation("tables"))
 	buffer.Html(`<main id="quesma_all_logs">`)
 
-	var schema clickhouse.TableMap
+	var schema database_common.TableMap
 	var hasSchema bool
 	var err error
 	var schemaError error
@@ -185,7 +185,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 	buffer.Write(qmc.generateTopNavigation("tables"))
 	buffer.Html(`<main id="tables">`)
 
-	var schema clickhouse.TableMap
+	var schema database_common.TableMap
 	var hasSchema bool
 	var err error
 	var schemaError error
@@ -302,7 +302,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 
 			// columns added by Quesma, not visible for the user
 			//
-			// this part is based on addOurFieldsToCreateTableQuery in log_manager.go
+			// this part is based on addOurFieldsToCreateTableQuery in doris_log_manager.go
 			attributes := table.Config.GetAttributes()
 			if len(attributes) > 0 {
 				for _, a := range attributes {
@@ -310,7 +310,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 					if !ok {
 						c := tableColumn{}
 						c.name = a.KeysArrayName
-						c.typeName = clickhouse.CompoundType{Name: "Array", BaseType: clickhouse.NewBaseType("String")}.StringWithNullable()
+						c.typeName = database_common.CompoundType{Name: "Array", BaseType: database_common.NewBaseType("String")}.StringWithNullable()
 						c.isAttribute = true
 						columnNames = append(columnNames, c.name)
 						columnMap[c.name] = c
@@ -319,7 +319,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 					if !ok {
 						c := tableColumn{}
 						c.name = a.ValuesArrayName
-						c.typeName = clickhouse.CompoundType{Name: "Array", BaseType: a.Type}.StringWithNullable()
+						c.typeName = database_common.CompoundType{Name: "Array", BaseType: a.Type}.StringWithNullable()
 						c.isAttribute = true
 						columnNames = append(columnNames, c.name)
 						columnMap[c.name] = c

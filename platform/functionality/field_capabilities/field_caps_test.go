@@ -3,8 +3,8 @@
 package field_capabilities
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
@@ -177,17 +177,17 @@ func TestFieldCapsWithAliases(t *testing.T) {
 }
 
 func TestFieldCapsMultipleIndexes(t *testing.T) {
-	tableMap := clickhouse.NewTableMap()
-	tableMap.Store("logs-1", &clickhouse.Table{
+	tableMap := database_common.NewTableMap()
+	tableMap.Store("logs-1", &database_common.Table{
 		Name: "logs-generic-default",
-		Cols: map[string]*clickhouse.Column{
-			"foo.bar1": {Name: "foo.bar1", Type: clickhouse.BaseType{Name: "String"}},
+		Cols: map[string]*database_common.Column{
+			"foo.bar1": {Name: "foo.bar1", Type: database_common.BaseType{Name: "String"}},
 		},
 	})
-	tableMap.Store("logs-2", &clickhouse.Table{
+	tableMap.Store("logs-2", &database_common.Table{
 		Name: "logs-generic-default",
-		Cols: map[string]*clickhouse.Column{
-			"foo.bar2": {Name: "foo.bar2", Type: clickhouse.BaseType{Name: "String"}},
+		Cols: map[string]*database_common.Column{
+			"foo.bar2": {Name: "foo.bar2", Type: database_common.BaseType{Name: "String"}},
 		},
 	})
 	resp, err := handleFieldCapsIndex(
@@ -282,23 +282,23 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 }
 
 func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
-	tableMap := clickhouse.NewTableMap()
-	tableMap.Store("logs-1", &clickhouse.Table{
+	tableMap := database_common.NewTableMap()
+	tableMap.Store("logs-1", &database_common.Table{
 		Name: "logs-1",
-		Cols: map[string]*clickhouse.Column{
-			"foo.bar": {Name: "foo.bar", Type: clickhouse.BaseType{Name: "String"}},
+		Cols: map[string]*database_common.Column{
+			"foo.bar": {Name: "foo.bar", Type: database_common.BaseType{Name: "String"}},
 		},
 	})
-	tableMap.Store("logs-2", &clickhouse.Table{
+	tableMap.Store("logs-2", &database_common.Table{
 		Name: "logs-2",
-		Cols: map[string]*clickhouse.Column{
-			"foo.bar": {Name: "foo.bar", Type: clickhouse.BaseType{Name: "Boolean"}},
+		Cols: map[string]*database_common.Column{
+			"foo.bar": {Name: "foo.bar", Type: database_common.BaseType{Name: "Boolean"}},
 		},
 	})
-	tableMap.Store("logs-3", &clickhouse.Table{
+	tableMap.Store("logs-3", &database_common.Table{
 		Name: "logs-3",
-		Cols: map[string]*clickhouse.Column{
-			"foo.bar": {Name: "foo.bar", Type: clickhouse.BaseType{Name: "Boolean"}},
+		Cols: map[string]*database_common.Column{
+			"foo.bar": {Name: "foo.bar", Type: database_common.BaseType{Name: "Boolean"}},
 		},
 	})
 	resp, err := handleFieldCapsIndex(

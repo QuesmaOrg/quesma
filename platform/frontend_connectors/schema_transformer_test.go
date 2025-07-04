@@ -6,6 +6,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
@@ -50,11 +51,11 @@ func TestApplyTimestampField(t *testing.T) {
 		Fields: fields,
 	}
 
-	tableMap := clickhouse.NewTableMap()
-	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableMap := database_common.NewTableMap()
+	tableDiscovery := database_common.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 
-	tableMap.Store("test", &clickhouse.Table{
+	tableMap.Store("test", &database_common.Table{
 		Name: "test",
 		DiscoveredTimestampFieldName: func() *string {
 			field := "discovered_timestamp"
@@ -160,12 +161,12 @@ func Test_ipRangeTransform(t *testing.T) {
 		IndexConfig: indexConfig,
 	}
 
-	tableMap := clickhouse.NewTableMap()
+	tableMap := database_common.NewTableMap()
 
-	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery := database_common.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 	for indexName := range indexConfig {
-		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+		tableMap.Store(indexName, database_common.NewEmptyTable(indexName))
 	}
 
 	tableProvider :=
@@ -185,7 +186,7 @@ func Test_ipRangeTransform(t *testing.T) {
 		{
 			TableName: "kibana_sample_data_logs_nested", FieldName: "nested.clientip"}: "nested_clientip",
 	}
-	s := schema.NewSchemaRegistry(tableProvider, &cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableProvider, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 	s.Start()
 	defer s.Stop()
 	transform := NewSchemaCheckPass(&cfg, tableDiscovery, defaultSearchAfterStrategy)
@@ -537,12 +538,12 @@ func Test_arrayType(t *testing.T) {
 		Fields: fields,
 	}
 
-	tableMap := clickhouse.NewTableMap()
+	tableMap := database_common.NewTableMap()
 
-	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery := database_common.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 	for indexName := range indexConfig {
-		tableMap.Store(indexName, clickhouse.NewEmptyTable(indexName))
+		tableMap.Store(indexName, database_common.NewEmptyTable(indexName))
 	}
 
 	transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, tableDiscovery, defaultSearchAfterStrategy)
@@ -859,7 +860,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 					"daily-": "true",
 				}}}}
 
-	lm := clickhouse.NewLogManagerEmpty()
+	lm := database_common.NewLogManagerEmpty()
 
 	tableDiscovery :=
 		fixedTableProvider{tables: map[string]schema.Table{
@@ -870,13 +871,13 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 			}},
 		}}
 
-	tableDefinition := clickhouse.Table{
+	tableDefinition := database_common.Table{
 		Name:   "test",
-		Config: clickhouse.NewDefaultCHConfig(),
-		Cols: map[string]*clickhouse.Column{
-			"a": {Name: "a", Type: clickhouse.NewBaseType("Array(String)")},
-			"b": {Name: "b", Type: clickhouse.NewBaseType("Array(Int64)")},
-			"c": {Name: "c", Type: clickhouse.NewBaseType("Array(String)")},
+		Config: database_common.NewDefaultCHConfig(),
+		Cols: map[string]*database_common.Column{
+			"a": {Name: "a", Type: database_common.NewBaseType("Array(String)")},
+			"b": {Name: "b", Type: database_common.NewBaseType("Array(Int64)")},
+			"c": {Name: "c", Type: database_common.NewBaseType("Array(String)")},
 		},
 	}
 
@@ -886,7 +887,7 @@ func TestApplyPhysicalFromExpression(t *testing.T) {
 	}
 	td.Store(tableDefinition.Name, &tableDefinition)
 
-	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 	s.Start()
 	defer s.Stop()
 	transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
@@ -1216,7 +1217,7 @@ func TestFullTextFields(t *testing.T) {
 				IndexConfig: indexConfig,
 			}
 
-			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
 			transform := NewSchemaCheckPass(&config.QuesmaConfiguration{IndexConfig: indexConfig}, nil, defaultSearchAfterStrategy)
@@ -1400,7 +1401,7 @@ func Test_applyMatchOperator(t *testing.T) {
 					FromClause: model.NewTableRef("test"),
 					Columns:    []model.Expr{model.NewColumnRef("message")},
 					WhereClause: model.NewInfixExpr(
-						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral("'warsaw'")),
+						model.NewArrayAccess(model.NewColumnRef(database_common.AttributesValuesColumn), model.NewLiteral("'warsaw'")),
 						model.MatchOperator,
 						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
 					),
@@ -1412,7 +1413,7 @@ func Test_applyMatchOperator(t *testing.T) {
 					FromClause: model.NewTableRef("test"),
 					Columns:    []model.Expr{model.NewColumnRef("message")},
 					WhereClause: model.NewInfixExpr(
-						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesValuesColumn), model.NewLiteral("'warsaw'")),
+						model.NewArrayAccess(model.NewColumnRef(database_common.AttributesValuesColumn), model.NewLiteral("'warsaw'")),
 						"ILIKE",
 						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
 					),
@@ -1427,7 +1428,7 @@ func Test_applyMatchOperator(t *testing.T) {
 					FromClause: model.NewTableRef("test"),
 					Columns:    []model.Expr{model.NewColumnRef("message")},
 					WhereClause: model.NewInfixExpr(
-						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesMetadataColumn), model.NewLiteral("'warsaw'")),
+						model.NewArrayAccess(model.NewColumnRef(database_common.AttributesMetadataColumn), model.NewLiteral("'warsaw'")),
 						model.MatchOperator,
 						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
 					),
@@ -1439,7 +1440,7 @@ func Test_applyMatchOperator(t *testing.T) {
 					FromClause: model.NewTableRef("test"),
 					Columns:    []model.Expr{model.NewColumnRef("message")},
 					WhereClause: model.NewInfixExpr(
-						model.NewArrayAccess(model.NewColumnRef(clickhouse.AttributesMetadataColumn), model.NewLiteral("'warsaw'")),
+						model.NewArrayAccess(model.NewColumnRef(database_common.AttributesMetadataColumn), model.NewLiteral("'warsaw'")),
 						"ILIKE",
 						model.NewLiteralWithEscapeType("needle", model.NotEscapedLikeFull),
 					),
@@ -1490,7 +1491,7 @@ func Test_applyMatchOperator(t *testing.T) {
 				IndexConfig: indexConfig,
 			}
 
-			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
 
@@ -1593,7 +1594,7 @@ func Test_checkAggOverUnsupportedType(t *testing.T) {
 				IndexConfig: indexConfig,
 			}
 
-			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
 			transform := NewSchemaCheckPass(&cfg, nil, defaultSearchAfterStrategy)
@@ -1631,18 +1632,18 @@ func Test_mapKeys(t *testing.T) {
 		Fields: fields,
 	}
 
-	tableMap := clickhouse.NewTableMap()
+	tableMap := database_common.NewTableMap()
 
-	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery := database_common.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 	for indexName := range indexConfig {
-		tab := &clickhouse.Table{
+		tab := &database_common.Table{
 			Name:   indexName,
-			Config: clickhouse.NewDefaultCHConfig(),
-			Cols: map[string]*clickhouse.Column{
+			Config: database_common.NewDefaultCHConfig(),
+			Cols: map[string]*database_common.Column{
 				"foo": {
 					Name: "foo",
-					Type: clickhouse.NewBaseType("Map(String, Nullable(String))"),
+					Type: database_common.NewBaseType("Map(String, Nullable(String))"),
 				},
 			},
 		}
@@ -1826,12 +1827,12 @@ func Test_cluster(t *testing.T) {
 		Fields: fields,
 	}
 
-	tableMap := clickhouse.NewTableMap()
+	tableMap := database_common.NewTableMap()
 
-	tableDiscovery := clickhouse.NewEmptyTableDiscovery()
+	tableDiscovery := database_common.NewEmptyTableDiscovery()
 	tableDiscovery.TableMap = tableMap
 	for indexName := range indexConfig {
-		table := clickhouse.NewEmptyTable(indexName)
+		table := database_common.NewEmptyTable(indexName)
 		table.ExistsOnAllNodes = true
 		tableMap.Store(indexName, table)
 	}
@@ -2118,21 +2119,21 @@ func Test_acceptIntsAsTimestamps(t *testing.T) {
 				"test": {},
 			})
 
-			tableMap := clickhouse.NewTableMap()
+			tableMap := database_common.NewTableMap()
 
 			// timestampInt is datetime in schema (and Quesma config), UInt64 in Clickhouse
-			tab := clickhouse.Table{
+			tab := database_common.Table{
 				Name:   "test",
-				Config: clickhouse.NewChTableConfigTimestampStringAttr(),
-				Cols: map[string]*clickhouse.Column{
-					"timestampInt": {Name: "timestampInt", Type: clickhouse.NewBaseType("UInt32")},
+				Config: database_common.NewChTableConfigTimestampStringAttr(),
+				Cols: map[string]*database_common.Column{
+					"timestampInt": {Name: "timestampInt", Type: database_common.NewBaseType("UInt32")},
 				},
 			}
 			tableMap.Store("test", &tab)
-			td := clickhouse.NewEmptyTableDiscovery()
+			td := database_common.NewEmptyTableDiscovery()
 			td.TableMap = tableMap
 
-			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
 			transform := NewSchemaCheckPass(&cfg, td, defaultSearchAfterStrategy)

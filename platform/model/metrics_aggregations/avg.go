@@ -4,16 +4,16 @@ package metrics_aggregations
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 )
 
 type Avg struct {
 	ctx       context.Context
-	fieldType clickhouse.DateTimeType
+	fieldType database_common.DateTimeType
 }
 
-func NewAvg(ctx context.Context, fieldType clickhouse.DateTimeType) Avg {
+func NewAvg(ctx context.Context, fieldType database_common.DateTimeType) Avg {
 	return Avg{ctx: ctx, fieldType: fieldType}
 }
 

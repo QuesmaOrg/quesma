@@ -5,9 +5,9 @@ package table_resolver
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/recovery"
@@ -110,7 +110,7 @@ type tableRegistryImpl struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	tableDiscovery clickhouse.TableDiscovery
+	tableDiscovery database_common.TableDiscovery
 	indexManager   elasticsearch.IndexManagement
 
 	elasticIndexes    map[string]table
@@ -154,7 +154,7 @@ func (r *tableRegistryImpl) updateIndexes() {
 	tableMap := r.tableDiscovery.TableDefinitions()
 	clickhouseIndexes := make(map[string]table)
 
-	tableMap.Range(func(name string, tableDef *clickhouse.Table) bool {
+	tableMap.Range(func(name string, tableDef *database_common.Table) bool {
 		if name == common_table.TableName {
 			return true
 		}
@@ -282,7 +282,7 @@ func (r *tableRegistryImpl) Pipelines() []string {
 	return res
 }
 
-func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery clickhouse.TableDiscovery, elasticResolver elasticsearch.IndexManagement) TableResolver {
+func NewTableResolver(quesmaConf config.QuesmaConfiguration, discovery database_common.TableDiscovery, elasticResolver elasticsearch.IndexManagement) TableResolver {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	indexConf := quesmaConf.IndexConfig

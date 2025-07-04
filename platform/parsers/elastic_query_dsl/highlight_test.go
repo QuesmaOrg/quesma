@@ -4,7 +4,7 @@ package elastic_query_dsl
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/goccy/go-json"
@@ -92,18 +92,18 @@ func TestParseHighLight(t *testing.T) {
 }
 
 `
-	col := clickhouse.Column{
+	col := database_common.Column{
 		Name: columnName,
-		Type: clickhouse.NewBaseType("String"),
+		Type: database_common.NewBaseType("String"),
 	}
 
-	cols := make(map[string]*clickhouse.Column)
+	cols := make(map[string]*database_common.Column)
 	cols[columnName] = &col
 
-	table := clickhouse.Table{
+	table := database_common.Table{
 		Name:   "test",
 		Cols:   cols,
-		Config: clickhouse.NewDefaultCHConfig(),
+		Config: database_common.NewDefaultCHConfig(),
 	}
 
 	cw := ClickhouseQueryTranslator{

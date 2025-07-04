@@ -3,8 +3,8 @@
 package ingest
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
@@ -14,15 +14,15 @@ import (
 )
 
 func TestAlterTable(t *testing.T) {
-	chConfig := &clickhouse.ChTableConfig{
+	chConfig := &database_common.ChTableConfig{
 		HasTimestamp:         true,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(timestamp)",
 		PrimaryKey:           "",
 		Ttl:                  "",
-		Attributes: []clickhouse.Attribute{
-			clickhouse.NewDefaultStringAttribute(),
+		Attributes: []database_common.Attribute{
+			database_common.NewDefaultStringAttribute(),
 		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
@@ -40,9 +40,9 @@ func TestAlterTable(t *testing.T) {
 		"ALTER TABLE \"tableName\" ADD COLUMN IF NOT EXISTS \"Test2\" Nullable(Int64)",
 	}
 	columns := []string{"Test1", "Test2"}
-	table := &clickhouse.Table{
+	table := &database_common.Table{
 		Name:   "tableName",
-		Cols:   map[string]*clickhouse.Column{},
+		Cols:   map[string]*database_common.Column{},
 		Config: chConfig,
 	}
 	fieldsMap := util.NewSyncMapWith("tableName", table)
@@ -72,15 +72,15 @@ func TestAlterTable(t *testing.T) {
 }
 
 func TestAlterTableHeuristic(t *testing.T) {
-	chConfig := &clickhouse.ChTableConfig{
+	chConfig := &database_common.ChTableConfig{
 		HasTimestamp:         true,
 		TimestampDefaultsNow: true,
 		Engine:               "MergeTree",
 		OrderBy:              "(timestamp)",
 		PrimaryKey:           "",
 		Ttl:                  "",
-		Attributes: []clickhouse.Attribute{
-			clickhouse.NewDefaultStringAttribute(),
+		Attributes: []database_common.Attribute{
+			database_common.NewDefaultStringAttribute(),
 		},
 		CastUnsupportedAttrValueTypesToString: true,
 		PreferCastingToOthers:                 true,
@@ -103,9 +103,9 @@ func TestAlterTableHeuristic(t *testing.T) {
 
 	for _, tc := range testcases {
 		const tableName = "tableName"
-		table := &clickhouse.Table{
+		table := &database_common.Table{
 			Name:   tableName,
-			Cols:   map[string]*clickhouse.Column{},
+			Cols:   map[string]*database_common.Column{},
 			Config: chConfig,
 		}
 		fieldsMap := util.NewSyncMapWith(tableName, table)

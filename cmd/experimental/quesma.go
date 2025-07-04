@@ -5,8 +5,8 @@ package main
 import (
 	"context"
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/ingest"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/recovery"
@@ -45,8 +45,8 @@ func (q *Quesma) Start() {
 }
 
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent,
-	logManager *clickhouse.LogManager, ingestProcessor *ingest.IngestProcessor,
-	schemaLoader clickhouse.TableDiscovery,
+	logManager *database_common.LogManager, ingestProcessor *ingest.IngestProcessor,
+	schemaLoader database_common.TableDiscovery,
 	schemaRegistry schema.Registry, config *config.QuesmaConfiguration,
 	quesmaManagementConsole *ui.QuesmaManagementConsole,
 	abResultsRepository ab_testing.Sender, resolver table_resolver.TableResolver) *Quesma {

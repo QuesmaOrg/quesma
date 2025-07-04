@@ -265,7 +265,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
-			s := schema.NewSchemaRegistry(tt.tableDiscovery, &tt.cfg, clickhouse.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tt.tableDiscovery, &tt.cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 			s.Start()
 			defer s.Stop()
 
@@ -304,7 +304,7 @@ func Test_schemaRegistry_UpdateDynamicConfiguration(t *testing.T) {
 		}},
 	}}
 
-	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, &cfg, clickhouse.ClickhouseSchemaTypeAdapter{})
 	s.Start()
 	defer s.Stop()
 

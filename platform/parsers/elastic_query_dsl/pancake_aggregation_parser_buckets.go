@@ -6,7 +6,7 @@ package elastic_query_dsl
 import (
 	"fmt"
 	"github.com/H0llyW00dzZ/cidr"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/bucket_aggregations"
@@ -140,7 +140,7 @@ func (cw *ClickhouseQueryTranslator) parseDateHistogram(aggregation *pancakeAggr
 	interval, intervalType := cw.extractInterval(params)
 	// TODO  GetDateTimeTypeFromExpr can be moved and it should take cw.Schema as an argument
 
-	if dateTimeType == clickhouse.Invalid {
+	if dateTimeType == database_common.Invalid {
 		logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
 	}
 

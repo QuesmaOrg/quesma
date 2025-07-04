@@ -9,6 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/table_resolver"
@@ -24,7 +25,7 @@ func TestIngestToCommonTable(t *testing.T) {
 
 	tests := []struct {
 		name                   string
-		alreadyExistingColumns []*clickhouse.Column // list of columns that exists in the common table and virtual table
+		alreadyExistingColumns []*database_common.Column // list of columns that exists in the common table and virtual table
 		documents              []types.JSON
 		expectedStatements     []string
 		virtualTableColumns    []string
@@ -73,8 +74,8 @@ func TestIngestToCommonTable(t *testing.T) {
 		},
 		{
 			name: "simple inserts, column exists, but not ingested",
-			alreadyExistingColumns: []*clickhouse.Column{
-				{Name: "a", Type: clickhouse.BaseType{Name: "String"}},
+			alreadyExistingColumns: []*database_common.Column{
+				{Name: "a", Type: database_common.BaseType{Name: "String"}},
 			},
 			documents: []types.JSON{
 				{"foo": "bar"},
@@ -93,8 +94,8 @@ func TestIngestToCommonTable(t *testing.T) {
 		},
 		{
 			name: "ingest to existing column",
-			alreadyExistingColumns: []*clickhouse.Column{
-				{Name: "a", Type: clickhouse.BaseType{Name: "String"}},
+			alreadyExistingColumns: []*database_common.Column{
+				{Name: "a", Type: database_common.BaseType{Name: "String"}},
 			},
 			documents: []types.JSON{
 				{"a": "bar"},
@@ -106,8 +107,8 @@ func TestIngestToCommonTable(t *testing.T) {
 		},
 		{
 			name: "ingest to existing column and new column",
-			alreadyExistingColumns: []*clickhouse.Column{
-				{Name: "a", Type: clickhouse.BaseType{Name: "String"}},
+			alreadyExistingColumns: []*database_common.Column{
+				{Name: "a", Type: database_common.BaseType{Name: "String"}},
 			},
 			documents: []types.JSON{
 				{"a": "bar", "b": "baz"},
@@ -122,7 +123,7 @@ func TestIngestToCommonTable(t *testing.T) {
 		},
 		{
 			name:                   "ingest to name with a dot",
-			alreadyExistingColumns: []*clickhouse.Column{},
+			alreadyExistingColumns: []*database_common.Column{},
 			documents: []types.JSON{
 				{"a.b": "c"},
 			},
@@ -151,24 +152,24 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			tables := NewTableMap()
 
-			quesmaCommonTable := &clickhouse.Table{
+			quesmaCommonTable := &database_common.Table{
 				Name: common_table.TableName,
-				Cols: map[string]*clickhouse.Column{
+				Cols: map[string]*database_common.Column{
 					"@timestmap": {
 						Name: "@timestamp",
-						Type: clickhouse.BaseType{Name: "DateTime64"},
+						Type: database_common.BaseType{Name: "DateTime64"},
 					},
 					common_table.IndexNameColumn: {
 						Name: common_table.IndexNameColumn,
-						Type: clickhouse.BaseType{Name: "String"},
+						Type: database_common.BaseType{Name: "String"},
 					},
-					clickhouse.AttributesValuesColumn: {
-						Name: clickhouse.AttributesValuesColumn,
-						Type: clickhouse.BaseType{Name: "Map(String, String)"},
+					database_common.AttributesValuesColumn: {
+						Name: database_common.AttributesValuesColumn,
+						Type: database_common.BaseType{Name: "Map(String, String)"},
 					},
-					clickhouse.AttributesMetadataColumn: {
-						Name: clickhouse.AttributesMetadataColumn,
-						Type: clickhouse.BaseType{Name: "Map(String, String)"},
+					database_common.AttributesMetadataColumn: {
+						Name: database_common.AttributesMetadataColumn,
+						Type: database_common.BaseType{Name: "Map(String, String)"},
 					},
 				},
 				Config: NewDefaultCHConfig(),
@@ -188,8 +189,8 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			virtualTableStorage := persistence.NewStaticJSONDatabase()
 
-			tableDisco := clickhouse.NewTableDiscovery(quesmaConfig, db, virtualTableStorage)
-			schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, quesmaConfig, clickhouse.SchemaTypeAdapter{})
+			tableDisco := database_common.NewTableDiscovery(quesmaConfig, db, virtualTableStorage)
+			schemaRegistry := schema.NewSchemaRegistry(database_common.TableDiscoveryTableProviderAdapter{TableDiscovery: tableDisco}, quesmaConfig, clickhouse.ClickhouseSchemaTypeAdapter{})
 			schemaRegistry.Start()
 			defer schemaRegistry.Stop()
 
@@ -215,9 +216,9 @@ func TestIngestToCommonTable(t *testing.T) {
 
 			if len(tt.alreadyExistingColumns) > 0 {
 
-				testTable := &clickhouse.Table{
+				testTable := &database_common.Table{
 					Name:         indexName,
-					Cols:         map[string]*clickhouse.Column{},
+					Cols:         map[string]*database_common.Column{},
 					Config:       NewDefaultCHConfig(),
 					VirtualTable: true,
 				}

@@ -5,9 +5,9 @@ package field_capabilities
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch/elasticsearch_field_types"
 	"github.com/QuesmaOrg/quesma/platform/errors"
@@ -103,7 +103,7 @@ func EmptyFieldCapsResponse() []byte {
 	}
 }
 
-func HandleFieldCaps(ctx context.Context, cfg map[string]config.IndexConfiguration, schemaRegistry schema.Registry, index string, lm clickhouse.LogManagerIFace) ([]byte, error) {
+func HandleFieldCaps(ctx context.Context, cfg map[string]config.IndexConfiguration, schemaRegistry schema.Registry, index string, lm database_common.LogManagerIFace) ([]byte, error) {
 	indexes, err := lm.ResolveIndexPattern(ctx, schemaRegistry, index)
 	if err != nil {
 		return nil, err

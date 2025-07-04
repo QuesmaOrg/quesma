@@ -4,7 +4,7 @@ package elastic_query_dsl
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/typical_queries"
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl/query_util"
@@ -77,7 +77,7 @@ func TestSearchResponse(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), Schema: s.Tables["test"]}
+	cw := ClickhouseQueryTranslator{Table: &database_common.Table{Name: "test"}, Ctx: context.Background(), Schema: s.Tables["test"]}
 	searchResp, err := cw.MakeAsyncSearchResponse(row, &model.Query{Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 	require.NoError(t, err)
 	searchRespBuf, err2 := searchResp.Marshal()
@@ -176,7 +176,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 			},
 		},
 	}
-	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), Schema: s.Tables["test"]}
+	cw := ClickhouseQueryTranslator{Table: &database_common.Table{Name: "test"}, Ctx: context.Background(), Schema: s.Tables["test"]}
 	for i, tt := range args {
 		t.Run(util.PrettyTestName(tt.queryType.String(), i), func(t *testing.T) {
 			hitQuery := query_util.BuildHitsQuery(
@@ -203,7 +203,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 }
 
 func TestMakeResponseAsyncSearchQuery(t *testing.T) {
-	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
+	cw := ClickhouseQueryTranslator{Table: &database_common.Table{Name: "test"}, Ctx: context.Background()}
 	var args = []struct {
 		elasticResponseJson string
 		ourQueryResult      []model.QueryResultRow
@@ -436,7 +436,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 // tests MakeSearchResponse, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
 func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
-	cw := ClickhouseQueryTranslator{Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
+	cw := ClickhouseQueryTranslator{Table: database_common.NewEmptyTable("@"), Ctx: context.Background()}
 	const limit = 1000
 	queries := []*model.Query{
 		cw.BuildNRowsQuery([]string{"*"}, &model.SimpleQuery{}, model.HitsCountInfo{Size: limit}),

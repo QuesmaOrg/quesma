@@ -4,7 +4,7 @@ package elastic_query_dsl
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/metrics_aggregations"
@@ -17,24 +17,24 @@ const keyedDefaultValuePercentileRanks = true
 
 type metricsAggregation struct {
 	AggrType            string
-	Fields              []model.Expr            // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
-	OrderBy             []model.OrderByExpr     // only for top_hits
-	FieldType           clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
-	Percentiles         map[string]float64      // Only for percentiles and percentile_ranks aggregation
-	Keyed               bool                    // Only for percentiles aggregation
-	CutValues           []string                // Only for percentile_ranks
-	SortBy              string                  // Only for top_metrics
-	Size                int                     // Only for top_metrics
-	Order               string                  // Only for top_metrics
-	IsFieldNameCompound bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
-	sigma               float64                 // only for standard deviation
-	unit                string                  // only for rate
-	mode                string                  // only for rate
+	Fields              []model.Expr                 // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	OrderBy             []model.OrderByExpr          // only for top_hits
+	FieldType           database_common.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
+	Percentiles         map[string]float64           // Only for percentiles and percentile_ranks aggregation
+	Keyed               bool                         // Only for percentiles aggregation
+	CutValues           []string                     // Only for percentile_ranks
+	SortBy              string                       // Only for top_metrics
+	Size                int                          // Only for top_metrics
+	Order               string                       // Only for top_metrics
+	IsFieldNameCompound bool                         // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
+	sigma               float64                      // only for standard deviation
+	unit                string                       // only for rate
+	mode                string                       // only for rate
 }
 
 type aggregationParser = func(queryMap QueryMap) (model.QueryType, error)
 
-const metricsAggregationDefaultFieldType = clickhouse.Invalid
+const metricsAggregationDefaultFieldType = database_common.Invalid
 
 // Tries to parse metrics aggregation from queryMap. If it's not a metrics aggregation, returns false.
 func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (metricAggregation metricsAggregation, success bool) {

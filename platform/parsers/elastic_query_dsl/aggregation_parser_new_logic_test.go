@@ -5,7 +5,7 @@ package elastic_query_dsl
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/testdata"
@@ -21,16 +21,16 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 	t.Skip("Skip for now. Wait for a new implementation.")
 
 	// logger.InitSimpleLoggerForTests()
-	table := clickhouse.Table{
-		Cols: map[string]*clickhouse.Column{
-			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
-			"order_date":  {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
-			"message":     {Name: "message", Type: clickhouse.NewBaseType("String")},
-			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
+	table := database_common.Table{
+		Cols: map[string]*database_common.Column{
+			"@timestamp":  {Name: "@timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"timestamp":   {Name: "timestamp", Type: database_common.NewBaseType("DateTime64")},
+			"order_date":  {Name: "order_date", Type: database_common.NewBaseType("DateTime64")},
+			"message":     {Name: "message", Type: database_common.NewBaseType("String")},
+			"bytes_gauge": {Name: "bytes_gauge", Type: database_common.NewBaseType("UInt64")},
 		},
 		Name:   tableName,
-		Config: clickhouse.NewDefaultCHConfig(),
+		Config: database_common.NewDefaultCHConfig(),
 	}
 
 	s := schema.StaticRegistry{

@@ -3,11 +3,11 @@
 package connectors
 
 import (
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 )
 
 type ClickHouseOSConnector struct {
-	Connector *clickhouse.LogManager
+	Connector *database_common.LogManager
 }
 
 const clickHouseOSConnectorTypeName = "clickhouse-os"
@@ -15,8 +15,8 @@ const clickHouseOSConnectorTypeName = "clickhouse-os"
 func (c *ClickHouseOSConnector) LicensingCheck() error {
 	checksCount := 2
 	errChan := make(chan error, checksCount)
-	go func() { errChan <- c.Connector.CheckIfConnectedPaidService(clickhouse.CHCloudServiceName) }()
-	go func() { errChan <- c.Connector.CheckIfConnectedPaidService(clickhouse.HydrolixServiceName) }()
+	go func() { errChan <- c.Connector.CheckIfConnectedPaidService(database_common.CHCloudServiceName) }()
+	go func() { errChan <- c.Connector.CheckIfConnectedPaidService(database_common.HydrolixServiceName) }()
 	for i := 0; i < checksCount; i++ {
 		if err := <-errChan; err != nil {
 			return err
@@ -29,6 +29,6 @@ func (c *ClickHouseOSConnector) Type() string {
 	return clickHouseOSConnectorTypeName
 }
 
-func (c *ClickHouseOSConnector) GetConnector() *clickhouse.LogManager {
+func (c *ClickHouseOSConnector) GetConnector() *database_common.LogManager {
 	return c.Connector
 }

@@ -5,7 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/clickhouse"
+	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/elasticsearch"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/stats"
@@ -69,7 +69,7 @@ func configureRouting() *http.ServeMux {
 		}
 
 		if !elasticsearch.IsInternalIndex(index) {
-			stats.GlobalStatistics.Process(false, index, jsonBody, clickhouse.NestedSeparator)
+			stats.GlobalStatistics.Process(false, index, jsonBody, database_common.NestedSeparator)
 		}
 	}))
 
@@ -87,7 +87,7 @@ func configureRouting() *http.ServeMux {
 		}
 
 		if !elasticsearch.IsInternalIndex(index) {
-			stats.GlobalStatistics.Process(false, index, jsonBody, clickhouse.NestedSeparator)
+			stats.GlobalStatistics.Process(false, index, jsonBody, database_common.NestedSeparator)
 		}
 	}))
 
@@ -112,7 +112,7 @@ func configureRouting() *http.ServeMux {
 			}
 
 			if !elasticsearch.IsInternalIndex(index) {
-				stats.GlobalStatistics.Process(false, index, document, clickhouse.NestedSeparator)
+				stats.GlobalStatistics.Process(false, index, document, database_common.NestedSeparator)
 			}
 			return nil
 		})
