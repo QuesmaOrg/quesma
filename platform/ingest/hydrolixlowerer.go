@@ -15,7 +15,7 @@ import (
 
 type HydrolixLowerer struct {
 	virtualTableStorage persistence.JSONDatabase
-	ingestCounter       int64
+	ingestCounter       atomic.Int64
 }
 
 func NewHydrolixLowerer(virtualTableStorage persistence.JSONDatabase) *HydrolixLowerer {
@@ -51,7 +51,7 @@ func (ip *HydrolixLowerer) GenerateIngestContent(table *chLib.Table,
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
 	var alterStatements []AlterStatement
-	atomic.AddInt64(&ip.ingestCounter, 1)
+	ip.ingestCounter.Add(1)
 	//if ok, alteredAttributesIndexes := ip.shouldAlterColumns(table, attrsMap); ok {
 	//	alterStatements = ip.generateNewColumns(attrsMap, table, alteredAttributesIndexes, encodings)
 	//}
