@@ -338,13 +338,16 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	// when our generated ID appears in query looks like this:
 	// `<hex-encoded timestamp>qqq<hex-encoded source hash>`
 	// Therefore we need to convert the hex-encoded timestamp to assemble the SQL query
+	fmt.Println("KK ids:", ids)
 	for i, id := range ids {
 		idInHex := strings.Split(id, uuidSeparator)[0]
 		if idAsStr, err := hex.DecodeString(idInHex); err != nil {
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
 			return model.NewSimpleQueryInvalid()
 		} else {
+			fmt.Println("KK idAsStr", string(idAsStr))
 			tsWithoutTZ := strings.TrimSuffix(string(idAsStr), " +0000 UTC")
+			fmt.Println("KK idAsStrTrimmed", string(tsWithoutTZ))
 			ids[i] = fmt.Sprintf("'%s'", tsWithoutTZ)
 		}
 		uniqueIds = append(uniqueIds, id)
@@ -362,7 +365,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		switch column.Type.String() {
 		case database_common.DateTime64.String():
 			idToSql = func(id string) (model.Expr, error) {
-				precision, success := 9, true //util.FindTimestampPrecision(id[1 : len(id)-1]) // strip quotes added above
+				precision, success := util.FindTimestampPrecision(id[1 : len(id)-1]) // strip quotes added above
 				if !success {
 					return nil, fmt.Errorf("invalid timestamp format: %s", id)
 				}
