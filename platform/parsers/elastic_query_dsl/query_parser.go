@@ -342,13 +342,29 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	for i, id := range ids {
 		idInHex := strings.Split(id, uuidSeparator)[0]
 		if idAsStr, err := hex.DecodeString(idInHex); err != nil {
-			logger.Error().Msgf("error parsing document id %s: %v", id, err)
+			logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing document id %s: %v", id, err)
 			return model.NewSimpleQueryInvalid()
 		} else {
 			fmt.Println("KK idAsStr", string(idAsStr))
+			// Before:
 			tsWithoutTZ := strings.TrimSuffix(string(idAsStr), " +0000 UTC")
-			fmt.Println("KK idAsStrTrimmed", string(tsWithoutTZ))
+			//
+			// Now we stop trimming, instead parse the date ourselves, and then output in UTC.
+			fmt.Println("KK idAsStrTrimmed", tsWithoutTZ)
 			ids[i] = fmt.Sprintf("'%s'", tsWithoutTZ)
+
+			dm := NewDateManager(cw.Ctx)
+
+			if tsAsTime, ok := dm.parseStrictDateOptionalTimeOrEpochMillis(string(idAsStr)); ok {
+				tsUTC := tsAsTime.UTC()
+				tsGoodFormat := tsUTC.Format("2006-01-02 15:04:05.000000000")
+				tsTrimmedNano := strings.TrimRight(tsGoodFormat, "0")
+				fmt.Println("NEW PARSER:", tsUTC, ok, "tsGoodFormat", tsGoodFormat, "trimmed", tsTrimmedNano)
+				ids[i] = fmt.Sprintf("'%s'", tsTrimmedNano)
+			} else {
+				logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing document id %s:, idAsStr: %v", id, idAsStr)
+				return model.NewSimpleQueryInvalid()
+			}
 		}
 		uniqueIds = append(uniqueIds, id)
 	}

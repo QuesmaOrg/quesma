@@ -2402,7 +2402,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [44]
-		"ids, 1 value, different DateTime format: with timezone",
+		"ids, 1 value, different DateTime format: with timezone, precision: 3",
 		`{
 			"query": {
 				"ids": {
@@ -2411,17 +2411,17 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3)`},
+		[]string{`"@timestamp" = toDateTime64('2025-07-04 13:32:43.377',3)`},
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3) ` +
+				`WHERE "@timestamp" = toDateTime64('2025-07-04 13:32:43.377',3) ` +
 				`LIMIT 10`,
 		},
 		[]string{},
 	},
-	{ // [44]
+	{ // [45]
 		"ids, 2+ values",
 		`{
 			"query": {
@@ -2444,7 +2444,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [45]
+	{ // [46]
 		"ids with DateTime64(9) (trailing zeroes)",
 		`{
 			"query": {
@@ -2454,12 +2454,12 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.367000000',9)`},
+		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3)`},
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.367000000',9) ` +
+				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3) ` +
 				`LIMIT 10000`,
 		},
 		[]string{},
@@ -2494,12 +2494,13 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03',0)`},
+		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.',0)`},
+		// dot at the end doesn't matter - CH accepts it exactly like it wasn't there
 		model.ListAllFields,
 		[]string{
 			`SELECT "message" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03',0) ` +
+				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.',0) ` +
 				`LIMIT 10000`,
 		},
 		[]string{},
