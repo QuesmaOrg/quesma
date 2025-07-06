@@ -60,8 +60,3 @@ func TestDateManager_parseStrictDateOptionalTimeOrEpochMillis(t *testing.T) {
 		})
 	}
 }
-
-func Test123(t *testing.T) {
-	a, err := time.Parse("2006-01-02 15:04:05 -0700 MST", "2025-06-16 12:59:59 +0200 CEST")
-	fmt.Println(a, err)
-}
