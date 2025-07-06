@@ -14,6 +14,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/util"
+	"github.com/k0kubun/pp"
 	"reflect"
 	"sort"
 	"strconv"
@@ -59,6 +60,8 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 
 	hits := make([]model.SearchHit, 0, len(rows))
 
+	logger.Warn().Msgf("Query Hits: %v", rows)
+
 	lookForCommonTableIndexColumn := true
 
 	for i, row := range rows {
@@ -89,9 +92,6 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 		if query.addVersion {
 			hit.Version = defaultVersion
 		}
-		if query.addSource {
-			hit.Source = []byte(rows[i].String(query.ctx))
-		}
 		query.addAndHighlightHit(&hit, &row)
 
 		hit.ID = query.computeIdForDocument(hit, strconv.Itoa(i+1))
@@ -104,8 +104,30 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 				logger.WarnWithCtx(query.ctx).Msgf("field %s not found in fields", fieldName)
 			}
 		}
+
+		// removeEmptyStringFields should be optional
+		// (@trzysiek) I think it's best to not enable it by default, but only when
+		// there's flag for it set in config to true
+		//
+		// If it's enabled, it should be at the end of our translation,
+		// to not have to worry about e.g. sort working properly
+		const removeEmptyStringFieldsInHitsQuery = true
+		if removeEmptyStringFieldsInHitsQuery {
+			query.removeEmptyStringFields(&hit)
+		}
+
+		// `Source` should be filled at the end, as surprisingly Kibana displays hits
+		// from `Source` field, and not from `Fields`.
+		// So e.g. if we want to filter out empty strings, like above, we need to fill `Source` afterwards.
+		if query.addSource {
+			hit.Source = []byte(query.hitToString(&row, &hit))
+		}
+
+		fmt.Println("&&& po remove2: ", hit.Fields)
 		hits = append(hits, hit)
 	}
+
+	pp.Println(hits)
 
 	return model.JsonMap{
 		"hits": model.SearchHits{
@@ -126,10 +148,11 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow) model.
 func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.QueryResultRow) {
 	toProperType := func(val interface{}) any {
 		v := reflect.ValueOf(val)
+		fmt.Println("KK toProperType1 val:", val, "v: ", v)
 		if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
 			return val
 		}
-
+		fmt.Println("LL toProperType1 val:", val, "v: ", v)
 		resultArray := make([]interface{}, v.Len())
 		for i := 0; i < v.Len(); i++ {
 			resultArray[i] = v.Index(i).Interface()
@@ -223,6 +246,39 @@ func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Quer
 			hit.Fields[fieldName] = v
 		}
 	}
+
+	fmt.Println("--------------- koniec: ", hit.Fields)
+}
+
+func (query Hits) removeEmptyStringFields(hit *model.SearchHit) {
+	fieldNamesToRemove := make([]string, 0)
+	for name, val := range hit.Fields {
+		logger.Error().Msgf("KK hit field 1: %v, %v len(val): %v", name, val, len(val))
+		// we only look for simple String/*String fields, so len == 1
+		if len(val) != 1 {
+			continue
+		}
+
+		fmt.Printf("Typ: %T\n", val[0])
+
+		switch valT := val[0].(type) {
+		case string:
+			fmt.Println("???", valT == "")
+			if valT == "" {
+				fieldNamesToRemove = append(fieldNamesToRemove, name)
+			}
+		case *string:
+			if valT != nil && *valT == "" {
+				fieldNamesToRemove = append(fieldNamesToRemove, name)
+			}
+		}
+	}
+
+	for _, name := range fieldNamesToRemove {
+		fmt.Println("=== Removing ", name)
+		delete(hit.Fields, name)
+	}
+	fmt.Println("--- Po removing: ", hit.Fields)
 }
 
 func (query Hits) WithTimestampField(fieldName string) Hits {
@@ -296,6 +352,36 @@ func normalizeJSON(v interface{}) interface{} {
 	default:
 		return val
 	}
+}
+
+// More or less copy of: func (r *QueryResultRow) String(ctx context.Context) string
+// Some columns might already be excluded/removed, so we need a second implementation
+func (query Hits) hitToString(row *model.QueryResultRow, hit *model.SearchHit) string {
+	str := strings.Builder{}
+	str.WriteString(util.Indent(1) + "{\n")
+	i := 0
+	for _, col := range row.Cols {
+		// skip internal columns
+		if col.ColName == common_table.IndexNameColumn {
+			continue
+		}
+
+		// skip excluded fields
+		if _, exists := hit.Fields[col.ColName]; !exists {
+			continue
+		}
+
+		colStr := col.String(query.ctx)
+		if len(colStr) > 0 {
+			if i > 0 {
+				str.WriteString(",\n")
+			}
+			str.WriteString(util.Indent(2) + colStr)
+			i++
+		}
+	}
+	str.WriteString("\n" + util.Indent(1) + "}")
+	return str.String()
 }
 
 func (query Hits) String() string {
