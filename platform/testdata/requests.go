@@ -2402,6 +2402,28 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{},
 	},
 	{ // [44]
+		// DateTime64(3 or 9) are "normal"/standard. We check weird one like 2.
+		"ids, 1 value, different DateTime format: with timezone, precision: 2",
+		`{
+			"query": {
+				"ids": {
+					 "values": ["323032352d30372d30362030393a33383a30332e3132202b3030303020555443qqq3635363236333330333833373335333633363331333736333335333736353632363333313337333233313330363536353330333236313332363633323631333833323634333833313333333033333636333933353332333033363631333533363335333833323333363233393333333733333635333733353338333736333632"]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"@timestamp" = toDateTime64('2025-07-06 09:38:03.12',2)`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "@timestamp" = toDateTime64('2025-07-06 09:38:03.12',2) ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [45]
+		// important test, DateTime64(3) is pretty standard
 		"ids, 1 value, different DateTime format: with timezone, precision: 3",
 		`{
 			"query": {
@@ -2421,7 +2443,70 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [45]
+	{ // [46]
+		// important test, DateTime64(9) is pretty standard
+		"ids, 1 value, different DateTime format: with timezone, precision: 9",
+		`{
+			"query": {
+				"ids": {
+					 "values": ["323032352d30372d30362031303a31313a30332e313233343536373839202b3030303020555443qqq3338363633373635363433333334333333353331333936333334363336333634333836313632363136343634333633343634363433393337333333393338333933323634333533393334333936333635363333353338333233313331363436313337333533333338333133333339333933383335333033393636363633343636"]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"@timestamp" = toDateTime64('2025-07-06 10:11:03.123456789',9)`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "@timestamp" = toDateTime64('2025-07-06 10:11:03.123456789',9) ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [47]
+		// DateTime64(3 or 9) are "normal"/standard. We check weird one like 7.
+		"ids, 1 value, different DateTime format: with timezone, precision: 7",
+		`{
+			"query": {
+				"ids": {
+					 "values": ["323032352d30372d30362030393a33363a30332e32353531323336202b3030303020555443qqq3338333636363634333733363634333533363333333336363339333736343330363136323334363136343631363533333336363133313636333236323337333936313632333133323335333733363632363633313335333136323334333336333636333833373333363333343331363336313330333133363636333136353631"]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"@timestamp" = toDateTime64('2025-07-06 09:36:03.2551236',7)`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "@timestamp" = toDateTime64('2025-07-06 09:36:03.2551236',7) ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [48]
+		// DateTime64(3 or 9) are "normal"/standard. We check weird one like 7.
+		"ids, 1 value, different DateTime format: with timezone, precision: 7, but timestamp with only 1 (.1)",
+		`{
+			"query": {
+				"ids": {
+					 "values": ["323032352d30372d30362030393a33383a30332e31202b3030303020555443qqq3339333533343339333033303332333533363631333033323333333936363335333636333339363436363632333336323336363233383332333233353335363233343631363436363332363433383331363636333636333033353333333833363631333533333338333133303334333336313634333733393631363333333633"]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"@timestamp" = toDateTime64('2025-07-06 09:38:03.1',1)`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + TableName + ` ` +
+				`WHERE "@timestamp" = toDateTime64('2025-07-06 09:38:03.1',1) ` +
+				`LIMIT 10`,
+		},
+		[]string{},
+	},
+	{ // [49]
 		"ids, 2+ values",
 		`{
 			"query": {
@@ -2444,7 +2529,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [46]
+	{ // [50]
 		"ids with DateTime64(9) (trailing zeroes)",
 		`{
 			"query": {
@@ -2464,7 +2549,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [46]
+	{ // [51]
 		"ids with DateTime64(9) (no trailing zeroes)",
 		`{
 			"query": {
@@ -2484,7 +2569,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [47]
+	{ // [52]
 		"ids with DateTime64(0)",
 		`{
 			"query": {
@@ -2505,7 +2590,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [48]
+	{ // [53]
 		"ids with DateTime64(1)",
 		`{
 			"query": {
@@ -2525,7 +2610,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		},
 		[]string{},
 	},
-	{ // [49]
+	{ // [54]
 		Name: "range with int as datetime. when all query tests use transformers, expected results should be different",
 		QueryJson: `
 		{
@@ -2555,7 +2640,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 				`LIMIT 10`,
 		},
 	},
-	{ // [50]
+	{ // [55]
 		Name: "range with int not as datetime. when all query tests use transformers, expected results should be different",
 		QueryJson: `
 		{
@@ -2584,7 +2669,7 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 				`LIMIT 10`,
 		},
 	},
-	{ // [51]
+	{ // [56]
 		"_index term",
 		`{
 			"query": { /*one comment */
