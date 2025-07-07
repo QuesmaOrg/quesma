@@ -53,7 +53,7 @@ func (ct CreateTableStatement) ToSQL() string {
 	var b strings.Builder
 
 	if ct.Cluster != "" {
-		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" ON CLUSTER "%s"`+" \n(\n\n", ct.Name, ct.Cluster))
+		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" ON CLUSTER "%s"`+" \n", ct.Name, ct.Cluster))
 	} else {
 		b.WriteString(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"`, ct.Name))
 	}

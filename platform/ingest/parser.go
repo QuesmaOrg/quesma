@@ -8,7 +8,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
-	"github.com/QuesmaOrg/quesma/platform/util"
 	"slices"
 	"strings"
 )
@@ -117,24 +116,6 @@ func columnsToProperties(columnsFromJson []CreateTableEntry,
 	}
 
 	return columnProperties
-}
-
-// Rendering columns to string
-func columnPropertiesToString(columnProperties []ColumnStatement) string {
-	var result strings.Builder
-	first := true
-
-	for _, column := range columnProperties {
-		if first {
-			first = false
-		} else {
-			result.WriteString(",\n")
-		}
-		result.WriteString(util.Indent(1))
-		result.WriteString(fmt.Sprintf("\"%s\" %s '%s'", column.ColumnName, column.ColumnType+" COMMENT ", column.Comment))
-	}
-
-	return result.String()
 }
 
 func JsonToColumns(m SchemaMap, chConfig *database_common.ChTableConfig) []CreateTableEntry {

@@ -8,7 +8,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
-	"github.com/QuesmaOrg/quesma/platform/util"
 	"strconv"
 	"strings"
 )
@@ -28,48 +27,6 @@ type Table struct {
 
 	VirtualTable     bool
 	ExistsOnAllNodes bool
-}
-
-func (t *Table) createTableOurFieldsString() []string {
-	rows := make([]string, 0)
-	if t.Config.HasTimestamp {
-		_, ok := t.Cols[timestampFieldName]
-		if !ok {
-			defaultStr := ""
-			if t.Config.TimestampDefaultsNow {
-				defaultStr = " DEFAULT now64()"
-			}
-			rows = append(rows, fmt.Sprintf("%s\"%s\" DateTime64(3)%s", util.Indent(1), timestampFieldName, defaultStr))
-		}
-	}
-	if len(t.Config.Attributes) > 0 {
-		for _, a := range t.Config.Attributes {
-			_, ok := t.Cols[a.MapValueName]
-			if !ok {
-				rows = append(rows, fmt.Sprintf("%s\"%s\" Map(String,String)", util.Indent(1), a.MapValueName))
-			}
-			_, ok = t.Cols[a.MapMetadataName]
-			if !ok {
-				rows = append(rows, fmt.Sprintf("%s\"%s\" Map(String,String)", util.Indent(1), a.MapMetadataName))
-			}
-
-		}
-	}
-	return rows
-}
-
-func (t *Table) CreateTableString() string {
-	var onClusterClause string
-	if t.ClusterName != "" {
-		onClusterClause = " ON CLUSTER " + strconv.Quote(t.ClusterName)
-	}
-	s := "CREATE TABLE IF NOT EXISTS " + t.FullTableName() + onClusterClause + " (\n"
-	rows := make([]string, 0)
-	for _, col := range t.Cols {
-		rows = append(rows, col.createTableString(1))
-	}
-	rows = append(rows, t.createTableOurFieldsString()...)
-	return s + strings.Join(rows, ",\n") + "\n)\n" + t.Config.CreateTablePostFieldsString()
 }
 
 // FullTableName returns full table name with database name if it's not empty.

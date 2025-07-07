@@ -13,7 +13,6 @@ import (
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/goccy/go-json"
-	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -145,32 +144,6 @@ func TestInsertNonSchemaFields_2(t *testing.T) {
 	f(fieldsMap, emptyMap)
 }
 */
-
-func TestAddTimestamp(t *testing.T) {
-	tableConfig := &database_common.ChTableConfig{
-		HasTimestamp:                          true,
-		TimestampDefaultsNow:                  true,
-		Engine:                                "MergeTree",
-		OrderBy:                               "(@timestamp)",
-		PrimaryKey:                            "",
-		Ttl:                                   "",
-		Attributes:                            []database_common.Attribute{},
-		CastUnsupportedAttrValueTypesToString: false,
-		PreferCastingToOthers:                 false,
-	}
-	nameFormatter := DefaultColumnNameFormatter()
-	ip := newIngestProcessorEmpty()
-	ip.schemaRegistry = &schema.StaticRegistry{}
-	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
-	encodings := populateFieldEncodings([]types.JSON{jsonData}, tableName)
-
-	columnsFromJson := JsonToColumns(jsonData, tableConfig)
-
-	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter, tableName, encodings)
-	columns := columnsWithIndexes(columnPropertiesToString(columnsToProperties(columnsFromJson, columnsFromSchema, encodings, tableName)), Indexes(jsonData))
-	query := createTableQuery(tableName, columns, tableConfig)
-	assert.True(t, strings.Contains(query, timestampFieldName))
-}
 
 func TestJsonToFieldsMap(t *testing.T) {
 	mExpected := SchemaMap{
@@ -619,159 +592,6 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 	assert.Equal(t, 3, len(attrs))
 	for k := range attrs {
 		assert.Contains(t, k, "string")
-	}
-}
-
-// Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
-func TestCreateTableString_1(t *testing.T) {
-	table := database_common.Table{
-		Name: "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
-		Cols: map[string]*database_common.Column{
-			"doc": {
-				Name: "doc",
-				Type: database_common.MultiValueType{
-					Name: "Tuple",
-					Cols: []*database_common.Column{
-						{
-							Name: "Tuple",
-							Type: database_common.MultiValueType{
-								Name: "Tuple",
-								Cols: []*database_common.Column{
-									{
-										Name: "runAt",
-										Type: database_common.NewBaseType("DateTime64"),
-									},
-									{
-										Name: "startedAt",
-										Type: database_common.NewBaseType("DateTime64"),
-									},
-									{
-										Name: "Tuple",
-										Type: database_common.NewBaseType("String"),
-									},
-									{
-										Name: "status",
-										Type: database_common.NewBaseType("String"),
-									},
-								},
-							},
-						},
-						{
-							Name: "updated_at",
-							Type: database_common.NewBaseType("DateTime64"),
-						},
-					},
-				},
-			},
-			"@timestamp": {
-				Name: "@timestamp",
-				Type: database_common.NewBaseType("DateTime64"),
-			},
-		},
-		Config: &database_common.ChTableConfig{
-			HasTimestamp:         true,
-			TimestampDefaultsNow: true,
-			Engine:               "MergeTree",
-			OrderBy:              "(@timestamp)",
-			PrimaryKey:           "",
-			Ttl:                  "",
-			Attributes: []database_common.Attribute{
-				database_common.NewDefaultStringAttribute(),
-			},
-			CastUnsupportedAttrValueTypesToString: false,
-			PreferCastingToOthers:                 false,
-		},
-	}
-	expectedRows := []string{
-		`CREATE TABLE IF NOT EXISTS "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16" (`,
-		`"doc" Tuple`,
-		`(`,
-		`"Tuple" Tuple`,
-		`(`,
-		`"runAt" DateTime64,`,
-		`"startedAt" DateTime64,`,
-		`"Tuple" String,`,
-		`"status" String`,
-		`),`,
-		`"updated_at" DateTime64`,
-		`),`,
-		`"@timestamp" DateTime64,`,
-		`"attributes_values" Map(String,String),`,
-		`"attributes_metadata" Map(String,String)`,
-		`)`,
-		`ENGINE = MergeTree`,
-		`ORDER BY (@timestamp)`,
-		"",
-	}
-	createTableString := table.CreateTableString()
-	for _, row := range strings.Split(createTableString, "\n") {
-		assert.Contains(t, expectedRows, strings.TrimSpace(row))
-	}
-}
-
-// Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
-func TestCreateTableString_NewDateTypes(t *testing.T) {
-	table := database_common.Table{
-		Name: "abc",
-		Cols: map[string]*database_common.Column{
-			"low_card_string": {
-				Name: "low_card_string",
-				Type: database_common.NewBaseType("LowCardinality(String)"),
-			},
-			"uuid": {
-				Name: "uuid",
-				Type: database_common.NewBaseType("UUID"),
-			},
-			"int32": {
-				Name: "int32",
-				Type: database_common.NewBaseType("Int32"),
-			},
-			"epoch_time": {
-				Name:      "epoch_time",
-				Type:      database_common.NewBaseType("DateTime('Asia/Kolkata')"),
-				Modifiers: "CODEC(DoubleDelta, LZ4)",
-			},
-			"estimated_connection_speedinkbps": {
-				Name:      "estimated_connection_speedinkbps",
-				Type:      database_common.NewBaseType("Float64"),
-				Modifiers: "CODEC(DoubleDelta, LZ4)",
-			},
-		},
-		Config: &database_common.ChTableConfig{
-			HasTimestamp:         true,
-			TimestampDefaultsNow: true,
-			Engine:               "MergeTree",
-			OrderBy:              "(@timestamp)",
-			PrimaryKey:           "",
-			Ttl:                  "",
-			Attributes: []database_common.Attribute{
-				database_common.NewDefaultInt64Attribute(),
-			},
-			CastUnsupportedAttrValueTypesToString: true,
-			PreferCastingToOthers:                 true,
-		},
-	}
-	expectedRows := []string{
-		`CREATE TABLE IF NOT EXISTS "abc" (`,
-		`"int32" Int32,`,
-		`"low_card_string" LowCardinality(String),`,
-		`"uuid" UUID,`,
-		`"others" JSON,`,
-		`"attributes_int64_key" Array(String),`,
-		`"attributes_int64_value" Array(Int64),`,
-		`"attributes_values" Map(String,String),`,
-		`"attributes_metadata" Map(String,String)`,
-		`"@timestamp" DateTime64(3) DEFAULT now64(),`,
-		`"epoch_time" DateTime('Asia/Kolkata') CODEC(DoubleDelta, LZ4),`,
-		`"estimated_connection_speedinkbps" Float64 CODEC(DoubleDelta, LZ4),`,
-		`ENGINE = MergeTree`,
-		`)`,
-		`ORDER BY (@timestamp)`,
-		"",
-	}
-	createTableString := table.CreateTableString()
-	for _, row := range strings.Split(createTableString, "\n") {
-		assert.Contains(t, expectedRows, strings.TrimSpace(row))
 	}
 }
 
