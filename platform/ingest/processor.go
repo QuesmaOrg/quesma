@@ -991,6 +991,9 @@ func (ip *IngestProcessor) executeStatements(ctx context.Context, queries []stri
 
 		err := ip.execute(ctx, q)
 		if err != nil {
+			if strings.Contains(q, "CREATE") { // always log table creation failures
+				logger.Error().Err(err).Msgf("Error executing DDL: %s", q)
+			}
 			count := ip.errorLogCounter.Add(1)
 
 			// Limit the number of error logs to avoid flooding the logs.
