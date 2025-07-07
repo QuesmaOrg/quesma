@@ -135,46 +135,6 @@ func (ip *IngestProcessor) Close() {
 	_ = ip.chDb.Close()
 }
 
-// updates also Table TODO stop updating table here, find a better solution
-func addOurFieldsToCreateTableQuery(q string, config *database_common.ChTableConfig, table *database_common.Table) string {
-	if len(config.Attributes) == 0 {
-		_, ok := table.Cols[timestampFieldName]
-		if !config.HasTimestamp || ok {
-			return q
-		}
-	}
-
-	othersStr, timestampStr, attributesStr := "", "", ""
-	if config.HasTimestamp {
-		_, ok := table.Cols[timestampFieldName]
-		if !ok {
-			defaultStr := ""
-			if config.TimestampDefaultsNow {
-				defaultStr = " DEFAULT now64()"
-			}
-			timestampStr = fmt.Sprintf("%s\"%s\" DateTime64(3)%s,\n", util.Indent(1), timestampFieldName, defaultStr)
-			table.Cols[timestampFieldName] = &database_common.Column{Name: timestampFieldName, Type: database_common.NewBaseType("DateTime64")}
-		}
-	}
-	if len(config.Attributes) > 0 {
-		for _, a := range config.Attributes {
-			_, ok := table.Cols[a.MapValueName]
-			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapValueName)
-				table.Cols[a.MapValueName] = &database_common.Column{Name: a.MapValueName, Type: database_common.CompoundType{Name: "Map", BaseType: database_common.NewBaseType("String, String")}}
-			}
-			_, ok = table.Cols[a.MapMetadataName]
-			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Map(String,String),\n", util.Indent(1), a.MapMetadataName)
-				table.Cols[a.MapMetadataName] = &database_common.Column{Name: a.MapMetadataName, Type: database_common.CompoundType{Name: "Map", BaseType: database_common.NewBaseType("String, String")}}
-			}
-		}
-	}
-
-	i := strings.Index(q, "(")
-	return q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
-}
-
 func addOurFieldsToCreateTableStatement(
 	stmt CreateTableStatement,
 	config *database_common.ChTableConfig,
@@ -339,11 +299,6 @@ func Indexes(m SchemaMap) string {
 	}
 	result.WriteString(",\n")
 	return result.String()
-}
-
-func columnsWithIndexes(columns string, indexes string) string {
-	return columns + indexes
-
 }
 
 func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]interface{} {
