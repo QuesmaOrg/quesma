@@ -31,63 +31,40 @@ import (
 const tableName = "test_table"
 
 var insertTests = []struct {
-	name                  string
-	insertJson            string
-	createTableLines      []string // those and only those lines should be in create table query
-	createTableLinesAttrs []string
+	name             string
+	insertJson       string
+	createTableLines []string // those and only those lines should be in create table query
 }{
 	{
 		"insert fields agree with schema",
 		`{"@timestamp":"2024-01-27T16:11:19.94Z","host.name":"hermes","message":"User password reset failed","service.name":"frontend","severity":"debug","source":"rhel"}`,
 		[]string{
-			`CREATE TABLE IF NOT EXISTS "test_table"`,
-			`(`,
-			`	`,
-			`	"@timestamp" DateTime64`,
-			`	"host::name" String`,
-			`	"message" String`,
-			`	"service::name" String`,
-			`	"severity" String`,
-			`	"source" String`,
-			`	INDEX severity_idx severity TYPE set(25) GRANULARITY 4`,
-			`	`,
-			``,
-			`)`,
+			`CREATE TABLE IF NOT EXISTS "test_table" `,
+			//`	"@timestamp" DateTime64`,
+			//`	"host.name" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=`,
+			//`	"message" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=`,
+			//`	"service.name" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=`,
+			//`	"severity" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=`,
+			//`	"source" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=`,
 			`ENGINE = MergeTree`,
 			`ORDER BY ("@timestamp")`,
 			`COMMENT 'created by Quesma'`,
-		},
-		[]string{
-			`"attributes_values" Map(String,String),`,
-			`"attributes_metadata" Map(String,String),`,
-			``,
 		},
 	},
 	{
 		"insert fields disagree with schema",
 		`{"@timestamp":"2024-01-27T16:11:19.94Z","host.name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`,
 		[]string{
-			`CREATE TABLE IF NOT EXISTS "test_table"`,
-			`(`,
-			`	`,
-			`	"@timestamp" DateTime64`,
-			`	"host::name" String`,
-			`	"message" String`,
-			`	"random1" Array(String)`,
-			`	"random2" string`,
-			`	"severity" String`,
-			`	INDEX severity_idx severity TYPE set(25) GRANULARITY 4`,
-			`	`,
-			``,
-			`)`,
+			`CREATE TABLE IF NOT EXISTS "test_table" `,
+			//`	"@timestamp" DateTime64`,
+			//`	"host.name" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=`,
+			//`	"message" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=`,
+			//`	"random1" Array(String)`,
+			//`	"random2" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=`,
+			//`	"severity" Nullable(String) COMMENT 'quesmaMetadataV1:fieldName=`,
 			`ENGINE = MergeTree`,
 			`ORDER BY ("@timestamp")`,
 			`COMMENT 'created by Quesma'`,
-		},
-		[]string{
-			`"attributes_values" Map(String,String),`,
-			`"attributes_metadata" Map(String,String),`,
-			``,
 		},
 	},
 }
@@ -170,26 +147,19 @@ func ingestProcessors(config *database_common.ChTableConfig) []ingestProcessorHe
 //					encodings := populateFieldEncodings([]types.JSON{types.MustJSON(tt.insertJson)}, tableName)
 //					columnsFromJson := JsonToColumns(types.MustJSON(tt.insertJson), tableConfig)
 //					columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.ip.schemaRegistry, tableName), &columNameFormatter{separator: "::"}, tableName, encodings)
-//					columns := columnsWithIndexes(columnPropertiesToString(columnsToProperties(columnsFromJson, columnsFromSchema, encodings, tableName)), Indexes(types.MustJSON(tt.insertJson)))
-//					query := createTableQuery(tableName, columns, tableConfig)
+//
+//					resultColumns := columnsToProperties(columnsFromJson, columnsFromSchema, ip.ip.schemaRegistry.GetFieldEncodings(), tableName)
+//
+//					createTableCmd := BuildCreateTable(tableName, resultColumns, "", tableConfig)
 //
 //					table := ip.ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
 //
-//					query = addOurFieldsToCreateTableQuery(query, tableConfig, table)
-//
-//					// check if CREATE TABLE string is OK
-//					queryByLine := strings.Split(query, "\n")
-//					if len(tableConfig.Attributes) > 0 {
-//						assert.Equal(t, len(tt.createTableLines)+len(tableConfig.Attributes)-1, len(queryByLine))
-//						for _, line := range tt.createTableLines {
-//							assert.True(t, slices.Contains(tt.createTableLines, line) || slices.Contains(tt.createTableLinesAttrs, line))
-//						}
-//					} else {
-//						assert.Equal(t, len(tt.createTableLines), len(queryByLine))
-//						for _, line := range tt.createTableLines {
-//							assert.Contains(t, tt.createTableLines, line)
-//						}
+//					// Quite naive check as the output of ToSQL() is not guaranteed to be the same every time w.r.t. the column order.
+//					createTableLines := strings.Split(createTableCmd.ToSQL(), "\n")
+//					for _, sqlLine := range tt.createTableLines {
+//						assert.Contains(t, createTableLines, sqlLine)
 //					}
+//
 //					ingestProcessorEmpty := ip.ip.tableDiscovery.TableDefinitions().Size() == 0
 //
 //					// check if we properly create table in our tables table :) (:) suggested by Copilot) if needed
