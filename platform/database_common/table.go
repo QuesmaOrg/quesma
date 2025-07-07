@@ -58,20 +58,6 @@ func (t *Table) createTableOurFieldsString() []string {
 	return rows
 }
 
-func (t *Table) CreateTableString() string {
-	var onClusterClause string
-	if t.ClusterName != "" {
-		onClusterClause = " ON CLUSTER " + strconv.Quote(t.ClusterName)
-	}
-	s := "CREATE TABLE IF NOT EXISTS " + t.FullTableName() + onClusterClause + " (\n"
-	rows := make([]string, 0)
-	for _, col := range t.Cols {
-		rows = append(rows, col.createTableString(1))
-	}
-	rows = append(rows, t.createTableOurFieldsString()...)
-	return s + strings.Join(rows, ",\n") + "\n)\n" + t.Config.CreateTablePostFieldsString()
-}
-
 // FullTableName returns full table name with database name if it's not empty.
 // Format: ["database".]"table" as it seems to work for all cases in Clickhouse.
 // Use this in Clickhouse queries, e.g. in FROM clause.
