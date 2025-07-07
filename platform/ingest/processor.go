@@ -342,6 +342,7 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
+// TODO: remove
 func createTableQuery(name string, columns string, config *database_common.ChTableConfig) string {
 	var onClusterClause string
 	if config.ClusterName != "" {
