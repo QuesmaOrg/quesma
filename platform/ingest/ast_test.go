@@ -20,6 +20,7 @@ func TestCreateTableStatement_ToSQL(t *testing.T) {
 				Name: "my_table",
 				Columns: []ColumnStatement{
 					{ColumnName: "id", ColumnType: "Int64"},
+					{ColumnName: "@timestamp", ColumnType: "DateTime64(3)", AdditionalMetadata: "DEFAULT now64()"},
 					{ColumnName: "name", ColumnType: "String", Comment: "user name"},
 				},
 				Comment:    "created by Quesma",
@@ -29,6 +30,7 @@ func TestCreateTableStatement_ToSQL(t *testing.T) {
 (
 
 	"id" Int64,
+	"@timestamp" DateTime64(3) DEFAULT now64(),
 	"name" String COMMENT 'user name'
 )
 ENGINE = MergeTree() ORDER BY ("@timestamp")
@@ -38,14 +40,14 @@ COMMENT 'created by Quesma'`,
 			name: "basic table with cluster",
 			stmt: CreateTableStatement{
 				Name:    "my_table",
-				Cluster: "test_cluster",
+				Cluster: "quesma_cluster",
 				Columns: []ColumnStatement{
 					{ColumnName: "id", ColumnType: "Int64"},
 				},
 				Comment:    "created by Quesma",
 				PostClause: "ENGINE = MergeTree() ORDER BY (\"id\")",
 			},
-			expected: `CREATE TABLE IF NOT EXISTS "my_table" ON CLUSTER "test_cluster" 
+			expected: `CREATE TABLE IF NOT EXISTS "my_table" ON CLUSTER "quesma_cluster" 
  
 (
 
