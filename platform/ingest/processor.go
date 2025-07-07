@@ -26,7 +26,6 @@ import (
 	"github.com/goccy/go-json"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -340,24 +339,6 @@ func Indexes(m SchemaMap) string {
 	}
 	result.WriteString(",\n")
 	return result.String()
-}
-
-// TODO: remove
-func createTableQuery(name string, columns string, config *database_common.ChTableConfig) string {
-	var onClusterClause string
-	if config.ClusterName != "" {
-		onClusterClause = "ON CLUSTER " + strconv.Quote(config.ClusterName) + " "
-	}
-	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s" %s
-(
-
-%s
-)
-%s
-COMMENT 'created by Quesma'`,
-		name, onClusterClause, columns,
-		config.CreateTablePostFieldsString())
-	return createTableCmd
 }
 
 func columnsWithIndexes(columns string, indexes string) string {

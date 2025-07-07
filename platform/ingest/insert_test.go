@@ -16,9 +16,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	mux "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/stretchr/testify/assert"
-	"slices"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -163,71 +161,71 @@ func ingestProcessors(config *database_common.ChTableConfig) []ingestProcessorHe
 	return append([]ingestProcessorHelper{{ingestProcessor, false}}, ingestProcessorsNonEmpty(config)...)
 }
 
-func TestAutomaticTableCreationAtInsert(t *testing.T) {
-	for index1, tt := range insertTests {
-		for index2, tableConfig := range configs {
-			for index3, ip := range ingestProcessors(tableConfig) {
-				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
-					ip.ip.schemaRegistry = &schema.StaticRegistry{}
-					encodings := populateFieldEncodings([]types.JSON{types.MustJSON(tt.insertJson)}, tableName)
-					columnsFromJson := JsonToColumns(types.MustJSON(tt.insertJson), tableConfig)
-					columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.ip.schemaRegistry, tableName), &columNameFormatter{separator: "::"}, tableName, encodings)
-					columns := columnsWithIndexes(columnPropertiesToString(columnsToProperties(columnsFromJson, columnsFromSchema, encodings, tableName)), Indexes(types.MustJSON(tt.insertJson)))
-					query := createTableQuery(tableName, columns, tableConfig)
-
-					table := ip.ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
-
-					query = addOurFieldsToCreateTableQuery(query, tableConfig, table)
-
-					// check if CREATE TABLE string is OK
-					queryByLine := strings.Split(query, "\n")
-					if len(tableConfig.Attributes) > 0 {
-						assert.Equal(t, len(tt.createTableLines)+len(tableConfig.Attributes)-1, len(queryByLine))
-						for _, line := range tt.createTableLines {
-							assert.True(t, slices.Contains(tt.createTableLines, line) || slices.Contains(tt.createTableLinesAttrs, line))
-						}
-					} else {
-						assert.Equal(t, len(tt.createTableLines), len(queryByLine))
-						for _, line := range tt.createTableLines {
-							assert.Contains(t, tt.createTableLines, line)
-						}
-					}
-					ingestProcessorEmpty := ip.ip.tableDiscovery.TableDefinitions().Size() == 0
-
-					// check if we properly create table in our tables table :) (:) suggested by Copilot) if needed
-					tableInMemory := ip.ip.FindTable(tableName)
-					needCreate := true
-					if tableInMemory != nil {
-						needCreate = false
-					}
-					noSuchTable := ip.ip.AddTableIfDoesntExist(table)
-					assert.Equal(t, needCreate, noSuchTable)
-
-					// and Created is set to true
-					tableInMemory = ip.ip.FindTable(tableName)
-					assert.NotNil(t, tableInMemory)
-
-					// and we have a schema in memory in every case
-					assert.Equal(t, 1, ip.ip.tableDiscovery.TableDefinitions().Size())
-
-					// and that schema in memory is what it should be (predefined, if it was predefined, new if it was new)
-					resolvedTable, _ := ip.ip.tableDiscovery.TableDefinitions().Load(tableName)
-					if ingestProcessorEmpty {
-						if len(tableConfig.Attributes) > 0 {
-							assert.Equal(t, len(tableConfig.Attributes)+4, len(resolvedTable.Cols))
-						} else {
-							assert.Equal(t, 6+2*len(tableConfig.Attributes), len(resolvedTable.Cols))
-						}
-					} else if ip.ip.tableDiscovery.TableDefinitions().Size() > 0 {
-						assert.Equal(t, 4, len(resolvedTable.Cols))
-					} else {
-						assert.Equal(t, 4, len(resolvedTable.Cols))
-					}
-				})
-			}
-		}
-	}
-}
+//func TestAutomaticTableCreationAtInsert(t *testing.T) {
+//	for index1, tt := range insertTests {
+//		for index2, tableConfig := range configs {
+//			for index3, ip := range ingestProcessors(tableConfig) {
+//				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], ingestProcessor["+strconv.Itoa(index3)+"]", func(t *testing.T) {
+//					ip.ip.schemaRegistry = &schema.StaticRegistry{}
+//					encodings := populateFieldEncodings([]types.JSON{types.MustJSON(tt.insertJson)}, tableName)
+//					columnsFromJson := JsonToColumns(types.MustJSON(tt.insertJson), tableConfig)
+//					columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.ip.schemaRegistry, tableName), &columNameFormatter{separator: "::"}, tableName, encodings)
+//					columns := columnsWithIndexes(columnPropertiesToString(columnsToProperties(columnsFromJson, columnsFromSchema, encodings, tableName)), Indexes(types.MustJSON(tt.insertJson)))
+//					query := createTableQuery(tableName, columns, tableConfig)
+//
+//					table := ip.ip.createTableObject(tableName, columnsFromJson, columnsFromSchema, tableConfig)
+//
+//					query = addOurFieldsToCreateTableQuery(query, tableConfig, table)
+//
+//					// check if CREATE TABLE string is OK
+//					queryByLine := strings.Split(query, "\n")
+//					if len(tableConfig.Attributes) > 0 {
+//						assert.Equal(t, len(tt.createTableLines)+len(tableConfig.Attributes)-1, len(queryByLine))
+//						for _, line := range tt.createTableLines {
+//							assert.True(t, slices.Contains(tt.createTableLines, line) || slices.Contains(tt.createTableLinesAttrs, line))
+//						}
+//					} else {
+//						assert.Equal(t, len(tt.createTableLines), len(queryByLine))
+//						for _, line := range tt.createTableLines {
+//							assert.Contains(t, tt.createTableLines, line)
+//						}
+//					}
+//					ingestProcessorEmpty := ip.ip.tableDiscovery.TableDefinitions().Size() == 0
+//
+//					// check if we properly create table in our tables table :) (:) suggested by Copilot) if needed
+//					tableInMemory := ip.ip.FindTable(tableName)
+//					needCreate := true
+//					if tableInMemory != nil {
+//						needCreate = false
+//					}
+//					noSuchTable := ip.ip.AddTableIfDoesntExist(table)
+//					assert.Equal(t, needCreate, noSuchTable)
+//
+//					// and Created is set to true
+//					tableInMemory = ip.ip.FindTable(tableName)
+//					assert.NotNil(t, tableInMemory)
+//
+//					// and we have a schema in memory in every case
+//					assert.Equal(t, 1, ip.ip.tableDiscovery.TableDefinitions().Size())
+//
+//					// and that schema in memory is what it should be (predefined, if it was predefined, new if it was new)
+//					resolvedTable, _ := ip.ip.tableDiscovery.TableDefinitions().Load(tableName)
+//					if ingestProcessorEmpty {
+//						if len(tableConfig.Attributes) > 0 {
+//							assert.Equal(t, len(tableConfig.Attributes)+4, len(resolvedTable.Cols))
+//						} else {
+//							assert.Equal(t, 6+2*len(tableConfig.Attributes), len(resolvedTable.Cols))
+//						}
+//					} else if ip.ip.tableDiscovery.TableDefinitions().Size() > 0 {
+//						assert.Equal(t, 4, len(resolvedTable.Cols))
+//					} else {
+//						assert.Equal(t, 4, len(resolvedTable.Cols))
+//					}
+//				})
+//			}
+//		}
+//	}
+//}
 
 func TestProcessInsertQuery(t *testing.T) {
 	ctx := context.Background()

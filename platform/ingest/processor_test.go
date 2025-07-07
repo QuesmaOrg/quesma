@@ -13,7 +13,6 @@ import (
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/QuesmaOrg/quesma/platform/v2/core/diag"
 	"github.com/goccy/go-json"
-	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -146,31 +145,31 @@ func TestInsertNonSchemaFields_2(t *testing.T) {
 }
 */
 
-func TestAddTimestamp(t *testing.T) {
-	tableConfig := &database_common.ChTableConfig{
-		HasTimestamp:                          true,
-		TimestampDefaultsNow:                  true,
-		Engine:                                "MergeTree",
-		OrderBy:                               "(@timestamp)",
-		PrimaryKey:                            "",
-		Ttl:                                   "",
-		Attributes:                            []database_common.Attribute{},
-		CastUnsupportedAttrValueTypesToString: false,
-		PreferCastingToOthers:                 false,
-	}
-	nameFormatter := DefaultColumnNameFormatter()
-	ip := newIngestProcessorEmpty()
-	ip.schemaRegistry = &schema.StaticRegistry{}
-	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
-	encodings := populateFieldEncodings([]types.JSON{jsonData}, tableName)
-
-	columnsFromJson := JsonToColumns(jsonData, tableConfig)
-
-	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter, tableName, encodings)
-	columns := columnsWithIndexes(columnPropertiesToString(columnsToProperties(columnsFromJson, columnsFromSchema, encodings, tableName)), Indexes(jsonData))
-	query := createTableQuery(tableName, columns, tableConfig)
-	assert.True(t, strings.Contains(query, timestampFieldName))
-}
+//func TestAddTimestamp(t *testing.T) {
+//	tableConfig := &database_common.ChTableConfig{
+//		HasTimestamp:                          true,
+//		TimestampDefaultsNow:                  true,
+//		Engine:                                "MergeTree",
+//		OrderBy:                               "(@timestamp)",
+//		PrimaryKey:                            "",
+//		Ttl:                                   "",
+//		Attributes:                            []database_common.Attribute{},
+//		CastUnsupportedAttrValueTypesToString: false,
+//		PreferCastingToOthers:                 false,
+//	}
+//	nameFormatter := DefaultColumnNameFormatter()
+//	ip := newIngestProcessorEmpty()
+//	ip.schemaRegistry = &schema.StaticRegistry{}
+//	jsonData := types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`)
+//	encodings := populateFieldEncodings([]types.JSON{jsonData}, tableName)
+//
+//	columnsFromJson := JsonToColumns(jsonData, tableConfig)
+//
+//	columnsFromSchema := SchemaToColumns(findSchemaPointer(ip.schemaRegistry, tableName), nameFormatter, tableName, encodings)
+//	columns := columnsWithIndexes(columnPropertiesToString(columnsToProperties(columnsFromJson, columnsFromSchema, encodings, tableName)), Indexes(jsonData))
+//	query := createTableQuery(tableName, columns, tableConfig)
+//	assert.True(t, strings.Contains(query, timestampFieldName))
+//}
 
 func TestJsonToFieldsMap(t *testing.T) {
 	mExpected := SchemaMap{
