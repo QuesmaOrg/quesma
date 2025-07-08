@@ -3,6 +3,7 @@
 package frontend_connectors
 
 import (
+	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
@@ -1868,7 +1869,7 @@ func Test_cluster(t *testing.T) {
 			expected: &model.Query{
 				TableName: "kibana_sample_data_ecommerce",
 				SelectCommand: model.SelectCommand{
-					FromClause: model.NewFunction("cluster", model.NewLiteral(clusterName), model.NewLiteral("kibana_sample_data_ecommerce")),
+					FromClause: model.NewLiteral(fmt.Sprintf("cluster(%s, %s, %s)", strconv.Quote(clusterName), strconv.Quote(""), strconv.Quote("kibana_sample_data_ecommerce"))),
 					Columns:    []model.Expr{model.NewColumnRef("@timestamp"), model.NewColumnRef("order_date"), model.NewColumnRef("taxful_total_price")},
 				},
 			},
@@ -2149,6 +2150,103 @@ func Test_acceptIntsAsTimestamps(t *testing.T) {
 			}
 
 			assert.Equal(t, model.AsString(tt.expected.SelectCommand), model.AsString(actual.SelectCommand))
+		})
+	}
+}
+
+func TestApplySelectFromCluster(t *testing.T) {
+	originalTableReference := model.NewTableRefWithDatabaseName("test_table", "test_db")
+	expectedTableReference := model.NewLiteral(`cluster("my_cluster", "test_db", "test_table")`)
+	cfg := &config.QuesmaConfiguration{
+		ClusterName: "my_cluster",
+	}
+
+	tests := []struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}{
+		{
+			name: "simple FROM <tableName> substitution",
+			query: &model.Query{
+				TableName: "test_table",
+				SelectCommand: model.SelectCommand{
+					FromClause: originalTableReference,
+				},
+			},
+			expected: &model.Query{
+				TableName: "test_table",
+				SelectCommand: model.SelectCommand{
+					FromClause: expectedTableReference,
+				},
+			},
+		},
+		{
+			name: "nested FROM (SELECT ...) substitution",
+			query: &model.Query{
+				SelectCommand: model.SelectCommand{
+					Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("FirstColumn"))},
+					FromClause: model.SelectCommand{
+						Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("SecondColumn"))},
+						FromClause: model.SelectCommand{
+							Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("ThirdColumn"))},
+							FromClause: originalTableReference,
+							WhereClause: model.NewInfixExpr(
+								model.NewColumnRef("ThirdColumn"),
+								">=",
+								model.NewLiteral(50),
+							),
+						},
+						WhereClause: model.NewInfixExpr(
+							model.NewColumnRef("SecondColumn"),
+							">=",
+							model.NewLiteral(50),
+						),
+					},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("FirstColumn"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+			expected: &model.Query{
+				SelectCommand: model.SelectCommand{
+					Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("FirstColumn"))},
+					FromClause: model.SelectCommand{
+						Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("SecondColumn"))},
+						FromClause: model.SelectCommand{
+							Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("ThirdColumn"))},
+							FromClause: expectedTableReference,
+							WhereClause: model.NewInfixExpr(
+								model.NewColumnRef("ThirdColumn"),
+								">=",
+								model.NewLiteral(50),
+							),
+						},
+						WhereClause: model.NewInfixExpr(
+							model.NewColumnRef("SecondColumn"),
+							">=",
+							model.NewLiteral(50),
+						),
+					},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("FirstColumn"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+			},
+		},
+	}
+
+	transform := NewSchemaCheckPass(cfg, nil, defaultSearchAfterStrategy)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := transform.ApplySelectFromCluster(schema.Schema{}, tt.query)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
