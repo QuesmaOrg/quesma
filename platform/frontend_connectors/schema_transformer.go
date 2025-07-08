@@ -46,25 +46,25 @@ func (s *SchemaCheckPass) isFieldMapSyntaxEnabled(query *model.Query) bool {
 	return enabled
 }
 
-func (s *SchemaCheckPass) ApplySelectFromCluster(index schema.Schema, query *model.Query) (*model.Query, error) {
+func (s *SchemaCheckPass) ApplySelectFromCluster(_ schema.Schema, query *model.Query) (*model.Query, error) {
 	clusterName := s.cfg.ClusterName
 	if clusterName == "" {
 		return query, nil
 	}
 	logger.Info().Msgf("Applying select from cluster query: %v", query.SelectCommand.FromClause)
 
-	// Pass the original table name down the recursion
-	origTableName := query.TableName
-
-	clusterLiteral := func() model.LiteralExpr {
-		return model.NewLiteral(fmt.Sprintf("cluster(%s, %s, %s)", strconv.Quote(clusterName), strconv.Quote(index.DatabaseName), strconv.Quote(origTableName)))
+	clusterLiteral := func(dbName, tableName string) model.LiteralExpr {
+		return model.NewLiteral(fmt.Sprintf("cluster(%s, %s, %s)", strconv.Quote(clusterName), strconv.Quote(dbName), strconv.Quote(tableName)))
 	}
 
 	var visitExpr func(expr model.Expr) model.Expr
 	visitExpr = func(expr model.Expr) model.Expr {
 		switch e := expr.(type) {
 		case model.TableRef:
-			return clusterLiteral()
+			return clusterLiteral(e.DatabaseName, e.Name)
+		case *model.TableRef:
+			newVal := clusterLiteral(e.DatabaseName, e.Name)
+			return &newVal
 		case *model.SelectCommand:
 			newSelect := *e
 			if e.FromClause != nil {
@@ -76,7 +76,7 @@ func (s *SchemaCheckPass) ApplySelectFromCluster(index schema.Schema, query *mod
 			if e.FromClause != nil {
 				newSelect.FromClause = visitExpr(e.FromClause)
 			}
-			return &newSelect
+			return newSelect
 		default:
 			return expr
 		}

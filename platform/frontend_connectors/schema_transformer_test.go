@@ -2154,14 +2154,10 @@ func Test_acceptIntsAsTimestamps(t *testing.T) {
 }
 
 func TestApplySelectFromCluster(t *testing.T) {
-	indexSchema := schema.Schema{
-		DatabaseName: "test_db",
-		Fields:       map[schema.FieldName]schema.Field{},
-	}
 	query := &model.Query{
 		TableName: "test_table",
 		SelectCommand: model.SelectCommand{
-			FromClause: model.NewTableRef("test_table"),
+			FromClause: model.NewTableRefWithDatabaseName("test_table", "test_db"),
 		},
 	}
 	cfg := &config.QuesmaConfiguration{
@@ -2169,17 +2165,14 @@ func TestApplySelectFromCluster(t *testing.T) {
 	}
 	transform := NewSchemaCheckPass(cfg, nil, defaultSearchAfterStrategy)
 
-	result, err := transform.ApplySelectFromCluster(indexSchema, query)
+	result, err := transform.ApplySelectFromCluster(schema.Schema{}, query)
 	assert.NoError(t, err)
 	expected := model.NewLiteral(`cluster("my_cluster", "test_db", "test_table")`)
 	assert.Equal(t, expected, result.SelectCommand.FromClause)
 }
 
 func TestApplySelectFromCluster2(t *testing.T) {
-	indexSchema := schema.Schema{
-		DatabaseName: "test_db",
-		Fields:       map[schema.FieldName]schema.Field{},
-	}
+
 	query := &model.Query{
 		SelectCommand: model.SelectCommand{
 			Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("FirstColumn"))},
@@ -2187,7 +2180,7 @@ func TestApplySelectFromCluster2(t *testing.T) {
 				Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("SecondColumn"))},
 				FromClause: model.SelectCommand{
 					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("ThirdColumn"))},
-					FromClause: model.NewTableRef("test_table"),
+					FromClause: model.NewTableRefWithDatabaseName("test_table", "test_db"),
 					WhereClause: model.NewInfixExpr(
 						model.NewColumnRef("ThirdColumn"),
 						">=",
@@ -2213,15 +2206,15 @@ func TestApplySelectFromCluster2(t *testing.T) {
 	transform := NewSchemaCheckPass(cfg, nil, defaultSearchAfterStrategy)
 
 	// When
-	result, err := transform.ApplySelectFromCluster(indexSchema, query)
+	result, err := transform.ApplySelectFromCluster(schema.Schema{}, query)
 	// Then
 	assert.NoError(t, err)
 	expected := &model.Query{
 		SelectCommand: model.SelectCommand{
 			Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("FirstColumn"))},
-			FromClause: &model.SelectCommand{
+			FromClause: model.SelectCommand{
 				Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("SecondColumn"))},
-				FromClause: &model.SelectCommand{
+				FromClause: model.SelectCommand{
 					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("ThirdColumn"))},
 					FromClause: model.NewLiteral(`cluster("my_cluster", "test_db", "test_table")`),
 					WhereClause: model.NewInfixExpr(
