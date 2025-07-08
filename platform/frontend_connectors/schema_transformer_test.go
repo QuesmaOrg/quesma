@@ -2152,3 +2152,96 @@ func Test_acceptIntsAsTimestamps(t *testing.T) {
 		})
 	}
 }
+
+func TestApplySelectFromCluster(t *testing.T) {
+	indexSchema := schema.Schema{
+		DatabaseName: "test_db",
+		Fields:       map[schema.FieldName]schema.Field{},
+	}
+	query := &model.Query{
+		TableName: "test_table",
+		SelectCommand: model.SelectCommand{
+			FromClause: model.NewTableRef("test_table"),
+		},
+	}
+	cfg := &config.QuesmaConfiguration{
+		ClusterName: "my_cluster",
+	}
+	transform := NewSchemaCheckPass(cfg, nil, defaultSearchAfterStrategy)
+
+	result, err := transform.ApplySelectFromCluster(indexSchema, query)
+	assert.NoError(t, err)
+	expected := model.NewLiteral(`cluster("my_cluster", "test_db", "test_table")`)
+	assert.Equal(t, expected, result.SelectCommand.FromClause)
+}
+
+func TestApplySelectFromCluster2(t *testing.T) {
+	indexSchema := schema.Schema{
+		DatabaseName: "test_db",
+		Fields:       map[schema.FieldName]schema.Field{},
+	}
+	query := &model.Query{
+		SelectCommand: model.SelectCommand{
+			Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("FirstColumn"))},
+			FromClause: model.SelectCommand{
+				Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("SecondColumn"))},
+				FromClause: model.SelectCommand{
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("ThirdColumn"))},
+					FromClause: model.NewTableRef("test_table"),
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("ThirdColumn"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+				WhereClause: model.NewInfixExpr(
+					model.NewColumnRef("SecondColumn"),
+					">=",
+					model.NewLiteral(50),
+				),
+			},
+			WhereClause: model.NewInfixExpr(
+				model.NewColumnRef("FirstColumn"),
+				">=",
+				model.NewLiteral(50),
+			),
+		},
+	}
+	cfg := &config.QuesmaConfiguration{
+		ClusterName: "my_cluster",
+	}
+	transform := NewSchemaCheckPass(cfg, nil, defaultSearchAfterStrategy)
+
+	// When
+	result, err := transform.ApplySelectFromCluster(indexSchema, query)
+	// Then
+	assert.NoError(t, err)
+	expected := &model.Query{
+		SelectCommand: model.SelectCommand{
+			Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("FirstColumn"))},
+			FromClause: &model.SelectCommand{
+				Columns: []model.Expr{model.NewFunction("sum", model.NewColumnRef("SecondColumn"))},
+				FromClause: &model.SelectCommand{
+					Columns:    []model.Expr{model.NewFunction("sum", model.NewColumnRef("ThirdColumn"))},
+					FromClause: model.NewLiteral(`cluster("my_cluster", "test_db", "test_table")`),
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("ThirdColumn"),
+						">=",
+						model.NewLiteral(50),
+					),
+				},
+				WhereClause: model.NewInfixExpr(
+					model.NewColumnRef("SecondColumn"),
+					">=",
+					model.NewLiteral(50),
+				),
+			},
+			WhereClause: model.NewInfixExpr(
+				model.NewColumnRef("FirstColumn"),
+				">=",
+				model.NewLiteral(50),
+			),
+		},
+	}
+	assert.Equal(t, expected, result)
+}

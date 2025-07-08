@@ -15,6 +15,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/transformations"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -43,6 +44,49 @@ func (s *SchemaCheckPass) isFieldMapSyntaxEnabled(query *model.Query) bool {
 	}
 
 	return enabled
+}
+
+func (s *SchemaCheckPass) ApplySelectFromCluster(index schema.Schema, query *model.Query) (*model.Query, error) {
+	clusterName := s.cfg.ClusterName
+	if clusterName == "" {
+		return query, nil
+	}
+	logger.Info().Msgf("Applying select from cluster query: %v", query.SelectCommand.FromClause)
+
+	// Pass the original table name down the recursion
+	origTableName := query.TableName
+
+	clusterLiteral := func() model.LiteralExpr {
+		return model.NewLiteral(fmt.Sprintf("cluster(%s, %s, %s)", strconv.Quote(clusterName), strconv.Quote(index.DatabaseName), strconv.Quote(origTableName)))
+	}
+
+	var visitExpr func(expr model.Expr) model.Expr
+	visitExpr = func(expr model.Expr) model.Expr {
+		switch e := expr.(type) {
+		case model.TableRef:
+			return clusterLiteral()
+		case *model.SelectCommand:
+			newSelect := *e
+			if e.FromClause != nil {
+				newSelect.FromClause = visitExpr(e.FromClause)
+			}
+			return &newSelect
+		case model.SelectCommand:
+			newSelect := e
+			if e.FromClause != nil {
+				newSelect.FromClause = visitExpr(e.FromClause)
+			}
+			return &newSelect
+		default:
+			return expr
+		}
+	}
+
+	if query.SelectCommand.FromClause != nil {
+		query.SelectCommand.FromClause = visitExpr(query.SelectCommand.FromClause)
+	}
+
+	return query, nil
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(index schema.Schema, query *model.Query) (*model.Query, error) {
@@ -1086,6 +1130,8 @@ func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.Execution
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
+		// Section 5 : FROM CLUSTER if distributed table
+		{TransformationName: "ApplySelectFromCluster", Transformation: s.ApplySelectFromCluster},
 	}
 
 	for k, query := range plan.Queries {
