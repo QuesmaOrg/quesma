@@ -51,7 +51,6 @@ func (s *SchemaCheckPass) ApplySelectFromCluster(_ schema.Schema, query *model.Q
 	if clusterName == "" {
 		return query, nil
 	}
-	logger.Info().Msgf("Applying select from cluster query: %v", query.SelectCommand.FromClause)
 
 	clusterLiteral := func(dbName, tableName string) model.LiteralExpr {
 		return model.NewLiteral(fmt.Sprintf("cluster(%s, %s, %s)", strconv.Quote(clusterName), strconv.Quote(dbName), strconv.Quote(tableName)))
@@ -1126,12 +1125,10 @@ func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.Execution
 		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
 		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
-		{TransformationName: "ClusterFunction", Transformation: s.applyFromClusterExpression},
+		{TransformationName: "ApplySelectFromCluster", Transformation: s.ApplySelectFromCluster},
 
 		// Section 4: compensations and checks
 		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
-		// Section 5 : FROM CLUSTER if distributed table
-		{TransformationName: "ApplySelectFromCluster", Transformation: s.ApplySelectFromCluster},
 	}
 
 	for k, query := range plan.Queries {
@@ -1325,28 +1322,4 @@ func (s *SchemaCheckPass) applyMatchOperator(indexSchema schema.Schema, query *m
 	}
 	return query, nil
 
-}
-
-// applyFromClusterExpression transforms query so that `FROM table` becomes `FROM cluster(clusterName,table)` if applicable
-func (s *SchemaCheckPass) applyFromClusterExpression(currentSchema schema.Schema, query *model.Query) (*model.Query, error) {
-	if s.cfg.ClusterName == "" {
-		return query, nil
-	}
-	visitor := model.NewBaseVisitor()
-	table, ok := s.tableDiscovery.TableDefinitions().Load(query.TableName)
-	if !ok {
-		return nil, fmt.Errorf("table %s not found", query.TableName)
-	}
-	if !table.ExistsOnAllNodes {
-		return query, nil
-	}
-	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
-		return model.NewFunction("cluster", model.NewLiteral(s.cfg.ClusterName), e)
-	}
-	logger.Debug().Msgf("applyClusterFunction: %s", s.cfg.ClusterName)
-	expr := query.SelectCommand.Accept(visitor)
-	if _, ok := expr.(*model.SelectCommand); ok {
-		query.SelectCommand = *expr.(*model.SelectCommand)
-	}
-	return query, nil
 }
