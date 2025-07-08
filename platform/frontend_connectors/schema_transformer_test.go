@@ -3,6 +3,7 @@
 package frontend_connectors
 
 import (
+	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
@@ -1868,7 +1869,7 @@ func Test_cluster(t *testing.T) {
 			expected: &model.Query{
 				TableName: "kibana_sample_data_ecommerce",
 				SelectCommand: model.SelectCommand{
-					FromClause: model.NewFunction("cluster", model.NewLiteral(clusterName), model.NewLiteral("kibana_sample_data_ecommerce")),
+					FromClause: model.NewLiteral(fmt.Sprintf("cluster(%s, %s, %s)", strconv.Quote(clusterName), strconv.Quote(""), strconv.Quote("kibana_sample_data_ecommerce"))),
 					Columns:    []model.Expr{model.NewColumnRef("@timestamp"), model.NewColumnRef("order_date"), model.NewColumnRef("taxful_total_price")},
 				},
 			},
