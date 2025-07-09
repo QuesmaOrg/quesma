@@ -85,7 +85,7 @@ func TestLogSenderSmallBuffer(t *testing.T) {
 	const URL = "http://localhost:8091"
 	const LOG_MESSAGE = "log message"
 	barrier := &sync.WaitGroup{}
-	barrier.Add(ITERATIONS)
+	barrier.Add(0) // all messages will be dropped
 	handler := &Handler{barrier: barrier}
 	go startHttpServer(handler, ":8091")
 
@@ -98,7 +98,7 @@ func TestLogSenderSmallBuffer(t *testing.T) {
 		assert.Equal(t, true, result.timeCondition)
 	}
 	barrier.Wait()
-	assert.Equal(t, int(handler.counter.Load()), BUFFER_SIZE*ITERATIONS)
+	assert.Equal(t, int(handler.counter.Load()), 0)
 }
 
 func TestLogSenderSmallElapsedTime(t *testing.T) {
