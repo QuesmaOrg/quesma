@@ -110,7 +110,7 @@ jobs:
 
       - name: Send Slack notification on failure
         if: ${{ failure() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        uses: slackapi/slack-github-action@v2.1.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -120,7 +120,7 @@ jobs:
 
       - name: Send Slack notification on success
         if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        uses: slackapi/slack-github-action@v2.1.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
