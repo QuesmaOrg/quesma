@@ -200,9 +200,9 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, schema schema.Reg
 	return util.Distinct(results), nil
 }
 
-// buildCountQueryString builds query string which will be sent to DB
+// buildStringOfCountQuery builds query string which will be sent to DB
 // Takes care whether `table` is "normal" or virtual
-func (lm *LogManager) buildCountQueryString(table *Table) string {
+func (lm *LogManager) buildStringOfCountQuery(table *Table) string {
 	if table.VirtualTable {
 		// CAUTION: Using only table.Name (and discarding table.DatabaseName) on purpose
 		// Can be changed if needed, but that'd complicate the usual case
@@ -218,7 +218,7 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (coun
 	}
 	var subCountStatements []string
 	for _, t := range tables {
-		subCountStatements = append(subCountStatements, fmt.Sprintf("(%s)", lm.buildCountQueryString(t)))
+		subCountStatements = append(subCountStatements, fmt.Sprintf("(%s)", lm.buildStringOfCountQuery(t)))
 	}
 	err = lm.chDb.QueryRow(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL "))).Scan(&count)
 	if err != nil {
@@ -229,9 +229,9 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (coun
 
 func (lm *LogManager) Count(ctx context.Context, table *Table) (int64, error) {
 	var count int64
-	fmt.Printf("HEHE ExecuteCount\ntable: %+v\nquery: %s", table, lm.buildCountQueryString(table))
+	fmt.Printf("HEHE ExecuteCount\ntable: %+v\nquery: %s", table, lm.buildStringOfCountQuery(table))
 
-	err := lm.chDb.QueryRow(ctx, lm.buildCountQueryString(table)).Scan(&count)
+	err := lm.chDb.QueryRow(ctx, lm.buildStringOfCountQuery(table)).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
