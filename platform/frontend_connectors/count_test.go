@@ -3,9 +3,11 @@
 package frontend_connectors
 
 import (
+	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/QuesmaOrg/quesma/platform/ab_testing"
 	"github.com/QuesmaOrg/quesma/platform/backend_connectors"
+	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
@@ -20,10 +22,12 @@ import (
 func TestCountEndpoint(t *testing.T) {
 	staticRegistry := &schema.StaticRegistry{
 		Tables: map[schema.IndexName]schema.Schema{
-			"no_db_name":      {Fields: map[schema.FieldName]schema.Field{}},
-			"with_db_name":    {Fields: map[schema.FieldName]schema.Field{}, DatabaseName: "db_name"},
-			"common_prefix_1": {Fields: map[schema.FieldName]schema.Field{}, DatabaseName: "db_name"},
-			"common_prefix_2": {Fields: map[schema.FieldName]schema.Field{}},
+			"no_db_name":        {Fields: map[schema.FieldName]schema.Field{}},
+			"with_db_name":      {Fields: map[schema.FieldName]schema.Field{}, DatabaseName: "db_name"},
+			"common_prefix_1":   {Fields: map[schema.FieldName]schema.Field{}, DatabaseName: "db_name"},
+			"common_prefix_2":   {Fields: map[schema.FieldName]schema.Field{}},
+			"in_common_table_1": {Fields: map[schema.FieldName]schema.Field{}},
+			"in_common_table_2": {Fields: map[schema.FieldName]schema.Field{}},
 		},
 	}
 
@@ -39,6 +43,14 @@ func TestCountEndpoint(t *testing.T) {
 	})
 	tables.Store("common_prefix_2", &database_common.Table{
 		Name: "common_prefix_2", Config: database_common.NewChTableConfigTimestampStringAttr(), Cols: map[string]*database_common.Column{},
+	})
+	tables.Store("in_common_table_1", &database_common.Table{
+		Name: "in_common_table_1", Config: database_common.NewChTableConfigTimestampStringAttr(), Cols: map[string]*database_common.Column{},
+		VirtualTable: true,
+	})
+	tables.Store("in_common_table_2", &database_common.Table{
+		Name: "in_common_table_2", Config: database_common.NewChTableConfigTimestampStringAttr(), Cols: map[string]*database_common.Column{}, DatabaseName: "db_name",
+		VirtualTable: true,
 	})
 
 	conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
@@ -63,8 +75,24 @@ func TestCountEndpoint(t *testing.T) {
 	}{
 		{"no_db_name", `SELECT count(*) FROM "no_db_name"`},
 		{"with_db_name", `SELECT count(*) FROM "db_name"."with_db_name"`},
-		{"common_prefix*", `SELECT sum(*) as count FROM ((SELECT count(*) FROM "db_name"."common_prefix_1") UNION ALL (SELECT count(*) FROM "common_prefix_2"))`},
-		{"common_prefix_1,common_prefix_2", `SELECT sum(*) as count FROM ((SELECT count(*) FROM "db_name"."common_prefix_1") UNION ALL (SELECT count(*) FROM "common_prefix_2"))`},
+		{"common_prefix*",
+			`SELECT sum(*) as count FROM ((SELECT count(*) FROM "db_name"."common_prefix_1") UNION ALL (SELECT count(*) FROM "common_prefix_2"))`},
+		{"common_prefix_1,common_prefix_2",
+			`SELECT sum(*) as count FROM ((SELECT count(*) FROM "db_name"."common_prefix_1") UNION ALL (SELECT count(*) FROM "common_prefix_2"))`},
+		{"in_common_table_1",
+			fmt.Sprintf(`SELECT count(*) FROM %s WHERE %s='in_common_table_1'`, common_table.TableName, common_table.IndexNameColumn)},
+		{"in_common_table_2",
+			fmt.Sprintf(`SELECT count(*) FROM %s WHERE %s='in_common_table_2'`, common_table.TableName, common_table.IndexNameColumn)},
+		{"in_common_table*",
+			fmt.Sprintf(`SELECT sum(*) as count
+FROM ((
+  SELECT count(*)
+  FROM %s
+  WHERE %s='in_common_table_1') UNION ALL (
+  SELECT count(*)
+  FROM %s
+  WHERE %s='in_common_table_2'))
+`, common_table.TableName, common_table.IndexNameColumn, common_table.TableName, common_table.IndexNameColumn)},
 	}
 
 	for _, tc := range testcases {

@@ -3,11 +3,8 @@
 package database_common
 
 import (
-	"bytes"
-	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/model"
-	"github.com/goccy/go-json"
 	"strings"
 	"time"
 )
@@ -102,14 +99,6 @@ func parseTypeFromShowColumns(typ, name string) (Type, string) {
 		}
 	}
 	return parseTypeRec(typ, name)
-}
-
-func PrettyJson(jsonStr string) string {
-	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, []byte(jsonStr), "", "    "); err != nil {
-		return fmt.Sprintf("PrettyJson err: %v\n", err)
-	}
-	return prettyJSON.String()
 }
 
 // TimestampGroupBy returns string to be used in the select part of Clickhouse query, when grouping by timestamp interval.
