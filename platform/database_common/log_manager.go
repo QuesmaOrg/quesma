@@ -200,8 +200,9 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, schema schema.Reg
 	return util.Distinct(results), nil
 }
 
-// buildStringOfCountQuery builds query string which will be sent to DB
-// Takes care whether `table` is "normal" or virtual
+// buildStringOfCountQuery builds string of count query which will be sent to DB (for 1 table).
+// If we query multiple tables at once, it needs to be called multiple times.
+// Takes care of whether `table` is "normal" or virtual (common_table)
 func (lm *LogManager) buildStringOfCountQuery(table *Table) string {
 	if table.VirtualTable {
 		// CAUTION: Using only table.Name (and discarding table.DatabaseName) on purpose
