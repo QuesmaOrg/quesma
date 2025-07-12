@@ -229,8 +229,6 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (coun
 
 func (lm *LogManager) Count(ctx context.Context, table *Table) (int64, error) {
 	var count int64
-	fmt.Printf("HEHE ExecuteCount\ntable: %+v\nquery: %s", table, lm.buildStringOfCountQuery(table))
-
 	err := lm.chDb.QueryRow(ctx, lm.buildStringOfCountQuery(table)).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
