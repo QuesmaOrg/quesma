@@ -8,6 +8,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
+	"github.com/goccy/go-json"
 	"sync/atomic"
 )
 
@@ -157,81 +158,100 @@ func (l *HydrolixLowerer) LowerToDDL(
 		}`, table.DatabaseName, table.Name, timeColumnName, columnsJSON.String(), partitioningJSON, eventJSON)
 			return []string{result}, nil
 	*/
-	tableName := "pdelewski43"
+	tableName := "pdelewski44"
 
-	ingestBody := []byte(fmt.Sprintf(`{
-					"create_table" : {
-						"name": "%s",
-						"settings": {
-							"merge": {
-								"enabled": true
-							}
-						}
-					  },
-					 "transform": {
-						"name" : "transform1",
-						 "type": "json",
-						"settings": {
-						"format_details": {
-							"flattening": { "active": false }
-						  },
-						  "output_columns": [
-							{
-							  "name": "timestamp",
-							  "datatype": {
-								"type": "datetime",
-								"primary": true,
-								"format": "2006-01-02 15:04:05 MST"
-							  }
-							},
-							{
-							  "name": "clientId",
-							  "datatype": {
-								"type": "uint64"
-							  }
-							},
-							{
-							  "name": "clientIp",
-							  "datatype": {
-								"type": "string",
-								"index": true,
-								"default": "0.0.0.0"
-							  }
-							},
-							{
-							  "name": "clientCityCode",
-							  "datatype": {
-								"type": "uint32"
-							  }
-							},
-							{
-							  "name": "resolverIp",
-							  "datatype": {
-								"type": "string",
-								"index": true,
-								"default": "0.0.0.0"
-							  }
-							},
-							{
-							  "name": "resolveDuration",
-							  "datatype": {
-								"type": "double",
-								"default": -1.0
-							  }
-							}
-						  ]
-						}
-					 },
-					"ingest": {
-						 "timestamp": "2020-02-26 16:01:27 PST",
-						 "clientId": "29992",
-						 "clientIp": "1.2.3.4/24",
-						 "clientCityCode": 1224,
-						 "resolverIp": "1.4.5.7",
-						 "resolveDuration": "1.234"
-					}
-				}`, tableName))
+	// --- Create Table Section ---
+	createTable := map[string]interface{}{
+		"name": tableName,
+		"settings": map[string]interface{}{
+			"merge": map[string]interface{}{
+				"enabled": true,
+			},
+		},
+	}
 
-	return []string{string(ingestBody)}, nil
+	// --- Output Columns Slice ---
+	outputColumns := []interface{}{
+		map[string]interface{}{
+			"name": "timestamp",
+			"datatype": map[string]interface{}{
+				"type":    "datetime",
+				"primary": true,
+				"format":  "2006-01-02 15:04:05 MST",
+			},
+		},
+		map[string]interface{}{
+			"name": "clientId",
+			"datatype": map[string]interface{}{
+				"type": "uint64",
+			},
+		},
+		map[string]interface{}{
+			"name": "clientIp",
+			"datatype": map[string]interface{}{
+				"type":    "string",
+				"index":   true,
+				"default": "0.0.0.0",
+			},
+		},
+		map[string]interface{}{
+			"name": "clientCityCode",
+			"datatype": map[string]interface{}{
+				"type": "uint32",
+			},
+		},
+		map[string]interface{}{
+			"name": "resolverIp",
+			"datatype": map[string]interface{}{
+				"type":    "string",
+				"index":   true,
+				"default": "0.0.0.0",
+			},
+		},
+		map[string]interface{}{
+			"name": "resolveDuration",
+			"datatype": map[string]interface{}{
+				"type":    "double",
+				"default": -1.0,
+			},
+		},
+	}
+
+	// --- Transform Section ---
+	transform := map[string]interface{}{
+		"name": "transform1",
+		"type": "json",
+		"settings": map[string]interface{}{
+			"format_details": map[string]interface{}{
+				"flattening": map[string]interface{}{
+					"active": false,
+				},
+			},
+			"output_columns": outputColumns,
+		},
+	}
+
+	// --- Ingest Section ---
+	ingest := map[string]interface{}{
+		"timestamp":       "2020-02-26 16:01:27 PST",
+		"clientId":        "29992",
+		"clientIp":        "1.2.3.4/24",
+		"clientCityCode":  1224,
+		"resolverIp":      "1.4.5.7",
+		"resolveDuration": "1.234",
+	}
+
+	// --- Final Payload ---
+	payload := map[string]interface{}{
+		"create_table": createTable,
+		"transform":    transform,
+		"ingest":       ingest,
+	}
+
+	marshaledPayload, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling payload: %v", err)
+	}
+	return []string{string(marshaledPayload)}, nil
 
 }
