@@ -158,11 +158,10 @@ func (l *HydrolixLowerer) LowerToDDL(
 		}`, table.DatabaseName, table.Name, timeColumnName, columnsJSON.String(), partitioningJSON, eventJSON)
 			return []string{result}, nil
 	*/
-	tableName := "pdelewski44"
 
 	// --- Create Table Section ---
 	createTable := map[string]interface{}{
-		"name": tableName,
+		"name": table.Name,
 		"settings": map[string]interface{}{
 			"merge": map[string]interface{}{
 				"enabled": true,
