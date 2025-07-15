@@ -22,7 +22,12 @@ func NewDateManager(ctx context.Context) DateManager {
 }
 
 var acceptableDateTimeFormats = []string{"2006", "2006-01", "2006-01-02", "2006-01-02", "2006-01-02T15",
-	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00"}
+	"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02T15:04:05Z07", "2006-01-02T15:04:05Z07:00",
+	"2006-01-02 15:04:05 -0700 MST", "2006-01-02 15:04:05.000 -0700 MST", "2006-01-02 15:04:05.000000000 -0700 MST",
+	"2006-01-02 15:04:05", "2006-01-02 15:04:05.000", "2006-01-02 15:04:05.000000000",
+	// All those from the line above theorically shouldn't be accepted, but it can't hurt to also accept them.
+	// It also simplifies parsing of `ids` query.
+}
 
 // parseStrictDateOptionalTimeOrEpochMillis parses date, which is in [strict_date_optional_time || epoch_millis] format
 // (https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-date-format.html)
