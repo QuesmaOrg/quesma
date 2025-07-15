@@ -6,6 +6,7 @@ package backend_connectors
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -23,6 +24,7 @@ type HydrolixBackendConnector struct {
 	cfg         *config.RelationalDbConfiguration
 	IngestURL   string
 	AccessToken string
+	Headers     map[string]string
 }
 
 func (p *HydrolixBackendConnector) GetId() quesma_api.BackendConnectorType {
@@ -79,10 +81,15 @@ func (p *HydrolixBackendConnector) Exec(ctx context.Context, query string, args 
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+p.AccessToken)
+	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute HTTP request
-	client := &http.Client{}
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
