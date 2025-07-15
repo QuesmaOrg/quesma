@@ -3,13 +3,11 @@
 package ingest
 
 import (
-	"encoding/json"
 	"fmt"
 	chLib "github.com/QuesmaOrg/quesma/platform/database_common"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
-	"strings"
 	"sync/atomic"
 )
 
@@ -79,82 +77,161 @@ func (l *HydrolixLowerer) LowerToDDL(
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
 	createTableCmd CreateTableStatement,
 ) ([]string, error) {
-	// Construct columns array
-	var columnsJSON strings.Builder
-	columnsJSON.WriteString("[\n")
+	/*
+			// Construct columns array
+			var columnsJSON strings.Builder
+			columnsJSON.WriteString("[\n")
 
-	for i, col := range createTableCmd.Columns {
-		if i > 0 {
-			columnsJSON.WriteString(",\n")
-		}
-		columnsJSON.WriteString(fmt.Sprintf(`  { "name": "%s", "type": "%s"`, col.ColumnName, col.ColumnType))
-		if col.Comment != "" {
-			columnsJSON.WriteString(fmt.Sprintf(`, "comment": "%s"`, col.Comment))
-		}
-		if col.AdditionalMetadata != "" {
-			columnsJSON.WriteString(fmt.Sprintf(`, "metadata": "%s"`, col.AdditionalMetadata))
-		}
-		columnsJSON.WriteString(" }")
-	}
+			for i, col := range createTableCmd.Columns {
+				if i > 0 {
+					columnsJSON.WriteString(",\n")
+				}
+				columnsJSON.WriteString(fmt.Sprintf(`  { "name": "%s", "type": "%s"`, col.ColumnName, col.ColumnType))
+				if col.Comment != "" {
+					columnsJSON.WriteString(fmt.Sprintf(`, "comment": "%s"`, col.Comment))
+				}
+				if col.AdditionalMetadata != "" {
+					columnsJSON.WriteString(fmt.Sprintf(`, "metadata": "%s"`, col.AdditionalMetadata))
+				}
+				columnsJSON.WriteString(" }")
+			}
 
-	columnsJSON.WriteString("\n]")
+			columnsJSON.WriteString("\n]")
 
-	const timeColumnName = "ingest_time"
+			const timeColumnName = "ingest_time"
 
-	const (
-		partitioningStrategy    = "strategy"
-		partitioningField       = "field"
-		partitioningGranularity = "granularity"
+			const (
+				partitioningStrategy    = "strategy"
+				partitioningField       = "field"
+				partitioningGranularity = "granularity"
 
-		defaultStrategy    = "time"
-		defaultField       = "ingest_time"
-		defaultGranularity = "day"
-	)
-	partitioningJSON := fmt.Sprintf(`"partitioning": {
-  "%s": "%s",
-  "%s": "%s",
-  "%s": "%s"
-}`,
-		partitioningStrategy, defaultStrategy,
-		partitioningField, defaultField,
-		partitioningGranularity, defaultGranularity)
-	events := make(map[string]any)
-	for i, preprocessedJson := range validatedJsons {
-		_, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
-			invalidJsons[i], encodings)
-		if err != nil {
-			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
-		}
-		content := convertNonSchemaFieldsToMap(nonSchemaFields)
+				defaultStrategy    = "time"
+				defaultField       = "ingest_time"
+				defaultGranularity = "day"
+			)
+			partitioningJSON := fmt.Sprintf(`"partitioning": {
+		  "%s": "%s",
+		  "%s": "%s",
+		  "%s": "%s"
+		}`,
+				partitioningStrategy, defaultStrategy,
+				partitioningField, defaultField,
+				partitioningGranularity, defaultGranularity)
+			events := make(map[string]any)
+			for i, preprocessedJson := range validatedJsons {
+				_, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
+					invalidJsons[i], encodings)
+				if err != nil {
+					return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
+				}
+				if err != nil {
+					return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
+				}
+				content := convertNonSchemaFieldsToMap(nonSchemaFields)
 
-		for k, v := range onlySchemaFields {
-			content[k] = v
-		}
+				for k, v := range onlySchemaFields {
+					content[k] = v
+				}
 
-		for k, v := range content {
-			events[k] = v
-		}
-	}
+				for k, v := range content {
+					events[k] = v
+				}
+			}
 
-	eventList := []map[string]any{events}
-	eventBytes, err := json.MarshalIndent(eventList, "    ", "  ")
-	if err != nil {
-		return nil, err
-	}
-	eventJSON := string(eventBytes)
+			eventList := []map[string]any{events}
+			eventBytes, err := json.MarshalIndent(eventList, "    ", "  ")
+			if err != nil {
+				return nil, err
+			}
+			eventJSON := string(eventBytes)
 
-	result := fmt.Sprintf(`{
-  "schema": {
-    "project": "%s",
-    "name": "%s",
-    "time_column": "%s",
-    "columns": %s,
-    %s,
-  },
-  "events": %s
-}`, table.DatabaseName, table.Name, timeColumnName, columnsJSON.String(), partitioningJSON, eventJSON)
-	return []string{result}, nil
+			result := fmt.Sprintf(`{
+		  "schema": {
+		    "project": "%s",
+		    "name": "%s",
+		    "time_column": "%s",
+		    "columns": %s,
+		    %s,
+		  },
+		  "events": %s
+		}`, table.DatabaseName, table.Name, timeColumnName, columnsJSON.String(), partitioningJSON, eventJSON)
+			return []string{result}, nil
+	*/
+	tableName := "pdelewski43"
+
+	ingestBody := []byte(fmt.Sprintf(`{
+					"create_table" : {
+						"name": "%s",
+						"settings": {
+							"merge": {
+								"enabled": true
+							}
+						}
+					  },
+					 "transform": {
+						"name" : "transform1",
+						 "type": "json",
+						"settings": {
+						"format_details": {
+							"flattening": { "active": false }
+						  },
+						  "output_columns": [
+							{
+							  "name": "timestamp",
+							  "datatype": {
+								"type": "datetime",
+								"primary": true,
+								"format": "2006-01-02 15:04:05 MST"
+							  }
+							},
+							{
+							  "name": "clientId",
+							  "datatype": {
+								"type": "uint64"
+							  }
+							},
+							{
+							  "name": "clientIp",
+							  "datatype": {
+								"type": "string",
+								"index": true,
+								"default": "0.0.0.0"
+							  }
+							},
+							{
+							  "name": "clientCityCode",
+							  "datatype": {
+								"type": "uint32"
+							  }
+							},
+							{
+							  "name": "resolverIp",
+							  "datatype": {
+								"type": "string",
+								"index": true,
+								"default": "0.0.0.0"
+							  }
+							},
+							{
+							  "name": "resolveDuration",
+							  "datatype": {
+								"type": "double",
+								"default": -1.0
+							  }
+							}
+						  ]
+						}
+					 },
+					"ingest": {
+						 "timestamp": "2020-02-26 16:01:27 PST",
+						 "clientId": "29992",
+						 "clientIp": "1.2.3.4/24",
+						 "clientCityCode": 1224,
+						 "resolverIp": "1.4.5.7",
+						 "resolveDuration": "1.234"
+					}
+				}`, tableName))
+
+	return []string{string(ingestBody)}, nil
+
 }
