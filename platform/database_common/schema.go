@@ -259,7 +259,7 @@ func GetTypeResolver(instanceType InstanceType) TypeResolver {
 	case ClickHouseInstance:
 		r = &clickhouse.ClickhouseTypeResolver{}
 	default:
-		logger.Fatal().Msgf("unknown instance type: %s", instanceType)
+		logger.Warn().Msgf("unknown instance type: %v", instanceType)
 	}
 	return r
 }
