@@ -381,6 +381,7 @@ func (td *tableDiscovery) autoConfigureTables(tables map[string]map[string]colum
 
 func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg *config.QuesmaConfiguration) {
 
+	instanceName := td.dbConnPool.InstanceName()
 	tableMap := NewTableMap()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
@@ -393,7 +394,7 @@ func (td *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				}
 			}
 
-			column := ResolveColumn(col, columnMeta.colType)
+			column := ResolveColumn(col, columnMeta.colType, instanceName)
 			if column != nil {
 				column.Comment = columnMeta.comment
 				column.Origin = columnMeta.origin
@@ -481,12 +482,13 @@ func (td *tableDiscovery) TableDefinitions() *TableMap {
 	return td.tableDefinitions.Load()
 }
 
-func ResolveColumn(colName, colType string) *Column {
+func ResolveColumn(colName, colType string, instanceName string) *Column {
 	isNullable := false
 	if isNullableType(colType) {
 		isNullable = true
 		colType = strings.TrimSuffix(strings.TrimPrefix(colType, "Nullable("), ")")
 	}
+	r := GetTypeResolver(instanceName)
 
 	if isArrayType(colType) {
 		arrayType := strings.TrimSuffix(strings.TrimPrefix(colType, "Array("), ")")
@@ -495,7 +497,7 @@ func ResolveColumn(colName, colType string) *Column {
 			arrayType = strings.TrimSuffix(strings.TrimPrefix(arrayType, "Nullable("), ")")
 		}
 		if isArrayType(arrayType) {
-			innerColumn := ResolveColumn("inner", arrayType)
+			innerColumn := ResolveColumn("inner", arrayType, instanceName)
 			if innerColumn == nil {
 				logger.Warn().Msgf("invalid inner array type for column %s, %s", colName, colType)
 				return nil
@@ -508,7 +510,7 @@ func ResolveColumn(colName, colType string) *Column {
 				},
 			}
 		}
-		GoType := ResolveType(arrayType)
+		GoType := r.ResolveType(arrayType)
 		if GoType != nil {
 			return &Column{
 				Name: colName,
@@ -518,7 +520,7 @@ func ResolveColumn(colName, colType string) *Column {
 				},
 			}
 		} else if isTupleType(arrayType) {
-			tupleColumn := ResolveColumn("Tuple", arrayType)
+			tupleColumn := ResolveColumn("Tuple", arrayType, instanceName)
 			if tupleColumn == nil {
 				logger.Warn().Msgf("invalid tuple type for column %s, %s", colName, colType)
 				return nil
@@ -558,7 +560,7 @@ func ResolveColumn(colName, colType string) *Column {
 			Name: colName,
 			Type: BaseType{
 				Name:   "Int32",
-				GoType: NewBaseType("Int32").GoType,
+				GoType: NewBaseTypeWithInstanceName("Int32", instanceName).GoType,
 			},
 		}
 	}
@@ -567,12 +569,12 @@ func ResolveColumn(colName, colType string) *Column {
 	if strings.HasPrefix(colType, "DateTime") {
 		colType = removePrecision(colType)
 	}
-	if GoType := ResolveType(colType); GoType != nil {
+	if GoType := r.ResolveType(colType); GoType != nil {
 		return &Column{
 			Name: colName,
 			Type: BaseType{
 				Name:     colType,
-				GoType:   NewBaseType(colType).GoType,
+				GoType:   NewBaseTypeWithInstanceName(colType, instanceName).GoType,
 				Nullable: isNullable,
 			},
 		}
@@ -583,7 +585,7 @@ func ResolveColumn(colName, colType string) *Column {
 			Name: colName,
 			Type: BaseType{
 				Name:     typeName,
-				GoType:   NewBaseType("Unknown").GoType,
+				GoType:   NewBaseTypeWithInstanceName("Unknown", instanceName).GoType,
 				Nullable: isNullable,
 			},
 		}

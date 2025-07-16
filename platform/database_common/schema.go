@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/clickhouse"
 	"github.com/QuesmaOrg/quesma/platform/config"
+	"github.com/QuesmaOrg/quesma/platform/doris"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
@@ -211,7 +212,9 @@ func (t MultiValueType) GetColumn(name string) *Column {
 }
 
 func NewBaseType(clickHouseTypeName string) BaseType {
-	var GoType = ResolveType(clickHouseTypeName)
+	// TODO: currently, NewBaseType is only used in tests or create table or insert, not in Doris's code, so the ClickHouse schema is used here.
+	var r TypeResolver = &clickhouse.ClickhouseTypeResolver{}
+	var GoType = r.ResolveType(clickHouseTypeName)
 	if GoType == nil {
 		// default, probably good for dates, etc.
 		GoType = reflect.TypeOf("")
@@ -219,36 +222,28 @@ func NewBaseType(clickHouseTypeName string) BaseType {
 	return BaseType{Name: clickHouseTypeName, GoType: GoType}
 }
 
-// this is catch all type for all types we do not exlicitly support
-type UnknownType struct{}
-
-func ResolveType(clickHouseTypeName string) reflect.Type {
-	switch clickHouseTypeName {
-	case "String", "LowCardinality(String)", "UUID", "FixedString":
-		return reflect.TypeOf("")
-	case "DateTime64", "DateTime", "Date", "DateTime64(3)":
-		return reflect.TypeOf(time.Time{})
-	case "UInt8", "UInt16", "UInt32", "UInt64":
-		return reflect.TypeOf(uint64(0))
-	case "Int8", "Int16", "Int32":
-		return reflect.TypeOf(int32(0))
-	case "Int64":
-		return reflect.TypeOf(int64(0))
-	case "Float32", "Float64":
-		return reflect.TypeOf(float64(0))
-	case "Point":
-		return reflect.TypeOf(clickhouse.Point{})
-	case "Bool":
-		return reflect.TypeOf(true)
-	case "JSON":
-		return reflect.TypeOf(map[string]interface{}{})
-	case "Map(String, Nullable(String))", "Map(String, String)", "Map(LowCardinality(String), String)", "Map(LowCardinality(String), Nullable(String))":
-		return reflect.TypeOf(map[string]string{})
-	case "Unknown":
-		return reflect.TypeOf(UnknownType{})
+func NewBaseTypeWithInstanceName(typeName string, instanceName string) BaseType {
+	r := GetTypeResolver(instanceName)
+	var GoType = r.ResolveType(typeName)
+	if GoType == nil {
+		// default, probably good for dates, etc.
+		GoType = reflect.TypeOf("")
 	}
+	return BaseType{Name: typeName, GoType: GoType}
+}
 
-	return nil
+func GetTypeResolver(instanceName string) TypeResolver {
+	var r TypeResolver
+	if instanceName == "doris" {
+		r = &doris.DorisTypeResolver{}
+	} else {
+		r = &clickhouse.ClickhouseTypeResolver{}
+	}
+	return r
+}
+
+type TypeResolver interface {
+	ResolveType(typeName string) reflect.Type
 }
 
 // 'value': value of a field, from unmarshalled JSON
