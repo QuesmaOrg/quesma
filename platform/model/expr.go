@@ -4,8 +4,8 @@ package model
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/k0kubun/pp"
-	"strconv"
 )
 
 // Expr is a generic representation of an expression which is a part of the SQL query.
@@ -301,7 +301,7 @@ func NewAliasedExpr(expr Expr, alias string) AliasedExpr {
 func (a AliasedExpr) Accept(v ExprVisitor) interface{} { return v.VisitAliasedExpr(a) }
 
 func (a AliasedExpr) AliasRef() LiteralExpr {
-	return LiteralExpr{Value: strconv.Quote(a.Alias)}
+	return LiteralExpr{Value: util.BackquoteIdentifier(a.Alias)}
 }
 
 // WindowFunction representation e.g. `SUM(x) OVER (PARTITION BY y ORDER BY z)`

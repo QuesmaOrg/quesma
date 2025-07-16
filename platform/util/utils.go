@@ -759,6 +759,14 @@ func SingleQuote(value string) string {
 	return "'" + value + "'"
 }
 
+// EscapeStringNormal is a simple helper function: str -> `str`
+func BackquoteIdentifier(identifier string) string {
+	if len(identifier) >= 2 && identifier[0] == '`' && identifier[len(identifier)-1] == '`' {
+		return identifier
+	}
+	return "`" + identifier + "`"
+}
+
 // IsSingleQuoted checks if a string is single-quoted
 func IsSingleQuoted(s string) bool {
 	return len(s) >= 2 && s[0] == '\'' && s[len(s)-1] == '\''

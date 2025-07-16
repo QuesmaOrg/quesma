@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/model/metrics_aggregations"
+	"github.com/QuesmaOrg/quesma/platform/util"
 	"strconv"
 )
 
 func (p *pancakeSqlQueryGenerator) quotedLiteral(name string) model.LiteralExpr {
-	return model.NewLiteral(strconv.Quote(name))
+	return model.NewLiteral(util.BackquoteIdentifier(name))
 }
 
 // generateSimpleTopHitsQuery generates an SQL for top_hits/top_metrics
@@ -83,7 +84,7 @@ func (p *pancakeSqlQueryGenerator) generateTopHitsQuery(aggregation *pancakeMode
 	hitTableName := "hit_table"
 
 	groupTableLiteral := func(reference string) model.Expr {
-		return model.NewLiteral(strconv.Quote(groupTableName) + "." + strconv.Quote(reference))
+		return model.NewLiteral(util.BackquoteIdentifier(groupTableName) + "." + util.BackquoteIdentifier(reference))
 	}
 
 	convertColumnRefToHitTable := func(expr model.Expr) model.Expr {

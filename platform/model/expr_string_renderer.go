@@ -9,7 +9,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -32,9 +31,9 @@ func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
 	name = strings.TrimSuffix(name, types.MultifieldMapKeysSuffix)
 	name = strings.TrimSuffix(name, types.MultifieldMapValuesSuffix)
 	if len(e.TableAlias) > 0 {
-		return fmt.Sprintf("%s.%s", strconv.Quote(e.TableAlias), strconv.Quote(name))
+		return fmt.Sprintf("%s.%s", util.BackquoteIdentifier(e.TableAlias), util.BackquoteIdentifier(name))
 	} else {
-		return strconv.Quote(name)
+		return util.BackquoteIdentifier(name)
 	}
 }
 
@@ -153,24 +152,17 @@ func (v *renderer) VisitTableRef(e TableRef) interface{} {
 	var result []string
 
 	if e.DatabaseName != "" {
-		if identifierRegexp.MatchString(e.DatabaseName) {
-			result = append(result, e.DatabaseName)
-		} else {
-			result = append(result, strconv.Quote(e.DatabaseName))
-		}
+		result = append(result, util.BackquoteIdentifier(e.DatabaseName))
 	}
 
-	if identifierRegexp.MatchString(e.Name) {
-		result = append(result, e.Name)
-	} else {
-		result = append(result, strconv.Quote(e.Name))
-	}
+	// append table name
+	result = append(result, util.BackquoteIdentifier(e.Name))
 
 	return strings.Join(result, ".")
 }
 
 func (v *renderer) VisitAliasedExpr(e AliasedExpr) interface{} {
-	return fmt.Sprintf("%s AS %s", e.Expr.Accept(v).(string), strconv.Quote(e.Alias))
+	return fmt.Sprintf("%s AS %s", e.Expr.Accept(v).(string), util.BackquoteIdentifier(e.Alias))
 }
 
 func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
