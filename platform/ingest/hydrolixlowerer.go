@@ -9,7 +9,6 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/goccy/go-json"
-	"regexp"
 	"strings"
 	"sync/atomic"
 )
@@ -73,9 +72,123 @@ func (ip *HydrolixLowerer) GenerateIngestContent(table *chLib.Table,
 	return alterStatements, onlySchemaFields, nonSchemaFields, nil
 }
 
-func unwrapNullable(input string) string {
-	re := regexp.MustCompile(`Nullable\(([^)]+)\)`)
-	return re.ReplaceAllString(input, `$1`)
+type TypeId int
+
+const (
+	PrimitiveType TypeId = iota
+	ArrayType
+	MapType
+)
+
+type TypeElement struct {
+	Name       string
+	IsNullable bool
+}
+
+type TypeInfo struct {
+	TypeId     TypeId
+	Elements   []TypeElement
+	IsNullable bool
+}
+
+func GetTypeInfo(typeName string) TypeInfo {
+	columnType := strings.TrimSpace(typeName)
+	info := TypeInfo{}
+
+	// Check for Nullable wrapper
+	if strings.HasPrefix(columnType, "Nullable(") {
+		info.IsNullable = true
+		columnType = unwrapNullable(columnType)
+	}
+
+	// Parse Array or Map
+	switch {
+	case strings.HasPrefix(columnType, "Array("):
+		info.TypeId = ArrayType
+		inner := unwrapGeneric(columnType)
+		info.Elements = []TypeElement{{Name: normalizeType(inner)}}
+
+	case strings.HasPrefix(columnType, "Map("):
+		info.TypeId = MapType
+		inner := unwrapGeneric(columnType)
+		parts := splitCommaArgs(inner)
+		if len(parts) == 2 {
+			info.Elements = []TypeElement{
+				{Name: normalizeType(parts[0])},
+				{Name: normalizeType(parts[1])},
+			}
+		}
+
+	default:
+		info.TypeId = PrimitiveType
+		info.Elements = []TypeElement{{Name: normalizeType(columnType)}}
+	}
+
+	return info
+}
+
+// Unwraps e.g. Array(Float64) → Float64
+func unwrapGeneric(s string) string {
+	start := strings.Index(s, "(")
+	end := strings.LastIndex(s, ")")
+	if start >= 0 && end > start {
+		return strings.TrimSpace(s[start+1 : end])
+	}
+	return s
+}
+
+// Splits arguments like Map(String, Int64)
+func splitCommaArgs(s string) []string {
+	var args []string
+	var current strings.Builder
+	var depth int
+	for _, r := range s {
+		switch r {
+		case '(':
+			depth++
+			current.WriteRune(r)
+		case ')':
+			depth--
+			current.WriteRune(r)
+		case ',':
+			if depth == 0 {
+				args = append(args, strings.TrimSpace(current.String()))
+				current.Reset()
+			} else {
+				current.WriteRune(r)
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+	if trimmed := strings.TrimSpace(current.String()); trimmed != "" {
+		args = append(args, trimmed)
+	}
+	return args
+}
+
+// Normalize ClickHouse-like types
+func normalizeType(t string) string {
+	t = strings.ToLower(strings.TrimSpace(t))
+	switch t {
+	case "float64":
+		return "double"
+	case "datetime64", "datetime":
+		return "datetime"
+	case "int64":
+		return "int64"
+	case "string":
+		return "string"
+	}
+	return t
+}
+
+// Removes Nullable(...) and returns the inner string
+func unwrapNullable(s string) string {
+	if strings.HasPrefix(s, "Nullable(") && strings.HasSuffix(s, ")") {
+		return strings.TrimSpace(s[9 : len(s)-1])
+	}
+	return s
 }
 
 func (l *HydrolixLowerer) LowerToDDL(
