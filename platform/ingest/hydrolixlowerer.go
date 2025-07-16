@@ -180,21 +180,12 @@ func (l *HydrolixLowerer) LowerToDDL(
 	outputColumns := make([]interface{}, 0)
 
 	for _, col := range createTableCmd.Columns {
-		columnType := strings.TrimSpace(col.ColumnType)
+		columnType := strings.TrimSpace(strings.ToLower(col.ColumnType))
 
 		// Normalize types
 
 		if strings.Contains(columnType, "Nullable") {
 			columnType = unwrapNullable(columnType)
-		}
-		if strings.Contains(columnType, "Map") {
-			columnType = "map"
-		}
-		if strings.Contains(columnType, "DateTime") {
-			columnType = "datetime"
-		}
-		if strings.Contains(columnType, "Array") {
-			columnType = "array"
 		}
 		if strings.Contains(columnType, "Float64") {
 			columnType = "double"
