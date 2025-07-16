@@ -170,15 +170,11 @@ func splitCommaArgs(s string) []string {
 // Normalize ClickHouse-like types
 func normalizeType(t string) string {
 	t = strings.ToLower(strings.TrimSpace(t))
-	switch t {
-	case "float64":
+	switch {
+	case strings.Contains(t, "float64"):
 		return "double"
-	case "datetime64", "datetime":
+	case strings.Contains(t, "datetime"):
 		return "datetime"
-	case "int64":
-		return "int64"
-	case "string":
-		return "string"
 	}
 	return t
 }
@@ -198,87 +194,6 @@ func (l *HydrolixLowerer) LowerToDDL(
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
 	createTableCmd CreateTableStatement,
 ) ([]string, error) {
-	/*
-			// Construct columns array
-			var columnsJSON strings.Builder
-			columnsJSON.WriteString("[\n")
-
-			for i, col := range createTableCmd.Columns {
-				if i > 0 {
-					columnsJSON.WriteString(",\n")
-				}
-				columnsJSON.WriteString(fmt.Sprintf(`  { "name": "%s", "type": "%s"`, col.ColumnName, col.ColumnType))
-				if col.Comment != "" {
-					columnsJSON.WriteString(fmt.Sprintf(`, "comment": "%s"`, col.Comment))
-				}
-				if col.AdditionalMetadata != "" {
-					columnsJSON.WriteString(fmt.Sprintf(`, "metadata": "%s"`, col.AdditionalMetadata))
-				}
-				columnsJSON.WriteString(" }")
-			}
-
-			columnsJSON.WriteString("\n]")
-
-			const timeColumnName = "ingest_time"
-
-			const (
-				partitioningStrategy    = "strategy"
-				partitioningField       = "field"
-				partitioningGranularity = "granularity"
-
-				defaultStrategy    = "time"
-				defaultField       = "ingest_time"
-				defaultGranularity = "day"
-			)
-			partitioningJSON := fmt.Sprintf(`"partitioning": {
-		  "%s": "%s",
-		  "%s": "%s",
-		  "%s": "%s"
-		}`,
-				partitioningStrategy, defaultStrategy,
-				partitioningField, defaultField,
-				partitioningGranularity, defaultGranularity)
-			events := make(map[string]any)
-			for i, preprocessedJson := range validatedJsons {
-				_, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
-					invalidJsons[i], encodings)
-				if err != nil {
-					return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
-				}
-				if err != nil {
-					return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
-				}
-				content := convertNonSchemaFieldsToMap(nonSchemaFields)
-
-				for k, v := range onlySchemaFields {
-					content[k] = v
-				}
-
-				for k, v := range content {
-					events[k] = v
-				}
-			}
-
-			eventList := []map[string]any{events}
-			eventBytes, err := json.MarshalIndent(eventList, "    ", "  ")
-			if err != nil {
-				return nil, err
-			}
-			eventJSON := string(eventBytes)
-
-			result := fmt.Sprintf(`{
-		  "schema": {
-		    "project": "%s",
-		    "name": "%s",
-		    "time_column": "%s",
-		    "columns": %s,
-		    %s,
-		  },
-		  "events": %s
-		}`, table.DatabaseName, table.Name, timeColumnName, columnsJSON.String(), partitioningJSON, eventJSON)
-			return []string{result}, nil
-	*/
-
 	// --- Create Table Section ---
 	createTable := map[string]interface{}{
 		"name": table.Name,
@@ -293,72 +208,76 @@ func (l *HydrolixLowerer) LowerToDDL(
 	outputColumns := make([]interface{}, 0)
 
 	for _, col := range createTableCmd.Columns {
-		columnType := strings.TrimSpace(col.ColumnType)
-
-		// Normalize types
-
-		var isNullable bool
-		if strings.Contains(columnType, "Nullable") {
-			isNullable = true
-			columnType = unwrapNullable(columnType)
-		}
-		if strings.Contains(columnType, "Map") {
-			columnType = "map"
-		}
-		if strings.Contains(columnType, "DateTime") {
-			columnType = "datetime"
-		}
-		if strings.Contains(columnType, "Array") {
-			columnType = "array"
-		}
-		if strings.Contains(columnType, "Float64") {
-			columnType = "double"
-		}
+		typeInfo := GetTypeInfo(col.ColumnType)
 
 		// Build base datatype map
 		datatype := map[string]interface{}{
-			"type": columnType,
+			"type": typeInfo.Elements[0].Name, // For primitive, or outer type for array/map
 		}
 
-		if isNullable {
+		// Nullable handling
+		if typeInfo.IsNullable {
 			datatype["denullify"] = false
 		}
 
-		// Optionally add format for datetime
-		if columnType == "datetime" {
-			datatype["format"] = "2006-01-02 15:04:05 MST"
-		}
-
+		// Primary timestamp column
 		if col.ColumnName == "@timestamp" {
 			datatype["primary"] = true
 		}
 
-		if columnType == "array" {
-			datatype["elements"] = []interface{}{
-				map[string]interface{}{
-					"type": "double",
-					"index_options": map[string]interface{}{
-						"fulltext": false,
-					},
+		// Add format for datetime
+		if datatype["type"] == "datetime" {
+			datatype["format"] = "2006-01-02 15:04:05 MST"
+		}
+
+		// Handle array elements
+		if typeInfo.TypeId == ArrayType && len(typeInfo.Elements) > 0 {
+			datatype["type"] = "array"
+			elementType := normalizeType(typeInfo.Elements[0].Name)
+			element := map[string]interface{}{
+				"type": elementType,
+				"index_options": map[string]interface{}{
+					"fulltext": false,
 				},
 			}
+
+			if elementType == "datetime" {
+				element["format"] = "2006-01-02 15:04:05 MST"
+			}
+
+			datatype["elements"] = []interface{}{element}
 		}
-		if columnType == "map" {
-			datatype["elements"] = []interface{}{
-				map[string]interface{}{
-					"type": "string",
-					"index_options": map[string]interface{}{
-						"fulltext": false,
-					},
-				},
-				map[string]interface{}{
-					"type": "string",
-					"index_options": map[string]interface{}{
-						"fulltext": false,
-					},
+
+		// Handle map elements
+		if typeInfo.TypeId == MapType && len(typeInfo.Elements) == 2 {
+			datatype["type"] = "map"
+			keyType := normalizeType(typeInfo.Elements[0].Name)
+			valueType := normalizeType(typeInfo.Elements[1].Name)
+
+			element1 := map[string]interface{}{
+				"type": keyType,
+				"index_options": map[string]interface{}{
+					"fulltext": false,
 				},
 			}
+
+			if keyType == "datetime" {
+				element1["format"] = "2006-01-02 15:04:05 MST"
+			}
+			element2 := map[string]interface{}{
+				"type": valueType,
+				"index_options": map[string]interface{}{
+					"fulltext": false,
+				},
+			}
+
+			if valueType == "datetime" {
+				element2["format"] = "2006-01-02 15:04:05 MST"
+			}
+			datatype["elements"] = []interface{}{element1, element2}
 		}
+
+		// Final column map
 		columnMap := map[string]interface{}{
 			"name":     col.ColumnName,
 			"datatype": datatype,
