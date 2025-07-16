@@ -169,6 +169,8 @@ func GetInstanceType(instanceName string) InstanceType {
 		return DorisInstance
 	case "doris":
 		return ClickHouseInstance
+	case "hydrolix":
+		return ClickHouseInstance
 	default:
 		logger.Fatal().Msgf("unknown instance name: %s", instanceName)
 		return UnknownInstance
