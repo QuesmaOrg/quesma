@@ -230,7 +230,7 @@ func (ip *IngestProcessor) createTableObject(tableName string, columnsFromJson [
 			// Remove DEFAULT clause from the type
 			colType = strings.Split(colType, " DEFAULT")[0]
 		}
-		resCol := database_common.ResolveColumn(name, colType)
+		resCol := database_common.ResolveColumn(name, colType, database_common.ClickHouseInstance)
 		return resCol.Type
 	}
 
