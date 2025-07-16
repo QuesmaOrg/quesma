@@ -9,6 +9,8 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/goccy/go-json"
+	"regexp"
+	"strings"
 	"sync/atomic"
 )
 
@@ -69,6 +71,11 @@ func (ip *HydrolixLowerer) GenerateIngestContent(table *chLib.Table,
 	onlySchemaFields := RemoveNonSchemaFields(data, table)
 
 	return alterStatements, onlySchemaFields, nonSchemaFields, nil
+}
+
+func unwrapNullable(input string) string {
+	re := regexp.MustCompile(`Nullable\(([^)]+)\)`)
+	return re.ReplaceAllString(input, `$1`)
 }
 
 func (l *HydrolixLowerer) LowerToDDL(
@@ -170,21 +177,77 @@ func (l *HydrolixLowerer) LowerToDDL(
 	}
 
 	// --- Output Columns Slice ---
-	outputColumns := make([]interface{}, 0, len(createTableCmd.Columns))
-	outputColumns = append(outputColumns, map[string]interface{}{
-		"name": "__timestamp",
-		"datatype": map[string]interface{}{
-			"type":    "datetime",
-			"primary": true,
-			"format":  "2006-01-02 15:04:05 MST",
-		},
-	})
+	outputColumns := make([]interface{}, 0)
+
 	for _, col := range createTableCmd.Columns {
+		columnType := strings.TrimSpace(col.ColumnType)
+
+		// Normalize types
+
+		if strings.Contains(columnType, "Nullable") {
+			columnType = unwrapNullable(columnType)
+		}
+		if strings.Contains(columnType, "Map") {
+			columnType = "map"
+		}
+		if strings.Contains(columnType, "DateTime") {
+			columnType = "datetime"
+		}
+		if strings.Contains(columnType, "Array") {
+			columnType = "array"
+		}
+		if strings.Contains(columnType, "Float64") {
+			columnType = "double"
+		}
+
+		if columnType == "" {
+			fmt.Printf("Warning: column %s has empty or unknown type\n", col.ColumnName)
+			continue // skip malformed types
+		}
+
+		// Build base datatype map
+		datatype := map[string]interface{}{
+			"type": columnType,
+		}
+
+		// Optionally add format for datetime
+		if columnType == "datetime" {
+			datatype["format"] = "2006-01-02 15:04:05 MST"
+		}
+
+		if col.ColumnName == "@timestamp" {
+			datatype["primary"] = true
+		}
+
+		if columnType == "array" {
+			datatype["elements"] = []interface{}{
+				map[string]interface{}{
+					"type": "double",
+					"index_options": map[string]interface{}{
+						"fulltext": false,
+					},
+				},
+			}
+		}
+		if columnType == "map" {
+			datatype["elements"] = []interface{}{
+				map[string]interface{}{
+					"type": "string",
+					"index_options": map[string]interface{}{
+						"fulltext": false,
+					},
+				},
+				map[string]interface{}{
+					"type": "string",
+					"index_options": map[string]interface{}{
+						"fulltext": false,
+					},
+				},
+			}
+		}
 		columnMap := map[string]interface{}{
-			"name": col.ColumnName,
-			"datatype": map[string]interface{}{
-				"type": "uint64",
-			},
+			"name":     col.ColumnName,
+			"datatype": datatype,
 		}
 
 		outputColumns = append(outputColumns, columnMap)
