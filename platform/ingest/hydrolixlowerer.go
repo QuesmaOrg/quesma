@@ -170,50 +170,24 @@ func (l *HydrolixLowerer) LowerToDDL(
 	}
 
 	// --- Output Columns Slice ---
-	outputColumns := []interface{}{
-		map[string]interface{}{
-			"name": "timestamp",
-			"datatype": map[string]interface{}{
-				"type":    "datetime",
-				"primary": true,
-				"format":  "2006-01-02 15:04:05 MST",
-			},
+	outputColumns := make([]interface{}, 0, len(createTableCmd.Columns))
+	outputColumns = append(outputColumns, map[string]interface{}{
+		"name": "__timestamp",
+		"datatype": map[string]interface{}{
+			"type":    "datetime",
+			"primary": true,
+			"format":  "2006-01-02 15:04:05 MST",
 		},
-		map[string]interface{}{
-			"name": "clientId",
+	})
+	for _, col := range createTableCmd.Columns {
+		columnMap := map[string]interface{}{
+			"name": col.ColumnName,
 			"datatype": map[string]interface{}{
 				"type": "uint64",
 			},
-		},
-		map[string]interface{}{
-			"name": "clientIp",
-			"datatype": map[string]interface{}{
-				"type":    "string",
-				"index":   true,
-				"default": "0.0.0.0",
-			},
-		},
-		map[string]interface{}{
-			"name": "clientCityCode",
-			"datatype": map[string]interface{}{
-				"type": "uint32",
-			},
-		},
-		map[string]interface{}{
-			"name": "resolverIp",
-			"datatype": map[string]interface{}{
-				"type":    "string",
-				"index":   true,
-				"default": "0.0.0.0",
-			},
-		},
-		map[string]interface{}{
-			"name": "resolveDuration",
-			"datatype": map[string]interface{}{
-				"type":    "double",
-				"default": -1.0,
-			},
-		},
+		}
+
+		outputColumns = append(outputColumns, columnMap)
 	}
 
 	// --- Transform Section ---
