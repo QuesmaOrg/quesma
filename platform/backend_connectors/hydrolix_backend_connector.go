@@ -65,7 +65,7 @@ func isValidJSON(s string) bool {
 	return json.Unmarshal([]byte(s), &js) == nil
 }
 
-func makeRequest(ctx context.Context, method string, url string, body []byte, token string, tableName string) (error, []byte) {
+func makeRequest(ctx context.Context, method string, url string, body []byte, token string, tableName string) ([]byte, error) {
 	// Build the request
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
 	if err != nil {
@@ -95,9 +95,9 @@ func makeRequest(ctx context.Context, method string, url string, body []byte, to
 	// Read and print response
 	respBody, err := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("ingest failed: %s — %s", resp.Status, string(respBody)), nil
+		return nil, fmt.Errorf("ingest failed: %s — %s", resp.Status, string(respBody))
 	}
-	return err, respBody
+	return respBody, err
 }
 
 var tableId uuid.UUID
@@ -154,7 +154,7 @@ func (p *HydrolixBackendConnector) Exec(ctx context.Context, query string, args 
 		if err != nil {
 			return fmt.Errorf("error marshalling create_table JSON: %v", err)
 		}
-		err, _ = makeRequest(ctx, "POST", url, createTableJson, token, tableName)
+		_, err = makeRequest(ctx, "POST", url, createTableJson, token, tableName)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 			return err
@@ -166,7 +166,7 @@ func (p *HydrolixBackendConnector) Exec(ctx context.Context, query string, args 
 			return fmt.Errorf("error marshalling transform JSON: %v", err)
 		}
 
-		err, _ = makeRequest(ctx, "POST", url, transformJson, token, tableName)
+		_, err = makeRequest(ctx, "POST", url, transformJson, token, tableName)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 			return err
@@ -179,7 +179,7 @@ func (p *HydrolixBackendConnector) Exec(ctx context.Context, query string, args 
 			return fmt.Errorf("error marshalling ingest JSON: %v", err)
 		}
 		url := fmt.Sprintf("http://%s/ingest/event", hdxHost)
-		err, _ = makeRequest(ctx, "POST", url, ingestJson, token, tableName)
+		_, err = makeRequest(ctx, "POST", url, ingestJson, token, tableName)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 			return err
