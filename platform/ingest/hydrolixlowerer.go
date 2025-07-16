@@ -180,25 +180,35 @@ func (l *HydrolixLowerer) LowerToDDL(
 	outputColumns := make([]interface{}, 0)
 
 	for _, col := range createTableCmd.Columns {
-		columnType := strings.TrimSpace(strings.ToLower(col.ColumnType))
+		columnType := strings.TrimSpace(col.ColumnType)
 
 		// Normalize types
 
+		var isNullable bool
 		if strings.Contains(columnType, "Nullable") {
+			isNullable = true
 			columnType = unwrapNullable(columnType)
+		}
+		if strings.Contains(columnType, "Map") {
+			columnType = "map"
+		}
+		if strings.Contains(columnType, "DateTime") {
+			columnType = "datetime"
+		}
+		if strings.Contains(columnType, "Array") {
+			columnType = "array"
 		}
 		if strings.Contains(columnType, "Float64") {
 			columnType = "double"
 		}
 
-		if columnType == "" {
-			fmt.Printf("Warning: column %s has empty or unknown type\n", col.ColumnName)
-			continue // skip malformed types
-		}
-
 		// Build base datatype map
 		datatype := map[string]interface{}{
 			"type": columnType,
+		}
+
+		if isNullable {
+			datatype["denullify"] = false
 		}
 
 		// Optionally add format for datetime
