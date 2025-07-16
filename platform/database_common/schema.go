@@ -69,6 +69,13 @@ type (
 		Origin    schema.FieldSource // TODO this field is just added to have way to forward information to the schema registry and should be considered as a technical debt
 	}
 	DateTimeType int
+	InstanceType int
+)
+
+const (
+	DorisInstance InstanceType = iota
+	ClickHouseInstance
+	UnknownInstance
 )
 
 const (
@@ -156,6 +163,18 @@ func (t MultiValueType) StringWithNullable() string {
 	return t.String()
 }
 
+func GetInstanceType(instanceName string) InstanceType {
+	switch instanceName {
+	case "clickhouse":
+		return DorisInstance
+	case "doris":
+		return ClickHouseInstance
+	default:
+		logger.Fatal().Msgf("unknown instance name: %s", instanceName)
+		return UnknownInstance
+	}
+}
+
 func (t MultiValueType) createTableString(indentLvl int) string {
 	var sb strings.Builder
 	sb.WriteString(t.Name + "\n" + util.Indent(indentLvl) + "(\n")
@@ -222,8 +241,8 @@ func NewBaseType(clickHouseTypeName string) BaseType {
 	return BaseType{Name: clickHouseTypeName, GoType: GoType}
 }
 
-func NewBaseTypeWithInstanceName(typeName string, instanceName string) BaseType {
-	r := GetTypeResolver(instanceName)
+func NewBaseTypeWithInstanceName(typeName string, instanceType InstanceType) BaseType {
+	r := GetTypeResolver(instanceType)
 	var GoType = r.ResolveType(typeName)
 	if GoType == nil {
 		// default, probably good for dates, etc.
@@ -232,12 +251,15 @@ func NewBaseTypeWithInstanceName(typeName string, instanceName string) BaseType 
 	return BaseType{Name: typeName, GoType: GoType}
 }
 
-func GetTypeResolver(instanceName string) TypeResolver {
+func GetTypeResolver(instanceType InstanceType) TypeResolver {
 	var r TypeResolver
-	if instanceName == "doris" {
+	switch instanceType {
+	case DorisInstance:
 		r = &doris.DorisTypeResolver{}
-	} else {
+	case ClickHouseInstance:
 		r = &clickhouse.ClickhouseTypeResolver{}
+	default:
+		logger.Fatal().Msgf("unknown instance type: %s", instanceType)
 	}
 	return r
 }

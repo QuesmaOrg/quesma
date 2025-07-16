@@ -146,7 +146,7 @@ func Test_resolveColumn(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
-			assert.Equalf(t, tt.want, ResolveColumn(tt.args.colName, tt.args.colType, "clickhouse"), "ResolveColumn(%v, %v)", tt.args.colName, tt.args.colType)
+			assert.Equalf(t, tt.want, ResolveColumn(tt.args.colName, tt.args.colType, ClickHouseInstance), "ResolveColumn(%v, %v)", tt.args.colName, tt.args.colType)
 		})
 	}
 }
@@ -300,7 +300,7 @@ func Test_resolveColumn_Nullable(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(util.PrettyTestName(tt.name, i), func(t *testing.T) {
-			assert.Equalf(t, tt.want, ResolveColumn(tt.args.colName, tt.args.colType, "clickhouse"), "ResolveColumn(%v, %v)", tt.args.colName, tt.args.colType)
+			assert.Equalf(t, tt.want, ResolveColumn(tt.args.colName, tt.args.colType, ClickHouseInstance), "ResolveColumn(%v, %v)", tt.args.colName, tt.args.colType)
 		})
 	}
 }
