@@ -166,9 +166,9 @@ func (t MultiValueType) StringWithNullable() string {
 func GetInstanceType(instanceName string) InstanceType {
 	switch instanceName {
 	case "clickhouse":
-		return DorisInstance
-	case "doris":
 		return ClickHouseInstance
+	case "doris":
+		return DorisInstance
 	default:
 		logger.Fatal().Msgf("unknown instance name: %s", instanceName)
 		return UnknownInstance
