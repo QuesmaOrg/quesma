@@ -38,14 +38,14 @@ func (logSender *LogSender) EatLogMessage(msg []byte) struct {
 	} else {
 		addedBefore := false
 		if !bufferLengthCondition && len(logSender.LogBuffer) == 0 { // msg longer than buffer, let's cut it
-			cutMark := []byte("...\n")
-			charToCut := len(msg) + len(cutMark) - cap(logSender.LogBuffer)
-			if charToCut < len(msg) {
-				msgCut := msg[:len(msg)-charToCut]
-				logSender.LogBuffer = append(logSender.LogBuffer, msgCut...)
-				logSender.LogBuffer = append(logSender.LogBuffer, cutMark...)
-				addedBefore = true
-			}
+
+			// Keep it simple. Drop the message if it is too long.
+			//
+			// We were cutting the message before, but it leads to broken JSONs. These JSONs where dropped by the collector
+			// afterward.
+			//
+			addedBefore = true
+
 		} else if len(logSender.LogBuffer)+len(msg) <= cap(logSender.LogBuffer) { // still fits in buffer
 			logSender.LogBuffer = append(logSender.LogBuffer, msg...)
 			addedBefore = true
