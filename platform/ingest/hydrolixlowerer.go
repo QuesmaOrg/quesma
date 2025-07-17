@@ -187,6 +187,27 @@ func unwrapNullable(s string) string {
 	return s
 }
 
+func defaultForType(t string) interface{} {
+	switch t {
+	case "string":
+		return "example"
+	case "int64":
+		return int64(123)
+	case "uint64":
+		return uint64(123)
+	case "uint32":
+		return uint32(123)
+	case "double", "float64":
+		return "1.23"
+	case "datetime":
+		return "2020-02-26 16:01:27 PST"
+	case "bool":
+		return true
+	default:
+		return nil
+	}
+}
+
 func (l *HydrolixLowerer) LowerToDDL(
 	validatedJsons []types.JSON,
 	table *chLib.Table,
@@ -301,13 +322,31 @@ func (l *HydrolixLowerer) LowerToDDL(
 	}
 
 	// --- Ingest Section ---
-	ingest := map[string]interface{}{
-		"timestamp":       "2020-02-26 16:01:27 PST",
-		"clientId":        "29992",
-		"clientIp":        "1.2.3.4/24",
-		"clientCityCode":  1224,
-		"resolverIp":      "1.4.5.7",
-		"resolveDuration": "1.234",
+	ingest := map[string]interface{}{}
+
+	for _, col := range createTableCmd.Columns {
+		colName := col.ColumnName
+		typeInfo := GetTypeInfo(col.ColumnType)
+
+		var value interface{}
+
+		switch typeInfo.TypeId {
+		case PrimitiveType:
+			value = defaultForType(typeInfo.Elements[0].Name)
+
+		case ArrayType:
+			elemType := typeInfo.Elements[0].Name
+			value = []interface{}{defaultForType(elemType)} // array with one sample element
+
+		case MapType:
+			keyType := typeInfo.Elements[0].Name
+			valType := typeInfo.Elements[1].Name
+			value = map[string]interface{}{
+				fmt.Sprintf("%v", defaultForType(keyType)): defaultForType(valType),
+			}
+		}
+
+		ingest[colName] = value
 	}
 
 	// --- Final Payload ---
