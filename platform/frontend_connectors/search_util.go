@@ -15,7 +15,8 @@ import (
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 )
 
-func (q *QueryRunner) clickhouseConnectorFromDecision(ctx context.Context, decision *quesma_api.Decision) (clickhouseConnector *quesma_api.ConnectorDecisionClickhouse, err error) {
+func (q *QueryRunner) clickhouseConnectorFromDecision(ctx context.Context, decision *quesma_api.Decision) (
+	clickhouseConnector *quesma_api.ConnectorDecisionClickhouse, err error) {
 
 	for _, connector := range decision.UseConnectors {
 		switch c := connector.(type) {
@@ -41,7 +42,8 @@ func (q *QueryRunner) clickhouseConnectorFromDecision(ctx context.Context, decis
 	return clickhouseConnector, nil
 }
 
-func (q *QueryRunner) checkDecision(ctx context.Context, decision *quesma_api.Decision, optAsync *AsyncQuery) (respIfWeEndSearch []byte, err error, weEndSearch bool) {
+func (q *QueryRunner) checkDecision(ctx context.Context, decision *quesma_api.Decision, optAsync *AsyncQuery) (
+	respIfWeEndSearch []byte, err error, weEndSearch bool) {
 
 	if decision.Err != nil {
 		if optAsync != nil {
@@ -74,8 +76,8 @@ func (q *QueryRunner) checkDecision(ctx context.Context, decision *quesma_api.De
 	return []byte{}, nil, false
 }
 
-func (q *QueryRunner) resolveIndexes(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
-	tables database_common.TableMap, optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *database_common.Table, respWhenError []byte, err error) {
+func (q *QueryRunner) resolveIndexes(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse, tables database_common.TableMap,
+	optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *database_common.Table, respWhenError []byte, err error) {
 
 	if clickhouseConnector.IsCommonTable {
 		return q.resolveIndexesCommonTable(ctx, clickhouseConnector, tables, optAsync)
@@ -134,8 +136,8 @@ func (q *QueryRunner) resolveIndexesNonCommonTable(ctx context.Context, clickhou
 	return
 }
 
-func (q *QueryRunner) resolveIndexesCommonTable(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse,
-	tables database_common.TableMap, optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *database_common.Table, respWhenError []byte, err error) {
+func (q *QueryRunner) resolveIndexesCommonTable(ctx context.Context, clickhouseConnector *quesma_api.ConnectorDecisionClickhouse, tables database_common.TableMap,
+	optAsync *AsyncQuery) (resolvedIndexes []string, currentSchema schema.Schema, table *database_common.Table, respWhenError []byte, err error) {
 
 	// here we filter out indexes that are not stored in the common table
 	var virtualOnlyTables []string
