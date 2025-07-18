@@ -97,7 +97,11 @@ func InitDBConnectionPool(c *config.QuesmaConfiguration) quesma_api.BackendConne
 	// clean up connections after 5 minutes, before that they may be killed by the firewall
 	db.SetConnMaxLifetime(time.Duration(5) * time.Minute) // default is 1h
 
+	if c.Hydrolix.ConnectorType == quesma_api.GetBackendConnectorNameFromType(quesma_api.HydrolixSQLBackend) {
+		return backend_connectors.NewHydrolixBackendConnectorWithConnection(c.Hydrolix.Url.String(), db)
+	}
 	return backend_connectors.NewClickHouseBackendConnectorWithConnection(c.ClickHouse.Url.String(), db)
+
 }
 
 // RunClickHouseConnectionDoctor is very blunt and verbose function which aims to print some helpful information
