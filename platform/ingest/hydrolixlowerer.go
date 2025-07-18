@@ -322,38 +322,42 @@ func (l *HydrolixLowerer) LowerToDDL(
 	}
 
 	// --- Ingest Section ---
-	ingest := map[string]interface{}{}
+	ingests := make([]map[string]interface{}, 0)
+	for i := 0; i < 10; i++ {
+		ingest := map[string]interface{}{}
+		for _, col := range createTableCmd.Columns {
+			colName := col.ColumnName
+			typeInfo := GetTypeInfo(col.ColumnType)
 
-	for _, col := range createTableCmd.Columns {
-		colName := col.ColumnName
-		typeInfo := GetTypeInfo(col.ColumnType)
+			var value interface{}
 
-		var value interface{}
+			switch typeInfo.TypeId {
+			case PrimitiveType:
+				value = defaultForType(typeInfo.Elements[0].Name)
 
-		switch typeInfo.TypeId {
-		case PrimitiveType:
-			value = defaultForType(typeInfo.Elements[0].Name)
+			case ArrayType:
+				elemType := typeInfo.Elements[0].Name
+				value = []interface{}{defaultForType(elemType)} // array with one sample element
 
-		case ArrayType:
-			elemType := typeInfo.Elements[0].Name
-			value = []interface{}{defaultForType(elemType)} // array with one sample element
-
-		case MapType:
-			keyType := typeInfo.Elements[0].Name
-			valType := typeInfo.Elements[1].Name
-			value = map[string]interface{}{
-				fmt.Sprintf("%v", defaultForType(keyType)): defaultForType(valType),
+			case MapType:
+				keyType := typeInfo.Elements[0].Name
+				valType := typeInfo.Elements[1].Name
+				value = map[string]interface{}{
+					fmt.Sprintf("%v", defaultForType(keyType)): defaultForType(valType),
+				}
 			}
+
+			ingest[colName] = value
 		}
-
-		ingest[colName] = value
+		if len(ingest) > 0 {
+			ingests = append(ingests, ingest)
+		}
 	}
-
 	// --- Final Payload ---
 	payload := map[string]interface{}{
 		"create_table": createTable,
 		"transform":    transform,
-		"ingest":       ingest,
+		"ingest":       ingests,
 	}
 
 	marshaledPayload, err := json.Marshal(payload)
