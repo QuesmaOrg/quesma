@@ -28,6 +28,7 @@ jobs:
         run: |
           PR_URL="${{ github.event.issue.pull_request.url }}"
           PR_INFO=$(curl -s -H "Authorization: token ${{ github.token }}" $PR_URL)
+          REF=$(echo $PR_INFO | jq -r .head.sha)
           echo "ref=$(echo $PR_INFO | jq -r .head.sha)" >> $GITHUB_OUTPUT
 
       - name: Create pending status
