@@ -9,6 +9,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/goccy/go-json"
+	"strconv"
 	"strings"
 	"sync/atomic"
 )
@@ -208,6 +209,52 @@ func defaultForType(t string) interface{} {
 	}
 }
 
+func CastToType(value any, typeName string) (any, error) {
+	switch typeName {
+	case "string":
+		if v, ok := value.(string); ok {
+			return v, nil
+		}
+		return fmt.Sprintf("%v", value), nil
+
+	case "int":
+		if v, ok := value.(int); ok {
+			return v, nil
+		}
+		switch v := value.(type) {
+		case float64:
+			return int(v), nil
+		case string:
+			return strconv.Atoi(v)
+		}
+
+	case "float64", "double":
+		if v, ok := value.(float64); ok {
+			return v, nil
+		}
+		switch v := value.(type) {
+		case int:
+			return float64(v), nil
+		case string:
+			return strconv.ParseFloat(v, 64)
+		}
+
+	case "bool":
+		if v, ok := value.(bool); ok {
+			return v, nil
+		}
+		switch v := value.(type) {
+		case string:
+			return strconv.ParseBool(v)
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported target type: %s", typeName)
+	}
+
+	return nil, fmt.Errorf("cannot convert %T to %s", value, typeName)
+}
+
 func (l *HydrolixLowerer) LowerToDDL(
 	validatedJsons []types.JSON,
 	table *chLib.Table,
@@ -323,17 +370,38 @@ func (l *HydrolixLowerer) LowerToDDL(
 
 	// --- Ingest Section ---
 	ingests := make([]map[string]interface{}, 0)
-	for i := 0; i < 10; i++ {
+	events := make(map[string]any)
+	for i, preprocessedJson := range validatedJsons {
+		_, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
+			invalidJsons[i], encodings)
+		if err != nil {
+			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
+		}
+		content := convertNonSchemaFieldsToMap(nonSchemaFields)
+
+		for k, v := range onlySchemaFields {
+			content[k] = v
+		}
+
+		for k, v := range content {
+			events[k] = v
+		}
 		ingest := map[string]interface{}{}
 		for _, col := range createTableCmd.Columns {
 			colName := col.ColumnName
+
 			typeInfo := GetTypeInfo(col.ColumnType)
 
 			var value interface{}
 
 			switch typeInfo.TypeId {
 			case PrimitiveType:
-				value = defaultForType(typeInfo.Elements[0].Name)
+				if _, exists := events[colName]; !exists {
+					value = defaultForType(typeInfo.Elements[0].Name)
+				} else {
+					val, _ := CastToType(events[colName], typeInfo.Elements[0].Name)
+					value = val //defaultForType(typeInfo.Elements[0].Name)
+				}
 
 			case ArrayType:
 				elemType := typeInfo.Elements[0].Name
