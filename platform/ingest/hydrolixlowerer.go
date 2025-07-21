@@ -377,16 +377,13 @@ func (l *HydrolixLowerer) LowerToDDL(
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
 		}
-		content := convertNonSchemaFieldsToMap(nonSchemaFields)
+		events = convertNonSchemaFieldsToMap(nonSchemaFields)
 
 		for k, v := range onlySchemaFields {
-			content[k] = v
-		}
-
-		for k, v := range content {
 			events[k] = v
 		}
 		ingest := map[string]interface{}{}
+
 		for _, col := range createTableCmd.Columns {
 			colName := col.ColumnName
 
