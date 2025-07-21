@@ -3,8 +3,10 @@
 package ingest
 
 import (
+	"context"
 	"fmt"
 	chLib "github.com/QuesmaOrg/quesma/platform/database_common"
+	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
@@ -15,13 +17,15 @@ import (
 )
 
 type HydrolixLowerer struct {
-	virtualTableStorage persistence.JSONDatabase
-	ingestCounter       atomic.Int64
+	virtualTableStorage        persistence.JSONDatabase
+	ingestCounter              atomic.Int64
+	tableCreteStatementMapping map[*chLib.Table]CreateTableStatement // cache for table creation statements
 }
 
 func NewHydrolixLowerer(virtualTableStorage persistence.JSONDatabase) *HydrolixLowerer {
 	return &HydrolixLowerer{
-		virtualTableStorage: virtualTableStorage,
+		virtualTableStorage:        virtualTableStorage,
+		tableCreteStatementMapping: make(map[*chLib.Table]CreateTableStatement),
 	}
 }
 
@@ -262,6 +266,13 @@ func (l *HydrolixLowerer) LowerToDDL(
 	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName,
 	createTableCmd CreateTableStatement,
 ) ([]string, error) {
+
+	if _, exists := l.tableCreteStatementMapping[table]; !exists {
+		l.tableCreteStatementMapping[table] = createTableCmd
+	} else {
+		createTableCmd = l.tableCreteStatementMapping[table]
+	}
+
 	// --- Create Table Section ---
 	createTable := map[string]interface{}{
 		"name": table.Name,
@@ -424,7 +435,7 @@ func (l *HydrolixLowerer) LowerToDDL(
 		"transform":    transform,
 		"ingest":       ingests,
 	}
-
+	logger.InfoWithCtx(context.Background()).Msgf("Ingesting %d %d %d events into table %s", len(validatedJsons), len(createTableCmd.Columns), len(ingests), table.Name)
 	marshaledPayload, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling payload: %v", err)

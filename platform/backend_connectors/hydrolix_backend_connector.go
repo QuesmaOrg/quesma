@@ -28,6 +28,7 @@ type HydrolixBackendConnector struct {
 	AccessToken     string
 	Headers         map[string]string
 	createTableChan chan string
+	client          *http.Client
 }
 
 func (p *HydrolixBackendConnector) GetId() quesma_api.BackendConnectorType {
@@ -49,6 +50,11 @@ func NewHydrolixBackendConnector(configuration *config.RelationalDbConfiguration
 	return &HydrolixBackendConnector{
 		cfg:             configuration,
 		createTableChan: createTableChan,
+		client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		},
 	}
 }
 
@@ -60,6 +66,11 @@ func NewHydrolixBackendConnectorWithConnection(_ string, conn *sql.DB) *Hydrolix
 			connection: conn,
 		},
 		createTableChan: createTableChan,
+		client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		},
 	}
 }
 
@@ -72,7 +83,7 @@ func isValidJSON(s string) bool {
 	return json.Unmarshal([]byte(s), &js) == nil
 }
 
-func makeRequest(ctx context.Context, method string, url string, body []byte, token string, tableName string) ([]byte, error) {
+func (p *HydrolixBackendConnector) makeRequest(ctx context.Context, method string, url string, body []byte, token string, tableName string) ([]byte, error) {
 	// Build the request
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
 	if err != nil {
@@ -85,15 +96,8 @@ func makeRequest(ctx context.Context, method string, url string, body []byte, to
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-hdx-table", "sample_project."+tableName)
 
-	// Allow self-signed certs (equivalent to curl -k)
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
-
 	// Send the request
-	resp, err := client.Do(req)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("ingest request failed: %s", err)
 	}
@@ -120,9 +124,9 @@ type TableInfo struct {
 	UUID string `json:"uuid"`
 }
 
-func isTableExists(tableName string) (bool, error) {
+func (p *HydrolixBackendConnector) isTableExists(tableName string) (bool, error) {
 	url := fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/", hdxHost, orgID, projectID)
-	rawJSON, err := makeRequest(context.Background(), "GET", url, []byte{}, token, "")
+	rawJSON, err := p.makeRequest(context.Background(), "GET", url, []byte{}, token, "")
 	if err != nil {
 		fmt.Println("Error making request:", err)
 		return false, err
@@ -139,16 +143,17 @@ func isTableExists(tableName string) (bool, error) {
 	// Output result
 	for _, p := range tables {
 		if p.Name == tableName {
-			fmt.Printf("Table %s exists with UUID %s\n", p.Name, p.UUID)
+			logger.Info().Msgf("Table %s exists with UUID %s\n", p.Name, p.UUID)
 			return true, nil
 		}
 	}
-	fmt.Printf("Table %s does not exist\n", tableName)
+	logger.Error().Msgf("Table %s does not exist\n", tableName)
 	return false, nil
 }
 
 var tableCache = make(map[string]uuid.UUID)
 var tableMutex sync.Mutex
+var ingestCounter = 5 * time.Second
 
 func listenForCreateTable(ch <-chan string) {
 	for url := range ch {
@@ -156,8 +161,9 @@ func listenForCreateTable(ch <-chan string) {
 	}
 }
 
-func ingestFun(ctx context.Context, ingest []map[string]interface{}, tableName string) error {
-	logger.Info().Msgf("ingests len: %s %d", tableName, len(ingest))
+func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingest []map[string]interface{}, tableName string) error {
+	time.Sleep(5 * time.Second) // wait for table creation
+	logger.InfoWithCtx(ctx).Msgf("Ingests len: %s %d", tableName, len(ingest))
 	for _, row := range ingest {
 		if len(row) == 0 {
 			continue
@@ -168,7 +174,7 @@ func ingestFun(ctx context.Context, ingest []map[string]interface{}, tableName s
 		}
 		url := fmt.Sprintf("http://%s/ingest/event", hdxHost)
 		//logger.Info().Msgf("ingest event: %s %s", createTable["name"].(string), string(ingestJson))
-		_, err = makeRequest(ctx, "POST", url, ingestJson, token, tableName)
+		_, err = p.makeRequest(ctx, "POST", url, ingestJson, token, tableName)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 			return err
@@ -178,7 +184,6 @@ func ingestFun(ctx context.Context, ingest []map[string]interface{}, tableName s
 }
 
 func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ...interface{}) error {
-
 	// TODO context might be cancelled too early
 	ctx := context.Background()
 	if !isValidJSON(query) {
@@ -225,7 +230,7 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 		if err != nil {
 			return fmt.Errorf("error marshalling create_table JSON: %v", err)
 		}
-		_, err = makeRequest(ctx, "POST", url, createTableJson, token, tableName)
+		_, err = p.makeRequest(ctx, "POST", url, createTableJson, token, tableName)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 			return err
@@ -238,7 +243,7 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 		}
 		logger.Info().Msgf("transform event: %s %s", tableName, string(transformJson))
 
-		_, err = makeRequest(ctx, "POST", url, transformJson, token, tableName)
+		_, err = p.makeRequest(ctx, "POST", url, transformJson, token, tableName)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 			return err
@@ -246,11 +251,10 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 		tableMutex.Lock()
 		tableCache[tableName] = tableId
 		tableMutex.Unlock()
-		time.Sleep(5 * time.Second) // Wait for the transform to be created
 	}
 
 	if len(ingest) > 0 {
-		ingestFun(ctx, ingest, tableName)
+		go p.ingestFun(ctx, ingest, tableName)
 	}
 
 	return nil
