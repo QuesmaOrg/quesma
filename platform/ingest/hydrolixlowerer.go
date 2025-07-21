@@ -195,7 +195,7 @@ func unwrapNullable(s string) string {
 func defaultForType(t string) interface{} {
 	switch t {
 	case "string":
-		return "example"
+		return ""
 	case "int64":
 		return int64(123)
 	case "uint64":

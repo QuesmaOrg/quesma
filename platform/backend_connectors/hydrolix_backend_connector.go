@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -124,6 +125,35 @@ type TableInfo struct {
 	UUID string `json:"uuid"`
 }
 
+type TransformInfo struct {
+	Name string `json:"name"`
+	UUID string `json:"uuid"`
+}
+
+type HydrolixResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (p *HydrolixBackendConnector) getTransforms(tableId string) (bool, error) {
+	url := fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/%s/transforms", hdxHost, orgID, projectID, tableId)
+	rawJSON, err := p.makeRequest(context.Background(), "GET", url, []byte{}, token, "")
+	if err != nil {
+		fmt.Println("Error making request:", err)
+		return false, err
+	}
+
+	var tables []TransformInfo
+
+	// Unmarshal only into our minimal struct
+	err = json.Unmarshal(rawJSON, &tables)
+
+	if err != nil {
+		panic(err)
+	}
+	return len(tables) > 0, nil
+}
+
 func (p *HydrolixBackendConnector) isTableExists(tableName string) (bool, error) {
 	url := fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/", hdxHost, orgID, projectID)
 	rawJSON, err := p.makeRequest(context.Background(), "GET", url, []byte{}, token, "")
@@ -153,7 +183,6 @@ func (p *HydrolixBackendConnector) isTableExists(tableName string) (bool, error)
 
 var tableCache = make(map[string]uuid.UUID)
 var tableMutex sync.Mutex
-var ingestCounter = 5 * time.Second
 
 func listenForCreateTable(ch <-chan string) {
 	for url := range ch {
@@ -161,8 +190,7 @@ func listenForCreateTable(ch <-chan string) {
 	}
 }
 
-func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingest []map[string]interface{}, tableName string) error {
-	time.Sleep(5 * time.Second) // wait for table creation
+func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingest []map[string]interface{}, tableName string, tableId string) error {
 	logger.InfoWithCtx(ctx).Msgf("Ingests len: %s %d", tableName, len(ingest))
 	for _, row := range ingest {
 		if len(row) == 0 {
@@ -174,12 +202,17 @@ func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingest []map[s
 		}
 		url := fmt.Sprintf("http://%s/ingest/event", hdxHost)
 		//logger.Info().Msgf("ingest event: %s %s", createTable["name"].(string), string(ingestJson))
-		_, err = p.makeRequest(ctx, "POST", url, ingestJson, token, tableName)
+	emitRequest:
+		respJson, err := p.makeRequest(ctx, "POST", url, ingestJson, token, tableName)
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
-			return err
+			var resp HydrolixResponse
+			if err := json.Unmarshal(respJson, &resp); err != nil {
+				if strings.Contains(resp.Message, "no table") {
+					time.Sleep(5 * time.Second)
+					goto emitRequest
+				}
+			}
 		}
-
 	}
 	return nil
 }
@@ -256,7 +289,7 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 
 	if len(ingest) > 0 {
 		logger.Info().Msgf("Received %d rows for table %s", len(ingest), tableName)
-		go p.ingestFun(ctx, ingest, tableName)
+		go p.ingestFun(ctx, ingest, tableName, tableId.String())
 	}
 
 	return nil
