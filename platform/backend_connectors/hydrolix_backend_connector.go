@@ -120,65 +120,9 @@ const hdxHost = "3.20.203.177:8888"
 const orgID = "d9ce0431-f26f-44e3-b0ef-abc1653d04eb"
 const projectID = "27506b30-0c78-41fa-a059-048d687f1164"
 
-type TableInfo struct {
-	Name string `json:"name"`
-	UUID string `json:"uuid"`
-}
-
-type TransformInfo struct {
-	Name string `json:"name"`
-	UUID string `json:"uuid"`
-}
-
 type HydrolixResponse struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
-}
-
-func (p *HydrolixBackendConnector) getTransforms(tableId string) (bool, error) {
-	url := fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/%s/transforms", hdxHost, orgID, projectID, tableId)
-	rawJSON, err := p.makeRequest(context.Background(), "GET", url, []byte{}, token, "")
-	if err != nil {
-		fmt.Println("Error making request:", err)
-		return false, err
-	}
-
-	var tables []TransformInfo
-
-	// Unmarshal only into our minimal struct
-	err = json.Unmarshal(rawJSON, &tables)
-
-	if err != nil {
-		panic(err)
-	}
-	return len(tables) > 0, nil
-}
-
-func (p *HydrolixBackendConnector) isTableExists(tableName string) (bool, error) {
-	url := fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/", hdxHost, orgID, projectID)
-	rawJSON, err := p.makeRequest(context.Background(), "GET", url, []byte{}, token, "")
-	if err != nil {
-		fmt.Println("Error making request:", err)
-		return false, err
-	}
-
-	var tables []TableInfo
-
-	// Unmarshal only into our minimal struct
-	err = json.Unmarshal(rawJSON, &tables)
-	if err != nil {
-		panic(err)
-	}
-
-	// Output result
-	for _, p := range tables {
-		if p.Name == tableName {
-			logger.Info().Msgf("Table %s exists with UUID %s\n", p.Name, p.UUID)
-			return true, nil
-		}
-	}
-	logger.Error().Msgf("Table %s does not exist\n", tableName)
-	return false, nil
 }
 
 var tableCache = make(map[string]uuid.UUID)
