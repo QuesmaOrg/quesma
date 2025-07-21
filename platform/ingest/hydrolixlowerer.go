@@ -407,8 +407,12 @@ func (l *HydrolixLowerer) LowerToDDL(
 				if _, exists := events[colName]; !exists {
 					value = defaultForType(typeInfo.Elements[0].Name)
 				} else {
-					val, _ := CastToType(events[colName], typeInfo.Elements[0].Name)
-					value = val //defaultForType(typeInfo.Elements[0].Name)
+					if typeInfo.Elements[0].Name == "datetime" {
+						value = defaultForType(typeInfo.Elements[0].Name)
+					} else {
+						val, _ := CastToType(events[colName], typeInfo.Elements[0].Name)
+						value = val //defaultForType(typeInfo.Elements[0].Name)
+					}
 				}
 
 			case ArrayType:

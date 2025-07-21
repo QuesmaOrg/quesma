@@ -179,6 +179,7 @@ func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingest []map[s
 			logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 			return err
 		}
+
 	}
 	return nil
 }
@@ -254,6 +255,7 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 	}
 
 	if len(ingest) > 0 {
+		logger.Info().Msgf("Received %d rows for table %s", len(ingest), tableName)
 		go p.ingestFun(ctx, ingest, tableName)
 	}
 
