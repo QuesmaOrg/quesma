@@ -381,14 +381,14 @@ func (l *HydrolixLowerer) LowerToDDL(
 
 	// --- Ingest Section ---
 	ingests := make([]map[string]interface{}, 0)
-	events := make(map[string]any)
+
 	for i, preprocessedJson := range validatedJsons {
 		_, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
 			invalidJsons[i], encodings)
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' : %v", table.Name, err)
 		}
-		events = convertNonSchemaFieldsToMap(nonSchemaFields)
+		events := convertNonSchemaFieldsToMap(nonSchemaFields)
 
 		for k, v := range onlySchemaFields {
 			events[k] = v
