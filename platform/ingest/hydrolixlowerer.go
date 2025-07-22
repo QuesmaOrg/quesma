@@ -251,7 +251,16 @@ func CastToType(value any, typeName string) (any, error) {
 		case string:
 			return strconv.ParseBool(v)
 		}
-
+	case "int64":
+		if v, ok := value.(int64); ok {
+			return v, nil
+		}
+		switch v := value.(type) {
+		case float64:
+			return int64(v), nil
+		case string:
+			return strconv.Atoi(v)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported target type: %s", typeName)
 	}
@@ -417,8 +426,17 @@ func (l *HydrolixLowerer) LowerToDDL(
 
 			case ArrayType:
 				elemType := typeInfo.Elements[0].Name
-				value = []interface{}{defaultForType(elemType)} // array with one sample element
-
+				value = []any{}
+				if events[colName] != nil {
+					for _, elem := range events[colName].([]any) {
+						castedElem, err := CastToType(elem, elemType)
+						if err != nil {
+							logger.ErrorWithCtx(context.Background()).Msgf("Error casting element %v to type %s: %v", elem, elemType, err)
+							continue
+						}
+						value = append(value.([]interface{}), castedElem)
+					}
+				}
 			case MapType:
 				keyType := typeInfo.Elements[0].Name
 				valType := typeInfo.Elements[1].Name
