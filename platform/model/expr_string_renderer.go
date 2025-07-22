@@ -7,12 +7,9 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/types"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"regexp"
 	"sort"
 	"strings"
 )
-
-var identifierRegexp = regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*|".*")$`)
 
 type renderer struct{}
 
