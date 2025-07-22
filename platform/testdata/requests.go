@@ -2186,7 +2186,9 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3)) LIMIT 10`},
+		[]string{
+			"SELECT `message` FROM " + TableName + " WHERE (`@timestamp`>=fromUnixTimestamp64Milli(1705915570299) AND `@timestamp` = toDateTime64('2024-05-24 13:32:47.307',3)) LIMIT 10",
+		},
 		[]string{},
 	},
 	{ // [35] Comments in queries
