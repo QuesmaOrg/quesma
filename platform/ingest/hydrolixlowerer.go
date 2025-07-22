@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 type HydrolixLowerer struct {
@@ -213,6 +214,18 @@ func defaultForType(t string) interface{} {
 	}
 }
 
+func parseFlexibleTime(input string) (time.Time, error) {
+	// First try RFC3339 (with timezone)
+	t, err := time.Parse(time.RFC3339, input)
+	if err == nil {
+		return t, nil
+	}
+
+	// Fallback: try without timezone and assume UTC
+	layout := "2006-01-02T15:04:05"
+	return time.ParseInLocation(layout, input, time.UTC)
+}
+
 func CastToType(value any, typeName string) (any, error) {
 	switch typeName {
 	case "string":
@@ -260,6 +273,17 @@ func CastToType(value any, typeName string) (any, error) {
 			return int64(v), nil
 		case string:
 			return strconv.Atoi(v)
+		}
+	case "datetime":
+		if v, ok := value.(string); ok {
+
+			parsedTime, err := parseFlexibleTime(v)
+			if err != nil {
+				fmt.Println("Error parsing time:", err)
+				return nil, err
+			}
+			return parsedTime.Format("2006-01-02 15:04:05 MST"), nil
+
 		}
 	default:
 		return nil, fmt.Errorf("unsupported target type: %s", typeName)
@@ -416,12 +440,9 @@ func (l *HydrolixLowerer) LowerToDDL(
 				if _, exists := events[colName]; !exists {
 					value = defaultForType(typeInfo.Elements[0].Name)
 				} else {
-					if typeInfo.Elements[0].Name == "datetime" {
-						value = defaultForType(typeInfo.Elements[0].Name)
-					} else {
-						val, _ := CastToType(events[colName], typeInfo.Elements[0].Name)
-						value = val //defaultForType(typeInfo.Elements[0].Name)
-					}
+					val, _ := CastToType(events[colName], typeInfo.Elements[0].Name)
+					value = val
+
 				}
 
 			case ArrayType:
