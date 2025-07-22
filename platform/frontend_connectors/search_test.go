@@ -289,11 +289,15 @@ func TestSearchHandler(t *testing.T) {
 
 	var selectColumns []string
 	for k := range tab.Cols {
-		selectColumns = append(selectColumns, strconv.Quote(k))
+		selectColumns = append(selectColumns, k)
 	}
 	sort.Strings(selectColumns)
 
-	testSuiteSelectPlaceHolder := "SELECT \"message\""
+	for i := range selectColumns {
+		selectColumns[i] = util.BackquoteIdentifier(selectColumns[i])
+	}
+
+	testSuiteSelectPlaceHolder := "SELECT `message`"
 	selectCMD := fmt.Sprintf("SELECT %s ", strings.Join(selectColumns, ", "))
 
 	s := &schema.StaticRegistry{
@@ -322,7 +326,7 @@ func TestSearchHandler(t *testing.T) {
 					// So we should have a different expectation here.
 
 					// HACK. we change expectations here
-					wantedRegex = strings.ReplaceAll(wantedRegex, model.FullTextFieldNamePlaceHolder, "message")
+					wantedRegex = strings.ReplaceAll(wantedRegex, model.FullTextFieldNamePlaceHolder, "`message`")
 
 					if tt.WantedQueryType == model.ListAllFields && strings.HasPrefix(wantedRegex, testSuiteSelectPlaceHolder) {
 
@@ -584,38 +588,38 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		}`
 	}
 	expectedSelectStatement := map[string]string{
-		dateTimeTimestampField: `SELECT toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0",
-									  count(*) AS "aggr__0__count"
-									FROM __quesma_table_name
-									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
-									  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
-									  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))) 
-									GROUP BY toInt64(toUnixTimestamp("timestamp") / 60) AS "aggr__0__key_0"
-									ORDER BY "aggr__0__key_0" ASC`,
-		dateTime64TimestampField: `SELECT toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
-									  "aggr__0__key_0", count(*) AS "aggr__0__count"
-									FROM __quesma_table_name
-									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
-									  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
-									  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
-									GROUP BY toInt64(toUnixTimestamp64Milli("timestamp64") / 60000) AS
-									  "aggr__0__key_0"
-									ORDER BY "aggr__0__key_0" ASC`,
-		dateTime64OurTimestampField: `SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS "aggr__0__key_0"
-									  , count(*) AS "aggr__0__count"
-									FROM __quesma_table_name
-									WHERE ((("timestamp64">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "timestamp64"<=fromUnixTimestamp64Milli(1706551896491)) AND ("timestamp">=
-									  fromUnixTimestamp(1706542596) AND "timestamp"<=fromUnixTimestamp(1706551896)))
-									  AND NOT (("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND
-									  "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))))
-									GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
-									  "aggr__0__key_0"
-									ORDER BY "aggr__0__key_0" ASC`,
+		dateTimeTimestampField: "SELECT toInt64(toUnixTimestamp(`timestamp`) / 60) AS `aggr__0__key_0`,\n" +
+			"  count(*) AS `aggr__0__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (((`timestamp64`>=fromUnixTimestamp64Milli(1706542596491) AND\n" +
+			"  `timestamp64`<=fromUnixTimestamp64Milli(1706551896491)) AND (`timestamp`>=\n" +
+			"  fromUnixTimestamp(1706542596) AND `timestamp`<=fromUnixTimestamp(1706551896)))\n" +
+			"  AND NOT ((`@timestamp`>=fromUnixTimestamp64Milli(1706542596491) AND\n" +
+			"  `@timestamp`<=fromUnixTimestamp64Milli(1706551896491)))) \n" +
+			"GROUP BY toInt64(toUnixTimestamp(`timestamp`) / 60) AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
+		dateTime64TimestampField: "SELECT toInt64(toUnixTimestamp64Milli(`timestamp64`) / 60000) AS\n" +
+			"  `aggr__0__key_0`, count(*) AS `aggr__0__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (((`timestamp64`>=fromUnixTimestamp64Milli(1706542596491) AND\n" +
+			"  `timestamp64`<=fromUnixTimestamp64Milli(1706551896491)) AND (`timestamp`>=\n" +
+			"  fromUnixTimestamp(1706542596) AND `timestamp`<=fromUnixTimestamp(1706551896)))\n" +
+			"  AND NOT ((`@timestamp`>=fromUnixTimestamp64Milli(1706542596491) AND\n" +
+			"  `@timestamp`<=fromUnixTimestamp64Milli(1706551896491))))\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp64`) / 60000) AS\n" +
+			"  `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
+		dateTime64OurTimestampField: "SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`) / 60000) AS `aggr__0__key_0`\n" +
+			"  , count(*) AS `aggr__0__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (((`timestamp64`>=fromUnixTimestamp64Milli(1706542596491) AND\n" +
+			"  `timestamp64`<=fromUnixTimestamp64Milli(1706551896491)) AND (`timestamp`>=\n" +
+			"  fromUnixTimestamp(1706542596) AND `timestamp`<=fromUnixTimestamp(1706551896)))\n" +
+			"  AND NOT ((`@timestamp`>=fromUnixTimestamp64Milli(1706542596491) AND\n" +
+			"  `@timestamp`<=fromUnixTimestamp64Milli(1706551896491))))\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`@timestamp`) / 60000) AS\n" +
+			"  `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	}
 
 	conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
@@ -1001,7 +1005,7 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 	}{
 		{
 			request:                     `{"size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
-			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC LIMIT 3`,
+			expectedSQL:                 "SELECT `@timestamp`, `message` FROM `__quesma_table_name` ORDER BY `@timestamp` DESC LIMIT 3",
 			resultRowsFromDB:            [][]any{{someTime, "m1"}, {someTime, "m2"}, {someTime, "m3"}},
 			basicAndFastSortFieldPerHit: []int64{someTime.UnixMilli(), someTime.UnixMilli(), someTime.UnixMilli()},
 			expectedSortValuesCount:     1,
@@ -1017,21 +1021,21 @@ func TestSearchAfterParameter_sortByJustTimestamp(t *testing.T) {
 						{"_doc": {"unmapped_type": "boolean", "order": "desc"}}
 					]
 				}`,
-			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896491)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
+			expectedSQL:                 "SELECT `@timestamp`, `message` FROM `__quesma_table_name` WHERE fromUnixTimestamp64Milli(1706551896491)>`@timestamp` ORDER BY `@timestamp` DESC LIMIT 3",
 			resultRowsFromDB:            [][]any{{sub(1), "m8"}, {sub(2), "m9"}, {sub(3), "m10"}},
 			basicAndFastSortFieldPerHit: []int64{sub(1).UnixMilli(), sub(2).UnixMilli(), sub(3).UnixMilli()},
 			expectedSortValuesCount:     2,
 		},
 		{
 			request:                     `{"search_after": [1706551896488], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
-			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896488)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
+			expectedSQL:                 "SELECT `@timestamp`, `message` FROM `__quesma_table_name` WHERE fromUnixTimestamp64Milli(1706551896488)>`@timestamp` ORDER BY `@timestamp` DESC LIMIT 3",
 			resultRowsFromDB:            [][]any{{sub(4), "m11"}, {sub(5), "m12"}, {sub(6), "m13"}},
 			basicAndFastSortFieldPerHit: []int64{sub(4).UnixMilli(), sub(5).UnixMilli(), sub(6).UnixMilli()},
 			expectedSortValuesCount:     1,
 		},
 		{
 			request:                     `{"search_after": [1706551896485], "size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}]}`,
-			expectedSQL:                 `SELECT "@timestamp", "message" FROM __quesma_table_name WHERE fromUnixTimestamp64Milli(1706551896485)>"@timestamp" ORDER BY "@timestamp" DESC LIMIT 3`,
+			expectedSQL:                 "SELECT `@timestamp`, `message` FROM `__quesma_table_name` WHERE fromUnixTimestamp64Milli(1706551896485)>`@timestamp` ORDER BY `@timestamp` DESC LIMIT 3",
 			resultRowsFromDB:            [][]any{{sub(7), "m14"}, {sub(8), "m15"}, {sub(9), "m16"}},
 			basicAndFastSortFieldPerHit: []int64{sub(7).UnixMilli(), sub(8).UnixMilli(), sub(9).UnixMilli()},
 			expectedSortValuesCount:     1,
@@ -1131,22 +1135,22 @@ func TestSearchAfterParameter_sortByJustOneStringField(t *testing.T) {
 	}{
 		{
 			request:          `{"size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
-			expectedSQL:      `SELECT "message" FROM __quesma_table_name ORDER BY "message" ASC LIMIT 3`,
+			expectedSQL:      "SELECT `message` FROM `__quesma_table_name` ORDER BY `message` ASC LIMIT 3",
 			resultRowsFromDB: []any{"m1", "m1", "m1"},
 		},
 		{
 			request:          `{"search_after": ["m1"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
-			expectedSQL:      `SELECT "message" FROM __quesma_table_name WHERE "message">'m1' ORDER BY "message" ASC LIMIT 3`,
+			expectedSQL:      "SELECT `message` FROM `__quesma_table_name` WHERE `message`>'m1' ORDER BY `message` ASC LIMIT 3",
 			resultRowsFromDB: []any{"m2", "m2", "m3"},
 		},
 		{
 			request:          `{"search_after": ["m3"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
-			expectedSQL:      `SELECT "message" FROM __quesma_table_name WHERE "message">'m3' ORDER BY "message" ASC LIMIT 3`,
+			expectedSQL:      "SELECT `message` FROM `__quesma_table_name` WHERE `message`>'m3' ORDER BY `message` ASC LIMIT 3",
 			resultRowsFromDB: []any{"m4", "m5", "m6"},
 		},
 		{
 			request:          `{"search_after": ["m6"], "size": 3, "track_total_hits": false, "sort": [{"message": {"order": "asc"}}]}`,
-			expectedSQL:      `SELECT "message" FROM __quesma_table_name WHERE "message">'m6' ORDER BY "message" ASC LIMIT 3`,
+			expectedSQL:      "SELECT `message` FROM `__quesma_table_name` WHERE `message`>'m6' ORDER BY `message` ASC LIMIT 3",
 			resultRowsFromDB: []any{"m7", "m8", "m9"},
 		},
 	}
@@ -1254,7 +1258,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 	}{
 		{
 			request:     `{"size": 3, "track_total_hits": false, "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
-			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
+			expectedSQL: "SELECT `@timestamp`, `bicep_size`, `message` FROM `__quesma_table_name` ORDER BY `@timestamp` DESC, `message` ASC, `bicep_size` DESC LIMIT 3",
 			resultRowsFromDB: [][]any{
 				{someTime, int64(1), "m1"},
 				{someTime, int64(2), "m2"},
@@ -1268,7 +1272,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		},
 		{
 			request:     `{"search_after": [1706551896491, "m3", 3], "size": 3, "track_total_hits": false,  "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
-			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE tuple(fromUnixTimestamp64Milli(1706551896491), "message", 3)>tuple("@timestamp", 'm3', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
+			expectedSQL: "SELECT `@timestamp`, `bicep_size`, `message` FROM `__quesma_table_name` WHERE tuple(fromUnixTimestamp64Milli(1706551896491), `message`, 3)>tuple(`@timestamp`, 'm3', `bicep_size`) ORDER BY `@timestamp` DESC, `message` ASC, `bicep_size` DESC LIMIT 3",
 			resultRowsFromDB: [][]any{
 				{someTime, int64(4), "m4"},
 				{someTime, int64(5), "m5"},
@@ -1282,7 +1286,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		},
 		{
 			request:     `{"search_after": [1706551896491, "m5", 0], "size": 3, "track_total_hits": false,  "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
-			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE tuple(fromUnixTimestamp64Milli(1706551896491), "message", 0)>tuple("@timestamp", 'm5', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
+			expectedSQL: "SELECT `@timestamp`, `bicep_size`, `message` FROM `__quesma_table_name` WHERE tuple(fromUnixTimestamp64Milli(1706551896491), `message`, 0)>tuple(`@timestamp`, 'm5', `bicep_size`) ORDER BY `@timestamp` DESC, `message` ASC, `bicep_size` DESC LIMIT 3",
 			resultRowsFromDB: [][]any{
 				{sub(1), int64(0), "m6"},
 				{sub(1), int64(0), "m7"},
@@ -1296,7 +1300,7 @@ func TestSearchAfterParameter_sortByMultipleFields(t *testing.T) {
 		},
 		{
 			request:     `{"search_after": [1706551896491, "m8", 0], "size": 3, "track_total_hits": false,  "sort": [{"@timestamp": {"order": "desc"}}, {"message": {"order": "asc"}}, {"bicep_size": {"order": "desc"}}]}`,
-			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name WHERE tuple(fromUnixTimestamp64Milli(1706551896491), "message", 0)>tuple("@timestamp", 'm8', "bicep_size") ORDER BY "@timestamp" DESC, "message" ASC, "bicep_size" DESC LIMIT 3`,
+			expectedSQL: "SELECT `@timestamp`, `bicep_size`, `message` FROM `__quesma_table_name` WHERE tuple(fromUnixTimestamp64Milli(1706551896491), `message`, 0)>tuple(`@timestamp`, 'm8', `bicep_size`) ORDER BY `@timestamp` DESC, `message` ASC, `bicep_size` DESC LIMIT 3",
 			resultRowsFromDB: [][]any{
 				{sub(1), int64(0), "m9"},
 				{sub(2), int64(0), "m10"},
@@ -1407,7 +1411,7 @@ func TestSearchAfterParameter_sortByNoField(t *testing.T) {
 	}{
 		{
 			request:     `{"size": 3, "track_total_hits": false, "sort": [{"_score": {"order": "desc"}}]}`,
-			expectedSQL: `SELECT "@timestamp", "bicep_size", "message" FROM __quesma_table_name LIMIT 3`,
+			expectedSQL: "SELECT `@timestamp`, `bicep_size`, `message` FROM `__quesma_table_name` LIMIT 3",
 			resultRowsFromDB: [][]any{
 				{someTime, int64(1), "m1"},
 				{someTime, int64(2), "m2"},

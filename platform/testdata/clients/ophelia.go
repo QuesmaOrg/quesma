@@ -229,43 +229,42 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__4__count", int64(17)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
-			  "aggr__2__8__4__parent_count", "aggr__2__8__4__key_0", "aggr__2__8__4__count"
-			FROM (
-			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
-				"aggr__2__8__4__parent_count", "aggr__2__8__4__key_0",
-				"aggr__2__8__4__count",
-				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
-				"aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__count" DESC, "aggr__2__8__key_0" ASC) AS
-				"aggr__2__8__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0" ORDER
-				BY "aggr__2__8__4__count" DESC, "aggr__2__8__4__key_0" ASC) AS
-				"aggr__2__8__4__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-				  "surname" AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__8__parent_count",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-				  "aggr__2__8__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-				  "aggr__2__8__4__parent_count", "organName" AS "aggr__2__8__4__key_0",
-				  count(*) AS "aggr__2__8__4__count"
-				FROM __quesma_table_name
-				GROUP BY "surname" AS "aggr__2__key_0",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  "organName" AS "aggr__2__8__4__key_0"))
-			WHERE (("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
-			  "aggr__2__8__4__order_1_rank"<=2)
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
-			  "aggr__2__8__4__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"  `aggr__2__8__parent_count`, `aggr__2__8__key_0`, `aggr__2__8__count`,\n" +
+			"  `aggr__2__8__4__parent_count`, `aggr__2__8__4__key_0`, `aggr__2__8__4__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"    `aggr__2__8__parent_count`, `aggr__2__8__key_0`, `aggr__2__8__count`,\n" +
+			"    `aggr__2__8__4__parent_count`, `aggr__2__8__4__key_0`,\n" +
+			"    `aggr__2__8__4__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__2__count` DESC, `aggr__2__key_0` ASC) AS\n" +
+			"    `aggr__2__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY\n" +
+			"    `aggr__2__8__count` DESC, `aggr__2__8__key_0` ASC) AS\n" +
+			"    `aggr__2__8__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0` ORDER\n" +
+			"    BY `aggr__2__8__4__count` DESC, `aggr__2__8__4__key_0` ASC) AS\n" +
+			"    `aggr__2__8__4__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"      `surname` AS `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS\n" +
+			"      `aggr__2__8__parent_count`,\n" +
+			"      COALESCE(`limbName`, '__missing__') AS `aggr__2__8__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`) AS\n" +
+			"      `aggr__2__8__count`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`) AS\n" +
+			"      `aggr__2__8__4__parent_count`, `organName` AS `aggr__2__8__4__key_0`,\n" +
+			"      count(*) AS `aggr__2__8__4__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `surname` AS `aggr__2__key_0`,\n" +
+			"      COALESCE(`limbName`, '__missing__') AS `aggr__2__8__key_0`,\n" +
+			"      `organName` AS `aggr__2__8__4__key_0`))\n" +
+			"WHERE ((`aggr__2__order_1_rank`<=201 AND `aggr__2__8__order_1_rank`<=20) AND\n" +
+			"  `aggr__2__8__4__order_1_rank`<=2)\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__8__order_1_rank` ASC,\n" +
+			"  `aggr__2__8__4__order_1_rank` ASC",
 	},
 	{ // [1]
 		TestName: "Ophelia Test 2: triple terms + other aggregations + default order",
@@ -568,52 +567,51 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__8__4__5_col_0", 205408.48849999998),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "metric__2__1_col_0", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
-			  "aggr__2__8__4__key_0", "aggr__2__8__4__count", "metric__2__8__4__1_col_0",
-			  "metric__2__8__4__5_col_0"
-			FROM (
-			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"metric__2__1_col_0", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
-				"aggr__2__8__4__key_0", "aggr__2__8__4__count", "metric__2__8__4__1_col_0",
-				"metric__2__8__4__5_col_0",
-				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
-				"aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__8__count" DESC, "aggr__2__8__key_0" ASC) AS
-				"aggr__2__8__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0" ORDER
-				BY "aggr__2__8__4__count" DESC, "aggr__2__8__4__key_0" ASC) AS
-				"aggr__2__8__4__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-				  "surname" AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "metric__2__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__8__parent_count",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-				  "aggr__2__8__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__8__key_0") AS "metric__2__8__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-				  "aggr__2__8__4__parent_count", "organName" AS "aggr__2__8__4__key_0",
-				  count(*) AS "aggr__2__8__4__count",
-				  sumOrNull("total") AS "metric__2__8__4__1_col_0",
-				  sumOrNull("some") AS "metric__2__8__4__5_col_0"
-				FROM __quesma_table_name
-				GROUP BY "surname" AS "aggr__2__key_0",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  "organName" AS "aggr__2__8__4__key_0"))
-			WHERE (("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
-			  "aggr__2__8__4__order_1_rank"<=2)
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
-			  "aggr__2__8__4__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"  `metric__2__1_col_0`, `aggr__2__8__parent_count`, `aggr__2__8__key_0`,\n" +
+			"  `aggr__2__8__count`, `metric__2__8__1_col_0`, `aggr__2__8__4__parent_count`,\n" +
+			"  `aggr__2__8__4__key_0`, `aggr__2__8__4__count`, `metric__2__8__4__1_col_0`,\n" +
+			"  `metric__2__8__4__5_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"    `metric__2__1_col_0`, `aggr__2__8__parent_count`, `aggr__2__8__key_0`,\n" +
+			"    `aggr__2__8__count`, `metric__2__8__1_col_0`, `aggr__2__8__4__parent_count`,\n" +
+			"    `aggr__2__8__4__key_0`, `aggr__2__8__4__count`, `metric__2__8__4__1_col_0`,\n" +
+			"    `metric__2__8__4__5_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__2__count` DESC, `aggr__2__key_0` ASC) AS\n" +
+			"    `aggr__2__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY\n" +
+			"    `aggr__2__8__count` DESC, `aggr__2__8__key_0` ASC) AS\n" +
+			"    `aggr__2__8__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0` ORDER\n" +
+			"    BY `aggr__2__8__4__count` DESC, `aggr__2__8__4__key_0` ASC) AS\n" +
+			"    `aggr__2__8__4__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"      `surname` AS `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`) AS\n" +
+			"      `metric__2__1_col_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS\n" +
+			"      `aggr__2__8__parent_count`,\n" +
+			"      COALESCE(`limbName`, '__missing__') AS `aggr__2__8__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`) AS\n" +
+			"      `aggr__2__8__count`,\n" +
+			"      sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`,\n" +
+			"      `aggr__2__8__key_0`) AS `metric__2__8__1_col_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`) AS\n" +
+			"      `aggr__2__8__4__parent_count`, `organName` AS `aggr__2__8__4__key_0`,\n" +
+			"      count(*) AS `aggr__2__8__4__count`,\n" +
+			"      sumOrNull(`total`) AS `metric__2__8__4__1_col_0`,\n" +
+			"      sumOrNull(`some`) AS `metric__2__8__4__5_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `surname` AS `aggr__2__key_0`,\n" +
+			"      COALESCE(`limbName`, '__missing__') AS `aggr__2__8__key_0`,\n" +
+			"      `organName` AS `aggr__2__8__4__key_0`))\n" +
+			"WHERE ((`aggr__2__order_1_rank`<=201 AND `aggr__2__8__order_1_rank`<=20) AND\n" +
+			"  `aggr__2__8__4__order_1_rank`<=2)\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__8__order_1_rank` ASC,\n" +
+			"  `aggr__2__8__4__order_1_rank` ASC",
 	},
 	{ // [2]
 		TestName: "Ophelia Test 3: 5x terms + a lot of other aggregations",
@@ -1003,91 +1001,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__7__8__4__3__6_col_0", -0.6),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "metric__2__1_col_0", "aggr__2__7__parent_count", "aggr__2__7__key_0",
-			  "aggr__2__7__count", "metric__2__7__1_col_0", "aggr__2__7__8__parent_count",
-			  "aggr__2__7__8__key_0", "aggr__2__7__8__count", "metric__2__7__8__1_col_0",
-			  "aggr__2__7__8__4__parent_count", "aggr__2__7__8__4__key_0",
-			  "aggr__2__7__8__4__count", "metric__2__7__8__4__1_col_0",
-			  "aggr__2__7__8__4__3__parent_count", "aggr__2__7__8__4__3__key_0",
-			  "aggr__2__7__8__4__3__count", "metric__2__7__8__4__3__1_col_0",
-			  "metric__2__7__8__4__3__5_col_0", "metric__2__7__8__4__3__6_col_0"
-			FROM (
-			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"metric__2__1_col_0", "aggr__2__7__parent_count", "aggr__2__7__key_0",
-				"aggr__2__7__count", "metric__2__7__1_col_0", "aggr__2__7__8__parent_count",
-				"aggr__2__7__8__key_0", "aggr__2__7__8__count", "metric__2__7__8__1_col_0",
-				"aggr__2__7__8__4__parent_count", "aggr__2__7__8__4__key_0",
-				"aggr__2__7__8__4__count", "metric__2__7__8__4__1_col_0",
-				"aggr__2__7__8__4__3__parent_count", "aggr__2__7__8__4__3__key_0",
-				"aggr__2__7__8__4__3__count", "metric__2__7__8__4__3__1_col_0",
-				"metric__2__7__8__4__3__5_col_0", "metric__2__7__8__4__3__6_col_0",
-				dense_rank() OVER (ORDER BY "metric__2__1_col_0" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"metric__2__7__1_col_0" DESC, "aggr__2__7__key_0" ASC) AS
-				"aggr__2__7__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0" ORDER
-				BY "metric__2__7__8__1_col_0" DESC, "aggr__2__7__8__key_0" ASC) AS
-				"aggr__2__7__8__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				"aggr__2__7__8__key_0" ORDER BY "metric__2__7__8__4__1_col_0" DESC,
-				"aggr__2__7__8__4__key_0" ASC) AS "aggr__2__7__8__4__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				"aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0" ORDER BY
-				"metric__2__7__8__4__3__1_col_0" DESC, "aggr__2__7__8__4__3__key_0" ASC) AS
-				"aggr__2__7__8__4__3__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-				  "surname" AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "metric__2__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__7__parent_count",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__7__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0") AS
-				  "aggr__2__7__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__7__key_0") AS "metric__2__7__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0") AS
-				  "aggr__2__7__8__parent_count",
-				  COALESCE("organName", '__missing__') AS "aggr__2__7__8__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				  "aggr__2__7__8__key_0") AS "aggr__2__7__8__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__7__key_0", "aggr__2__7__8__key_0") AS "metric__2__7__8__1_col_0"
-				  ,
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				  "aggr__2__7__8__key_0") AS "aggr__2__7__8__4__parent_count",
-				  "doctorName" AS "aggr__2__7__8__4__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				  "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
-				  "aggr__2__7__8__4__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__7__key_0", "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
-				  "metric__2__7__8__4__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				  "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
-				  "aggr__2__7__8__4__3__parent_count",
-				  "height" AS "aggr__2__7__8__4__3__key_0",
-				  count(*) AS "aggr__2__7__8__4__3__count",
-				  sumOrNull("total") AS "metric__2__7__8__4__3__1_col_0",
-				  sumOrNull("some") AS "metric__2__7__8__4__3__5_col_0",
-				  sumOrNull("cost") AS "metric__2__7__8__4__3__6_col_0"
-				FROM __quesma_table_name
-				GROUP BY "surname" AS "aggr__2__key_0",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__7__key_0",
-				  COALESCE("organName", '__missing__') AS "aggr__2__7__8__key_0",
-				  "doctorName" AS "aggr__2__7__8__4__key_0",
-				  "height" AS "aggr__2__7__8__4__3__key_0"))
-			WHERE (((("aggr__2__order_1_rank"<=101 AND "aggr__2__7__order_1_rank"<=10) AND
-			  "aggr__2__7__8__order_1_rank"<=10) AND "aggr__2__7__8__4__order_1_rank"<=7)
-			  AND "aggr__2__7__8__4__3__order_1_rank"<=2)
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__7__order_1_rank" ASC,
-			  "aggr__2__7__8__order_1_rank" ASC, "aggr__2__7__8__4__order_1_rank" ASC,
-			  "aggr__2__7__8__4__3__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n          `metric__2__1_col_0`, `aggr__2__7__parent_count`, `aggr__2__7__key_0`,\n          `aggr__2__7__count`, `metric__2__7__1_col_0`, `aggr__2__7__8__parent_count`,\n          `aggr__2__7__8__key_0`, `aggr__2__7__8__count`, `metric__2__7__8__1_col_0`,\n          `aggr__2__7__8__4__parent_count`, `aggr__2__7__8__4__key_0`,\n          `aggr__2__7__8__4__count`, `metric__2__7__8__4__1_col_0`,\n          `aggr__2__7__8__4__3__parent_count`, `aggr__2__7__8__4__3__key_0`,\n          `aggr__2__7__8__4__3__count`, `metric__2__7__8__4__3__1_col_0`,\n          `metric__2__7__8__4__3__5_col_0`, `metric__2__7__8__4__3__6_col_0`\n        FROM (\n          SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n            `metric__2__1_col_0`, `aggr__2__7__parent_count`, `aggr__2__7__key_0`,\n            `aggr__2__7__count`, `metric__2__7__1_col_0`, `aggr__2__7__8__parent_count`,\n            `aggr__2__7__8__key_0`, `aggr__2__7__8__count`, `metric__2__7__8__1_col_0`,\n            `aggr__2__7__8__4__parent_count`, `aggr__2__7__8__4__key_0`,\n            `aggr__2__7__8__4__count`, `metric__2__7__8__4__1_col_0`,\n            `aggr__2__7__8__4__3__parent_count`, `aggr__2__7__8__4__3__key_0`,\n            `aggr__2__7__8__4__3__count`, `metric__2__7__8__4__3__1_col_0`,\n            `metric__2__7__8__4__3__5_col_0`, `metric__2__7__8__4__3__6_col_0`,\n            dense_rank() OVER (ORDER BY `metric__2__1_col_0` DESC, `aggr__2__key_0` ASC)\n            AS `aggr__2__order_1_rank`,\n            dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY `\n            metric__2__7__1_col_0` DESC, `aggr__2__7__key_0` ASC) AS `\n            aggr__2__7__order_1_rank`,\n            dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0` ORDER\n            BY `metric__2__7__8__1_col_0` DESC, `aggr__2__7__8__key_0` ASC) AS `\n            aggr__2__7__8__order_1_rank`,\n            dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n            aggr__2__7__8__key_0` ORDER BY `metric__2__7__8__4__1_col_0` DESC, `\n            aggr__2__7__8__4__key_0` ASC) AS `aggr__2__7__8__4__order_1_rank`,\n            dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n            aggr__2__7__8__key_0`, `aggr__2__7__8__4__key_0` ORDER BY `\n            metric__2__7__8__4__3__1_col_0` DESC, `aggr__2__7__8__4__3__key_0` ASC) AS `\n            aggr__2__7__8__4__3__order_1_rank`\n          FROM (\n            SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n              `surname` AS `aggr__2__key_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n              sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`) AS `\n              metric__2__1_col_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `\n              aggr__2__7__parent_count`,\n              COALESCE(`limbName`, '__missing__') AS `aggr__2__7__key_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`) AS\n              `aggr__2__7__count`,\n              sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`, `\n              aggr__2__7__key_0`) AS `metric__2__7__1_col_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`) AS\n              `aggr__2__7__8__parent_count`,\n              COALESCE(`organName`, '__missing__') AS `aggr__2__7__8__key_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n              aggr__2__7__8__key_0`) AS `aggr__2__7__8__count`,\n              sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`, `\n              aggr__2__7__key_0`, `aggr__2__7__8__key_0`) AS `metric__2__7__8__1_col_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n              aggr__2__7__8__key_0`) AS `aggr__2__7__8__4__parent_count`,\n              `doctorName` AS `aggr__2__7__8__4__key_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n              aggr__2__7__8__key_0`, `aggr__2__7__8__4__key_0`) AS `\n              aggr__2__7__8__4__count`,\n              sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`, `\n              aggr__2__7__key_0`, `aggr__2__7__8__key_0`, `aggr__2__7__8__4__key_0`) AS\n              `metric__2__7__8__4__1_col_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n              aggr__2__7__8__key_0`, `aggr__2__7__8__4__key_0`) AS `\n              aggr__2__7__8__4__3__parent_count`,\n              `height` AS `aggr__2__7__8__4__3__key_0`,\n              count(*) AS `aggr__2__7__8__4__3__count`,\n              sumOrNull(`total`) AS `metric__2__7__8__4__3__1_col_0`,\n              sumOrNull(`some`) AS `metric__2__7__8__4__3__5_col_0`,\n              sumOrNull(`cost`) AS `metric__2__7__8__4__3__6_col_0`\n            FROM `__quesma_table_name`\n            GROUP BY `surname` AS `aggr__2__key_0`,\n              COALESCE(`limbName`, '__missing__') AS `aggr__2__7__key_0`,\n              COALESCE(`organName`, '__missing__') AS `aggr__2__7__8__key_0`,\n              `doctorName` AS `aggr__2__7__8__4__key_0`,\n              `height` AS `aggr__2__7__8__4__3__key_0`))\n        WHERE ((((`aggr__2__order_1_rank`<=101 AND `aggr__2__7__order_1_rank`<=10) AND `\n          aggr__2__7__8__order_1_rank`<=10) AND `aggr__2__7__8__4__order_1_rank`<=7) AND\n          `aggr__2__7__8__4__3__order_1_rank`<=2)\n        ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__7__order_1_rank` ASC,\n          `aggr__2__7__8__order_1_rank` ASC, `aggr__2__7__8__4__order_1_rank` ASC,\n          `aggr__2__7__8__4__3__order_1_rank` ASC",
 	},
 	{ // [3]
 		TestName: "Ophelia Test 4: triple terms + order by another aggregations",
@@ -1355,47 +1269,46 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__4__count", int64(17)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			 SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "metric__2__1_col_0", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
-			  "aggr__2__8__4__key_0", "aggr__2__8__4__count"
-			FROM (
-			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"metric__2__1_col_0", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
-				"aggr__2__8__4__key_0", "aggr__2__8__4__count",
-				dense_rank() OVER (ORDER BY "metric__2__1_col_0" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"metric__2__8__1_col_0" ASC, "aggr__2__8__key_0" ASC) AS
-				"aggr__2__8__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0" ORDER
-				BY "aggr__2__8__4__key_0" DESC) AS "aggr__2__8__4__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-				  "surname" AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  avgOrNullMerge(avgOrNullState("total")) OVER (PARTITION BY
-				  "aggr__2__key_0") AS "metric__2__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__8__parent_count",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-				  "aggr__2__8__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__8__key_0") AS "metric__2__8__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-				  "aggr__2__8__4__parent_count", "organName" AS "aggr__2__8__4__key_0",
-				  count(*) AS "aggr__2__8__4__count"
-				FROM __quesma_table_name
-				GROUP BY "surname" AS "aggr__2__key_0",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  "organName" AS "aggr__2__8__4__key_0"))
-			WHERE (("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
-			  "aggr__2__8__4__order_1_rank"<=2)
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
-			  "aggr__2__8__4__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"  `metric__2__1_col_0`, `aggr__2__8__parent_count`, `aggr__2__8__key_0`,\n" +
+			"  `aggr__2__8__count`, `metric__2__8__1_col_0`, `aggr__2__8__4__parent_count`,\n" +
+			"  `aggr__2__8__4__key_0`, `aggr__2__8__4__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"    `metric__2__1_col_0`, `aggr__2__8__parent_count`, `aggr__2__8__key_0`,\n" +
+			"    `aggr__2__8__count`, `metric__2__8__1_col_0`, `aggr__2__8__4__parent_count`,\n" +
+			"    `aggr__2__8__4__key_0`, `aggr__2__8__4__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `metric__2__1_col_0` DESC, `aggr__2__key_0` ASC)\n" +
+			"    AS `aggr__2__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY\n" +
+			"    `metric__2__8__1_col_0` ASC, `aggr__2__8__key_0` ASC) AS\n" +
+			"    `aggr__2__8__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0` ORDER\n" +
+			"    BY `aggr__2__8__4__key_0` DESC) AS `aggr__2__8__4__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"      `surname` AS `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      avgOrNullMerge(avgOrNullState(`total`)) OVER (PARTITION BY\n" +
+			"      `aggr__2__key_0`) AS `metric__2__1_col_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS\n" +
+			"      `aggr__2__8__parent_count`,\n" +
+			"      COALESCE(`limbName`, '__missing__') AS `aggr__2__8__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`) AS\n" +
+			"      `aggr__2__8__count`,\n" +
+			"      sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`,\n" +
+			"      `aggr__2__8__key_0`) AS `metric__2__8__1_col_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`) AS\n" +
+			"      `aggr__2__8__4__parent_count`, `organName` AS `aggr__2__8__4__key_0`,\n" +
+			"      count(*) AS `aggr__2__8__4__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `surname` AS `aggr__2__key_0`,\n" +
+			"      COALESCE(`limbName`, '__missing__') AS `aggr__2__8__key_0`,\n" +
+			"      `organName` AS `aggr__2__8__4__key_0`))\n" +
+			"WHERE ((`aggr__2__order_1_rank`<=201 AND `aggr__2__8__order_1_rank`<=20) AND\n" +
+			"  `aggr__2__8__4__order_1_rank`<=2)\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__8__order_1_rank` ASC,\n" +
+			"  `aggr__2__8__4__order_1_rank` ASC",
 	},
 	{ // [4]
 		TestName: "Ophelia Test 5: 4x terms + order by another aggregations",
@@ -1704,58 +1617,57 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__4__5__count", int64(21)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
-			  "metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
-			  "aggr__2__8__4__key_0", "aggr__2__8__4__count",
-			  "aggr__2__8__4__5__parent_count", "aggr__2__8__4__5__key_0",
-			  "aggr__2__8__4__5__count"
-			FROM (
-			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__8__parent_count", "aggr__2__8__key_0", "aggr__2__8__count",
-				"metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
-				"aggr__2__8__4__key_0", "aggr__2__8__4__count",
-				"aggr__2__8__4__5__parent_count", "aggr__2__8__4__5__key_0",
-				"aggr__2__8__4__5__count",
-				dense_rank() OVER (ORDER BY "aggr__2__key_0" DESC) AS
-				"aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"metric__2__8__1_col_0" ASC, "aggr__2__8__key_0" ASC) AS
-				"aggr__2__8__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0" ORDER
-				BY "aggr__2__8__4__key_0" DESC) AS "aggr__2__8__4__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0",
-				"aggr__2__8__4__key_0" ORDER BY "aggr__2__8__4__5__count" DESC,
-				"aggr__2__8__4__5__key_0" ASC) AS "aggr__2__8__4__5__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-				  "surname" AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__8__parent_count",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-				  "aggr__2__8__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__8__key_0") AS "metric__2__8__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-				  "aggr__2__8__4__parent_count", "organName" AS "aggr__2__8__4__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0",
-				  "aggr__2__8__4__key_0") AS "aggr__2__8__4__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0",
-				  "aggr__2__8__4__key_0") AS "aggr__2__8__4__5__parent_count",
-				  "organName" AS "aggr__2__8__4__5__key_0",
-				  count(*) AS "aggr__2__8__4__5__count"
-				FROM __quesma_table_name
-				GROUP BY "surname" AS "aggr__2__key_0",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  "organName" AS "aggr__2__8__4__key_0",
-				  "organName" AS "aggr__2__8__4__5__key_0"))
-			WHERE ((("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
-			  "aggr__2__8__4__order_1_rank"<=2) AND "aggr__2__8__4__5__order_1_rank"<=3)
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
-			  "aggr__2__8__4__order_1_rank" ASC, "aggr__2__8__4__5__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"  `aggr__2__8__parent_count`, `aggr__2__8__key_0`, `aggr__2__8__count`,\n" +
+			"  `metric__2__8__1_col_0`, `aggr__2__8__4__parent_count`,\n" +
+			"  `aggr__2__8__4__key_0`, `aggr__2__8__4__count`,\n" +
+			"  `aggr__2__8__4__5__parent_count`, `aggr__2__8__4__5__key_0`,\n" +
+			"  `aggr__2__8__4__5__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"    `aggr__2__8__parent_count`, `aggr__2__8__key_0`, `aggr__2__8__count`,\n" +
+			"    `metric__2__8__1_col_0`, `aggr__2__8__4__parent_count`,\n" +
+			"    `aggr__2__8__4__key_0`, `aggr__2__8__4__count`,\n" +
+			"    `aggr__2__8__4__5__parent_count`, `aggr__2__8__4__5__key_0`,\n" +
+			"    `aggr__2__8__4__5__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__2__key_0` DESC) AS\n" +
+			"    `aggr__2__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY\n" +
+			"    `metric__2__8__1_col_0` ASC, `aggr__2__8__key_0` ASC) AS\n" +
+			"    `aggr__2__8__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0` ORDER\n" +
+			"    BY `aggr__2__8__4__key_0` DESC) AS `aggr__2__8__4__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`,\n" +
+			"    `aggr__2__8__4__key_0` ORDER BY `aggr__2__8__4__5__count` DESC,\n" +
+			"    `aggr__2__8__4__5__key_0` ASC) AS `aggr__2__8__4__5__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"      `surname` AS `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS\n" +
+			"      `aggr__2__8__parent_count`,\n" +
+			"      COALESCE(`limbName`, '__missing__') AS `aggr__2__8__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`) AS\n" +
+			"      `aggr__2__8__count`,\n" +
+			"      sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`,\n" +
+			"      `aggr__2__8__key_0`) AS `metric__2__8__1_col_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`) AS\n" +
+			"      `aggr__2__8__4__parent_count`, `organName` AS `aggr__2__8__4__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`,\n" +
+			"      `aggr__2__8__4__key_0`) AS `aggr__2__8__4__count`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`,\n" +
+			"      `aggr__2__8__4__key_0`) AS `aggr__2__8__4__5__parent_count`,\n" +
+			"      `organName` AS `aggr__2__8__4__5__key_0`,\n" +
+			"      count(*) AS `aggr__2__8__4__5__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `surname` AS `aggr__2__key_0`,\n" +
+			"      COALESCE(`limbName`, '__missing__') AS `aggr__2__8__key_0`,\n" +
+			"      `organName` AS `aggr__2__8__4__key_0`,\n" +
+			"      `organName` AS `aggr__2__8__4__5__key_0`))\n" +
+			"WHERE (((`aggr__2__order_1_rank`<=201 AND `aggr__2__8__order_1_rank`<=20) AND\n" +
+			"  `aggr__2__8__4__order_1_rank`<=2) AND `aggr__2__8__4__5__order_1_rank`<=3)\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__8__order_1_rank` ASC,\n" +
+			"  `aggr__2__8__4__order_1_rank` ASC, `aggr__2__8__4__5__order_1_rank` ASC",
 	},
 	{ // [5]
 		TestName: "Ophelia Test 6: triple terms + other aggregations + order by another aggregations",
@@ -2067,52 +1979,51 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__8__4__5_col_0", 205408.48849999998),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "metric__2__1_col_0", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-			  "aggr__2__8__count", "metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
-			  "aggr__2__8__4__key_0", "aggr__2__8__4__count", "metric__2__8__4__1_col_0",
-			  "metric__2__8__4__5_col_0"
-			FROM (
-			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"metric__2__1_col_0", "aggr__2__8__parent_count", "aggr__2__8__key_0",
-				"aggr__2__8__count", "metric__2__8__1_col_0", "aggr__2__8__4__parent_count",
-				"aggr__2__8__4__key_0", "aggr__2__8__4__count", "metric__2__8__4__1_col_0",
-				"metric__2__8__4__5_col_0",
-				dense_rank() OVER (ORDER BY "metric__2__1_col_0" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"metric__2__8__1_col_0" DESC, "aggr__2__8__key_0" ASC) AS
-				"aggr__2__8__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0" ORDER
-				BY "metric__2__8__4__1_col_0" DESC, "aggr__2__8__4__key_0" ASC) AS
-				"aggr__2__8__4__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-				  "surname" AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "metric__2__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__8__parent_count",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-				  "aggr__2__8__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__8__key_0") AS "metric__2__8__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-				  "aggr__2__8__4__parent_count", "organName" AS "aggr__2__8__4__key_0",
-				  count(*) AS "aggr__2__8__4__count",
-				  sumOrNull("total") AS "metric__2__8__4__1_col_0",
-				  sumOrNull("some") AS "metric__2__8__4__5_col_0"
-				FROM __quesma_table_name
-				GROUP BY "surname" AS "aggr__2__key_0",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__8__key_0",
-				  "organName" AS "aggr__2__8__4__key_0"))
-			WHERE (("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
-			  "aggr__2__8__4__order_1_rank"<=2)
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
-			  "aggr__2__8__4__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"  `metric__2__1_col_0`, `aggr__2__8__parent_count`, `aggr__2__8__key_0`,\n" +
+			"  `aggr__2__8__count`, `metric__2__8__1_col_0`, `aggr__2__8__4__parent_count`,\n" +
+			"  `aggr__2__8__4__key_0`, `aggr__2__8__4__count`, `metric__2__8__4__1_col_0`,\n" +
+			"  `metric__2__8__4__5_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"    `metric__2__1_col_0`, `aggr__2__8__parent_count`, `aggr__2__8__key_0`,\n" +
+			"    `aggr__2__8__count`, `metric__2__8__1_col_0`, `aggr__2__8__4__parent_count`,\n" +
+			"    `aggr__2__8__4__key_0`, `aggr__2__8__4__count`, `metric__2__8__4__1_col_0`,\n" +
+			"    `metric__2__8__4__5_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `metric__2__1_col_0` DESC, `aggr__2__key_0` ASC) AS\n" +
+			"    `aggr__2__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY\n" +
+			"    `metric__2__8__1_col_0` DESC, `aggr__2__8__key_0` ASC) AS\n" +
+			"    `aggr__2__8__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0` ORDER\n" +
+			"    BY `metric__2__8__4__1_col_0` DESC, `aggr__2__8__4__key_0` ASC) AS\n" +
+			"    `aggr__2__8__4__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"      `surname` AS `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`) AS\n" +
+			"      `metric__2__1_col_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS\n" +
+			"      `aggr__2__8__parent_count`,\n" +
+			"      COALESCE(`limbName`, '__missing__') AS `aggr__2__8__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`) AS\n" +
+			"      `aggr__2__8__count`,\n" +
+			"      sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`,\n" +
+			"      `aggr__2__8__key_0`) AS `metric__2__8__1_col_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__8__key_0`) AS\n" +
+			"      `aggr__2__8__4__parent_count`, `organName` AS `aggr__2__8__4__key_0`,\n" +
+			"      count(*) AS `aggr__2__8__4__count`,\n" +
+			"      sumOrNull(`total`) AS `metric__2__8__4__1_col_0`,\n" +
+			"      sumOrNull(`some`) AS `metric__2__8__4__5_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `surname` AS `aggr__2__key_0`,\n" +
+			"      COALESCE(`limbName`, '__missing__') AS `aggr__2__8__key_0`,\n" +
+			"      `organName` AS `aggr__2__8__4__key_0`))\n" +
+			"WHERE ((`aggr__2__order_1_rank`<=201 AND `aggr__2__8__order_1_rank`<=20) AND\n" +
+			"  `aggr__2__8__4__order_1_rank`<=2)\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__8__order_1_rank` ASC,\n" +
+			"  `aggr__2__8__4__order_1_rank` ASC",
 	},
 	{ // [6]
 		TestName: "Ophelia Test 7: 5x terms + a lot of other aggregations + different order bys",
@@ -2502,89 +2413,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__7__8__4__3__6_col_0", -0.6),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "metric__2__1_col_0", "aggr__2__7__parent_count", "aggr__2__7__key_0",
-			  "aggr__2__7__count", "metric__2__7__1_col_0", "aggr__2__7__8__parent_count",
-			  "aggr__2__7__8__key_0", "aggr__2__7__8__count", "metric__2__7__8__1_col_0",
-			  "aggr__2__7__8__4__parent_count", "aggr__2__7__8__4__key_0",
-			  "aggr__2__7__8__4__count", "metric__2__7__8__4__1_col_0",
-			  "aggr__2__7__8__4__3__parent_count", "aggr__2__7__8__4__3__key_0",
-			  "aggr__2__7__8__4__3__count", "metric__2__7__8__4__3__1_col_0",
-			  "metric__2__7__8__4__3__5_col_0", "metric__2__7__8__4__3__6_col_0"
-			FROM (
-			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"metric__2__1_col_0", "aggr__2__7__parent_count", "aggr__2__7__key_0",
-				"aggr__2__7__count", "metric__2__7__1_col_0", "aggr__2__7__8__parent_count",
-				"aggr__2__7__8__key_0", "aggr__2__7__8__count", "metric__2__7__8__1_col_0",
-				"aggr__2__7__8__4__parent_count", "aggr__2__7__8__4__key_0",
-				"aggr__2__7__8__4__count", "metric__2__7__8__4__1_col_0",
-				"aggr__2__7__8__4__3__parent_count", "aggr__2__7__8__4__3__key_0",
-				"aggr__2__7__8__4__3__count", "metric__2__7__8__4__3__1_col_0",
-				"metric__2__7__8__4__3__5_col_0", "metric__2__7__8__4__3__6_col_0",
-				dense_rank() OVER (ORDER BY "metric__2__1_col_0" DESC, "aggr__2__key_0" ASC)
-				AS "aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__7__key_0" ASC) AS "aggr__2__7__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0" ORDER
-				BY "aggr__2__7__8__count" DESC, "aggr__2__7__8__key_0" ASC) AS
-				"aggr__2__7__8__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				"aggr__2__7__8__key_0" ORDER BY "metric__2__7__8__4__1_col_0" DESC,
-				"aggr__2__7__8__4__key_0" ASC) AS "aggr__2__7__8__4__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				"aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0" ORDER BY
-				"metric__2__7__8__4__3__6_col_0" ASC, "aggr__2__7__8__4__3__key_0" ASC) AS
-				"aggr__2__7__8__4__3__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-				  "surname" AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "metric__2__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__7__parent_count",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__7__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0") AS
-				  "aggr__2__7__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__7__key_0") AS "metric__2__7__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0") AS
-				  "aggr__2__7__8__parent_count",
-				  COALESCE("organName", '__missing__') AS "aggr__2__7__8__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				  "aggr__2__7__8__key_0") AS "aggr__2__7__8__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__7__key_0", "aggr__2__7__8__key_0") AS "metric__2__7__8__1_col_0"
-				  ,
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				  "aggr__2__7__8__key_0") AS "aggr__2__7__8__4__parent_count",
-				  "doctorName" AS "aggr__2__7__8__4__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				  "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
-				  "aggr__2__7__8__4__count",
-				  sumOrNull(sumOrNull("total")) OVER (PARTITION BY "aggr__2__key_0",
-				  "aggr__2__7__key_0", "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
-				  "metric__2__7__8__4__1_col_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
-				  "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
-				  "aggr__2__7__8__4__3__parent_count",
-				  "height" AS "aggr__2__7__8__4__3__key_0",
-				  count(*) AS "aggr__2__7__8__4__3__count",
-				  sumOrNull("total") AS "metric__2__7__8__4__3__1_col_0",
-				  sumOrNull("some") AS "metric__2__7__8__4__3__5_col_0",
-				  sumOrNull("cost") AS "metric__2__7__8__4__3__6_col_0"
-				FROM __quesma_table_name
-				GROUP BY "surname" AS "aggr__2__key_0",
-				  COALESCE("limbName", '__missing__') AS "aggr__2__7__key_0",
-				  COALESCE("organName", '__missing__') AS "aggr__2__7__8__key_0",
-				  "doctorName" AS "aggr__2__7__8__4__key_0",
-				  "height" AS "aggr__2__7__8__4__3__key_0"))
-			WHERE (((("aggr__2__order_1_rank"<=101 AND "aggr__2__7__order_1_rank"<=10) AND
-			  "aggr__2__7__8__order_1_rank"<=10) AND "aggr__2__7__8__4__order_1_rank"<=7)
-			  AND "aggr__2__7__8__4__3__order_1_rank"<=2)
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__7__order_1_rank" ASC,
-			  "aggr__2__7__8__order_1_rank" ASC, "aggr__2__7__8__4__order_1_rank" ASC,
-			  "aggr__2__7__8__4__3__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n          `metric__2__1_col_0`, `aggr__2__7__parent_count`, `aggr__2__7__key_0`,\n          `aggr__2__7__count`, `metric__2__7__1_col_0`, `aggr__2__7__8__parent_count`,\n          `aggr__2__7__8__key_0`, `aggr__2__7__8__count`, `metric__2__7__8__1_col_0`,\n          `aggr__2__7__8__4__parent_count`, `aggr__2__7__8__4__key_0`,\n          `aggr__2__7__8__4__count`, `metric__2__7__8__4__1_col_0`,\n          `aggr__2__7__8__4__3__parent_count`, `aggr__2__7__8__4__3__key_0`,\n          `aggr__2__7__8__4__3__count`, `metric__2__7__8__4__3__1_col_0`,\n          `metric__2__7__8__4__3__5_col_0`, `metric__2__7__8__4__3__6_col_0`\n        FROM (\n          SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n            `metric__2__1_col_0`, `aggr__2__7__parent_count`, `aggr__2__7__key_0`,\n            `aggr__2__7__count`, `metric__2__7__1_col_0`, `aggr__2__7__8__parent_count`,\n            `aggr__2__7__8__key_0`, `aggr__2__7__8__count`, `metric__2__7__8__1_col_0`,\n            `aggr__2__7__8__4__parent_count`, `aggr__2__7__8__4__key_0`,\n            `aggr__2__7__8__4__count`, `metric__2__7__8__4__1_col_0`,\n            `aggr__2__7__8__4__3__parent_count`, `aggr__2__7__8__4__3__key_0`,\n            `aggr__2__7__8__4__3__count`, `metric__2__7__8__4__3__1_col_0`,\n            `metric__2__7__8__4__3__5_col_0`, `metric__2__7__8__4__3__6_col_0`,\n            dense_rank() OVER (ORDER BY `metric__2__1_col_0` DESC, `aggr__2__key_0` ASC)\n            AS `aggr__2__order_1_rank`,\n            dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY `aggr__2__7__key_0\n            ` ASC) AS `aggr__2__7__order_1_rank`,\n            dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0` ORDER\n            BY `aggr__2__7__8__count` DESC, `aggr__2__7__8__key_0` ASC) AS `\n            aggr__2__7__8__order_1_rank`,\n            dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n            aggr__2__7__8__key_0` ORDER BY `metric__2__7__8__4__1_col_0` DESC, `\n            aggr__2__7__8__4__key_0` ASC) AS `aggr__2__7__8__4__order_1_rank`,\n            dense_rank() OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n            aggr__2__7__8__key_0`, `aggr__2__7__8__4__key_0` ORDER BY `\n            metric__2__7__8__4__3__6_col_0` ASC, `aggr__2__7__8__4__3__key_0` ASC) AS `\n            aggr__2__7__8__4__3__order_1_rank`\n          FROM (\n            SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n              `surname` AS `aggr__2__key_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n              sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`) AS `\n              metric__2__1_col_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `\n              aggr__2__7__parent_count`,\n              COALESCE(`limbName`, '__missing__') AS `aggr__2__7__key_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`) AS\n              `aggr__2__7__count`,\n              sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`, `\n              aggr__2__7__key_0`) AS `metric__2__7__1_col_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`) AS\n              `aggr__2__7__8__parent_count`,\n              COALESCE(`organName`, '__missing__') AS `aggr__2__7__8__key_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n              aggr__2__7__8__key_0`) AS `aggr__2__7__8__count`,\n              sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`, `\n              aggr__2__7__key_0`, `aggr__2__7__8__key_0`) AS `metric__2__7__8__1_col_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n              aggr__2__7__8__key_0`) AS `aggr__2__7__8__4__parent_count`,\n              `doctorName` AS `aggr__2__7__8__4__key_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n              aggr__2__7__8__key_0`, `aggr__2__7__8__4__key_0`) AS `\n              aggr__2__7__8__4__count`,\n              sumOrNull(sumOrNull(`total`)) OVER (PARTITION BY `aggr__2__key_0`, `\n              aggr__2__7__key_0`, `aggr__2__7__8__key_0`, `aggr__2__7__8__4__key_0`) AS\n              `metric__2__7__8__4__1_col_0`,\n              sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`, `aggr__2__7__key_0`, `\n              aggr__2__7__8__key_0`, `aggr__2__7__8__4__key_0`) AS `\n              aggr__2__7__8__4__3__parent_count`,\n              `height` AS `aggr__2__7__8__4__3__key_0`,\n              count(*) AS `aggr__2__7__8__4__3__count`,\n              sumOrNull(`total`) AS `metric__2__7__8__4__3__1_col_0`,\n              sumOrNull(`some`) AS `metric__2__7__8__4__3__5_col_0`,\n              sumOrNull(`cost`) AS `metric__2__7__8__4__3__6_col_0`\n            FROM `__quesma_table_name`\n            GROUP BY `surname` AS `aggr__2__key_0`,\n              COALESCE(`limbName`, '__missing__') AS `aggr__2__7__key_0`,\n              COALESCE(`organName`, '__missing__') AS `aggr__2__7__8__key_0`,\n              `doctorName` AS `aggr__2__7__8__4__key_0`,\n              `height` AS `aggr__2__7__8__4__3__key_0`))\n        WHERE ((((`aggr__2__order_1_rank`<=101 AND `aggr__2__7__order_1_rank`<=10) AND `\n          aggr__2__7__8__order_1_rank`<=10) AND `aggr__2__7__8__4__order_1_rank`<=7) AND\n          `aggr__2__7__8__4__3__order_1_rank`<=2)\n        ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__7__order_1_rank` ASC,\n          `aggr__2__7__8__order_1_rank` ASC, `aggr__2__7__8__4__order_1_rank` ASC,\n          `aggr__2__7__8__4__3__order_1_rank` ASC",
 	},
 }

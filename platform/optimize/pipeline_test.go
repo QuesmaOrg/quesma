@@ -432,7 +432,7 @@ func Test_materialized_view_replace(t *testing.T) {
 			"materialized_view_replace": {
 				Properties: map[string]string{
 					"table":     "foo",
-					"condition": `"a">10`,
+					"condition": "`a`>10",
 					"view":      "foo_view",
 				},
 			},

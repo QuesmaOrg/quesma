@@ -29,7 +29,6 @@ func TestSearchCommonTable(t *testing.T) {
 		Rows         []*sqlmock.Rows
 		IndexPattern string
 	}{
-
 		{ // [0]
 			Name:         "query non virtual table",
 			IndexPattern: "logs-3",
@@ -43,7 +42,7 @@ func TestSearchCommonTable(t *testing.T) {
         }
 }`,
 			WantedSql: []string{
-				`SELECT "@timestamp", "message" FROM "logs-3" LIMIT 10`,
+				"SELECT `@timestamp`, `message` FROM `logs-3` LIMIT 10",
 			},
 		},
 
@@ -60,7 +59,7 @@ func TestSearchCommonTable(t *testing.T) {
         }
 }`,
 			WantedSql: []string{
-				`SELECT "@timestamp", "message" FROM quesma_common_table WHERE "__quesma_index_name"='logs-1' LIMIT 10`,
+				"SELECT `@timestamp`, `message` FROM `quesma_common_table` WHERE `__quesma_index_name`='logs-1' LIMIT 10",
 			},
 		},
 
@@ -77,7 +76,7 @@ func TestSearchCommonTable(t *testing.T) {
         }
 }`,
 			WantedSql: []string{
-				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+				"SELECT `@timestamp`, `message`, `__quesma_index_name` FROM `quesma_common_table` WHERE (`__quesma_index_name`='logs-1' OR `__quesma_index_name`='logs-2') LIMIT 10",
 			},
 		},
 
@@ -94,7 +93,7 @@ func TestSearchCommonTable(t *testing.T) {
         }
 }`,
 			WantedSql: []string{
-				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+				"SELECT `@timestamp`, `message`, `__quesma_index_name` FROM `quesma_common_table` WHERE (`__quesma_index_name`='logs-1' OR `__quesma_index_name`='logs-2') LIMIT 10",
 			},
 		},
 
@@ -111,7 +110,7 @@ func TestSearchCommonTable(t *testing.T) {
         }
 }`,
 			WantedSql: []string{
-				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE startsWith("__quesma_index_name",'daily-') LIMIT 10`,
+				"SELECT `@timestamp`, `message`, `__quesma_index_name` FROM `quesma_common_table` WHERE startsWith(`__quesma_index_name`,'daily-') LIMIT 10",
 			},
 		},
 
@@ -128,7 +127,7 @@ func TestSearchCommonTable(t *testing.T) {
         }
 }`,
 			WantedSql: []string{
-				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+				"SELECT `@timestamp`, `message`, `__quesma_index_name` FROM `quesma_common_table` WHERE (`__quesma_index_name`='logs-1' OR `__quesma_index_name`='logs-2') LIMIT 10",
 			},
 		},
 
@@ -145,7 +144,7 @@ func TestSearchCommonTable(t *testing.T) {
         }
 }`,
 			WantedSql: []string{
-				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+				"SELECT `@timestamp`, `message`, `__quesma_index_name` FROM `quesma_common_table` WHERE (`__quesma_index_name`='logs-1' OR `__quesma_index_name`='logs-2') LIMIT 10",
 			},
 		},
 
@@ -185,8 +184,8 @@ func TestSearchCommonTable(t *testing.T) {
         }
 }`,
 			WantedSql: []string{
-				`SELECT countIf("@timestamp"<toInt64(toUnixTimestamp(now()))) AS "range_0__aggr__2__count", countIf(("@timestamp">=toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))) AND "@timestamp"<toInt64(toUnixTimestamp(now())))) AS "range_1__aggr__2__count", countIf("@timestamp">=toInt64(toUnixTimestamp('2024-04-14'))) AS "range_2__aggr__2__count" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') -- optimizations: pancake(half)`,
-				`SELECT "@timestamp", "message", "__quesma_index_name" FROM quesma_common_table WHERE ("__quesma_index_name"='logs-1' OR "__quesma_index_name"='logs-2') LIMIT 10`,
+				"SELECT countIf(`@timestamp`<toInt64(toUnixTimestamp(now()))) AS `range_0__aggr__2__count`, countIf((`@timestamp`>=toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))) AND `@timestamp`<toInt64(toUnixTimestamp(now())))) AS `range_1__aggr__2__count`, countIf(`@timestamp`>=toInt64(toUnixTimestamp('2024-04-14'))) AS `range_2__aggr__2__count` FROM `quesma_common_table` WHERE (`__quesma_index_name`='logs-1' OR `__quesma_index_name`='logs-2') -- optimizations: pancake(half)",
+				"SELECT `@timestamp`, `message`, `__quesma_index_name` FROM `quesma_common_table` WHERE (`__quesma_index_name`='logs-1' OR `__quesma_index_name`='logs-2') LIMIT 10",
 			},
 			// we need to return some rows, otherwise pancakes will fail
 			Rows: []*sqlmock.Rows{

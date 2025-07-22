@@ -73,21 +73,20 @@ var AggregationTestsWithGeographicalCoordinates = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__large-grid__count", 283),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8)) AS
-			  "aggr__large-grid__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
-			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8)) AS
-			  "aggr__large-grid__key_1", count(*) AS "aggr__large-grid__count"
-			FROM __quesma_table_name
-			GROUP BY FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8)) AS
-			  "aggr__large-grid__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
-			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8)) AS
-			  "aggr__large-grid__key_1"
-			ORDER BY "aggr__large-grid__count" DESC, "aggr__large-grid__key_0" ASC,
-			  "aggr__large-grid__key_1" ASC
-			LIMIT 10000`,
+		ExpectedPancakeSQL: "SELECT FLOOR(((__quesma_geo_lon(`OriginLocation`)+180)/360)*POWER(2, 8)) AS\n" +
+			"  `aggr__large-grid__key_0`,\n" +
+			"  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`OriginLocation`)))+(1/COS(RADIANS(\n" +
+			"  __quesma_geo_lat(`OriginLocation`)))))/PI())/2*POWER(2, 8)) AS\n" +
+			"  `aggr__large-grid__key_1`, count(*) AS `aggr__large-grid__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY FLOOR(((__quesma_geo_lon(`OriginLocation`)+180)/360)*POWER(2, 8)) AS\n" +
+			"  `aggr__large-grid__key_0`,\n" +
+			"  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`OriginLocation`)))+(1/COS(RADIANS(\n" +
+			"  __quesma_geo_lat(`OriginLocation`)))))/PI())/2*POWER(2, 8)) AS\n" +
+			"  `aggr__large-grid__key_1`\n" +
+			"ORDER BY `aggr__large-grid__count` DESC, `aggr__large-grid__key_0` ASC,\n" +
+			"  `aggr__large-grid__key_1` ASC\n" +
+			"LIMIT 10000",
 	},
 	{ // [1]
 		TestName: "geotile_grid with size",
@@ -158,20 +157,19 @@ var AggregationTestsWithGeographicalCoordinates = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__large-grid__count", 283),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8))
-			  AS "aggr__large-grid__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
-			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8))
-			  AS "aggr__large-grid__key_1", count(*) AS "aggr__large-grid__count"
-			FROM __quesma_table_name
-			GROUP BY FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8))
-			  AS "aggr__large-grid__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
-			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8)) AS "aggr__large-grid__key_1"
-			ORDER BY "aggr__large-grid__count" DESC, "aggr__large-grid__key_0" ASC,
-			  "aggr__large-grid__key_1" ASC
-			LIMIT 3`,
+		ExpectedPancakeSQL: "SELECT FLOOR(((__quesma_geo_lon(`OriginLocation`)+180)/360)*POWER(2, 8))\n" +
+			"  AS `aggr__large-grid__key_0`,\n" +
+			"  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`OriginLocation`)))+(1/COS(RADIANS(\n" +
+			"  __quesma_geo_lat(`OriginLocation`)))))/PI())/2*POWER(2, 8))\n" +
+			"  AS `aggr__large-grid__key_1`, count(*) AS `aggr__large-grid__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY FLOOR(((__quesma_geo_lon(`OriginLocation`)+180)/360)*POWER(2, 8))\n" +
+			"  AS `aggr__large-grid__key_0`,\n" +
+			"  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`OriginLocation`)))+(1/COS(RADIANS(\n" +
+			"  __quesma_geo_lat(`OriginLocation`)))))/PI())/2*POWER(2, 8)) AS `aggr__large-grid__key_1`\n" +
+			"ORDER BY `aggr__large-grid__count` DESC, `aggr__large-grid__key_0` ASC,\n" +
+			"  `aggr__large-grid__key_1` ASC\n" +
+			"LIMIT 3",
 	},
 	{ // [2]
 		TestName: "geotile_grid with some other aggregations",
@@ -296,43 +294,42 @@ var AggregationTestsWithGeographicalCoordinates = []AggregationTestCase{
 				model.NewQueryResultCol("metric__terms__large-grid__avg_col_0", 50.5),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__terms__parent_count", "aggr__terms__key_0", "aggr__terms__count",
-			  "aggr__terms__large-grid__key_0", "aggr__terms__large-grid__key_1",
-			  "aggr__terms__large-grid__count", "metric__terms__large-grid__avg_col_0"
-			FROM (
-			  SELECT "aggr__terms__parent_count", "aggr__terms__key_0",
-				"aggr__terms__count", "aggr__terms__large-grid__key_0",
-				"aggr__terms__large-grid__key_1", "aggr__terms__large-grid__count",
-				"metric__terms__large-grid__avg_col_0",
-				dense_rank() OVER (ORDER BY "aggr__terms__count" DESC, "aggr__terms__key_0"
-				ASC) AS "aggr__terms__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__terms__key_0" ORDER BY
-				"aggr__terms__large-grid__count" DESC, "aggr__terms__large-grid__key_0" ASC,
-				"aggr__terms__large-grid__key_1" ASC) AS
-				"aggr__terms__large-grid__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__terms__parent_count",
-				  COALESCE("AvgTicketPrice", 'N/A') AS "aggr__terms__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__terms__key_0") AS
-				  "aggr__terms__count",
-				  FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8)) AS
-				  "aggr__terms__large-grid__key_0",
-				  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(
-				  RADIANS(__quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8)) AS
-				  "aggr__terms__large-grid__key_1",
-				  count(*) AS "aggr__terms__large-grid__count",
-				  avgOrNull("DistanceKilometers") AS "metric__terms__large-grid__avg_col_0"
-				FROM __quesma_table_name
-				GROUP BY COALESCE("AvgTicketPrice", 'N/A') AS "aggr__terms__key_0",
-				  FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 8)) AS
-				  "aggr__terms__large-grid__key_0",
-				  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(
-				  RADIANS(__quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 8)) AS
-				  "aggr__terms__large-grid__key_1"))
-			WHERE ("aggr__terms__order_1_rank"<=2 AND
-			  "aggr__terms__large-grid__order_1_rank"<=3)
-			ORDER BY "aggr__terms__order_1_rank" ASC,
-			  "aggr__terms__large-grid__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__terms__parent_count`, `aggr__terms__key_0`, `aggr__terms__count`,\n" +
+			"  `aggr__terms__large-grid__key_0`, `aggr__terms__large-grid__key_1`,\n" +
+			"  `aggr__terms__large-grid__count`, `metric__terms__large-grid__avg_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__terms__parent_count`, `aggr__terms__key_0`,\n" +
+			"    `aggr__terms__count`, `aggr__terms__large-grid__key_0`,\n" +
+			"    `aggr__terms__large-grid__key_1`, `aggr__terms__large-grid__count`,\n" +
+			"    `metric__terms__large-grid__avg_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__terms__count` DESC, `aggr__terms__key_0`\n" +
+			"    ASC) AS `aggr__terms__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__terms__key_0` ORDER BY\n" +
+			"    `aggr__terms__large-grid__count` DESC, `aggr__terms__large-grid__key_0` ASC,\n" +
+			"    `aggr__terms__large-grid__key_1` ASC) AS\n" +
+			"    `aggr__terms__large-grid__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__terms__parent_count`,\n" +
+			"      COALESCE(`AvgTicketPrice`, 'N/A') AS `aggr__terms__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__terms__key_0`) AS\n" +
+			"      `aggr__terms__count`,\n" +
+			"      FLOOR(((__quesma_geo_lon(`OriginLocation`)+180)/360)*POWER(2, 8)) AS\n" +
+			"      `aggr__terms__large-grid__key_0`,\n" +
+			"      FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`OriginLocation`)))+(1/COS(\n" +
+			"      RADIANS(__quesma_geo_lat(`OriginLocation`)))))/PI())/2*POWER(2, 8)) AS\n" +
+			"      `aggr__terms__large-grid__key_1`,\n" +
+			"      count(*) AS `aggr__terms__large-grid__count`,\n" +
+			"      avgOrNull(`DistanceKilometers`) AS `metric__terms__large-grid__avg_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY COALESCE(`AvgTicketPrice`, 'N/A') AS `aggr__terms__key_0`,\n" +
+			"      FLOOR(((__quesma_geo_lon(`OriginLocation`)+180)/360)*POWER(2, 8)) AS\n" +
+			"      `aggr__terms__large-grid__key_0`,\n" +
+			"      FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`OriginLocation`)))+(1/COS(\n" +
+			"      RADIANS(__quesma_geo_lat(`OriginLocation`)))))/PI())/2*POWER(2, 8)) AS\n" +
+			"      `aggr__terms__large-grid__key_1`))\n" +
+			"WHERE (`aggr__terms__order_1_rank`<=2 AND\n" +
+			"  `aggr__terms__large-grid__order_1_rank`<=3)\n" +
+			"ORDER BY `aggr__terms__order_1_rank` ASC,\n" +
+			"  `aggr__terms__large-grid__order_1_rank` ASC",
 	},
 }

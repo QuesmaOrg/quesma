@@ -182,28 +182,27 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1__2_col_0", 658654099),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__key_0",
-			  "aggr__0__1__count", "metric__0__1__2_col_0"
-			FROM (
-			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__key_0",
-				"aggr__0__1__count", "metric__0__1__2_col_0",
-				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
-				,
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY "aggr__0__key_0"
-				ASC, "aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT floor("rspContentLen"/2e+06)*2e+06 AS "aggr__0__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  floor("rspContentLen"/2e+06)*2e+06 AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count",
-				  avgOrNull("rspContentLen") AS "metric__0__1__2_col_0"
-				FROM __quesma_table_name
-				WHERE ("reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<=
-				  '2024-04-24T11:10:23.606Z')
-				GROUP BY floor("rspContentLen"/2e+06)*2e+06 AS "aggr__0__key_0",
-				  floor("rspContentLen"/2e+06)*2e+06 AS "aggr__0__1__key_0"))
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__0__key_0`, `aggr__0__count`, `aggr__0__1__key_0`,\n" +
+			"  `aggr__0__1__count`, `metric__0__1__2_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__0__key_0`, `aggr__0__count`, `aggr__0__1__key_0`,\n" +
+			"    `aggr__0__1__count`, `metric__0__1__2_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__0__key_0` ASC) AS `aggr__0__order_1_rank`\n" +
+			"    ,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__0__key_0` ORDER BY `aggr__0__key_0`\n" +
+			"    ASC, `aggr__0__1__key_0` ASC) AS `aggr__0__1__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT floor(`rspContentLen`/2e+06)*2e+06 AS `aggr__0__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`) AS `aggr__0__count`,\n" +
+			"      floor(`rspContentLen`/2e+06)*2e+06 AS `aggr__0__1__key_0`,\n" +
+			"      count(*) AS `aggr__0__1__count`,\n" +
+			"      avgOrNull(`rspContentLen`) AS `metric__0__1__2_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    WHERE (`reqTimeSec`>='2024-04-24T10:55:23.606Z' AND `reqTimeSec`<= \n" +
+			"      '2024-04-24T11:10:23.606Z')\n" +
+			"    GROUP BY floor(`rspContentLen`/2e+06)*2e+06 AS `aggr__0__key_0`,\n" +
+			"      floor(`rspContentLen`/2e+06)*2e+06 AS `aggr__0__1__key_0`))\n" +
+			"ORDER BY `aggr__0__order_1_rank` ASC, `aggr__0__1__order_1_rank` ASC",
 	},
 	{ // [1]
 		TestName: "dashboard-1: bug, used to be infinite loop",
@@ -441,30 +440,29 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{83.8}),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__key_0",
-			  "aggr__0__1__count", "metric__0__1__2_col_0"
-			FROM (
-			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__key_0",
-				"aggr__0__1__count", "metric__0__1__2_col_0",
-				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
-				,
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT toInt64((toUnixTimestamp64Milli("reqTimeSec")+timeZoneOffset(
-				  toTimezone("reqTimeSec", 'Europe/Warsaw'))*1000) / 30000) AS
-				  "aggr__0__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  floor("billingRegion"/0.5)*0.5 AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count",
-				  quantiles(0.950000)("latency") AS "metric__0__1__2_col_0"
-				FROM __quesma_table_name
-				WHERE ("reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<=
-				  '2024-04-24T11:30:46.279Z')
-				GROUP BY toInt64((toUnixTimestamp64Milli("reqTimeSec")+timeZoneOffset(
-				  toTimezone("reqTimeSec", 'Europe/Warsaw'))*1000) / 30000) AS
-				  "aggr__0__key_0", floor("billingRegion"/0.5)*0.5 AS "aggr__0__1__key_0"))
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__0__key_0`, `aggr__0__count`, `aggr__0__1__key_0`,\n" +
+			"  `aggr__0__1__count`, `metric__0__1__2_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__0__key_0`, `aggr__0__count`, `aggr__0__1__key_0`,\n" +
+			"    `aggr__0__1__count`, `metric__0__1__2_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__0__key_0` ASC) AS `aggr__0__order_1_rank`\n" +
+			"    ,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__0__key_0` ORDER BY\n" +
+			"    `aggr__0__1__key_0` ASC) AS `aggr__0__1__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT toInt64((toUnixTimestamp64Milli(`reqTimeSec`)+timeZoneOffset(\n" +
+			"      toTimezone(`reqTimeSec`, 'Europe/Warsaw'))*1000) / 30000) AS\n" +
+			"      `aggr__0__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`) AS `aggr__0__count`,\n" +
+			"      floor(`billingRegion`/0.5)*0.5 AS `aggr__0__1__key_0`,\n" +
+			"      count(*) AS `aggr__0__1__count`,\n" +
+			"      quantiles(0.950000)(`latency`) AS `metric__0__1__2_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    WHERE (`reqTimeSec`>='2024-04-24T11:15:46.279Z' AND `reqTimeSec`<= \n" +
+			"      '2024-04-24T11:30:46.279Z')\n" +
+			"    GROUP BY toInt64((toUnixTimestamp64Milli(`reqTimeSec`)+timeZoneOffset(\n" +
+			"      toTimezone(`reqTimeSec`, 'Europe/Warsaw'))*1000) / 30000) AS\n" +
+			"      `aggr__0__key_0`, floor(`billingRegion`/0.5)*0.5 AS `aggr__0__1__key_0`))\n" +
+			"ORDER BY `aggr__0__order_1_rank` ASC, `aggr__0__1__order_1_rank` ASC",
 	},
 }

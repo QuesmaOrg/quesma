@@ -156,31 +156,29 @@ var CloverTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1__timeseries__count", int64(301)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__1__parent_count", "aggr__1__key_0", "aggr__1__count",
-			  "aggr__1__timeseries__key_0", "aggr__1__timeseries__count"
-			FROM (
-			  SELECT "aggr__1__parent_count", "aggr__1__key_0", "aggr__1__count",
-				"aggr__1__timeseries__key_0", "aggr__1__timeseries__count",
-				dense_rank() OVER (ORDER BY "aggr__1__count" DESC, "aggr__1__key_0" ASC) AS
-				"aggr__1__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__1__key_0" ORDER BY
-				"aggr__1__timeseries__key_0" ASC) AS "aggr__1__timeseries__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__1__parent_count",
-				  "nobel_laureate" AS "aggr__1__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__1__key_0") AS "aggr__1__count",
-				  toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-				  "@timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
-				  "aggr__1__timeseries__key_0", count(*) AS "aggr__1__timeseries__count"
-				FROM __quesma_table_name
-				GROUP BY "nobel_laureate" AS "aggr__1__key_0",
-				  toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-				  "@timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
-				  "aggr__1__timeseries__key_0"))
-			WHERE "aggr__1__order_1_rank"<=11
-			ORDER BY "aggr__1__order_1_rank" ASC, "aggr__1__timeseries__order_1_rank" ASC
-			`,
+		ExpectedPancakeSQL: "SELECT `aggr__1__parent_count`, `aggr__1__key_0`, `aggr__1__count`,\n" +
+			"  `aggr__1__timeseries__key_0`, `aggr__1__timeseries__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__1__parent_count`, `aggr__1__key_0`, `aggr__1__count`,\n" +
+			"    `aggr__1__timeseries__key_0`, `aggr__1__timeseries__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__1__count` DESC, `aggr__1__key_0` ASC) AS\n" +
+			"    `aggr__1__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__1__key_0` ORDER BY\n" +
+			"    `aggr__1__timeseries__key_0` ASC) AS `aggr__1__timeseries__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__1__parent_count`,\n" +
+			"      `nobel_laureate` AS `aggr__1__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__1__key_0`) AS `aggr__1__count`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `@timestamp`, 'Europe/Warsaw'))*1000) / 2592000000) AS\n" +
+			"      `aggr__1__timeseries__key_0`, count(*) AS `aggr__1__timeseries__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `nobel_laureate` AS `aggr__1__key_0`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `@timestamp`, 'Europe/Warsaw'))*1000) / 2592000000) AS\n" +
+			"      `aggr__1__timeseries__key_0`))\n" +
+			"WHERE `aggr__1__order_1_rank`<=11\n" +
+			"ORDER BY `aggr__1__order_1_rank` ASC, `aggr__1__timeseries__order_1_rank` ASC",
 	},
 	{ // [1]
 		TestName: "multiple buckets_path",
@@ -344,14 +342,13 @@ var CloverTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__timeseries__a2-numerator_col_0", int64(202)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT count(*) AS "aggr__timeseries__count",
-			  countIf(true) AS "metric__timeseries__a2-denominator_col_0",
-			  countIf(NOT ("table.flower" __quesma_match 'clover')) AS
-			  "metric__timeseries__a2-numerator_col_0"
-			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1728640683723) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1728641583723))`,
+		ExpectedPancakeSQL: "SELECT count(*) AS `aggr__timeseries__count`,\n" +
+			"  countIf(true) AS `metric__timeseries__a2-denominator_col_0`,\n" +
+			"  countIf(NOT (`table.flower` __quesma_match 'clover')) AS\n" +
+			"  `metric__timeseries__a2-numerator_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`@timestamp`>=fromUnixTimestamp64Milli(1728640683723) AND `@timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1728641583723))",
 	},
 	{ // [2]
 		TestName: "simplest auto_date_histogram",
@@ -474,11 +471,10 @@ var CloverTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__timeseries__count", int64(202)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT count(*) AS "aggr__timeseries__count"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1728581627125) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1728635627125))`,
+		ExpectedPancakeSQL: "SELECT count(*) AS `aggr__timeseries__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1728581627125) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1728635627125))",
 		AdditionalAcceptableDifference: []string{"key_as_string"}, // timezone differences between local and github runs... There's always 2h difference between those, need to investigate. Maybe come back to .UTC() so there's no "+timezone" (e.g. +02:00)?
 	},
 	{ // [3]
@@ -642,14 +638,13 @@ var CloverTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__timeseries__f2-numerator_col_0", int64(178)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT count(*) AS "aggr__timeseries__count",
-			  countIf(true) AS "metric__timeseries__f2-denominator_col_0",
-			  countIf(NOT ("a.b_str" IS NOT NULL)) AS
-			  "metric__timeseries__f2-numerator_col_0"
-			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1721399904783) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1730475504783))`,
+		ExpectedPancakeSQL: "SELECT count(*) AS `aggr__timeseries__count`,\n" +
+			"  countIf(true) AS `metric__timeseries__f2-denominator_col_0`,\n" +
+			"  countIf(NOT (`a.b_str` IS NOT NULL)) AS\n" +
+			"  `metric__timeseries__f2-numerator_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`@timestamp`>=fromUnixTimestamp64Milli(1721399904783) AND `@timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1730475504783))",
 	},
 	{ // [4]
 		TestName: "todo",
@@ -760,17 +755,16 @@ var CloverTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__other-filter__3__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__other-filter__count",
-			  sum(count(*)) OVER () AS "aggr__other-filter__3__parent_count",
-			  "field" AS "aggr__other-filter__3__key_0",
-			  count(*) AS "aggr__other-filter__3__count"
-			FROM __quesma_table_name
-			WHERE ("a" __quesma_match '%b%' AND "c" __quesma_match '%d%')
-			GROUP BY "field" AS "aggr__other-filter__3__key_0"
-			ORDER BY "aggr__other-filter__3__count" DESC,
-			  "aggr__other-filter__3__key_0" ASC
-			LIMIT 16`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__other-filter__count`,\n" +
+			"  sum(count(*)) OVER () AS `aggr__other-filter__3__parent_count`,\n" +
+			"  `field` AS `aggr__other-filter__3__key_0`,\n" +
+			"  count(*) AS `aggr__other-filter__3__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`a` __quesma_match '%b%' AND `c` __quesma_match '%d%')\n" +
+			"GROUP BY `field` AS `aggr__other-filter__3__key_0`\n" +
+			"ORDER BY `aggr__other-filter__3__count` DESC,\n" +
+			"  `aggr__other-filter__3__key_0` ASC\n" +
+			"LIMIT 16",
 	},
 	{ // [5]
 		TestName: "todo",
@@ -944,17 +938,16 @@ var CloverTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__q__time_buckets__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__q__count",
-			  toInt64(toUnixTimestamp64Milli("@timestamp") / 604800000) AS
-			  "aggr__q__time_buckets__key_0", count(*) AS "aggr__q__time_buckets__count"
-			FROM __quesma_table_name
-			WHERE (("@timestamp">=fromUnixTimestamp64Milli(1728507729621) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1728507732621)) AND "__quesma_fulltext_field_name"
-			  __quesma_match '%')
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 604800000) AS
-			  "aggr__q__time_buckets__key_0"
-			ORDER BY "aggr__q__time_buckets__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__q__count`,\n" +
+			"  toInt64(toUnixTimestamp64Milli(`@timestamp`) / 604800000) AS\n" +
+			"  `aggr__q__time_buckets__key_0`, count(*) AS `aggr__q__time_buckets__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE ((`@timestamp`>=fromUnixTimestamp64Milli(1728507729621) AND `@timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1728507732621)) AND `__quesma_fulltext_field_name`\n" +
+			"  __quesma_match '%')\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`@timestamp`) / 604800000) AS\n" +
+			"  `aggr__q__time_buckets__key_0`\n" +
+			"ORDER BY `aggr__q__time_buckets__key_0` ASC",
 	},
 	{ // [6]
 		TestName: "Clover",
@@ -1108,18 +1101,17 @@ var CloverTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__q__time_buckets__sum(count)_col_0", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__q__count",
-			  toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-			  "@timestamp", 'Europe/Warsaw'))*1000) / 1800000) AS
-			  "aggr__q__time_buckets__key_0", count(*) AS "aggr__q__time_buckets__count",
-			  sumOrNull("count") AS "metric__q__time_buckets__sum(count)_col_0"
-			FROM __quesma_table_name
-			WHERE NOT ("str_field" __quesma_match 'CRASH')
-			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
-			  ("@timestamp", 'Europe/Warsaw'))*1000) / 1800000) AS
-			  "aggr__q__time_buckets__key_0"
-			ORDER BY "aggr__q__time_buckets__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__q__count`,\n" +
+			"  toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `@timestamp`, 'Europe/Warsaw'))*1000) / 1800000) AS\n" +
+			"  `aggr__q__time_buckets__key_0`, count(*) AS `aggr__q__time_buckets__count`,\n" +
+			"  sumOrNull(`count`) AS `metric__q__time_buckets__sum(count)_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE NOT (`str_field` __quesma_match 'CRASH')\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone\n" +
+			"  (`@timestamp`, 'Europe/Warsaw'))*1000) / 1800000) AS\n" +
+			"  `aggr__q__time_buckets__key_0`\n" +
+			"ORDER BY `aggr__q__time_buckets__key_0` ASC",
 	},
 	{
 		TestName: "Weird aggregation and filter names",
@@ -1208,16 +1200,15 @@ var CloverTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__q__time__cardinality(a.b.keyword)_col_0", int64(672)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__q__count",
-			  toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-			  "@timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__q__time__key_0",
-			  count(*) AS "aggr__q__time__count",
-			  uniq("a.b") AS "metric__q__time__cardinality(a.b.keyword)_col_0"
-			FROM __quesma_table_name
-			WHERE (("a.b" __quesma_match '%c%') OR "a.b" __quesma_match '%d%')
-			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
-			  ("@timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__q__time__key_0"
-			ORDER BY "aggr__q__time__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__q__count`,\n" +
+			"  toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `@timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__q__time__key_0`,\n" +
+			"  count(*) AS `aggr__q__time__count`,\n" +
+			"  uniq(`a.b`) AS `metric__q__time__cardinality(a.b.keyword)_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE ((`a.b` __quesma_match '%c%') OR `a.b` __quesma_match '%d%')\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone\n" +
+			"  (`@timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__q__time__key_0`\n" +
+			"ORDER BY `aggr__q__time__key_0` ASC",
 	},
 }

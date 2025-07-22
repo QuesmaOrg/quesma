@@ -129,16 +129,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_1__metric__2__1_col_0", 1),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf("ftd_session_time"<1000) AS "range_0__aggr__2__count",
-			  uniqIf("ftd_session_time", "ftd_session_time"<1000) AS
-			  "range_0__metric__2__1_col_0",
-			  countIf("ftd_session_time">=-100) AS "range_1__aggr__2__count",
-			  uniqIf("ftd_session_time", "ftd_session_time">=-100) AS
-			  "range_1__metric__2__1_col_0"
-			FROM ` + TableName + `
-			WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<=
-			  '2024-04-27T14:40:59.383Z')`,
+		ExpectedPancakeSQL: "SELECT countIf(`ftd_session_time`<1000) AS `range_0__aggr__2__count`,\n" +
+			"  uniqIf(`ftd_session_time`, `ftd_session_time`<1000) AS\n" +
+			"  `range_0__metric__2__1_col_0`,\n" +
+			"  countIf(`ftd_session_time`>=-100) AS `range_1__aggr__2__count`,\n" +
+			"  uniqIf(`ftd_session_time`, `ftd_session_time`>=-100) AS\n" +
+			"  `range_1__metric__2__1_col_0`\n" +
+			"FROM `" + TableName + "`\n" +
+			"WHERE (`epoch_time`>='2024-04-27T14:25:59.383Z' AND `epoch_time`<=\n" +
+			"  '2024-04-27T14:40:59.383Z')",
 	},
 	{ // [1]
 		TestName: "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range",
@@ -319,12 +318,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_1__aggr__2__count", uint64(1880)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf("properties.entry_time"<1000) AS "range_0__aggr__2__count",
-			  countIf("properties.entry_time">=-100) AS "range_1__aggr__2__count"
-			FROM __quesma_table_name
-			WHERE ("epoch_time">='2024-04-27T14:38:33.527Z' AND "epoch_time"<=
-			  '2024-04-27T14:53:33.527Z')`,
+		ExpectedPancakeSQL: "SELECT countIf(`properties.entry_time`<1000) AS `range_0__aggr__2__count`,\n" +
+			"  countIf(`properties.entry_time`>=-100) AS `range_1__aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`epoch_time`>='2024-04-27T14:38:33.527Z' AND `epoch_time`<=\n" +
+			"  '2024-04-27T14:53:33.527Z')",
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
 			{{}}, // 0 results
 			{
@@ -332,17 +330,17 @@ var AggregationTests = []testdata.AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("top_hits__2__1_col_0", uint64(1704129696028))}},
 			},
 		},
-		ExpectedAdditionalPancakeSQLs: []string{`
-			SELECT "properties.entry_time" AS "top_hits__2__1_col_0"
-			FROM __quesma_table_name
-			WHERE ("properties.entry_time"<1000 AND ("epoch_time">=
-			  '2024-04-27T14:38:33.527Z' AND "epoch_time"<='2024-04-27T14:53:33.527Z'))
-			LIMIT 2`, `
-			SELECT "properties.entry_time" AS "top_hits__2__1_col_0"
-			FROM __quesma_table_name
-			WHERE ("properties.entry_time">=-100 AND ("epoch_time">=
-			  '2024-04-27T14:38:33.527Z' AND "epoch_time"<='2024-04-27T14:53:33.527Z'))
-			LIMIT 2`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			"SELECT `properties.entry_time` AS `top_hits__2__1_col_0`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (`properties.entry_time`<1000 AND (`epoch_time`>=\n" +
+				"  '2024-04-27T14:38:33.527Z' AND `epoch_time`<='2024-04-27T14:53:33.527Z'))\n" +
+				"LIMIT 2",
+			"SELECT `properties.entry_time` AS `top_hits__2__1_col_0`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (`properties.entry_time`>=-100 AND (`epoch_time`>=\n" +
+				"  '2024-04-27T14:38:33.527Z' AND `epoch_time`<='2024-04-27T14:53:33.527Z'))\n" +
+				"LIMIT 2",
 		},
 	},
 	{ // [2]
@@ -475,17 +473,16 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_1__metric__2__1_col_0", 7460679809210584.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf(("epoch_time_original">=0 AND "epoch_time_original"<1000)) AS
-			  "range_0__aggr__2__count",
-			  sumOrNullIf("properties.entry_time", ("epoch_time_original">=0 AND
-			  "epoch_time_original"<1000)) AS "range_0__metric__2__1_col_0",
-			  countIf("epoch_time_original">=1000) AS "range_1__aggr__2__count",
-			  sumOrNullIf("properties.entry_time", "epoch_time_original">=1000) AS
-			  "range_1__metric__2__1_col_0"
-			FROM ` + TableName + `
-			WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<=
-			  '2024-04-28T14:49:22.674Z')`,
+		ExpectedPancakeSQL: "SELECT countIf((`epoch_time_original`>=0 AND `epoch_time_original`<1000)) AS\n" +
+			"  `range_0__aggr__2__count`,\n" +
+			"  sumOrNullIf(`properties.entry_time`, (`epoch_time_original`>=0 AND\n" +
+			"  `epoch_time_original`<1000)) AS `range_0__metric__2__1_col_0`,\n" +
+			"  countIf(`epoch_time_original`>=1000) AS `range_1__aggr__2__count`,\n" +
+			"  sumOrNullIf(`properties.entry_time`, `epoch_time_original`>=1000) AS\n" +
+			"  `range_1__metric__2__1_col_0`\n" +
+			"FROM `" + TableName + "`\n" +
+			"WHERE (`epoch_time`>='2024-04-28T14:34:22.674Z' AND `epoch_time`<=\n" +
+			"  '2024-04-28T14:49:22.674Z')",
 	},
 	{ // [3]
 		TestName: "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range",
@@ -614,24 +611,23 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_1__metric__2__1_col_0", []float64{math.NaN()}),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf(("properties::exoestimation_connection_speedinkbps">=0 AND
-			  "properties::exoestimation_connection_speedinkbps"<1000)) AS
-			  "range_0__aggr__2__count",
-			  quantilesIf(0.500000)("properties::entry_time", (
-			  "properties::exoestimation_connection_speedinkbps">=0 AND
-			  "properties::exoestimation_connection_speedinkbps"<1000)) AS
-			  "range_0__metric__2__1_col_0",
-			  countIf(("properties::exoestimation_connection_speedinkbps">=1000 AND
-			  "properties::exoestimation_connection_speedinkbps"<2000)) AS
-			  "range_1__aggr__2__count",
-			  quantilesIf(0.500000)("properties::entry_time", (
-			  "properties::exoestimation_connection_speedinkbps">=1000 AND
-			  "properties::exoestimation_connection_speedinkbps"<2000)) AS
-			  "range_1__metric__2__1_col_0"
-			FROM ` + TableName + `
-			WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<=
-			  '2024-05-03T04:40:12.252Z')`,
+		ExpectedPancakeSQL: "SELECT countIf((`properties::exoestimation_connection_speedinkbps`>=0 AND\n" +
+			"  `properties::exoestimation_connection_speedinkbps`<1000)) AS\n" +
+			"  `range_0__aggr__2__count`,\n" +
+			"  quantilesIf(0.500000)(`properties::entry_time`, (\n" +
+			"  `properties::exoestimation_connection_speedinkbps`>=0 AND\n" +
+			"  `properties::exoestimation_connection_speedinkbps`<1000)) AS\n" +
+			"  `range_0__metric__2__1_col_0`,\n" +
+			"  countIf((`properties::exoestimation_connection_speedinkbps`>=1000 AND\n" +
+			"  `properties::exoestimation_connection_speedinkbps`<2000)) AS\n" +
+			"  `range_1__aggr__2__count`,\n" +
+			"  quantilesIf(0.500000)(`properties::entry_time`, (\n" +
+			"  `properties::exoestimation_connection_speedinkbps`>=1000 AND\n" +
+			"  `properties::exoestimation_connection_speedinkbps`<2000)) AS\n" +
+			"  `range_1__metric__2__1_col_0`\n" +
+			"FROM `" + TableName + "`\n" +
+			"WHERE (`epoch_time`>='2024-04-18T04:40:12.252Z' AND `epoch_time`<=\n" +
+			"  '2024-05-03T04:40:12.252Z')",
 	},
 	{ // [4]
 		TestName: "Max on DateTime field. Reproduce: Visualize -> Line: Metrics -> Max @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",
@@ -766,16 +762,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-05-02T15:59:12.949Z")),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  maxOrNull("timestamp") AS "metric__2__1_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1713401399517) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1714697399517))
-			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
-			LIMIT 4`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"  `response` AS `aggr__2__key_0`, count(*) AS `aggr__2__count`,\n" +
+			"  maxOrNull(`timestamp`) AS `metric__2__1_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1713401399517) AND `timestamp`<=\n" +
+			"  fromUnixTimestamp64Milli(1714697399517))\n" +
+			"GROUP BY `response` AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__count` DESC, `aggr__2__key_0` ASC\n" +
+			"LIMIT 4",
 	},
 	{ // [5]
 		TestName: "Min on DateTime field. Reproduce: Visualize -> Line: Metrics -> Min @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",
@@ -910,16 +905,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1_col_0", util.ParseTime("2024-04-21T03:30:25.131Z")),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  minOrNull("timestamp") AS "metric__2__1_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1713401460471) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1714697460471))
-			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
-			LIMIT 4`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"  `response` AS `aggr__2__key_0`, count(*) AS `aggr__2__count`,\n" +
+			"  minOrNull(`timestamp`) AS `metric__2__1_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1713401460471) AND `timestamp`<=\n" +
+			"  fromUnixTimestamp64Milli(1714697460471))\n" +
+			"GROUP BY `response` AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__count` DESC, `aggr__2__key_0` ASC\n" +
+			"LIMIT 4",
 	},
 	{ // [6]
 		TestName: "Percentiles on DateTime field. Reproduce: Visualize -> Line: Metrics -> Percentiles (or Median, it's the same aggregation) @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",
@@ -1081,22 +1075,21 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1_col_6", []time.Time{util.ParseTime("2024-05-02T16:09:28.003Z")}),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "response" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  quantiles(0.010000)("timestamp") AS "metric__2__1_col_0",
-			  quantiles(0.020000)("timestamp") AS "metric__2__1_col_1",
-			  quantiles(0.250000)("timestamp") AS "metric__2__1_col_2",
-			  quantiles(0.500000)("timestamp") AS "metric__2__1_col_3",
-			  quantiles(0.750000)("timestamp") AS "metric__2__1_col_4",
-			  quantiles(0.950000)("timestamp") AS "metric__2__1_col_5",
-			  quantiles(0.990000)("timestamp") AS "metric__2__1_col_6"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1713401475845) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1714697475845))
-			GROUP BY "response" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
-			LIMIT 4`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"  `response` AS `aggr__2__key_0`, count(*) AS `aggr__2__count`,\n" +
+			"  quantiles(0.010000)(`timestamp`) AS `metric__2__1_col_0`,\n" +
+			"  quantiles(0.020000)(`timestamp`) AS `metric__2__1_col_1`,\n" +
+			"  quantiles(0.250000)(`timestamp`) AS `metric__2__1_col_2`,\n" +
+			"  quantiles(0.500000)(`timestamp`) AS `metric__2__1_col_3`,\n" +
+			"  quantiles(0.750000)(`timestamp`) AS `metric__2__1_col_4`,\n" +
+			"  quantiles(0.950000)(`timestamp`) AS `metric__2__1_col_5`,\n" +
+			"  quantiles(0.990000)(`timestamp`) AS `metric__2__1_col_6`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1713401475845) AND `timestamp`<=\n" +
+			"  fromUnixTimestamp64Milli(1714697475845))\n" +
+			"GROUP BY `response` AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__count` DESC, `aggr__2__key_0` ASC\n" +
+			"LIMIT 4",
 	},
 	{ // [7]
 		TestName: "Percentile_ranks keyed=false. Reproduce: Visualize -> Line -> Metrics: Percentile Ranks, Buckets: X-Asis Date Histogram",
@@ -1232,16 +1225,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1_col_1", 50.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-  			  "timestamp", 'Europe/Warsaw'))*1000) / 3600000) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  countIf("AvgTicketPrice"<=0)/count(*)*100 AS "metric__2__1_col_0",
-			  countIf("AvgTicketPrice"<=50000)/count(*)*100 AS "metric__2__1_col_1"
-			FROM ` + TableName + `
-			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-              "timestamp", 'Europe/Warsaw'))*1000) / 3600000) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 3600000) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`,\n" +
+			"  countIf(`AvgTicketPrice`<=0)/count(*)*100 AS `metric__2__1_col_0`,\n" +
+			"  countIf(`AvgTicketPrice`<=50000)/count(*)*100 AS `metric__2__1_col_1`\n" +
+			"FROM `" + TableName + "`\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 3600000) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [8]
 		TestName: "Min/max with simple script. Reproduce: Visualize -> Line -> Metrics: Count, Buckets: X-Asis Histogram",
@@ -1341,10 +1333,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__minAgg_col_0", 0.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT maxOrNull(toHour("timestamp")) AS "metric__maxAgg_col_0",
-			  minOrNull(toHour("timestamp")) AS "metric__minAgg_col_0"
-			FROM ` + TableName + ``,
+		ExpectedPancakeSQL: "SELECT maxOrNull(toHour(`timestamp`)) AS `metric__maxAgg_col_0`,\n" +
+			"  minOrNull(toHour(`timestamp`)) AS `metric__minAgg_col_0`\n" +
+			"FROM `" + TableName + "`",
 	},
 	{ // [9]
 		TestName: "Histogram with simple script. Reproduce: Visualize -> Line -> Metrics: Count, Buckets: X-Asis Histogram",
@@ -1456,10 +1447,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 34),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toHour("timestamp") AS "aggr__2__key_0", count(*) AS "aggr__2__count"
-			FROM ` + TableName + `
-			GROUP BY toHour("timestamp") AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toHour(`timestamp`) AS `aggr__2__key_0`, count(*) AS `aggr__2__count`\n" +
+			"FROM `" + TableName + "`\n" +
+			"GROUP BY toHour(`timestamp`) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 }

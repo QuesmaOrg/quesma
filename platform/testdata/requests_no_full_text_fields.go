@@ -102,7 +102,7 @@ var TestsSearchNoFullTextFields = []SearchTestCase{
 			}
 		}`,
 		WantedSql: []string{
-			`((((("__quesma_fulltext_field_name" iLIKE '%quick%' AND "__quesma_fulltext_field_name" iLIKE '%fox%') OR ("__quesma_fulltext_field_name" iLIKE '%brown%' AND "__quesma_fulltext_field_name" iLIKE '%fox%')) OR "__quesma_fulltext_field_name" iLIKE '%fox%') AND NOT ("__quesma_fulltext_field_name" iLIKE '%news%')) AND ("timestamp">='2024-03-26T09:56:02.241Z' AND "timestamp"<='2024-04-10T08:56:02.241Z'))`,
+			"(((((`__quesma_fulltext_field_name` iLIKE '%quick%' AND `__quesma_fulltext_field_name` iLIKE '%fox%') OR (`__quesma_fulltext_field_name` iLIKE '%brown%' AND `__quesma_fulltext_field_name` iLIKE '%fox%')) OR `__quesma_fulltext_field_name` iLIKE '%fox%') AND NOT (`__quesma_fulltext_field_name` iLIKE '%news%')) AND (`timestamp`>='2024-03-26T09:56:02.241Z' AND `timestamp`<='2024-04-10T08:56:02.241Z'))",
 		},
 		WantedQueryType: model.ListAllFields,
 		//WantedQuery: []model.Query{

@@ -148,21 +148,21 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.HitsCountInfo{Type: model.Normal},
 		[]string{
-			`SELECT sum(count(*)) OVER () AS "aggr__sample__count",
-			  sum(count("host_name")) OVER () AS "metric__sample__sample_count_col_0",
-			  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
-			  "host_name" AS "aggr__sample__top_values__key_0",
-			  count(*) AS "aggr__sample__top_values__count"
-			FROM (
-			  SELECT "host_name"
-			  FROM __quesma_table_name
-			  WHERE (("@timestamp">=fromUnixTimestamp64Milli(1706009236820) AND "@timestamp"
-				<=fromUnixTimestamp64Milli(1706010136820)) AND "message" iLIKE '%user%')
-			  LIMIT 20000)
-			GROUP BY "host_name" AS "aggr__sample__top_values__key_0"
-			ORDER BY "aggr__sample__top_values__count" DESC,
-			  "aggr__sample__top_values__key_0" ASC
-			LIMIT 11`,
+			"SELECT sum(count(*)) OVER () AS `aggr__sample__count`,\n" +
+				"  sum(count(`host_name`)) OVER () AS `metric__sample__sample_count_col_0`,\n" +
+				"  sum(count(*)) OVER () AS `aggr__sample__top_values__parent_count`,\n" +
+				"  `host_name` AS `aggr__sample__top_values__key_0`,\n" +
+				"  count(*) AS `aggr__sample__top_values__count`\n" +
+				"FROM (\n" +
+				"  SELECT `host_name`\n" +
+				"  FROM `__quesma_table_name`\n" +
+				"  WHERE ((`@timestamp`>=fromUnixTimestamp64Milli(1706009236820) AND `@timestamp\n" +
+				"    `<=fromUnixTimestamp64Milli(1706010136820)) AND `message` iLIKE '%user%')\n" +
+				"  LIMIT 20000)\n" +
+				"GROUP BY `host_name` AS `aggr__sample__top_values__key_0`\n" +
+				"ORDER BY `aggr__sample__top_values__count` DESC,\n" +
+				"  `aggr__sample__top_values__key_0` ASC\n" +
+				"LIMIT 11",
 		},
 		true,
 	},
@@ -304,16 +304,16 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 `, "there should be 97 results, I truncated most of them",
 		model.HitsCountInfo{Type: model.ListByField, RequestedFields: []string{"message"}, Size: 100},
 		[]string{
-			`SELECT "message"
-			FROM __quesma_table_name
-			WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)) 
-			  AND "message" iLIKE '%user%') AND "message" IS NOT NULL)
-			ORDER BY "@timestamp" DESC
-			LIMIT 100`,
-			`SELECT count(*) AS "column_0"
-			FROM __quesma_table_name
-			WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)) 
-			  AND "message" iLIKE '%user%') AND "message" IS NOT NULL)`,
+			"SELECT `message`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (((`@timestamp`>=fromUnixTimestamp64Milli(1706020999481) AND `@timestamp`<=fromUnixTimestamp64Milli(1706021899481)) \n" +
+				"  AND `message` iLIKE '%user%') AND `message` IS NOT NULL)\n" +
+				"ORDER BY `@timestamp` DESC\n" +
+				"LIMIT 100",
+			"SELECT count(*) AS `column_0`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (((`@timestamp`>=fromUnixTimestamp64Milli(1706020999481) AND `@timestamp`<=fromUnixTimestamp64Milli(1706021899481)) \n" +
+				"  AND `message` iLIKE '%user%') AND `message` IS NOT NULL)",
 		},
 		false,
 	},
@@ -554,12 +554,12 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 	}`,
 		"Truncated most results. TODO Check what's at the end of response, probably count?",
 		model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: 500},
-		[]string{`
-			SELECT "@timestamp", "event_dataset", "host_name", "message", "properties_isreg"
-			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)))
-			ORDER BY "@timestamp" DESC
-			LIMIT 500`,
+		[]string{
+			"SELECT `@timestamp`, `event_dataset`, `host_name`, `message`, `properties_isreg`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (`message` iLIKE '%user%' AND (`@timestamp`>=fromUnixTimestamp64Milli(1706020999481) AND `@timestamp`<=fromUnixTimestamp64Milli(1706021899481)))\n" +
+				"ORDER BY `@timestamp` DESC\n" +
+				"LIMIT 500",
 		},
 		false,
 	},
@@ -693,17 +693,18 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.HitsCountInfo{Type: model.ListByField, RequestedFields: []string{"@timestamp"}, Size: 100},
 		[]string{
-			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count"
-			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)))
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
-			`SELECT "@timestamp"
-			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1706020999481) AND "@timestamp"<=fromUnixTimestamp64Milli(1706021899481)))
-			LIMIT 100`,
+			"SELECT sum(count(*)) OVER () AS `metric____quesma_total_count_col_0`,\n" +
+				"  toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS `aggr__0__key_0`,\n" +
+				"  count(*) AS `aggr__0__count`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (`message` iLIKE '%user%' AND (`@timestamp`>=fromUnixTimestamp64Milli(1706020999481) AND `@timestamp`<=fromUnixTimestamp64Milli(1706021899481)))\n" +
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS `aggr__0__key_0`\n" +
+				"ORDER BY `aggr__0__key_0` ASC",
+
+			"SELECT `@timestamp`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (`message` iLIKE '%user%' AND (`@timestamp`>=fromUnixTimestamp64Milli(1706020999481) AND `@timestamp`<=fromUnixTimestamp64Milli(1706021899481)))\n" +
+				"LIMIT 100",
 		},
 		true,
 	},
@@ -743,31 +744,31 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.HitsCountInfo{Type: model.Normal},
 		[]string{
-			`SELECT "aggr__stats__parent_count", "aggr__stats__key_0", "aggr__stats__count",
-			  "aggr__stats__series__key_0", "aggr__stats__series__count"
-			FROM (
-			  SELECT "aggr__stats__parent_count", "aggr__stats__key_0",
-				"aggr__stats__count", "aggr__stats__series__key_0",
-				"aggr__stats__series__count",
-				dense_rank() OVER (ORDER BY "aggr__stats__count" DESC, "aggr__stats__key_0"
-				ASC) AS "aggr__stats__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__stats__key_0" ORDER BY
-				"aggr__stats__series__key_0" ASC) AS "aggr__stats__series__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__stats__parent_count",
-				  COALESCE("event_dataset", 'unknown') AS "aggr__stats__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__stats__key_0") AS
-				  "aggr__stats__count",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
-				  "aggr__stats__series__key_0", count(*) AS "aggr__stats__series__count"
-				FROM __quesma_table_name
-				WHERE ("@timestamp">fromUnixTimestamp64Milli(1706194439033) AND "@timestamp"<=fromUnixTimestamp64Milli(1706195339033))
-				GROUP BY COALESCE("event_dataset", 'unknown') AS "aggr__stats__key_0",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
-				  "aggr__stats__series__key_0"))
-			WHERE "aggr__stats__order_1_rank"<=4
-			ORDER BY "aggr__stats__order_1_rank" ASC,
-			  "aggr__stats__series__order_1_rank" ASC`,
+			"SELECT `aggr__stats__parent_count`, `aggr__stats__key_0`, `aggr__stats__count`,\n" +
+				"  `aggr__stats__series__key_0`, `aggr__stats__series__count`\n" +
+				"FROM (\n" +
+				"  SELECT `aggr__stats__parent_count`, `aggr__stats__key_0`,\n" +
+				"    `aggr__stats__count`, `aggr__stats__series__key_0`,\n" +
+				"    `aggr__stats__series__count`,\n" +
+				"    dense_rank() OVER (ORDER BY `aggr__stats__count` DESC, `aggr__stats__key_0`\n" +
+				"    ASC) AS `aggr__stats__order_1_rank`,\n" +
+				"    dense_rank() OVER (PARTITION BY `aggr__stats__key_0` ORDER BY\n" +
+				"    `aggr__stats__series__key_0` ASC) AS `aggr__stats__series__order_1_rank`\n" +
+				"  FROM (\n" +
+				"    SELECT sum(count(*)) OVER () AS `aggr__stats__parent_count`,\n" +
+				"      COALESCE(`event_dataset`, 'unknown') AS `aggr__stats__key_0`,\n" +
+				"      sum(count(*)) OVER (PARTITION BY `aggr__stats__key_0`) AS\n" +
+				"      `aggr__stats__count`,\n" +
+				"      toInt64(toUnixTimestamp64Milli(`@timestamp`) / 60000) AS\n" +
+				"      `aggr__stats__series__key_0`, count(*) AS `aggr__stats__series__count`\n" +
+				"    FROM `__quesma_table_name`\n" +
+				"    WHERE (`@timestamp`>fromUnixTimestamp64Milli(1706194439033) AND `@timestamp`<=fromUnixTimestamp64Milli(1706195339033))\n" +
+				"    GROUP BY COALESCE(`event_dataset`, 'unknown') AS `aggr__stats__key_0`,\n" +
+				"      toInt64(toUnixTimestamp64Milli(`@timestamp`) / 60000) AS\n" +
+				"      `aggr__stats__series__key_0`))\n" +
+				"WHERE `aggr__stats__order_1_rank`<=4\n" +
+				"ORDER BY `aggr__stats__order_1_rank` ASC,\n" +
+				"  `aggr__stats__series__order_1_rank` ASC",
 		},
 		true,
 	},
@@ -851,12 +852,12 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.HitsCountInfo{Type: model.Normal},
 		[]string{
-			`SELECT minOrNull("@timestamp") AS "metric__earliest_timestamp_col_0",
-			  maxOrNull("@timestamp") AS "metric__latest_timestamp_col_0",
-			  count(*) AS "metric____quesma_total_count_col_0"
-			FROM __quesma_table_name
-			WHERE (("message" iLIKE '%posei%' AND "message" ILIKE '%User logged out%') AND
-			  "host_name" ILIKE '%poseidon%')`,
+			"SELECT minOrNull(`@timestamp`) AS `metric__earliest_timestamp_col_0`,\n" +
+				"  maxOrNull(`@timestamp`) AS `metric__latest_timestamp_col_0`,\n" +
+				"  count(*) AS `metric____quesma_total_count_col_0`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE ((`message` iLIKE '%posei%' AND `message` ILIKE '%User logged out%') AND\n" +
+				"  `host_name` ILIKE '%poseidon%')",
 		},
 		true,
 	},
@@ -873,9 +874,9 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.HitsCountInfo{Type: model.ListAllFields, RequestedFields: []string{"*"}, Size: 50},
 		[]string{
-			`SELECT "@timestamp", "event_dataset", "host_name", "message", "properties_isreg"
-			FROM __quesma_table_name
-			LIMIT 50`,
+			"SELECT `@timestamp`, `event_dataset`, `host_name`, `message`, `properties_isreg`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"LIMIT 50",
 		},
 		false,
 	},
@@ -938,14 +939,8 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		``,
 		"happens e.g. in Explorer > Field Statistics view",
 		model.HitsCountInfo{Type: model.ListByField, RequestedFields: []string{"properties::isreg"}, Size: 100},
-		[]string{`
-			SELECT "properties_isreg"
-			FROM __quesma_table_name
-			WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1710171234276) AND "@timestamp"
-			  <=fromUnixTimestamp64Milli(1710172134276)) AND ("@timestamp">=
-			  fromUnixTimestamp64Milli(1710171234276) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1710172134276))) AND "properties_isreg" IS NOT NULL)
-			LIMIT 100`,
+		[]string{
+			"SELECT `properties_isreg`\nFROM `__quesma_table_name`\nWHERE (((`@timestamp`>=fromUnixTimestamp64Milli(1710171234276) AND `@timestamp\n  `<=fromUnixTimestamp64Milli(1710172134276)) AND (`@timestamp`>=\n  fromUnixTimestamp64Milli(1710171234276) AND `@timestamp`<=\n  fromUnixTimestamp64Milli(1710172134276))) AND `properties_isreg` IS NOT NULL)\nLIMIT 100",
 		},
 		false,
 	},
@@ -964,7 +959,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` LIMIT 10`,
+			"SELECT `message` FROM `__quesma_table_name` LIMIT 10",
 		},
 		[]string{},
 	},
@@ -984,11 +979,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": true
 		}`,
-		[]string{`"type"='task'`},
+		[]string{"`type`='task'"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE "type"='task' LIMIT 10`,
-			`SELECT count(*) AS "column_0" FROM ` + TableName,
+			"SELECT `message` FROM " + TableName + " WHERE `type`='task' LIMIT 10",
+			"SELECT count(*) AS `column_0` FROM " + TableName,
 		},
 		[]string{},
 	},
@@ -1014,11 +1009,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": true
 		}`,
-		[]string{`("type"='task' AND "task.enabled" IN tuple(true, 54, 'abc', 'abc\'s'))`},
+		[]string{`(` + "`type`" + `='task' AND ` + "`task.enabled`" + ` IN tuple(true, 54, 'abc', 'abc\'s'))`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ("type"='task' AND "task.enabled" IN tuple(true, 54, 'abc', 'abc\\'s')) LIMIT 10`,
-			`SELECT count(*) AS "column_0" FROM ` + TableName,
+			"SELECT `message` FROM " + TableName + " WHERE (`type`='task' AND `task.enabled` IN tuple(true, 54, 'abc', 'abc\\'s')) LIMIT 10",
+			"SELECT count(*) AS `column_0` FROM " + TableName,
 		},
 		[]string{},
 	},
@@ -1053,14 +1048,14 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		[]string{
-			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705487298815) AND "@timestamp"<=fromUnixTimestamp64Milli(1705488198815)))`,
+			`(` + fullTextFieldName + ` iLIKE '%user%' AND (` + "`@timestamp`" + `>=fromUnixTimestamp64Milli(1705487298815) AND ` + "`@timestamp`" + `<=fromUnixTimestamp64Milli(1705488198815)))`,
 		},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ("message" iLIKE '%user%' ` +
-				`AND ("@timestamp">=fromUnixTimestamp64Milli(1705487298815) AND "@timestamp"<=fromUnixTimestamp64Milli(1705488198815))) ` +
-				`LIMIT 10`,
-			`SELECT count(*) AS "column_0" FROM ` + TableName,
+			"SELECT `message` FROM " + TableName + " WHERE (`message` iLIKE '%user%' " +
+				"AND (`@timestamp`>=fromUnixTimestamp64Milli(1705487298815) AND `@timestamp`<=fromUnixTimestamp64Milli(1705488198815))) " +
+				"LIMIT 10",
+			"SELECT count(*) AS `column_0` FROM " + TableName,
 		},
 		[]string{},
 	},
@@ -1092,16 +1087,16 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		[]string{
-			`((("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age">=10 AND "age"<=20)))`,
+			`(((` + "`user.id`" + `='kimchy' AND ` + "`tags`" + `='production') AND (` + "`tags`" + `='env1' OR ` + "`tags`" + `='deployed')) AND NOT ((` + "`age`" + `>=10 AND ` + "`age`" + `<=20)))`,
 		},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ((("user.id"='kimchy' AND "tags"='production') ` +
-				`AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=.0 AND "age".=.0))) ` +
-				`LIMIT 10`,
-			`SELECT count(*) AS "column_0" FROM ` + TableName + ` ` +
-				`WHERE ((("user.id"='kimchy' AND "tags"='production') ` +
-				`AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=.0 AND "age".=.0)))`,
+			"SELECT `message` FROM " + TableName + " WHERE (((`user.id`='kimchy' AND `tags`='production') " +
+				"AND (`tags`='env1' OR `tags`='deployed')) AND NOT ((`age`=.0 AND `age`=.0))) " +
+				"LIMIT 10",
+			"SELECT count(*) AS `column_0` FROM " + TableName + " " +
+				"WHERE (((`user.id`='kimchy' AND `tags`='production') " +
+				"AND (`tags`='env1' OR `tags`='deployed')) AND NOT ((`age`=.0 AND `age`=.0)))",
 		},
 		[]string{},
 	},
@@ -1131,9 +1126,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"host_name" __quesma_match '%prometheus%'`},
+		[]string{"`host_name` __quesma_match '%prometheus%'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "host_name"='prometheus' LIMIT 10`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `host_name`='prometheus' LIMIT 10",
+		},
 		[]string{},
 	},
 	{ // [6]
@@ -1148,12 +1145,12 @@ var TestsSearch = []SearchTestCase{
 			"size": 100,
 			"track_total_hits": false
 		}`,
-		[]string{`((("message" __quesma_match '%this%' OR "message" __quesma_match '%is%') OR "message" __quesma_match '%a%') OR "message" __quesma_match '%test%')`},
+		[]string{"(((`message` __quesma_match '%this%' OR `message` __quesma_match '%is%') OR `message` __quesma_match '%a%') OR `message` __quesma_match '%test%')"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` WHERE ((("message" ILIKE '%this%' OR "message" ILIKE '%is%') ` +
-				`OR "message" ILIKE '%a%') OR "message" ILIKE '%test%') ` +
-				`LIMIT 100`,
+			"SELECT `message` FROM " + TableName + " WHERE (((`message` ILIKE '%this%' OR `message` ILIKE '%is%') " +
+				"OR `message` ILIKE '%a%') OR `message` ILIKE '%test%') " +
+				"LIMIT 100",
 		},
 		[]string{},
 	},
@@ -1174,9 +1171,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"status"='pending'`},
+		[]string{"`status`='pending'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "status"='pending'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `status`='pending'",
+		},
 		[]string{},
 	},
 	{ // [8]
@@ -1222,12 +1221,12 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": false
 		}`,
 		[]string{
-			`("type"='upgrade-assistant-reindex-operation' AND NOT (("namespace" IS NOT NULL OR "namespaces" IS NOT NULL)))`},
+			"(`type`='upgrade-assistant-reindex-operation' AND NOT ((`namespace` IS NOT NULL OR `namespaces` IS NOT NULL)))"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("type"='upgrade-assistant-reindex-operation' AND NOT (("namespace" IS NOT NULL OR "namespaces" IS NOT NULL)))`,
+			"SELECT `message` " +
+				"FROM " + TableName + " " +
+				"WHERE (`type`='upgrade-assistant-reindex-operation' AND NOT ((`namespace` IS NOT NULL OR `namespaces` IS NOT NULL)))",
 		},
 		[]string{},
 	},
@@ -1252,9 +1251,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"exception-list-agnostic.list_id" __quesma_match 'endpoint\_event\_filters'`},
+		[]string{"`exception-list-agnostic.list_id` __quesma_match 'endpoint\\_event\\_filters'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "exception-list-agnostic.list_id"='endpoint\\_event\\_filters'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `exception-list-agnostic.list_id`='endpoint\\_event\\_filters'",
+		},
 		[]string{},
 	},
 	{ // [10]
@@ -1281,7 +1282,9 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{fullTextFieldName + ` __quesma_match 'ingest-agent-policies'`},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE ` + fullTextFieldName + ` ILIKE 'ingest-agent-policies'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `" + fullTextFieldName + "` ILIKE 'ingest-agent-policies'",
+		},
 		[]string{},
 	},
 	{ // [11]
@@ -1303,9 +1306,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"task.taskType" iLIKE 'alerting:%'`},
+		[]string{"`task.taskType` iLIKE 'alerting:%'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "task.taskType" iLIKE 'alerting:%'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `task.taskType` iLIKE 'alerting:%'",
+		},
 		[]string{},
 	},
 	{ // [12]
@@ -1327,9 +1332,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"alert.actions.actionRef" iLIKE 'preconfigured:%'`},
+		[]string{"`alert.actions.actionRef` iLIKE 'preconfigured:%'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "alert.actions.actionRef" iLIKE 'preconfigured:%'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `alert.actions.actionRef` iLIKE 'preconfigured:%'",
+		},
 		[]string{},
 	},
 	{ // [13]
@@ -1342,9 +1349,11 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": false,
 			"size": 10
 		}`,
-		[]string{`"user" iLIKE 'ki%'`},
+		[]string{"`user` iLIKE 'ki%'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user" iLIKE 'ki%'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `user` iLIKE 'ki%'",
+		},
 		[]string{},
 	},
 	{ // [14]
@@ -1357,9 +1366,11 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": false,
 			"size": 10
 		}`,
-		[]string{`"user" iLIKE 'ki\%\_\\ \\\%%'`},
+		[]string{"`user` iLIKE 'ki\\%\\_\\\\ \\\\\\%%'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user" iLIKE 'ki\\%\\_\\\\ \\\\\\%%'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `user` iLIKE 'ki\\%\\_\\\\ \\\\\\%%'",
+		},
 		[]string{},
 	},
 	{ // [15]
@@ -1377,9 +1388,11 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": false,
 			"size": 1
 		}`,
-		[]string{`"message" __quesma_match '% logged'`},
+		[]string{"`message` __quesma_match '% logged'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '% logged'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `message` ILIKE '% logged'",
+		},
 		[]string{},
 	},
 	{ // [16]
@@ -1399,8 +1412,8 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListAllFields,
 		[]string{
-			`SELECT count(*) AS "column_0" FROM ` + TableName,
-			`SELECT "message" FROM ` + TableName,
+			"SELECT count(*) AS `column_0` FROM `" + TableName + "`",
+			"SELECT `message` FROM `" + TableName + "`",
 		},
 		[]string{},
 	},
@@ -1414,9 +1427,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"message" __quesma_match '%this is a test%'`},
+		[]string{"`message` __quesma_match '%this is a test%'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%this is a test%'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `message` ILIKE '%this is a test%'",
+		},
 		[]string{},
 	},
 	{ // [18]
@@ -1432,9 +1447,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"message" __quesma_match '%this is a test%'`},
+		[]string{"`message` __quesma_match '%this is a test%'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%this is a test%'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `message` ILIKE '%this is a test%'",
+		},
 		[]string{},
 	},
 	{ // [19]
@@ -1465,9 +1482,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"references.type"='tag'`},
+		[]string{"`references.type`='tag'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "references.type"='tag'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `references.type`='tag'",
+		},
 		[]string{},
 	},
 	{ // [20]
@@ -1530,24 +1549,23 @@ var TestsSearch = []SearchTestCase{
 		  }
 		`,
 		[]string{
-			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))`,
-			`((` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299))) ` +
-				`AND "stream.namespace" IS NOT NULL)`,
+			"(" + fullTextFieldName + " iLIKE '%user%' AND (`@timestamp`>=fromUnixTimestamp64Milli(1705915570299) AND `@timestamp`<=fromUnixTimestamp64Milli(1705916470299)))",
+			"((" + fullTextFieldName + " iLIKE '%user%' AND (`@timestamp`>=fromUnixTimestamp64Milli(1705915570299) AND `@timestamp`<=fromUnixTimestamp64Milli(1705916470299))) AND `stream.namespace` IS NOT NULL)",
 		},
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT uniqMerge(uniqState("stream_namespace")) OVER () AS
-			  "metric__unique_terms_col_0",
-			  sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
-			  "stream_namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count"
-			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
-			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
-			LIMIT 11`,
+			"SELECT uniqMerge(uniqState(`stream_namespace`)) OVER () AS" +
+				"  `metric__unique_terms_col_0`," +
+				"  sum(count(*)) OVER () AS `metric____quesma_total_count_col_0`," +
+				"  sum(count(*)) OVER () AS `aggr__suggestions__parent_count`," +
+				"  `stream_namespace` AS `aggr__suggestions__key_0`," +
+				"  count(*) AS `aggr__suggestions__count`" +
+				"FROM __quesma_table_name" +
+				"WHERE (`message` iLIKE '%user%' AND (`@timestamp`>=fromUnixTimestamp64Milli(1705915570299) AND `@timestamp`<=fromUnixTimestamp64Milli(1705916470299)))" +
+				"GROUP BY `stream_namespace` AS `aggr__suggestions__key_0`" +
+				"ORDER BY `aggr__suggestions__count` DESC, `aggr__suggestions__key_0` ASC" +
+				"LIMIT 11",
 		},
 	},
 	{ // [21]
@@ -1617,22 +1635,22 @@ var TestsSearch = []SearchTestCase{
 		  }
 		`,
 		[]string{
-			`(("service.name"='admin' AND ("@timestamp">=fromUnixTimestamp64Milli(1705934075873) AND "@timestamp"<=fromUnixTimestamp64Milli(1705934975873))) ` +
-				`AND "namespace" IS NOT NULL)`,
-			`("service.name"='admin' AND ("@timestamp">=fromUnixTimestamp64Milli(1705934075873) AND "@timestamp"<=fromUnixTimestamp64Milli(1705934975873)))`,
+			"((`service.name`='admin' AND (`@timestamp`>=fromUnixTimestamp64Milli(1705934075873) AND `@timestamp`<=fromUnixTimestamp64Milli(1705934975873))) " +
+				"AND `namespace` IS NOT NULL)",
+			"(`service.name`='admin' AND (`@timestamp`>=fromUnixTimestamp64Milli(1705934075873) AND `@timestamp`<=fromUnixTimestamp64Milli(1705934975873)))",
 		},
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT uniqMerge(uniqState("namespace")) OVER () AS "metric__unique_terms_col_0"
-			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
-			  "namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count"
-			FROM __quesma_table_name
-			WHERE ("service_name"='admin' AND ("@timestamp">=fromUnixTimestamp64Milli(1705934075873) AND "@timestamp"<=fromUnixTimestamp64Milli(1705934975873)))
-			GROUP BY "namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
-			LIMIT 11`,
+			"SELECT uniqMerge(uniqState(`namespace`)) OVER () AS `metric__unique_terms_col_0`" +
+				"  , sum(count(*)) OVER () AS `aggr__suggestions__parent_count`," +
+				"  `namespace` AS `aggr__suggestions__key_0`," +
+				"  count(*) AS `aggr__suggestions__count`" +
+				"FROM __quesma_table_name" +
+				"WHERE (`service_name`='admin' AND (`@timestamp`>=fromUnixTimestamp64Milli(1705934075873) AND `@timestamp`<=fromUnixTimestamp64Milli(1705934975873)))" +
+				"GROUP BY `namespace` AS `aggr__suggestions__key_0`" +
+				"ORDER BY `aggr__suggestions__count` DESC, `aggr__suggestions__key_0` ASC" +
+				"LIMIT 11",
 		},
 	},
 	{ // [22]
@@ -1696,27 +1714,27 @@ var TestsSearch = []SearchTestCase{
 		"track_total_hits": true
 	}`,
 		[]string{
-			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
-				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))`,
-			`((("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
-				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))) ` +
-				`AND "stream.namespace" IS NOT NULL)`,
+			"((`message` __quesma_match '%User logged out%' AND `host.name` __quesma_match '%poseidon%') " +
+				"AND (`@timestamp`>=fromUnixTimestamp64Milli(1706542596491) AND `@timestamp`<=fromUnixTimestamp64Milli(1706551896491)))",
+			"(((`message` __quesma_match '%User logged out%' AND `host.name` __quesma_match '%poseidon%') " +
+				"AND (`@timestamp`>=fromUnixTimestamp64Milli(1706542596491) AND `@timestamp`<=fromUnixTimestamp64Milli(1706551896491))) " +
+				"AND `stream.namespace` IS NOT NULL)",
 		},
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT uniqMerge(uniqState("stream_namespace")) OVER () AS
-			  "metric__unique_terms_col_0",
-			  sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
-			  "stream_namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count"
-			FROM __quesma_table_name
-			WHERE (("message" ILIKE '%User logged out%' AND "host_name"='poseidon')
-			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
-			GROUP BY "stream_namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
-			LIMIT 11`,
+			"SELECT uniqMerge(uniqState(`stream_namespace`)) OVER () AS" +
+				"  `metric__unique_terms_col_0`," +
+				"  sum(count(*)) OVER () AS `metric____quesma_total_count_col_0`," +
+				"  sum(count(*)) OVER () AS `aggr__suggestions__parent_count`," +
+				"  `stream_namespace` AS `aggr__suggestions__key_0`," +
+				"  count(*) AS `aggr__suggestions__count`" +
+				"FROM __quesma_table_name" +
+				"WHERE ((`message` ILIKE '%User logged out%' AND `host_name`='poseidon')" +
+				"  AND (`@timestamp`>=fromUnixTimestamp64Milli(1706542596491) AND `@timestamp`<=fromUnixTimestamp64Milli(1706551896491)))" +
+				"GROUP BY `stream_namespace` AS `aggr__suggestions__key_0`" +
+				"ORDER BY `aggr__suggestions__count` DESC, `aggr__suggestions__key_0` ASC" +
+				"LIMIT 11",
 		},
 	},
 	{ // [23]
@@ -1777,22 +1795,22 @@ var TestsSearch = []SearchTestCase{
 			"timeout": "1000ms"
 		}`,
 		[]string{
-			`((` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299))) ` +
-				`AND "namespace" IS NOT NULL)`,
-			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))`,
+			"((" + fullTextFieldName + " iLIKE '%user%' AND (`@timestamp`>=fromUnixTimestamp64Milli(1705915570299) AND `@timestamp`<=fromUnixTimestamp64Milli(1705916470299))) " +
+				"AND `namespace` IS NOT NULL)",
+			"(" + fullTextFieldName + " iLIKE '%user%' AND (`@timestamp`>=fromUnixTimestamp64Milli(1705915570299) AND `@timestamp`<=fromUnixTimestamp64Milli(1705916470299)))",
 		},
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT uniqMerge(uniqState("namespace")) OVER () AS "metric__unique_terms_col_0"
-			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
-			  "namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count"
-			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
-			GROUP BY "namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
-			LIMIT 11`,
+			"SELECT uniqMerge(uniqState(`namespace`)) OVER () AS `metric__unique_terms_col_0`" +
+				"  , sum(count(*)) OVER () AS `aggr__suggestions__parent_count`," +
+				"  `namespace` AS `aggr__suggestions__key_0`," +
+				"  count(*) AS `aggr__suggestions__count`" +
+				"FROM __quesma_table_name" +
+				"WHERE (`message` iLIKE '%user%' AND (`@timestamp`>=fromUnixTimestamp64Milli(1705915570299) AND `@timestamp`<=fromUnixTimestamp64Milli(1705916470299)))" +
+				"GROUP BY `namespace` AS `aggr__suggestions__key_0`" +
+				"ORDER BY `aggr__suggestions__count` DESC, `aggr__suggestions__key_0` ASC" +
+				"LIMIT 11",
 		},
 	},
 	{ // [24]
@@ -1856,25 +1874,25 @@ var TestsSearch = []SearchTestCase{
 		"timeout": "1000ms"
 	}`,
 		[]string{
-			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
-				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491))) ` +
-				`AND "namespace" IS NOT NULL)`,
-			`(("message" __quesma_match '%User logged out%' AND "host.name" __quesma_match '%poseidon%') ` +
-				`AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))`,
+			`((` + "`message`" + ` __quesma_match '%User logged out%' AND ` + "`host.name`" + ` __quesma_match '%poseidon%') ` +
+				`AND (` + "`@timestamp`" + `>=fromUnixTimestamp64Milli(1706542596491) AND ` + "`@timestamp`" + `<=fromUnixTimestamp64Milli(1706551896491))) ` +
+				`AND ` + "`namespace`" + ` IS NOT NULL)`,
+			`((` + "`message`" + ` __quesma_match '%User logged out%' AND ` + "`host.name`" + ` __quesma_match '%poseidon%') ` +
+				`AND (` + "`@timestamp`" + `>=fromUnixTimestamp64Milli(1706542596491) AND ` + "`@timestamp`" + `<=fromUnixTimestamp64Milli(1706551896491)))`,
 		},
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT uniqMerge(uniqState("namespace")) OVER () AS "metric__unique_terms_col_0"
-			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
-			  "namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count"
-			FROM __quesma_table_name
-			WHERE (("message" ILIKE '%User logged out%' AND "host_name"='poseidon')
-			  AND ("@timestamp">=fromUnixTimestamp64Milli(1706542596491) AND "@timestamp"<=fromUnixTimestamp64Milli(1706551896491)))
-			GROUP BY "namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
-			LIMIT 11`,
+			"SELECT uniqMerge(uniqState(`namespace`)) OVER () AS `metric__unique_terms_col_0`" +
+				"  , sum(count(*)) OVER () AS `aggr__suggestions__parent_count`," +
+				"  `namespace` AS `aggr__suggestions__key_0`," +
+				"  count(*) AS `aggr__suggestions__count`" +
+				"FROM __quesma_table_name" +
+				"WHERE ((`message` ILIKE '%User logged out%' AND `host_name`='poseidon')" +
+				"  AND (`@timestamp`>=fromUnixTimestamp64Milli(1706542596491) AND `@timestamp`<=fromUnixTimestamp64Milli(1706551896491)))" +
+				"GROUP BY `namespace` AS `aggr__suggestions__key_0`" +
+				"ORDER BY `aggr__suggestions__count` DESC, `aggr__suggestions__key_0` ASC" +
+				"LIMIT 11",
 		},
 	},
 	{ // [25]
@@ -1935,21 +1953,21 @@ var TestsSearch = []SearchTestCase{
 			"timeout": "1000ms"
 		}`,
 		[]string{
-			`((` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299))) AND "namespace" IS NOT NULL)`,
-			`(` + fullTextFieldName + ` iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))`,
+			`((` + fullTextFieldName + ` iLIKE '%user%' AND (` + "`@timestamp`" + `>=fromUnixTimestamp64Milli(1705915570299) AND ` + "`@timestamp`" + `<=fromUnixTimestamp64Milli(1705916470299))) AND ` + "`namespace`" + ` IS NOT NULL)`,
+			`(` + fullTextFieldName + ` iLIKE '%user%' AND (` + "`@timestamp`" + `>=fromUnixTimestamp64Milli(1705915570299) AND ` + "`@timestamp`" + `<=fromUnixTimestamp64Milli(1705916470299)))`,
 		},
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT uniqMerge(uniqState("namespace")) OVER () AS "metric__unique_terms_col_0"
-			  , sum(count(*)) OVER () AS "aggr__suggestions__parent_count",
-			  "namespace" AS "aggr__suggestions__key_0",
-			  count(*) AS "aggr__suggestions__count"
-			FROM __quesma_table_name
-			WHERE ("message" iLIKE '%user%' AND ("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp"<=fromUnixTimestamp64Milli(1705916470299)))
-			GROUP BY "namespace" AS "aggr__suggestions__key_0"
-			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
-			LIMIT 11`,
+			"SELECT uniqMerge(uniqState(`namespace`)) OVER () AS `metric__unique_terms_col_0`" +
+				"  , sum(count(*)) OVER () AS `aggr__suggestions__parent_count`," +
+				"  `namespace` AS `aggr__suggestions__key_0`," +
+				"  count(*) AS `aggr__suggestions__count`" +
+				"FROM __quesma_table_name" +
+				"WHERE (`message` iLIKE '%user%' AND (`@timestamp`>=fromUnixTimestamp64Milli(1705915570299) AND `@timestamp`<=fromUnixTimestamp64Milli(1705916470299)))" +
+				"GROUP BY `namespace` AS `aggr__suggestions__key_0`" +
+				"ORDER BY `aggr__suggestions__count` DESC, `aggr__suggestions__key_0` ASC" +
+				"LIMIT 11",
 		},
 	},
 	{ // [26]
@@ -1989,8 +2007,8 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListByField,
 		[]string{
-			`SELECT count(*) AS "column_0" FROM ` + TableName,
-			`SELECT "message" FROM ` + TableName + ` LIMIT 500`,
+			"SELECT count(*) AS `column_0` FROM `" + TableName + "`",
+			"SELECT `message` FROM `" + TableName + "` LIMIT 500",
 		},
 		[]string{},
 	},
@@ -2008,8 +2026,8 @@ var TestsSearch = []SearchTestCase{
 		[]string{``},
 		model.ListAllFields,
 		[]string{
-			`SELECT count(*) AS "column_0" FROM ` + TableName,
-			`SELECT "message" FROM ` + TableName + ` LIMIT 10`,
+			"SELECT count(*) AS `column_0` FROM `" + TableName + "`",
+			"SELECT `message` FROM `" + TableName + "` LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2027,7 +2045,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{``},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" FROM ` + TableName + ` LIMIT 10`,
+			"SELECT `message` FROM `" + TableName + "` LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2044,7 +2062,9 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{``},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "`",
+		},
 		[]string{},
 	},
 	{ // [30]
@@ -2064,8 +2084,8 @@ var TestsSearch = []SearchTestCase{
 		[]string{``},
 		model.ListAllFields,
 		[]string{
-			`SELECT count(*) AS "column_0" FROM ` + TableName,
-			`SELECT "message" FROM ` + TableName,
+			"SELECT count(*) AS `column_0` FROM `" + TableName + "`",
+			"SELECT `message` FROM `" + TableName + "`",
 		},
 		[]string{},
 	},
@@ -2094,12 +2114,14 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": false,
 			"size": 12
 		}`,
-		[]string{`("message" __quesma_match '%User logged out%' AND "message" __quesma_match '%User logged out%')`},
+		[]string{
+			`(` + "`message`" + ` __quesma_match '%User logged out%' AND ` + "`message`" + ` __quesma_match '%User logged out%')`,
+		},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("message" ILIKE '%User logged out%' AND "message" ILIKE '%User logged out%')`,
+			"SELECT `message` " +
+				"FROM `" + TableName + "` " +
+				"WHERE (`message` ILIKE '%User logged out%' AND `message` ILIKE '%User logged out%')",
 		},
 		[]string{},
 	},
@@ -2109,8 +2131,8 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListAllFields,
 		[]string{
-			`SELECT count(*) AS "column_0" FROM (SELECT 1 FROM ` + TableName + ` LIMIT 10000)`,
-			`SELECT "message" FROM __quesma_table_name LIMIT 10`,
+			"SELECT count(*) AS `column_0` FROM (SELECT 1 FROM `" + TableName + "` LIMIT 10000)",
+			"SELECT `message` FROM __quesma_table_name LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2127,9 +2149,11 @@ var TestsSearch = []SearchTestCase{
  			},
 			"track_total_hits": false
 		}`,
-		[]string{`"user.id"='kimchy'`},
+		[]string{"`user.id`='kimchy'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user.id"='kimchy'`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `user.id`='kimchy'",
+		},
 		[]string{},
 	},
 	{ // [34] this is a snowflake case as `_id` is a special field in ES and in clickhouse we compute
@@ -2157,7 +2181,7 @@ var TestsSearch = []SearchTestCase{
 			  "track_total_hits": false
 			}`,
 		[]string{
-			`("@timestamp">=fromUnixTimestamp64Milli(1705915570299) AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3))`,
+			"(`@timestamp`>=fromUnixTimestamp64Milli(1705915570299) AND `@timestamp` = toDateTime64('2024-05-24 13:32:47.307',3))",
 		},
 		model.ListAllFields,
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
@@ -2177,9 +2201,9 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"user.id"='kimchy'`},
+		[]string{"`user.id`='kimchy'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "user.id"='kimchy'`},
+		[]string{"SELECT `message` FROM `" + TableName + "` WHERE `user.id`='kimchy'"},
 		[]string{},
 	},
 	{ // [36] terms with range
@@ -2211,15 +2235,17 @@ var TestsSearch = []SearchTestCase{
 		  },
 		  "track_total_hits": false
 		}`,
-		[]string{`("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000)))`},
+		[]string{
+			"(`cliIP` IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') AND (`@timestamp`>=fromUnixTimestamp64Milli(1715817600000) AND `@timestamp`<=fromUnixTimestamp64Milli(1715990399000)))",
+		},
 		model.ListAllFields,
 		//[]model.Query{withLimit(justSimplestWhere(`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59')))`), 1)},
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("cliIP" IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') ` +
-				`AND ("@timestamp">=fromUnixTimestamp64Milli(1715817600000) AND "@timestamp"<=fromUnixTimestamp64Milli(1715990399000))) ` +
-				`LIMIT 1`,
+			"SELECT `message` " +
+				"FROM `" + TableName + "` " +
+				"WHERE (`cliIP` IN tuple('2601:204:c503:c240:9c41:5531:ad94:4d90', '50.116.43.98', '75.246.0.64') " +
+				"AND (`@timestamp`>=fromUnixTimestamp64Milli(1715817600000) AND `@timestamp`<=fromUnixTimestamp64Milli(1715990399000))) " +
+				"LIMIT 1",
 		},
 		[]string{},
 	},
@@ -2241,13 +2267,13 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"field" LIKE '%-abb-all-li_mit%s-5'`},
+		[]string{"`field` LIKE '%-abb-all-li_mit%s-5'"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "field" LIKE '%-abb-all-li_mit%s-5' ` +
-				`LIMIT 10`,
+			"SELECT `message` " +
+				"FROM `" + TableName + "` " +
+				"WHERE `field` LIKE '%-abb-all-li_mit%s-5' " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2271,13 +2297,13 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		// Escaping _ twice ("\\_") seemed wrong, but it actually works in Clickhouse!
 		// \\\\ means 2 escaped backslashes, actual returned string is "\\"
-		[]string{`"field" LIKE '%\\___'`},
+		[]string{"`field` LIKE '%\\\\___'"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "field" LIKE '%\\\\___' ` +
-				`LIMIT 10`,
+			"SELECT `message`" +
+				"FROM `" + TableName + "` " +
+				"WHERE `field` LIKE '%\\\\___' " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2299,13 +2325,13 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"field" REGEXP 'a*-abb-all-li.mit.*s-5'`},
+		[]string{"`field` REGEXP 'a*-abb-all-li.mit.*s-5'"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "field" REGEXP 'a*-abb-all-li.mit.*s-5' ` +
-				`LIMIT 10`,
+			"SELECT `message` " +
+				"FROM `" + TableName + "` " +
+				"WHERE `field` REGEXP 'a*-abb-all-li.mit.*s-5' " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2327,13 +2353,13 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"field" REGEXP 'a?'`},
+		[]string{"`field` REGEXP 'a?'"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "field" REGEXP 'a\?' ` +
-				`LIMIT 10`,
+			"SELECT `message` " +
+				"FROM `" + TableName + "` " +
+				"WHERE `field` REGEXP 'a\\?' " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2354,11 +2380,11 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"message" __quesma_match '%
-Men\'s Clothing \\ 	%'`},
+		[]string{"`message` __quesma_match '%\nMen\\'s Clothing \\\\ \t%'"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + ` WHERE "message" ILIKE '%
-Men\\'s Clothing \\\\ 	%' LIMIT 10`},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE `message` ILIKE '%Men\\'s Clothing \\\\ 	%' LIMIT 10",
+		},
 		[]string{},
 	},
 	{ // [42]
@@ -2374,10 +2400,10 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		[]string{`false`},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE false ` +
-				`LIMIT 10`,
+			"SELECT `message` " +
+				"FROM `" + TableName + "` " +
+				"WHERE false " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2391,13 +2417,13 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3)`},
+		[]string{"`@timestamp` = toDateTime64('2024-12-21 07:29:03.367',3)"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3) ` +
-				`LIMIT 10`,
+			"SELECT `message` " +
+				"FROM `" + TableName + "` " +
+				"WHERE `@timestamp` = toDateTime64('2024-12-21 07:29:03.367',3) " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2412,13 +2438,15 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2025-07-06 09:38:03.12',2)`},
+		[]string{
+			"`@timestamp` = toDateTime64('2025-07-06 09:38:03.12',2)",
+		},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2025-07-06 09:38:03.12',2) ` +
-				`LIMIT 10`,
+			"SELECT `message` " +
+				"FROM `" + TableName + "` " +
+				"WHERE `@timestamp` = toDateTime64('2025-07-06 09:38:03.12',2) " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2433,13 +2461,13 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2025-07-04 13:32:43.377',3)`},
+		[]string{"`@timestamp` = toDateTime64('2025-07-04 13:32:43.377',3)"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2025-07-04 13:32:43.377',3) ` +
-				`LIMIT 10`,
+			"SELECT `message` " +
+				"FROM `" + TableName + "` " +
+				"WHERE `@timestamp` = toDateTime64('2025-07-04 13:32:43.377',3) " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2454,13 +2482,13 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2025-07-06 10:11:03.123456789',9)`},
+		[]string{"`@timestamp` = toDateTime64('2025-07-06 10:11:03.123456789',9)"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2025-07-06 10:11:03.123456789',9) ` +
-				`LIMIT 10`,
+			"SELECT `message` " +
+				"FROM `" + TableName + "` " +
+				"WHERE `@timestamp` = toDateTime64('2025-07-06 10:11:03.123456789',9) " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2475,13 +2503,15 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2025-07-06 09:36:03.2551236',7)`},
+		[]string{
+			"`@timestamp` = toDateTime64('2025-07-06 09:36:03.2551236',7)",
+		},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2025-07-06 09:36:03.2551236',7) ` +
-				`LIMIT 10`,
+			"SELECT `message`" +
+				"FROM `" + TableName + "` " +
+				"WHERE `@timestamp` = toDateTime64('2025-07-06 09:36:03.2551236',7) " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2496,13 +2526,15 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2025-07-06 09:38:03.1',1)`},
+		[]string{
+			"`@timestamp` = toDateTime64('2025-07-06 09:38:03.1',1)",
+		},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2025-07-06 09:38:03.1',1) ` +
-				`LIMIT 10`,
+			"SELECT `message`" +
+				"FROM `" + TableName + "` " +
+				"WHERE `@timestamp` = toDateTime64('2025-07-06 09:38:03.1',1) " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2519,13 +2551,15 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3))`},
+		[]string{
+			"`@timestamp` IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3))",
+		},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3)) ` +
-				`LIMIT 10000`,
+			"SELECT `message`" +
+				"FROM `" + TableName + "` " +
+				"WHERE `@timestamp` IN tuple(toDateTime64('2024-12-21 07:29:03.367',3), toDateTime64('2024-12-21 07:29:02.992',3)) " +
+				"LIMIT 10000",
 		},
 		[]string{},
 	},
@@ -2539,13 +2573,13 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3)`},
+		[]string{"`@timestamp` = toDateTime64('2024-12-21 07:29:03.367',3)"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.367',3) ` +
-				`LIMIT 10000`,
+			"SELECT `message`" +
+				"FROM `" + TableName + "` " +
+				"WHERE `@timestamp` = toDateTime64('2024-12-21 07:29:03.367',3) " +
+				"LIMIT 10000",
 		},
 		[]string{},
 	},
@@ -2559,13 +2593,13 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.123456789',9)`},
+		[]string{"`@timestamp` = toDateTime64('2024-12-21 07:29:03.123456789',9)"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.123456789',9) ` +
-				`LIMIT 10000`,
+			"SELECT `message`" +
+				"FROM `" + TableName + "` " +
+				"WHERE `@timestamp` = toDateTime64('2024-12-21 07:29:03.123456789',9) " +
+				"LIMIT 10000",
 		},
 		[]string{},
 	},
@@ -2579,14 +2613,14 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.',0)`},
+		[]string{"`@timestamp` = toDateTime64('2024-12-21 07:29:03.',0)"},
 		// dot at the end doesn't matter - CH accepts it exactly like it wasn't there
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.',0) ` +
-				`LIMIT 10000`,
+			"SELECT `message`" +
+				"FROM `" + TableName + "`" +
+				"WHERE `@timestamp` = toDateTime64('2024-12-21 07:29:03.',0)" +
+				"LIMIT 10000",
 		},
 		[]string{},
 	},
@@ -2600,13 +2634,13 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"@timestamp" = toDateTime64('2024-12-21 07:29:03.3',1)`},
+		[]string{"`@timestamp` = toDateTime64('2024-12-21 07:29:03.3',1)"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE "@timestamp" = toDateTime64('2024-12-21 07:29:03.3',1) ` +
-				`LIMIT 10000`,
+			"SELECT `message`" +
+				"FROM `" + TableName + "` " +
+				"WHERE `@timestamp` = toDateTime64('2024-12-21 07:29:03.3',1) " +
+				"LIMIT 10000",
 		},
 		[]string{},
 	},
@@ -2631,13 +2665,13 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		WantedSql:       []string{`("tsAsUInt64">='2025-03-25T12:32:51.527Z' AND "tsAsUInt64"<='2025-03-25T12:47:51.527Z')`},
+		WantedSql:       []string{"(`tsAsUInt64`>='2025-03-25T12:32:51.527Z' AND `tsAsUInt64`<='2025-03-25T12:47:51.527Z')"},
 		WantedQueryType: model.ListAllFields,
 		WantedRegexes: []string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("tsAsUInt64">=1742905971527 AND "tsAsUInt64"<=1742906871527) ` +
-				`LIMIT 10`,
+			"SELECT `message`" +
+				"FROM `" + TableName + "` " +
+				"WHERE (`tsAsUInt64`>=1742905971527 AND `tsAsUInt64`<=1742906871527) " +
+				"LIMIT 10",
 		},
 	},
 	{ // [55]
@@ -2660,13 +2694,13 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 			},
 			"track_total_hits": false
 		}`,
-		WantedSql:       []string{`("tsAsUInt64">=15 AND "tsAsUInt64"<=2025)`},
+		WantedSql:       []string{"(`tsAsUInt64`>=15 AND `tsAsUInt64`<=2025)"},
 		WantedQueryType: model.ListAllFields,
 		WantedRegexes: []string{
-			`SELECT "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE ("tsAsUInt64">=15 AND "tsAsUInt64"<=1735689600000) ` +
-				`LIMIT 10`,
+			"SELECT `message`" +
+				"FROM `" + TableName + "` " +
+				"WHERE (`tsAsUInt64`>=15 AND `tsAsUInt64`<=1735689600000) " +
+				"LIMIT 10",
 		},
 	},
 	{ // [56]
@@ -2683,7 +2717,9 @@ Men\\'s Clothing \\\\ 	%' LIMIT 10`},
 		}`,
 		[]string{"true"},
 		model.ListAllFields,
-		[]string{`SELECT "message" FROM ` + TableName + " WHERE true"},
+		[]string{
+			"SELECT `message` FROM `" + TableName + "` WHERE true",
+		},
 		[]string{},
 	},
 }
@@ -2714,7 +2750,7 @@ var TestSearchRuntimeMappings = []SearchTestCase{
 		model.ListAllFields,
 		////[]model.Query{newSimplestQuery()},
 		[]string{
-			`SELECT toHour("@timestamp") AS "hour_of_day" FROM ` + TableName + ` LIMIT 10`,
+			"SELECT toHour(`@timestamp`) AS `hour_of_day` FROM `__quesma_table_name` LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2755,10 +2791,10 @@ var TestsSearchNoAttrs = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND "summary" IS NOT NULL) AND NOT ("run_once" IS NOT NULL))`},
+		[]string{"(((`@timestamp`>=fromUnixTimestamp64Milli(1706188965968) AND `@timestamp`<=fromUnixTimestamp64Milli(1706189865968)) AND `summary` IS NOT NULL) AND NOT (`run_once` IS NOT NULL))"},
 		model.ListAllFields,
 		[]string{
-			`SELECT "@timestamp", "message" FROM __quesma_table_name WHERE ((("@timestamp">=fromUnixTimestamp64Milli(1706188965968) AND "@timestamp"<=fromUnixTimestamp64Milli(1706189865968)) AND NULL IS NOT NULL) AND NOT (NULL IS NOT NULL)) LIMIT 10`,
+			"SELECT `@timestamp`, `message` FROM `__quesma_table_name` WHERE (((`@timestamp`>=fromUnixTimestamp64Milli(1706188965968) AND `@timestamp`<=fromUnixTimestamp64Milli(1706189865968)) AND NULL IS NOT NULL) AND NOT (NULL IS NOT NULL)) LIMIT 10",
 		},
 		[]string{},
 	},
@@ -2807,12 +2843,12 @@ var TestSearchFilter = []SearchTestCase{
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0"
-			  , count(*) AS "aggr__0__count"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-			  "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS `aggr__0__key_0`\n" +
+				"  , count(*) AS `aggr__0__count`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS\n" +
+				"  `aggr__0__key_0`\n" +
+				"ORDER BY `aggr__0__key_0` ASC",
 		},
 	},
 	{ // [1]
@@ -2864,14 +2900,14 @@ var TestSearchFilter = []SearchTestCase{
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count"
-			FROM __quesma_table_name
-			WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-			  "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+			"SELECT sum(count(*)) OVER () AS `metric____quesma_total_count_col_0`,\n" +
+				"  toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS `aggr__0__key_0`,\n" +
+				"  count(*) AS `aggr__0__count`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE `@timestamp`>subDate(now(), INTERVAL 15 minute)\n" +
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS\n" +
+				"  `aggr__0__key_0`\n" +
+				"ORDER BY `aggr__0__key_0` ASC",
 		},
 	},
 	{ // [2]
@@ -2925,14 +2961,14 @@ var TestSearchFilter = []SearchTestCase{
 		model.Normal,
 		[]string{},
 		[]string{
-			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count"
-			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1727858503270) AND "@timestamp"<=fromUnixTimestamp64Milli(1727859403270))
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-			  "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+			"SELECT sum(count(*)) OVER () AS `metric____quesma_total_count_col_0`,\n" +
+				"  toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS `aggr__0__key_0`,\n" +
+				"  count(*) AS `aggr__0__count`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (`@timestamp`>=fromUnixTimestamp64Milli(1727858503270) AND `@timestamp`<=fromUnixTimestamp64Milli(1727859403270))\n" +
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS\n" +
+				"  `aggr__0__key_0`\n" +
+				"ORDER BY `aggr__0__key_0` ASC",
 		},
 	},
 	{ // [3]
@@ -2949,7 +2985,9 @@ var TestSearchFilter = []SearchTestCase{
 		[]string{},
 		model.Normal,
 		[]string{},
-		[]string{`SELECT "@timestamp", "message" FROM __quesma_table_name LIMIT 10`},
+		[]string{
+			"SELECT `@timestamp`, `message` FROM `__quesma_table_name` LIMIT 10",
+		},
 	},
 	{ // [4]
 		"Empty filter with other clauses",
@@ -2977,16 +3015,16 @@ var TestSearchFilter = []SearchTestCase{
 			"track_total_hits": false
 		}`,
 		[]string{
-			`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age"<=20 AND "age">=10)`,
-			`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age">=10 AND "age"<=20)`,
+			"(`user.id`='kimchy' AND (`tags`='env1' OR `tags`='deployed')) AND NOT (`age`<=20 AND `age`>=10)",
+			"(`user.id`='kimchy' AND (`tags`='env1' OR `tags`='deployed')) AND NOT (`age`>=10 AND `age`<=20)",
 		},
 		model.Normal,
 		[]string{
-			`SELECT "@timestamp", "message" ` +
-				`FROM ` + TableName + ` ` +
-				`WHERE (("attributes_values"['user.id']='kimchy' AND ("attributes_values"['tags']='env1' OR "attributes_values"['tags']='deployed')) ` +
-				`AND NOT (("attributes_values"['age']>=10 AND "attributes_values"['age']<=20))) ` +
-				`LIMIT 10`,
+			"SELECT `@timestamp`, `message` " +
+				"FROM `__quesma_table_name` " +
+				"WHERE ((`attributes_values`['user.id']='kimchy' AND (`attributes_values`['tags']='env1' OR `attributes_values`['tags']='deployed')) " +
+				"AND NOT ((`attributes_values`['age']>=10 AND `attributes_values`['age']<=20))) " +
+				"LIMIT 10",
 		},
 		[]string{},
 	},

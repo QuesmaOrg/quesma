@@ -8,7 +8,7 @@ import (
 )
 
 const TableName = model.SingleTableNamePlaceHolder
-const fullTextFieldName = `"` + model.FullTextFieldNamePlaceHolder + `"`
+const fullTextFieldName = "`" + model.FullTextFieldNamePlaceHolder + "`"
 
 var KunkkaTests = []testdata.AggregationTestCase{
 	{ // [0]
@@ -169,17 +169,16 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 1.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-			  "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  sumOrNull("spent") AS "metric__0__1_col_0",
-			  countIf(` + fullTextFieldName + ` iLIKE '%started%') AS "aggr__0__2-bucket__count",
-			  sumOrNullIf("multiplier", ` + fullTextFieldName + ` iLIKE '%started%') AS
-			  "metric__0__2-bucket__2-metric_col_0"
-			FROM ` + TableName + `
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) AS
-			  "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`) / 3600000) AS\n" +
+			"  `aggr__0__key_0`, count(*) AS `aggr__0__count`,\n" +
+			"  sumOrNull(`spent`) AS `metric__0__1_col_0`,\n" +
+			"  countIf(" + fullTextFieldName + " iLIKE '%started%') AS `aggr__0__2-bucket__count`,\n" +
+			"  sumOrNullIf(`multiplier`, " + fullTextFieldName + " iLIKE '%started%') AS\n" +
+			"  `metric__0__2-bucket__2-metric_col_0`\n" +
+			"FROM `" + TableName + "`\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`@timestamp`) / 3600000) AS\n" +
+			"  `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 	{ // [1]
 		TestName: "it's the same input as in previous test, but with the original output from Elastic." +
@@ -352,18 +351,17 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 1.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-  			  "@timestamp", 'Europe/Warsaw'))*1000) / 3600000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count",
-			  sumOrNull("spent") AS "metric__0__1_col_0",
-			  countIf(` + fullTextFieldName + ` iLIKE '%started%') AS "aggr__0__2-bucket__count",
-			  sumOrNullIf("multiplier", ` + fullTextFieldName + ` iLIKE '%started%') AS
-			  "metric__0__2-bucket__2-metric_col_0"
-			FROM ` + TableName + `
-			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-  			  "@timestamp", 'Europe/Warsaw'))*1000) / 3600000) AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `@timestamp`, 'Europe/Warsaw'))*1000) / 3600000) AS `aggr__0__key_0`,\n" +
+			"  count(*) AS `aggr__0__count`,\n" +
+			"  sumOrNull(`spent`) AS `metric__0__1_col_0`,\n" +
+			"  countIf(" + fullTextFieldName + " iLIKE '%started%') AS `aggr__0__2-bucket__count`,\n" +
+			"  sumOrNullIf(`multiplier`, " + fullTextFieldName + " iLIKE '%started%') AS\n" +
+			"  `metric__0__2-bucket__2-metric_col_0`\n" +
+			"FROM `" + TableName + "`\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `@timestamp`, 'Europe/Warsaw'))*1000) / 3600000) AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 	{ // [2]
 		TestName: "clients/kunkka/test_1, used to be broken before aggregations merge fix",

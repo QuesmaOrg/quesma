@@ -68,7 +68,7 @@ var rawRequestBody = []byte(`{
   }
 }`)
 
-func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName string) {
+func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName string, isContainsFunctionName bool) {
 	table := &database_common.Table{
 		Name:   testTableName,
 		Config: database_common.NewDefaultCHConfig(),
@@ -127,10 +127,16 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName stri
 	}
 	ctx = context.WithValue(context.Background(), tracing.RequestIdCtxKey, "test")
 	qt := &elastic_query_dsl.ClickhouseQueryTranslator{Table: table, Ctx: ctx, Schema: s.Tables[schema.IndexName(testTableName)]}
-	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
-	expectedQuery1 := fmt.Sprintf(`SELECT DISTINCT %s FROM %s WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`, fieldName, testTableName)
-	expectedQuery2 := fmt.Sprintf(`SELECT DISTINCT %s FROM %s WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`, fieldName, testTableName)
-
+	var expectedQuery1 string
+	var expectedQuery2 string
+	if isContainsFunctionName {
+		expectedQuery1 = fmt.Sprintf("SELECT DISTINCT %s FROM `%s` WHERE ((`epoch_time`>=fromUnixTimestamp(1709036700) AND `epoch_time`<=fromUnixTimestamp(1709037659)) AND (`epoch_time_datetime64`>=fromUnixTimestamp64Milli(1709036700000) AND `epoch_time_datetime64`<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13", fieldName, testTableName)
+		expectedQuery2 = fmt.Sprintf("SELECT DISTINCT %s FROM `%s` WHERE ((`epoch_time`>=fromUnixTimestamp(1709036700) AND `epoch_time`<=fromUnixTimestamp(1709037659)) AND (`epoch_time_datetime64`>=fromUnixTimestamp64Milli(1709036700000) AND `epoch_time_datetime64`<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13", fieldName, testTableName)
+	} else {
+		// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
+		expectedQuery1 = fmt.Sprintf("SELECT DISTINCT `%s` FROM `%s` WHERE ((`epoch_time`>=fromUnixTimestamp(1709036700) AND `epoch_time`<=fromUnixTimestamp(1709037659)) AND (`epoch_time_datetime64`>=fromUnixTimestamp64Milli(1709036700000) AND `epoch_time_datetime64`<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13", fieldName, testTableName)
+		expectedQuery2 = fmt.Sprintf("SELECT DISTINCT `%s` FROM `%s` WHERE ((`epoch_time`>=fromUnixTimestamp(1709036700) AND `epoch_time`<=fromUnixTimestamp(1709037659)) AND (`epoch_time_datetime64`>=fromUnixTimestamp64Milli(1709036700000) AND `epoch_time_datetime64`<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13", fieldName, testTableName)
+	}
 	// Once in a while `AND` conditions could be swapped, so we match both cases
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).
 		WillReturnRows(sqlmock.NewRows([]string{"client_name"}).AddRow("client_a").AddRow("client_b"))
@@ -153,17 +159,17 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName stri
 }
 
 func TestHandleTermsEnumRequest(t *testing.T) {
-	testHandleTermsEnumRequest(t, rawRequestBody, `"client_name"`)
+	testHandleTermsEnumRequest(t, rawRequestBody, "client_name", false)
 }
 
 // Basic test.
 // "client.name" should be replaced by "client_name", and results should stay the same
 func TestIfHandleTermsEnumUsesSchema(t *testing.T) {
 	requestBodyWithAliasedField := bytes.ReplaceAll(rawRequestBody, []byte(`"field": "client_name"`), []byte(`"field": "client.name"`))
-	testHandleTermsEnumRequest(t, requestBodyWithAliasedField, `"client_name"`)
+	testHandleTermsEnumRequest(t, requestBodyWithAliasedField, "client_name", false)
 }
 
 func TestIfHandleTermsEnumUsesSchemaForMapColumn(t *testing.T) {
 	requestBodyWithAliasedField := bytes.ReplaceAll(rawRequestBody, []byte(`"field": "client_name"`), []byte(`"field": "map_name.key_name"`))
-	testHandleTermsEnumRequest(t, requestBodyWithAliasedField, "arrayElement(\"map_name\",'key_name')")
+	testHandleTermsEnumRequest(t, requestBodyWithAliasedField, "arrayElement(`map_name`,'key_name')", true)
 }

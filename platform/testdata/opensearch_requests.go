@@ -80,23 +80,24 @@ var OpensearchSearchTests = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		WantedSql: []string{
-			`("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))`,
+			"(`__timestamp`>=fromUnixTimestamp64Milli(1712236698149) AND `__timestamp`<=fromUnixTimestamp64Milli(1712237598149))",
 		},
 		WantedQueryType: model.ListAllFields,
 		WantedQueries: []string{
-			`SELECT "__bytes", "__timestamp", "message_____"
-			FROM __quesma_table_name
-			WHERE ("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))
-			ORDER BY "__timestamp" DESC LIMIT 500`,
-			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64((toUnixTimestamp64Milli("__timestamp")+timeZoneOffset(toTimezone(
-			  "__timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			WHERE ("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))
-			GROUP BY toInt64((toUnixTimestamp64Milli("__timestamp")+timeZoneOffset(
-			  toTimezone("__timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+			"SELECT `__bytes`, `__timestamp`, `message_____`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (`__timestamp`>=fromUnixTimestamp64Milli(1712236698149) AND `__timestamp`<=fromUnixTimestamp64Milli(1712237598149))\n" +
+				"ORDER BY `__timestamp` DESC LIMIT 500",
+
+			"SELECT sum(count(*)) OVER () AS `metric____quesma_total_count_col_0`,\n" +
+				"  toInt64((toUnixTimestamp64Milli(`__timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"  `__timestamp`, 'Europe/Warsaw'))*1000) / 30000) AS `aggr__2__key_0`,\n" +
+				"  count(*) AS `aggr__2__count`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (`__timestamp`>=fromUnixTimestamp64Milli(1712236698149) AND `__timestamp`<=fromUnixTimestamp64Milli(1712237598149))\n" +
+				"GROUP BY toInt64((toUnixTimestamp64Milli(`__timestamp`)+timeZoneOffset(\n" +
+				"  toTimezone(`__timestamp`, 'Europe/Warsaw'))*1000) / 30000) AS `aggr__2__key_0`\n" +
+				"ORDER BY `aggr__2__key_0` ASC",
 		},
 	},
 	{
@@ -171,17 +172,17 @@ var OpensearchSearchTests = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		WantedSql: []string{
-			`("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))`,
+			"(`__timestamp`>=fromUnixTimestamp64Milli(1712236698149) AND `__timestamp`<=fromUnixTimestamp64Milli(1712237598149))",
 		},
 		WantedQueryType: model.Normal,
 		WantedQueries: []string{
-			`SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-			  toInt64(toUnixTimestamp64Milli("__timestamp") / 30000) AS "aggr__2__key_0",
-       		  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			WHERE ("__timestamp">=fromUnixTimestamp64Milli(1712236698149) AND "__timestamp"<=fromUnixTimestamp64Milli(1712237598149))
-			GROUP BY toInt64(toUnixTimestamp64Milli("__timestamp") / 30000) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+			"SELECT sum(count(*)) OVER () AS `metric____quesma_total_count_col_0`,\n" +
+				"  toInt64(toUnixTimestamp64Milli(`__timestamp`) / 30000) AS `aggr__2__key_0`,\n" +
+				"       count(*) AS `aggr__2__count`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (`__timestamp`>=fromUnixTimestamp64Milli(1712236698149) AND `__timestamp`<=fromUnixTimestamp64Milli(1712237598149))\n" +
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`__timestamp`) / 30000) AS `aggr__2__key_0`\n" +
+				"ORDER BY `aggr__2__key_0` ASC",
 		},
 	},
 }

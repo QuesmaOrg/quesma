@@ -231,34 +231,32 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__count", 1),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
-			  "aggr__0__1__key_0", "aggr__0__1__key_1", "aggr__0__1__count"
-			FROM (
-			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__1__parent_count",
-				"aggr__0__1__key_0", "aggr__0__1__key_1", "aggr__0__1__count",
-				dense_rank() OVER (ORDER BY "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank"
-				,
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__count" DESC, "aggr__0__1__key_0" ASC, "aggr__0__1__key_1" ASC)
-				AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
-				  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS
-				  "aggr__0__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS
-				  "aggr__0__1__parent_count", "severity" AS "aggr__0__1__key_0",
-				  "source" AS "aggr__0__1__key_1", count(*) AS "aggr__0__1__count"
-				FROM __quesma_table_name
-				WHERE ("@timestamp">=fromUnixTimestamp64Milli(1716811196627) AND
-				  "@timestamp"<=fromUnixTimestamp64Milli(1716812096627))
-				GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
-				  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS
-				  "aggr__0__key_0", "severity" AS "aggr__0__1__key_0",
-				  "source" AS "aggr__0__1__key_1"))
-			WHERE "aggr__0__1__order_1_rank"<=3
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__0__key_0`, `aggr__0__count`, `aggr__0__1__parent_count`,\n" +
+			"  `aggr__0__1__key_0`, `aggr__0__1__key_1`, `aggr__0__1__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__0__key_0`, `aggr__0__count`, `aggr__0__1__parent_count`,\n" +
+			"    `aggr__0__1__key_0`, `aggr__0__1__key_1`, `aggr__0__1__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__0__key_0` ASC) AS `aggr__0__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__0__key_0` ORDER BY\n" +
+			"    `aggr__0__1__count` DESC, `aggr__0__1__key_0` ASC, `aggr__0__1__key_1` ASC)\n" +
+			"    AS `aggr__0__1__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(\n" +
+			"      toTimezone(`@timestamp`, 'Europe/Warsaw'))*1000) / 30000) AS\n" +
+			"      `aggr__0__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`) AS `aggr__0__count`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`) AS\n" +
+			"      `aggr__0__1__parent_count`, `severity` AS `aggr__0__1__key_0`,\n" +
+			"      `source` AS `aggr__0__1__key_1`, count(*) AS `aggr__0__1__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    WHERE (`@timestamp`>=fromUnixTimestamp64Milli(1716811196627) AND\n" +
+			"      `@timestamp`<=fromUnixTimestamp64Milli(1716812096627))\n" +
+			"    GROUP BY toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(\n" +
+			"      toTimezone(`@timestamp`, 'Europe/Warsaw'))*1000) / 30000) AS\n" +
+			"      `aggr__0__key_0`, `severity` AS `aggr__0__1__key_0`,\n" +
+			"      `source` AS `aggr__0__1__key_1`))\n" +
+			"WHERE `aggr__0__1__order_1_rank`<=3\n" +
+			"ORDER BY `aggr__0__order_1_rank` ASC, `aggr__0__1__order_1_rank` ASC",
 	},
 	{ // [1]
 		TestName: "Multi_terms with simple count. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Count of records, Breakdown: @timestamp",
@@ -412,30 +410,29 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__order_1", int64(1716834510000/30000)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__key_1",
-			  "aggr__0__count", "aggr__0__1__key_0", "aggr__0__1__count"
-			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__key_1",
-				"aggr__0__count", "aggr__0__1__key_0",
-				"aggr__0__1__count",
-				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC,
-				"aggr__0__key_1" ASC) AS "aggr__0__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1" ORDER BY
-				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "message" AS "aggr__0__key_0", "host.name" AS "aggr__0__key_1",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
-				  "aggr__0__count",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
-				FROM ` + TableName + `
-				GROUP BY "message" AS "aggr__0__key_0", "host.name" AS "aggr__0__key_1",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=3
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__key_1`,\n" +
+			"  `aggr__0__count`, `aggr__0__1__key_0`, `aggr__0__1__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__key_1`,\n" +
+			"    `aggr__0__count`, `aggr__0__1__key_0`,\n" +
+			"    `aggr__0__1__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__0__count` DESC, `aggr__0__key_0` ASC,\n" +
+			"    `aggr__0__key_1` ASC) AS `aggr__0__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__0__key_0`, `aggr__0__key_1` ORDER BY\n" +
+			"    `aggr__0__1__key_0` ASC) AS `aggr__0__1__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"      `message` AS `aggr__0__key_0`, `host.name` AS `aggr__0__key_1`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`, `aggr__0__key_1`) AS\n" +
+			"      `aggr__0__count`,\n" +
+			"      toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS\n" +
+			"      `aggr__0__1__key_0`, count(*) AS `aggr__0__1__count`\n" +
+			"    FROM `" + TableName + "`\n" +
+			"    GROUP BY `message` AS `aggr__0__key_0`, `host.name` AS `aggr__0__key_1`,\n" +
+			"      toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS\n" +
+			"      `aggr__0__1__key_0`))\n" +
+			"WHERE `aggr__0__order_1_rank`<=3\n" +
+			"ORDER BY `aggr__0__order_1_rank` ASC, `aggr__0__1__order_1_rank` ASC",
 	},
 	{ //[2],
 		TestName: "Multi_terms with double-nested subaggregations. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Unique count, Breakdown: @timestamp",
@@ -631,34 +628,33 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1__2_col_0", 1),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__key_1",
-			  "aggr__0__count", "metric__0__2_col_0", "aggr__0__1__key_0",
-			  "aggr__0__1__count", "metric__0__1__2_col_0"
-			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__key_1",
-				"aggr__0__count", "metric__0__2_col_0", "aggr__0__1__key_0",
-				"aggr__0__1__count", "metric__0__1__2_col_0",
-				dense_rank() OVER (ORDER BY "metric__0__2_col_0" DESC, "aggr__0__key_0" ASC,
-				"aggr__0__key_1" ASC) AS "aggr__0__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1" ORDER BY
-				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "severity" AS "aggr__0__key_0", "source" AS "aggr__0__key_1",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
-				  "aggr__0__count",
-				  uniqMerge(uniqState("severity")) OVER (PARTITION BY "aggr__0__key_0",
-				  "aggr__0__key_1") AS "metric__0__2_col_0",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count",
-				  uniq("severity") AS "metric__0__1__2_col_0"
-				FROM __quesma_table_name
-				GROUP BY "severity" AS "aggr__0__key_0", "source" AS "aggr__0__key_1",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=3
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__key_1`,\n" +
+			"  `aggr__0__count`, `metric__0__2_col_0`, `aggr__0__1__key_0`,\n" +
+			"  `aggr__0__1__count`, `metric__0__1__2_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__key_1`,\n" +
+			"    `aggr__0__count`, `metric__0__2_col_0`, `aggr__0__1__key_0`,\n" +
+			"    `aggr__0__1__count`, `metric__0__1__2_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `metric__0__2_col_0` DESC, `aggr__0__key_0` ASC,\n" +
+			"    `aggr__0__key_1` ASC) AS `aggr__0__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__0__key_0`, `aggr__0__key_1` ORDER BY\n" +
+			"    `aggr__0__1__key_0` ASC) AS `aggr__0__1__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"      `severity` AS `aggr__0__key_0`, `source` AS `aggr__0__key_1`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`, `aggr__0__key_1`) AS\n" +
+			"      `aggr__0__count`,\n" +
+			"      uniqMerge(uniqState(`severity`)) OVER (PARTITION BY `aggr__0__key_0`,\n" +
+			"      `aggr__0__key_1`) AS `metric__0__2_col_0`,\n" +
+			"      toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS\n" +
+			"      `aggr__0__1__key_0`, count(*) AS `aggr__0__1__count`,\n" +
+			"      uniq(`severity`) AS `metric__0__1__2_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `severity` AS `aggr__0__key_0`, `source` AS `aggr__0__key_1`,\n" +
+			"      toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS\n" +
+			"      `aggr__0__1__key_0`))\n" +
+			"WHERE `aggr__0__order_1_rank`<=3\n" +
+			"ORDER BY `aggr__0__order_1_rank` ASC, `aggr__0__1__order_1_rank` ASC",
 	},
 	{ // [3]
 		TestName: "Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)",
@@ -831,31 +827,30 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__order_1", int64(1716838500000/30000)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__key_1",
-			  "aggr__0__count", "aggr__0__1__key_0", "aggr__0__1__count"
-			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__key_1",
-				"aggr__0__count", "aggr__0__1__key_0",
-				"aggr__0__1__count",
-				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC,
-				"aggr__0__key_1" ASC) AS "aggr__0__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1" ORDER BY
-				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "Cancelled" AS "aggr__0__key_0", "AvgTicketPrice" AS "aggr__0__key_1",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0", "aggr__0__key_1") AS
-				  "aggr__0__count",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__0__1__key_0", count(*) AS "aggr__0__1__count"
-				FROM ` + TableName + `
-				GROUP BY "Cancelled" AS "aggr__0__key_0",
-				  "AvgTicketPrice" AS "aggr__0__key_1",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
-				  "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=3
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__key_1`,\n" +
+			"  `aggr__0__count`, `aggr__0__1__key_0`, `aggr__0__1__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__key_1`,\n" +
+			"    `aggr__0__count`, `aggr__0__1__key_0`,\n" +
+			"    `aggr__0__1__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__0__count` DESC, `aggr__0__key_0` ASC,\n" +
+			"    `aggr__0__key_1` ASC) AS `aggr__0__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__0__key_0`, `aggr__0__key_1` ORDER BY\n" +
+			"    `aggr__0__1__key_0` ASC) AS `aggr__0__1__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"      `Cancelled` AS `aggr__0__key_0`, `AvgTicketPrice` AS `aggr__0__key_1`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`, `aggr__0__key_1`) AS\n" +
+			"      `aggr__0__count`,\n" +
+			"      toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS\n" +
+			"      `aggr__0__1__key_0`, count(*) AS `aggr__0__1__count`\n" +
+			"    FROM `" + TableName + "`\n" +
+			"    GROUP BY `Cancelled` AS `aggr__0__key_0`,\n" +
+			"      `AvgTicketPrice` AS `aggr__0__key_1`,\n" +
+			"      toInt64(toUnixTimestamp64Milli(`@timestamp`) / 30000) AS\n" +
+			"      `aggr__0__1__key_0`))\n" +
+			"WHERE `aggr__0__order_1_rank`<=3\n" +
+			"ORDER BY `aggr__0__order_1_rank` ASC, `aggr__0__1__order_1_rank` ASC",
 	},
 	{ // [4]
 		TestName: "percentile with subaggregation (so, combinator). Visualize, Pie, Slice by: top5 of Cancelled, DistanceKilometers, Metric: 95th Percentile",
@@ -1030,32 +1025,31 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1__2_col_0", []float64{9842.6279296875}),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "metric__0__2_col_0", "aggr__0__1__key_0", "aggr__0__1__count",
-			  "metric__0__1__2_col_0"
-			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"metric__0__2_col_0", "aggr__0__1__key_0", "aggr__0__1__count",
-				"metric__0__1__2_col_0",
-				dense_rank() OVER (ORDER BY "metric__0__2_col_0" DESC, "aggr__0__key_0" ASC)
-				AS "aggr__0__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "Cancelled" AS "aggr__0__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  quantilesMerge(0.950000)(quantilesState(0.950000)("DistanceKilometers"))
-				  OVER (PARTITION BY "aggr__0__key_0") AS "metric__0__2_col_0",
-				  floor("DistanceKilometers"/5000)*5000 AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count",
-				  quantiles(0.950000)("DistanceKilometers") AS "metric__0__1__2_col_0"
-				FROM __quesma_table_name
-				GROUP BY "Cancelled" AS "aggr__0__key_0",
-				  floor("DistanceKilometers"/5000)*5000 AS "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=6
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__count`,\n" +
+			"  `metric__0__2_col_0`, `aggr__0__1__key_0`, `aggr__0__1__count`,\n" +
+			"  `metric__0__1__2_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__count`,\n" +
+			"    `metric__0__2_col_0`, `aggr__0__1__key_0`, `aggr__0__1__count`,\n" +
+			"    `metric__0__1__2_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `metric__0__2_col_0` DESC, `aggr__0__key_0` ASC)\n" +
+			"    AS `aggr__0__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__0__key_0` ORDER BY\n" +
+			"    `aggr__0__1__key_0` ASC) AS `aggr__0__1__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"      `Cancelled` AS `aggr__0__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`) AS `aggr__0__count`,\n" +
+			"      quantilesMerge(0.950000)(quantilesState(0.950000)(`DistanceKilometers`))\n" +
+			"      OVER (PARTITION BY `aggr__0__key_0`) AS `metric__0__2_col_0`,\n" +
+			"      floor(`DistanceKilometers`/5000)*5000 AS `aggr__0__1__key_0`,\n" +
+			"      count(*) AS `aggr__0__1__count`,\n" +
+			"      quantiles(0.950000)(`DistanceKilometers`) AS `metric__0__1__2_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `Cancelled` AS `aggr__0__key_0`,\n" +
+			"      floor(`DistanceKilometers`/5000)*5000 AS `aggr__0__1__key_0`))\n" +
+			"WHERE `aggr__0__order_1_rank`<=6\n" +
+			"ORDER BY `aggr__0__order_1_rank` ASC, `aggr__0__1__order_1_rank` ASC",
 	},
 	{ // [5]
 		TestName: "terms with order by agg1>agg2 (multiple aggregations)",
@@ -1177,16 +1171,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__0__2-bucket__2-metric_col_0", 19285.5078125),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-			  "AvgTicketPrice" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("bytes_gauge" IS NOT NULL) AS "aggr__0__2-bucket__count",
-			  maxOrNullIf("DistanceKilometers", "bytes_gauge" IS NOT NULL) AS
-			  "metric__0__2-bucket__2-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY "AvgTicketPrice" AS "aggr__0__key_0"
-			ORDER BY "metric__0__2-bucket__2-metric_col_0" DESC, "aggr__0__key_0" ASC
-			LIMIT 3`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"  `AvgTicketPrice` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`,\n" +
+			"  countIf(`bytes_gauge` IS NOT NULL) AS `aggr__0__2-bucket__count`,\n" +
+			"  maxOrNullIf(`DistanceKilometers`, `bytes_gauge` IS NOT NULL) AS\n" +
+			"  `metric__0__2-bucket__2-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY `AvgTicketPrice` AS `aggr__0__key_0`\n" +
+			"ORDER BY `metric__0__2-bucket__2-metric_col_0` DESC, `aggr__0__key_0` ASC\n" +
+			"LIMIT 3",
 	},
 	{ // [6]
 		TestName: "terms with order by stats, easily reproducible in Kibana Visualize",
@@ -1328,22 +1321,21 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1_col_4", 25545.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-			  "Carrier" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  count("FlightDelayMin") AS "metric__0__1_col_0",
-			  minOrNull("FlightDelayMin") AS "metric__0__1_col_1",
-			  maxOrNull("FlightDelayMin") AS "metric__0__1_col_2",
-			  avgOrNull("FlightDelayMin") AS "metric__0__1_col_3",
-			  sumOrNull("FlightDelayMin") AS "metric__0__1_col_4"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1725723024239) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1727019024239))
-			GROUP BY "Carrier" AS "aggr__0__key_0"
-			ORDER BY "metric__0__1_col_1" DESC, "metric__0__1_col_0" DESC,
-			  "metric__0__1_col_3" DESC, "metric__0__1_col_2" ASC,
-			  "metric__0__1_col_4" DESC, "aggr__0__key_0" ASC
-			LIMIT 4`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"  `Carrier` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`,\n" +
+			"  count(`FlightDelayMin`) AS `metric__0__1_col_0`,\n" +
+			"  minOrNull(`FlightDelayMin`) AS `metric__0__1_col_1`,\n" +
+			"  maxOrNull(`FlightDelayMin`) AS `metric__0__1_col_2`,\n" +
+			"  avgOrNull(`FlightDelayMin`) AS `metric__0__1_col_3`,\n" +
+			"  sumOrNull(`FlightDelayMin`) AS `metric__0__1_col_4`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1725723024239) AND `timestamp`<=\n" +
+			"  fromUnixTimestamp64Milli(1727019024239))\n" +
+			"GROUP BY `Carrier` AS `aggr__0__key_0`\n" +
+			"ORDER BY `metric__0__1_col_1` DESC, `metric__0__1_col_0` DESC,\n" +
+			"  `metric__0__1_col_3` DESC, `metric__0__1_col_2` ASC,\n" +
+			"  `metric__0__1_col_4` DESC, `aggr__0__key_0` ASC\n" +
+			"LIMIT 4",
 	},
 	{ // [7]
 		TestName: "terms with order by extended_stats (easily reproducible in Kibana Visualize)",
@@ -1491,30 +1483,29 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1_col_9", 98.1100106105745),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-			  "Carrier" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  count("FlightDelayMin") AS "metric__0__1_col_0",
-			  minOrNull("FlightDelayMin") AS "metric__0__1_col_1",
-			  maxOrNull("FlightDelayMin") AS "metric__0__1_col_2",
-			  avgOrNull("FlightDelayMin") AS "metric__0__1_col_3",
-			  sumOrNull("FlightDelayMin") AS "metric__0__1_col_4",
-			  sumOrNull("FlightDelayMin"*"FlightDelayMin") AS "metric__0__1_col_5",
-			  varPop("FlightDelayMin") AS "metric__0__1_col_6",
-			  varSamp("FlightDelayMin") AS "metric__0__1_col_7",
-			  stddevPop("FlightDelayMin") AS "metric__0__1_col_8",
-			  stddevSamp("FlightDelayMin") AS "metric__0__1_col_9"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1725723024239) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1727019024239))
-			GROUP BY "Carrier" AS "aggr__0__key_0"
-			ORDER BY "metric__0__1_col_1" DESC, "metric__0__1_col_0" DESC,
-			  "metric__0__1_col_3" DESC, "metric__0__1_col_2" ASC,
-			  "metric__0__1_col_4" DESC, "metric__0__1_col_5" DESC,
-			  "metric__0__1_col_6" DESC, "metric__0__1_col_6" DESC,
-			  "metric__0__1_col_7" DESC, "metric__0__1_col_8" DESC,
-			  "metric__0__1_col_8" DESC, "metric__0__1_col_9" DESC, "aggr__0__key_0" ASC
-			LIMIT 4`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"  `Carrier` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`,\n" +
+			"  count(`FlightDelayMin`) AS `metric__0__1_col_0`,\n" +
+			"  minOrNull(`FlightDelayMin`) AS `metric__0__1_col_1`,\n" +
+			"  maxOrNull(`FlightDelayMin`) AS `metric__0__1_col_2`,\n" +
+			"  avgOrNull(`FlightDelayMin`) AS `metric__0__1_col_3`,\n" +
+			"  sumOrNull(`FlightDelayMin`) AS `metric__0__1_col_4`,\n" +
+			"  sumOrNull(`FlightDelayMin`*`FlightDelayMin`) AS `metric__0__1_col_5`,\n" +
+			"  varPop(`FlightDelayMin`) AS `metric__0__1_col_6`,\n" +
+			"  varSamp(`FlightDelayMin`) AS `metric__0__1_col_7`,\n" +
+			"  stddevPop(`FlightDelayMin`) AS `metric__0__1_col_8`,\n" +
+			"  stddevSamp(`FlightDelayMin`) AS `metric__0__1_col_9`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1725723024239) AND `timestamp`<=\n" +
+			"  fromUnixTimestamp64Milli(1727019024239))\n" +
+			"GROUP BY `Carrier` AS `aggr__0__key_0`\n" +
+			"ORDER BY `metric__0__1_col_1` DESC, `metric__0__1_col_0` DESC,\n" +
+			"  `metric__0__1_col_3` DESC, `metric__0__1_col_2` ASC,\n" +
+			"  `metric__0__1_col_4` DESC, `metric__0__1_col_5` DESC,\n" +
+			"  `metric__0__1_col_6` DESC, `metric__0__1_col_6` DESC,\n" +
+			"  `metric__0__1_col_7` DESC, `metric__0__1_col_8` DESC,\n" +
+			"  `metric__0__1_col_8` DESC, `metric__0__1_col_9` DESC, `aggr__0__key_0` ASC\n" +
+			"LIMIT 4",
 	},
 	{ // [8]
 		TestName: "Terms with order by top metrics",
@@ -1773,33 +1764,32 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__count", 1),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-			  "aggr__0__1__2-bucket__count"
-			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__order_1", "aggr__0__1__key_0", "aggr__0__1__count",
-				"aggr__0__1__2-bucket__count",
-				dense_rank() OVER (ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC)
-				AS "aggr__0__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "AvgTicketPrice" AS "aggr__0__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  "top_metrics__0__2-bucket__2-metric_col_0" AS "aggr__0__order_1",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count",
-				  countIf("bytes_gauge" IS NOT NULL) AS "aggr__0__1__2-bucket__count"
-				FROM __quesma_table_name
-				GROUP BY "AvgTicketPrice" AS "aggr__0__key_0",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=13
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__count`,\n" +
+			"  `aggr__0__order_1`, `aggr__0__1__key_0`, `aggr__0__1__count`,\n" +
+			"  `aggr__0__1__2-bucket__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__count`,\n" +
+			"    `aggr__0__order_1`, `aggr__0__1__key_0`, `aggr__0__1__count`,\n" +
+			"    `aggr__0__1__2-bucket__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__0__order_1` DESC, `aggr__0__key_0` ASC)\n" +
+			"    AS `aggr__0__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__0__key_0` ORDER BY\n" +
+			"    `aggr__0__1__key_0` ASC) AS `aggr__0__1__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"      `AvgTicketPrice` AS `aggr__0__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`) AS `aggr__0__count`,\n" +
+			"      `top_metrics__0__2-bucket__2-metric_col_0` AS `aggr__0__order_1`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__0__1__key_0`,\n" +
+			"      count(*) AS `aggr__0__1__count`,\n" +
+			"      countIf(`bytes_gauge` IS NOT NULL) AS `aggr__0__1__2-bucket__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `AvgTicketPrice` AS `aggr__0__key_0`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__0__1__key_0`))\n" +
+			"WHERE `aggr__0__order_1_rank`<=13\n" +
+			"ORDER BY `aggr__0__order_1_rank` ASC, `aggr__0__1__order_1_rank` ASC",
 	},
 	{ // [9]
 		TestName: "Line, Y-axis: Min, Buckets: Date Range, X-Axis: Terms, Split Chart: Date Histogram",
@@ -2061,93 +2051,88 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__3__4__1_col_0", 360.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
-			  "aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
-			  "aggr__2__3__4__count", "metric__2__3__4__1_col_0"
-			FROM (
-			  SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
-				"aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
-				"aggr__2__3__4__count", "metric__2__3__4__1_col_0",
-				dense_rank() OVER (ORDER BY "metric__2__3__1_col_0" DESC,
-				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__3__key_0" ORDER BY
-				"aggr__2__3__4__key_0" ASC) AS "aggr__2__3__4__order_1_rank"
-			  FROM (
-				SELECT sum(countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(
-				  subDate(now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp
-				  (now()))))) OVER () AS "aggr__2__count",
-				  sum(countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(subDate(
-				  now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now()))
-				  ))) OVER () AS "aggr__2__3__parent_count",
-				  "DistanceKilometers" AS "aggr__2__3__key_0",
-				  sum(countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(subDate(
-				  now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now()))
-				  ))) OVER (PARTITION BY "aggr__2__3__key_0") AS "aggr__2__3__count",
-				  minOrNull(minOrNullIf("FlightDelayMin", ("timestamp">=toInt64(
-				  toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND
-				  "timestamp"<toInt64(toUnixTimestamp(now()))))) OVER (PARTITION BY
-				  "aggr__2__3__key_0") AS "metric__2__3__1_col_0",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
-				  "aggr__2__3__4__key_0",
-				  countIf(("timestamp">=toInt64(toUnixTimestamp(toStartOfWeek(subDate(now(),
-				  INTERVAL 1 week)))) AND "timestamp"<toInt64(toUnixTimestamp(now())))) AS
-				  "aggr__2__3__4__count",
-				  minOrNullIf("FlightDelayMin", ("timestamp">=toInt64(toUnixTimestamp(
-				  toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(
-				  toUnixTimestamp(now())))) AS "metric__2__3__4__1_col_0"
-				FROM __quesma_table_name
-				WHERE (("timestamp">=fromUnixTimestamp64Milli(1258014686584) AND "timestamp"
-				  <=fromUnixTimestamp64Milli(1731400286584)) AND ("timestamp">=toInt64(
-				  toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND
-				  "timestamp"<toInt64(toUnixTimestamp(now()))))
-				GROUP BY "DistanceKilometers" AS "aggr__2__3__key_0",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
-				  "aggr__2__3__4__key_0"))
-			WHERE "aggr__2__3__order_1_rank"<=6
-			ORDER BY "aggr__2__3__order_1_rank" ASC, "aggr__2__3__4__order_1_rank" ASC`,
-		ExpectedAdditionalPancakeSQLs: []string{`
-			SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
-			  "aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
-			  "aggr__2__3__4__count", "metric__2__3__4__1_col_0"
-			FROM (
-			  SELECT "aggr__2__count", "aggr__2__3__parent_count", "aggr__2__3__key_0",
-				"aggr__2__3__count", "metric__2__3__1_col_0", "aggr__2__3__4__key_0",
-				"aggr__2__3__4__count", "metric__2__3__4__1_col_0",
-				dense_rank() OVER (ORDER BY "metric__2__3__1_col_0" DESC,
-				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__3__key_0" ORDER BY
-				"aggr__2__3__4__key_0" ASC) AS "aggr__2__3__4__order_1_rank"
-			  FROM (
-				SELECT sum(countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(),
-				  INTERVAL 1 day))))) OVER () AS "aggr__2__count",
-				  sum(countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1
-				  day))))) OVER () AS "aggr__2__3__parent_count",
-				  "DistanceKilometers" AS "aggr__2__3__key_0",
-				  sum(countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1
-				  day))))) OVER (PARTITION BY "aggr__2__3__key_0") AS "aggr__2__3__count",
-				  minOrNull(minOrNullIf("FlightDelayMin", "timestamp">=toInt64(
-				  toUnixTimestamp(subDate(now(), INTERVAL 1 day))))) OVER (PARTITION BY
-				  "aggr__2__3__key_0") AS "metric__2__3__1_col_0",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
-				  "aggr__2__3__4__key_0",
-				  countIf("timestamp">=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1 day
-				  )))) AS "aggr__2__3__4__count",
-				  minOrNullIf("FlightDelayMin", "timestamp">=toInt64(toUnixTimestamp(subDate
-				  (now(), INTERVAL 1 day)))) AS "metric__2__3__4__1_col_0"
-				FROM __quesma_table_name
-				WHERE (("timestamp">=fromUnixTimestamp64Milli(1258014686584) AND "timestamp"
-				  <=fromUnixTimestamp64Milli(1731400286584)) AND "timestamp">=toInt64(
-				  toUnixTimestamp(subDate(now(), INTERVAL 1 day))))
-				GROUP BY "DistanceKilometers" AS "aggr__2__3__key_0",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
-				  "aggr__2__3__4__key_0"))
-			WHERE "aggr__2__3__order_1_rank"<=6
-			ORDER BY "aggr__2__3__order_1_rank" ASC, "aggr__2__3__4__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__count`, `aggr__2__3__parent_count`, `aggr__2__3__key_0`,\n" +
+			"  `aggr__2__3__count`, `metric__2__3__1_col_0`, `aggr__2__3__4__key_0`,\n" +
+			"  `aggr__2__3__4__count`, `metric__2__3__4__1_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__count`, `aggr__2__3__parent_count`, `aggr__2__3__key_0`,\n" +
+			"    `aggr__2__3__count`, `metric__2__3__1_col_0`, `aggr__2__3__4__key_0`,\n" +
+			"    `aggr__2__3__4__count`, `metric__2__3__4__1_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `metric__2__3__1_col_0` DESC,\n" +
+			"    `aggr__2__3__key_0` ASC) AS `aggr__2__3__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__3__key_0` ORDER BY\n" +
+			"    `aggr__2__3__4__key_0` ASC) AS `aggr__2__3__4__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(countIf((`timestamp`>=toInt64(toUnixTimestamp(toStartOfWeek(\n" +
+			"      subDate(now(), INTERVAL 1 week)))) AND `timestamp`<toInt64(toUnixTimestamp\n" +
+			"      (now()))))) OVER () AS `aggr__2__count`,\n" +
+			"      sum(countIf((`timestamp`>=toInt64(toUnixTimestamp(toStartOfWeek(subDate(\n" +
+			"      now(), INTERVAL 1 week)))) AND `timestamp`<toInt64(toUnixTimestamp(now())\n" +
+			"      ))) OVER () AS `aggr__2__3__parent_count`,\n" +
+			"      `DistanceKilometers` AS `aggr__2__3__key_0`,\n" +
+			"      sum(countIf((`timestamp`>=toInt64(toUnixTimestamp(toStartOfWeek(subDate(\n" +
+			"      now(), INTERVAL 1 week)))) AND `timestamp`<toInt64(toUnixTimestamp(now())\n" +
+			"      ))) OVER (PARTITION BY `aggr__2__3__key_0`) AS `aggr__2__3__count`,\n" +
+			"      minOrNull(minOrNullIf(`FlightDelayMin`, (`timestamp`>=toInt64(\n" +
+			"      toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND\n" +
+			"      `timestamp`<toInt64(toUnixTimestamp(now()))))) OVER (PARTITION BY\n" +
+			"      `aggr__2__3__key_0`) AS `metric__2__3__1_col_0`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 2592000000) AS `aggr__2__3__4__key_0`,\n" +
+			"      countIf((`timestamp`>=toInt64(toUnixTimestamp(toStartOfWeek(subDate(now(),\n" +
+			"      INTERVAL 1 week)))) AND `timestamp`<toInt64(toUnixTimestamp(now())))) AS\n" +
+			"      `aggr__2__3__4__count`,\n" +
+			"      minOrNullIf(`FlightDelayMin`, (`timestamp`>=toInt64(toUnixTimestamp(\n" +
+			"      toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND `timestamp`<toInt64(\n" +
+			"      toUnixTimestamp(now())))) AS `metric__2__3__4__1_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1258014686584) AND `timestamp`\n" +
+			"      <=fromUnixTimestamp64Milli(1731400286584)) AND (`timestamp`>=toInt64(\n" +
+			"      toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND\n" +
+			"      `timestamp`<toInt64(toUnixTimestamp(now()))))\n" +
+			"    GROUP BY `DistanceKilometers` AS `aggr__2__3__key_0`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 2592000000) AS `aggr__2__3__4__key_0`))\n" +
+			"WHERE `aggr__2__3__order_1_rank`<=6\n" +
+			"ORDER BY `aggr__2__3__order_1_rank` ASC, `aggr__2__3__4__order_1_rank` ASC",
+		ExpectedAdditionalPancakeSQLs: []string{
+			"SELECT `aggr__2__count`, `aggr__2__3__parent_count`, `aggr__2__3__key_0`,\n" +
+				"  `aggr__2__3__count`, `metric__2__3__1_col_0`, `aggr__2__3__4__key_0`,\n" +
+				"  `aggr__2__3__4__count`, `metric__2__3__4__1_col_0`\n" +
+				"FROM (\n" +
+				"  SELECT `aggr__2__count`, `aggr__2__3__parent_count`, `aggr__2__3__key_0`,\n" +
+				"    `aggr__2__3__count`, `metric__2__3__1_col_0`, `aggr__2__3__4__key_0`,\n" +
+				"    `aggr__2__3__4__count`, `metric__2__3__4__1_col_0`,\n" +
+				"    dense_rank() OVER (ORDER BY `metric__2__3__1_col_0` DESC,\n" +
+				"    `aggr__2__3__key_0` ASC) AS `aggr__2__3__order_1_rank`,\n" +
+				"    dense_rank() OVER (PARTITION BY `aggr__2__3__key_0` ORDER BY\n" +
+				"    `aggr__2__3__4__key_0` ASC) AS `aggr__2__3__4__order_1_rank`\n" +
+				"  FROM (\n" +
+				"    SELECT sum(countIf(`timestamp`>=toInt64(toUnixTimestamp(subDate(now(),\n" +
+				"      INTERVAL 1 day))))) OVER () AS `aggr__2__count`,\n" +
+				"      sum(countIf(`timestamp`>=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1\n" +
+				"      day))))) OVER () AS `aggr__2__3__parent_count`,\n" +
+				"      `DistanceKilometers` AS `aggr__2__3__key_0`,\n" +
+				"      sum(countIf(`timestamp`>=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1\n" +
+				"      day))))) OVER (PARTITION BY `aggr__2__3__key_0`) AS `aggr__2__3__count`,\n" +
+				"      minOrNull(minOrNullIf(`FlightDelayMin`, `timestamp`>=toInt64(\n" +
+				"      toUnixTimestamp(subDate(now(), INTERVAL 1 day))))) OVER (PARTITION BY\n" +
+				"      `aggr__2__3__key_0`) AS `metric__2__3__1_col_0`,\n" +
+				"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"      `timestamp`, 'Europe/Warsaw'))*1000) / 2592000000) AS `aggr__2__3__4__key_0`,\n" +
+				"      countIf(`timestamp`>=toInt64(toUnixTimestamp(subDate(now(), INTERVAL 1 day\n" +
+				"      )))) AS `aggr__2__3__4__count`,\n" +
+				"      minOrNullIf(`FlightDelayMin`, `timestamp`>=toInt64(toUnixTimestamp(subDate\n" +
+				"      (now(), INTERVAL 1 day)))) AS `metric__2__3__4__1_col_0`\n" +
+				"    FROM `__quesma_table_name`\n" +
+				"    WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1258014686584) AND `timestamp`\n" +
+				"      <=fromUnixTimestamp64Milli(1731400286584)) AND `timestamp`>=toInt64(\n" +
+				"      toUnixTimestamp(subDate(now(), INTERVAL 1 day))))\n" +
+				"    GROUP BY `DistanceKilometers` AS `aggr__2__3__key_0`,\n" +
+				"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"      `timestamp`, 'Europe/Warsaw'))*1000) / 2592000000) AS `aggr__2__3__4__key_0`))\n" +
+				"WHERE `aggr__2__3__order_1_rank`<=6\n" +
+				"ORDER BY `aggr__2__3__order_1_rank` ASC, `aggr__2__3__4__order_1_rank` ASC",
 		},
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
 			{
@@ -2212,9 +2197,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 14074),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT count(*) AS "aggr__2__count"
-			FROM __quesma_table_name`,
+		ExpectedPancakeSQL: "SELECT count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`",
 	},
 	{ // [11]
 		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, prefix_length=1",
@@ -2276,12 +2260,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 6784),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 2147483648) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 2147483648) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 2147483648) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 2147483648) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [12]
 		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, prefix_length=10",
@@ -2387,12 +2370,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 1),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 4194304) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 4194304) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 4194304) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 4194304) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [13]
 		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, prefix_length=32",
@@ -2499,12 +2481,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 1),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 1) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 1) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 1) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 1) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [14]
 		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, keyed=true",
@@ -2565,12 +2546,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 6784),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 8192) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 8192) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 8192) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 8192) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [15]
 		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, append_prefix_length=true",
@@ -2633,12 +2613,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 6784),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 128) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 128) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 128) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 128) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [16]
 		TestName: "simplest IP Prefix (Kibana 8.13+), ipv4 field, keyed=true, append_prefix_length=true",
@@ -2700,11 +2679,10 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 6784),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 2) AS "aggr__2__key_0", count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 2) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 2) AS `aggr__2__key_0`, count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 2) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [17]
 		TestName: "IP Prefix with other aggregations",
@@ -2903,28 +2881,27 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__3__4_col_0", 1831),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__3__key_0", "aggr__2__3__count", "metric__2__3__4_col_0"
-			FROM (
-			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__3__key_0", "aggr__2__3__count", "metric__2__3__4_col_0",
-				dense_rank() OVER (ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC) AS
-				"aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__3__key_0" ASC) AS "aggr__2__3__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-				  "bytes" AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  intDiv("clientip", 1073741824) AS "aggr__2__3__key_0",
-				  count(*) AS "aggr__2__3__count",
-				  sumOrNull("bytes") AS "metric__2__3__4_col_0"
-				FROM __quesma_table_name
-				GROUP BY "bytes" AS "aggr__2__key_0",
-				  intDiv("clientip", 1073741824) AS "aggr__2__3__key_0"))
-			WHERE "aggr__2__order_1_rank"<=3
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"  `aggr__2__3__key_0`, `aggr__2__3__count`, `metric__2__3__4_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"    `aggr__2__3__key_0`, `aggr__2__3__count`, `metric__2__3__4_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__2__count` DESC, `aggr__2__key_0` ASC) AS\n" +
+			"    `aggr__2__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY\n" +
+			"    `aggr__2__3__key_0` ASC) AS `aggr__2__3__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"      `bytes` AS `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      intDiv(`clientip`, 1073741824) AS `aggr__2__3__key_0`,\n" +
+			"      count(*) AS `aggr__2__3__count`,\n" +
+			"      sumOrNull(`bytes`) AS `metric__2__3__4_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `bytes` AS `aggr__2__key_0`,\n" +
+			"      intDiv(`clientip`, 1073741824) AS `aggr__2__3__key_0`))\n" +
+			"WHERE `aggr__2__order_1_rank`<=3\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__3__order_1_rank` ASC",
 	},
 	{ // [18]
 		TestName: "simplest IP Prefix (Kibana 8.13+), ipv6 field, prefix_length=0",
@@ -2972,9 +2949,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{model.NewQueryResultCol("aggr__2__count", 14074)}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT count(*) AS "aggr__2__count"
-			FROM __quesma_table_name`,
+		ExpectedPancakeSQL: "SELECT count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`",
 	},
 	{ // [19]
 		TestName: "simplest IP Prefix (Kibana 8.13+), ipv6 field, prefix_length=128",
@@ -3035,11 +3011,10 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 2),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 1) AS "aggr__2__key_0", count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 1) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 1) AS `aggr__2__key_0`, count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 1) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [20]
 		TestName: "IP Prefix (Kibana 8.13+), ipv6 field, keyed=true and overflow of 1<<(128-prefix_length)",
@@ -3090,12 +3065,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 14074),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 1237940039285380274899124224) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 1237940039285380274899124224) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 1237940039285380274899124224) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 1237940039285380274899124224) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [21]
 		TestName: "simple IP Prefix (Kibana 8.13+), ipv6 field, non-zero& and non-ipv4 key",
@@ -3146,12 +3120,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 14074),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 8589934592) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 8589934592) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 8589934592) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 8589934592) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [22]
 		TestName: "IP Prefix (Kibana 8.13+), ipv6 field, multiple keys and append_prefix_length=true",
@@ -3202,12 +3175,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 14074),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 8589934592) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 8589934592) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 8589934592) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 8589934592) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [23]
 		TestName: "IP Prefix (Kibana 8.13+), ipv6 field, multiple keys and append_prefix_length=true",
@@ -3269,12 +3241,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 6784),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT intDiv("clientip", 2147483648) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY intDiv("clientip", 2147483648) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT intDiv(`clientip`, 2147483648) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY intDiv(`clientip`, 2147483648) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [24]
 		TestName: "Simplest IP range. In Kibana: Add panel > Aggregation Based > Area. Buckets: X-asis: IP Range",
@@ -3363,13 +3334,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_3__aggr__2__count", int64(534)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf(("clientip">='0.0.0.0' AND "clientip"<'127.255.255.255')) AS
-			  "range_0__aggr__2__count",
-			  countIf("clientip">='128.0.0.0') AS "range_1__aggr__2__count",
-			  countIf("clientip">='128.129.130.131') AS "range_2__aggr__2__count",
-			  countIf("clientip"<'10.0.0.5') AS "range_3__aggr__2__count"
-			FROM __quesma_table_name`,
+		ExpectedPancakeSQL: "SELECT countIf((`clientip`>='0.0.0.0' AND `clientip`<'127.255.255.255')) AS\n" +
+			"  `range_0__aggr__2__count`,\n" +
+			"  countIf(`clientip`>='128.0.0.0') AS `range_1__aggr__2__count`,\n" +
+			"  countIf(`clientip`>='128.129.130.131') AS `range_2__aggr__2__count`,\n" +
+			"  countIf(`clientip`<'10.0.0.5') AS `range_3__aggr__2__count`\n" +
+			"FROM `__quesma_table_name`",
 	},
 	{ // [25]
 		TestName: "IP range, with ranges as CIDR masks. In Kibana: Add panel > Aggregation Based > Area. Buckets: X-asis: IP Range",
@@ -3447,12 +3417,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_2__aggr__2__count", int64(3)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf(("clientip">='255.255.255.252' AND "clientip"<'::1:0:0:0')) AS "range_0__aggr__2__count",
-			  countIf("clientip">='128.129.130.131') AS "range_1__aggr__2__count",
-			  countIf(("clientip">='10.0.7.96' AND "clientip"<'10.0.7.128')) AS
-			  "range_2__aggr__2__count"
-			FROM __quesma_table_name`,
+		ExpectedPancakeSQL: "SELECT countIf((`clientip`>='255.255.255.252' AND `clientip`<'::1:0:0:0')) AS `range_0__aggr__2__count`,\n" +
+			"  countIf(`clientip`>='128.129.130.131') AS `range_1__aggr__2__count`,\n" +
+			"  countIf((`clientip`>='10.0.7.96' AND `clientip`<'10.0.7.128')) AS\n" +
+			"  `range_2__aggr__2__count`\n" +
+			"FROM `__quesma_table_name`",
 	},
 	{ // [26]
 		TestName: "IP range, with ranges as CIDR masks, keyed=true. In Kibana: Add panel > Aggregation Based > Area. Buckets: X-asis: IP Range",
@@ -3528,12 +3497,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_2__aggr__2__count", int64(3)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf(("clientip">='255.255.255.254' AND "clientip"<'::1:0:0:0')) AS "range_0__aggr__2__count",
-			  countIf("clientip">='128.129.130.131') AS "range_1__aggr__2__count",
-			  countIf(("clientip">='10.0.7.96' AND "clientip"<'10.0.7.128')) AS
-			  "range_2__aggr__2__count"
-			FROM __quesma_table_name`,
+		ExpectedPancakeSQL: "SELECT countIf((`clientip`>='255.255.255.254' AND `clientip`<'::1:0:0:0')) AS `range_0__aggr__2__count`,\n" +
+			"  countIf(`clientip`>='128.129.130.131') AS `range_1__aggr__2__count`,\n" +
+			"  countIf((`clientip`>='10.0.7.96' AND `clientip`<'10.0.7.128')) AS\n" +
+			"  `range_2__aggr__2__count`\n" +
+			"FROM `__quesma_table_name`",
 	},
 	{ // [27]
 		TestName: "IP range ipv6",
@@ -3591,13 +3559,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_2__aggr__2__count", int64(999999)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf("clientip">='1::132:13:21:23:122:22') AS
-			  "range_0__aggr__2__count",
-			  countIf("clientip"<'1::132:13:21:23:122:22') AS "range_1__aggr__2__count",
-			  countIf("clientip"<'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff') AS
-			  "range_2__aggr__2__count"
-			FROM __quesma_table_name`,
+		ExpectedPancakeSQL: "SELECT countIf(`clientip`>='1::132:13:21:23:122:22') AS\n" +
+			"  `range_0__aggr__2__count`,\n" +
+			"  countIf(`clientip`<'1::132:13:21:23:122:22') AS `range_1__aggr__2__count`,\n" +
+			"  countIf(`clientip`<'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff') AS\n" +
+			"  `range_2__aggr__2__count`\n" +
+			"FROM `__quesma_table_name`",
 	},
 	{ // [28]
 		TestName: "IP range ipv6 with mask",
@@ -3646,11 +3613,10 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("range_1__aggr__2__count", int64(0)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf("clientip"<'4000::') AS "range_0__aggr__2__count",
-			  countIf("clientip">='ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe') AS
-			  "range_1__aggr__2__count"
-			FROM __quesma_table_name`,
+		ExpectedPancakeSQL: "SELECT countIf(`clientip`<'4000::') AS `range_0__aggr__2__count`,\n" +
+			"  countIf(`clientip`>='ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe') AS\n" +
+			"  `range_1__aggr__2__count`\n" +
+			"FROM `__quesma_table_name`",
 	},
 	{ // [29]
 		TestName: `Simplest Rate aggregation: only 'unit' present (all possible units), with date_histogram's calendar_interval,
@@ -3790,13 +3756,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 5011),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
-			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0", count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
-			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone(`timestamp`,\n" +
+			"  'Europe/Warsaw'))))*1000 AS `aggr__2__key_0`, count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone(`timestamp`,\n" +
+			"  'Europe/Warsaw'))))*1000 AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [30]
 		TestName: "Rate aggregation: all possible units with date_histogram's fixed_interval ('field' present)",
@@ -3906,21 +3871,20 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__week_col_0", 1958.13671875),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  sumOrNull("DistanceKilometers") AS "metric__2__day_col_0",
-			  sumOrNull("DistanceKilometers") AS "metric__2__hour_col_0",
-			  sumOrNull("DistanceKilometers") AS "metric__2__minute_col_0",
-			  sumOrNull("DistanceKilometers") AS "metric__2__second_col_0",
-			  sumOrNull("DistanceKilometers") AS "metric__2__week_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1731584141864) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1731585041864))
-			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 30000) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`,\n" +
+			"  sumOrNull(`DistanceKilometers`) AS `metric__2__day_col_0`,\n" +
+			"  sumOrNull(`DistanceKilometers`) AS `metric__2__hour_col_0`,\n" +
+			"  sumOrNull(`DistanceKilometers`) AS `metric__2__minute_col_0`,\n" +
+			"  sumOrNull(`DistanceKilometers`) AS `metric__2__second_col_0`,\n" +
+			"  sumOrNull(`DistanceKilometers`) AS `metric__2__week_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1731584141864) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1731585041864))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 30000) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [31]
 		TestName: "Rate aggregation: all possible units with date_histogram's calendar_interval ('field' present)",
@@ -4067,23 +4031,22 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__year_col_0", 5011),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
-			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  count("DistanceKilometers") AS "metric__2__day_col_0",
-			  count("DistanceKilometers") AS "metric__2__hour_col_0",
-			  count("DistanceKilometers") AS "metric__2__minute_col_0",
-			  count("DistanceKilometers") AS "metric__2__month_col_0",
-			  count("DistanceKilometers") AS "metric__2__quarter_col_0",
-			  count("DistanceKilometers") AS "metric__2__second_col_0",
-			  sumOrNull("DistanceKilometers") AS "metric__2__week_col_0",
-			  count("DistanceKilometers") AS "metric__2__year_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1668427553316) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1731585953316))
-			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
-			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone(`timestamp`,\n" +
+			"  'Europe/Warsaw'))))*1000 AS `aggr__2__key_0`, count(*) AS `aggr__2__count`,\n" +
+			"  count(`DistanceKilometers`) AS `metric__2__day_col_0`,\n" +
+			"  count(`DistanceKilometers`) AS `metric__2__hour_col_0`,\n" +
+			"  count(`DistanceKilometers`) AS `metric__2__minute_col_0`,\n" +
+			"  count(`DistanceKilometers`) AS `metric__2__month_col_0`,\n" +
+			"  count(`DistanceKilometers`) AS `metric__2__quarter_col_0`,\n" +
+			"  count(`DistanceKilometers`) AS `metric__2__second_col_0`,\n" +
+			"  sumOrNull(`DistanceKilometers`) AS `metric__2__week_col_0`,\n" +
+			"  count(`DistanceKilometers`) AS `metric__2__year_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1668427553316) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1731585953316))\n" +
+			"GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone(`timestamp`,\n" +
+			"  'Europe/Warsaw'))))*1000 AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [32]
 		TestName: "Rate aggregation with some bigger aggregation tree",
@@ -4178,32 +4141,31 @@ var AggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__dh1__dh2__count", 9),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__dh1__key_0", "aggr__dh1__count", "metric__dh1__rate1_col_0",
-			  "aggr__dh1__dh2__key_0", "aggr__dh1__dh2__count"
-			FROM (
-			  SELECT "aggr__dh1__key_0", "aggr__dh1__count", "metric__dh1__rate1_col_0",
-				"aggr__dh1__dh2__key_0", "aggr__dh1__dh2__count",
-				dense_rank() OVER (ORDER BY "aggr__dh1__key_0" ASC) AS
-				"aggr__dh1__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__dh1__key_0" ORDER BY
-				"aggr__dh1__dh2__key_0" ASC) AS "aggr__dh1__dh2__order_1_rank"
-			  FROM (
-				SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 86400000) AS
-				  "aggr__dh1__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__dh1__key_0") AS "aggr__dh1__count"
-				  ,
-				  sum(count("DistanceKilometers")) OVER (PARTITION BY "aggr__dh1__key_0") AS
-				  "metric__dh1__rate1_col_0",
-				  toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
-				  "aggr__dh1__dh2__key_0", count(*) AS "aggr__dh1__dh2__count"
-				FROM __quesma_table_name
-				GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 86400000) AS
-				  "aggr__dh1__key_0",
-				  toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS
-				  "aggr__dh1__dh2__key_0"))
-			ORDER BY "aggr__dh1__order_1_rank" ASC, "aggr__dh1__dh2__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__dh1__key_0`, `aggr__dh1__count`, `metric__dh1__rate1_col_0`,\n" +
+			"  `aggr__dh1__dh2__key_0`, `aggr__dh1__dh2__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__dh1__key_0`, `aggr__dh1__count`, `metric__dh1__rate1_col_0`,\n" +
+			"    `aggr__dh1__dh2__key_0`, `aggr__dh1__dh2__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__dh1__key_0` ASC) AS\n" +
+			"    `aggr__dh1__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__dh1__key_0` ORDER BY\n" +
+			"    `aggr__dh1__dh2__key_0` ASC) AS `aggr__dh1__dh2__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+			"      toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 86400000) AS\n" +
+			"      `aggr__dh1__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__dh1__key_0`) AS `aggr__dh1__count`\n" +
+			"      ,\n" +
+			"      sum(count(`DistanceKilometers`)) OVER (PARTITION BY `aggr__dh1__key_0`) AS\n" +
+			"      `metric__dh1__rate1_col_0`,\n" +
+			"      toInt64(toUnixTimestamp64Milli(`timestamp`) / 3600000) AS\n" +
+			"      `aggr__dh1__dh2__key_0`, count(*) AS `aggr__dh1__dh2__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+			"      toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 86400000) AS\n" +
+			"      `aggr__dh1__key_0`,\n" +
+			"      toInt64(toUnixTimestamp64Milli(`timestamp`) / 3600000) AS\n" +
+			"      `aggr__dh1__dh2__key_0`))\n" +
+			"ORDER BY `aggr__dh1__order_1_rank` ASC, `aggr__dh1__dh2__order_1_rank` ASC",
 	},
 }

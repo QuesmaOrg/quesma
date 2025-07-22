@@ -246,13 +246,7 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 }
 
 `,
-			sql: `
-SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-  "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
-FROM ` + TableName + `
-GROUP BY "host.name" AS "aggr__0__key_0"
-ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC
-LIMIT 4`, // -- we added one more as filtering nulls happens during rendering
+			sql: "SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n  `host.name` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`\nFROM `__quesma_table_name`\nGROUP BY `host.name` AS `aggr__0__key_0`\nORDER BY `aggr__0__count` DESC, `aggr__0__key_0` ASC\nLIMIT 4", // -- we added one more as filtering nulls happens during rendering
 		},
 
 		{"test2",
@@ -275,14 +269,7 @@ LIMIT 4`, // -- we added one more as filtering nulls happens during rendering
   }
 }
 `,
-			`
-SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-  "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-  avgOrNull("bytes_gauge") AS "metric__0__2_col_0"
-FROM ` + TableName + `
-GROUP BY "host.name" AS "aggr__0__key_0"
-ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC
-LIMIT 4`, // we increased limit by 1 to allow filtering of nulls druing json rendering
+			"SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n  `host.name` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`,\n  avgOrNull(`bytes_gauge`) AS `metric__0__2_col_0`\nFROM `__quesma_table_name`\nGROUP BY `host.name` AS `aggr__0__key_0`\nORDER BY `aggr__0__count` DESC, `aggr__0__key_0` ASC\nLIMIT 4", // we increased limit by 1 to allow filtering of nulls druing json rendering
 		},
 	}
 

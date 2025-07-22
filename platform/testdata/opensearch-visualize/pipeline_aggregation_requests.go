@@ -125,13 +125,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__order_1", 1.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1706095390802) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1715163790802))
-			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT `day_of_week_i` AS `aggr__2__key_0`, count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`order_date`>=fromUnixTimestamp64Milli(1706095390802) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1715163790802))\n" +
+			"GROUP BY `day_of_week_i` AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [1]
 		TestName: "Cumulative sum with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Average), Buckets: Histogram",
@@ -253,12 +252,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1-metric_col_0", 1.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  avgOrNull("day_of_week_i") AS "metric__2__1-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT `day_of_week_i` AS `aggr__2__key_0`, count(*) AS `aggr__2__count`,\n" +
+			"  avgOrNull(`day_of_week_i`) AS `metric__2__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY `day_of_week_i` AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [2]
 		TestName: "Cumulative sum to other cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Histogram",
@@ -376,11 +374,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(300)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT `day_of_week_i` AS `aggr__2__key_0`, count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY `day_of_week_i` AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [3]
 		TestName: "Cumulative sum - quite complex, a graph of pipelines. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Max)), Buckets: Histogram",
@@ -511,12 +508,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1-metric-metric_col_0", 200.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  maxOrNull("products.base_price") AS "metric__2__1-metric-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT `day_of_week_i` AS `aggr__2__key_0`, count(*) AS `aggr__2__count`,\n" +
+			"  maxOrNull(`products.base_price`) AS `metric__2__1-metric-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY `day_of_week_i` AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [4]
 		TestName: "Simplest Derivative (count). Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Count), Buckets: Histogram",
@@ -641,12 +637,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(21)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY floor("bytes"/200)*200 AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT floor(`bytes`/200)*200 AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY floor(`bytes`/200)*200 AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [5]
 		TestName: "Derivative with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Sum), Buckets: Date Histogram",
@@ -847,13 +842,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1-metric_col_0", 27.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  sumOrNull(toHour("timestamp")) AS "metric__2__1-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`,\n" +
+			"  sumOrNull(toHour(`timestamp`)) AS `metric__2__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [6]
 		TestName: "Derivative to cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Date Histogram",
@@ -1226,13 +1220,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(2)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-			  "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS\n" +
+			"  `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [7]
 		TestName: "Simplest Serial Diff (count), lag=default (1). Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Count), Buckets: Histogram",
@@ -1370,12 +1363,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(21)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY floor("bytes"/200)*200 AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT floor(`bytes`/200)*200 AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY floor(`bytes`/200)*200 AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [8]
 		TestName: "Simplest Serial Diff (count), lag=2. Don't know how to reproduce in OpenSearch, but you can click out:" +
@@ -1517,12 +1509,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(21)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY floor("bytes"/200)*200 AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT floor(`bytes`/200)*200 AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY floor(`bytes`/200)*200 AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [9]
 		TestName: "Serial diff with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Sum), Buckets: Date Histogram",
@@ -1723,13 +1714,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1-metric_col_0", 27.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  sumOrNull(toHour("timestamp")) AS "metric__2__1-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`,\n" +
+			"  sumOrNull(toHour(`timestamp`)) AS `metric__2__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [10]
 		TestName: "Serial Diff to cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Date Histogram",
@@ -1949,14 +1939,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", uint64(2)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-  			  "timestamp", 'Europe/Warsaw'))*1000) / 600000) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-  			  "timestamp", 'Europe/Warsaw'))*1000) / 600000) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 600000) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 600000) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [11]
 		TestName: "Simplest avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Count)",
@@ -2072,13 +2061,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-			  "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-			  "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS\n" +
+			"  `aggr__1-bucket__key_0`, count(*) AS `aggr__1-bucket__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS\n" +
+			"  `aggr__1-bucket__key_0`\n" +
+			"ORDER BY `aggr__1-bucket__key_0` ASC",
 	},
 	{ // [12]
 		TestName: "avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Max)",
@@ -2213,14 +2201,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 9199.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-			  "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
-			  maxOrNull("bytes") AS "metric__1-bucket__1-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-			  "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS\n" +
+			"  `aggr__1-bucket__key_0`, count(*) AS `aggr__1-bucket__count`,\n" +
+			"  maxOrNull(`bytes`) AS `metric__1-bucket__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS\n" +
+			"  `aggr__1-bucket__key_0`\n" +
+			"ORDER BY `aggr__1-bucket__key_0` ASC",
 	},
 	/* TODO need fix for date_range and subaggregations. Same one, as already merged ~1-2 weeks ago for range. It's WIP.
 	{ // [13]
@@ -2673,25 +2660,24 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__1-bucket__count", uint64(3)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__1-bucket__key_0",
-			  "aggr__2__1-bucket__count"
-			FROM (
-			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__1-bucket__key_0",
-				"aggr__2__1-bucket__count",
-				dense_rank() OVER (ORDER BY "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__1-bucket__key_0" ASC) AS "aggr__2__1-bucket__order_1_rank"
-			  FROM (
-				SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-				  "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  "bytes" AS "aggr__2__1-bucket__key_0",
-				  count(*) AS "aggr__2__1-bucket__count"
-				FROM __quesma_table_name
-				GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-				  "aggr__2__key_0", "bytes" AS "aggr__2__1-bucket__key_0"))
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__1-bucket__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__key_0`, `aggr__2__count`, `aggr__2__1-bucket__key_0`,\n" +
+			"  `aggr__2__1-bucket__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__key_0`, `aggr__2__count`, `aggr__2__1-bucket__key_0`,\n" +
+			"    `aggr__2__1-bucket__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__2__key_0` ASC) AS `aggr__2__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY\n" +
+			"    `aggr__2__1-bucket__key_0` ASC) AS `aggr__2__1-bucket__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS\n" +
+			"      `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      `bytes` AS `aggr__2__1-bucket__key_0`,\n" +
+			"      count(*) AS `aggr__2__1-bucket__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS\n" +
+			"      `aggr__2__key_0`, `bytes` AS `aggr__2__1-bucket__key_0`))\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__1-bucket__order_1_rank` ASC",
 	},
 	{ // [15]
 		TestName: "Simplest min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Count)",
@@ -2849,15 +2835,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
-			  "clientip" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1715413213606) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1715467213606))
-			GROUP BY "clientip" AS "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__key_0" DESC
-			LIMIT 6`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__1-bucket__parent_count`,\n" +
+			"  `clientip` AS `aggr__1-bucket__key_0`, count(*) AS `aggr__1-bucket__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1715413213606) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1715467213606))\n" +
+			"GROUP BY `clientip` AS `aggr__1-bucket__key_0`\n" +
+			"ORDER BY `aggr__1-bucket__key_0` DESC\n" +
+			"LIMIT 6",
 	},
 	{ // [16]
 		TestName: "min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Unique Count)",
@@ -3029,14 +3014,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
-			  "clientip" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
-			  uniq("geo.coordinates") AS "metric__1-bucket__1-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY "clientip" AS "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__key_0" DESC
-			LIMIT 6`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__1-bucket__parent_count`,\n" +
+			"  `clientip` AS `aggr__1-bucket__key_0`, count(*) AS `aggr__1-bucket__count`,\n" +
+			"  uniq(`geo.coordinates`) AS `metric__1-bucket__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY `clientip` AS `aggr__1-bucket__key_0`\n" +
+			"ORDER BY `aggr__1-bucket__key_0` DESC\n" +
+			"LIMIT 6",
 	},
 	{ // [17]
 		TestName: "complex min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Sum), Buckets: Split Series: Histogram",
@@ -3236,30 +3220,29 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1-bucket__1-metric_col_0", 18.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__1-bucket__parent_count",
-			  "aggr__2__1-bucket__key_0", "aggr__2__1-bucket__count",
-			  "metric__2__1-bucket__1-metric_col_0"
-			FROM (
-			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__1-bucket__parent_count",
-				"aggr__2__1-bucket__key_0", "aggr__2__1-bucket__count",
-				"metric__2__1-bucket__1-metric_col_0",
-				dense_rank() OVER (ORDER BY "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__1-bucket__key_0" DESC) AS "aggr__2__1-bucket__order_1_rank"
-			  FROM (
-				SELECT floor("bytes"/200)*200 AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__1-bucket__parent_count",
-				  "clientip" AS "aggr__2__1-bucket__key_0",
-				  count(*) AS "aggr__2__1-bucket__count",
-				  sumOrNull("bytes") AS "metric__2__1-bucket__1-metric_col_0"
-				FROM __quesma_table_name
-				GROUP BY floor("bytes"/200)*200 AS "aggr__2__key_0",
-				  "clientip" AS "aggr__2__1-bucket__key_0"))
-			WHERE "aggr__2__1-bucket__order_1_rank"<=3
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__1-bucket__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__key_0`, `aggr__2__count`, `aggr__2__1-bucket__parent_count`,\n" +
+			"  `aggr__2__1-bucket__key_0`, `aggr__2__1-bucket__count`,\n" +
+			"  `metric__2__1-bucket__1-metric_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__key_0`, `aggr__2__count`, `aggr__2__1-bucket__parent_count`,\n" +
+			"    `aggr__2__1-bucket__key_0`, `aggr__2__1-bucket__count`,\n" +
+			"    `metric__2__1-bucket__1-metric_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__2__key_0` ASC) AS `aggr__2__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY\n" +
+			"    `aggr__2__1-bucket__key_0` DESC) AS `aggr__2__1-bucket__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT floor(`bytes`/200)*200 AS `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS\n" +
+			"      `aggr__2__1-bucket__parent_count`,\n" +
+			"      `clientip` AS `aggr__2__1-bucket__key_0`,\n" +
+			"      count(*) AS `aggr__2__1-bucket__count`,\n" +
+			"      sumOrNull(`bytes`) AS `metric__2__1-bucket__1-metric_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY floor(`bytes`/200)*200 AS `aggr__2__key_0`,\n" +
+			"      `clientip` AS `aggr__2__1-bucket__key_0`))\n" +
+			"WHERE `aggr__2__1-bucket__order_1_rank`<=3\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__1-bucket__order_1_rank` ASC",
 	},
 	{ // [18]
 		TestName: "Simplest max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Terms, Metric: Count)",
@@ -3381,15 +3364,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(1923)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
-			  "Cancelled" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1714255011264) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1715551011264))
-			GROUP BY "Cancelled" AS "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__key_0" DESC
-			LIMIT 6`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__1-bucket__parent_count`,\n" +
+			"  `Cancelled` AS `aggr__1-bucket__key_0`, count(*) AS `aggr__1-bucket__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1714255011264) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1715551011264))\n" +
+			"GROUP BY `Cancelled` AS `aggr__1-bucket__key_0`\n" +
+			"ORDER BY `aggr__1-bucket__key_0` DESC\n" +
+			"LIMIT 6",
 	},
 	{ // [19]
 		TestName: "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)",
@@ -3538,14 +3520,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", nil),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-			  "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
-			  minOrNull("memory") AS "metric__1-bucket__1-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS
-			  "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS\n" +
+			"  `aggr__1-bucket__key_0`, count(*) AS `aggr__1-bucket__count`,\n" +
+			"  minOrNull(`memory`) AS `metric__1-bucket__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`) / 600000) AS\n" +
+			"  `aggr__1-bucket__key_0`\n" +
+			"ORDER BY `aggr__1-bucket__key_0` ASC",
 	},
 	{ // [20]
 		TestName: "Different pipeline aggrs with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max/Sum Bucket/etc. (Aggregation: Histogram, Metric: Max)",
@@ -3771,12 +3752,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", float64(452)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "bytes" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
-			  maxOrNull("memory") AS "metric__1-bucket__1-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY "bytes" AS "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT `bytes` AS `aggr__1-bucket__key_0`, count(*) AS `aggr__1-bucket__count`,\n" +
+			"  maxOrNull(`memory`) AS `metric__1-bucket__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY `bytes` AS `aggr__1-bucket__key_0`\n" +
+			"ORDER BY `aggr__1-bucket__key_0` ASC",
 	},
 	/* waits for probably a simple filters fix */
 	{ // [21]
@@ -3916,14 +3896,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("filter_1__metric__1-bucket__1-metric_col_0", 4968221.14887619),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf("FlightDelayMin" > '-100') AS "filter_0__aggr__1-bucket__count",
-			  sumOrNullIf("DistanceKilometers", "FlightDelayMin" > '-100') AS
-			  "filter_0__metric__1-bucket__1-metric_col_0",
-			  countIf(false) AS "filter_1__aggr__1-bucket__count",
-			  sumOrNullIf("DistanceKilometers", false) AS
-			  "filter_1__metric__1-bucket__1-metric_col_0"
-			FROM __quesma_table_name`,
+		ExpectedPancakeSQL: "SELECT countIf(`FlightDelayMin` > '-100') AS `filter_0__aggr__1-bucket__count`,\n" +
+			"  sumOrNullIf(`DistanceKilometers`, `FlightDelayMin` > '-100') AS\n" +
+			"  `filter_0__metric__1-bucket__1-metric_col_0`,\n" +
+			"  countIf(false) AS `filter_1__aggr__1-bucket__count`,\n" +
+			"  sumOrNullIf(`DistanceKilometers`, false) AS\n" +
+			"  `filter_1__metric__1-bucket__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`",
 	},
 	/* waits for probably a simple filters fix */
 	{ // [22] TODO check this test with other pipeline aggregations
@@ -4320,15 +4299,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__1-bucket__count", uint64(298)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
-			  "extension" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1714256186906) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1715552186906))
-			GROUP BY "extension" AS "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__key_0" DESC
-			LIMIT 6`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__1-bucket__parent_count`,\n" +
+			"  `extension` AS `aggr__1-bucket__key_0`, count(*) AS `aggr__1-bucket__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1714256186906) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1715552186906))\n" +
+			"GROUP BY `extension` AS `aggr__1-bucket__key_0`\n" +
+			"ORDER BY `aggr__1-bucket__key_0` DESC\n" +
+			"LIMIT 6",
 	},
 	{ // [24]
 		TestName: "sum_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Sum Bucket (Bucket: Significant Terms, Metric: Average)",
@@ -4476,14 +4454,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 12786004614.736841),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
-			  "extension" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count",
-			  avgOrNull("machine.ram") AS "metric__1-bucket__1-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY "extension" AS "aggr__1-bucket__key_0"
-			ORDER BY "aggr__1-bucket__count" DESC, "aggr__1-bucket__key_0" ASC
-			LIMIT 6`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__1-bucket__parent_count`,\n" +
+			"  `extension` AS `aggr__1-bucket__key_0`, count(*) AS `aggr__1-bucket__count`,\n" +
+			"  avgOrNull(`machine.ram`) AS `metric__1-bucket__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY `extension` AS `aggr__1-bucket__key_0`\n" +
+			"ORDER BY `aggr__1-bucket__count` DESC, `aggr__1-bucket__key_0` ASC\n" +
+			"LIMIT 6",
 	},
 	{ // [25]
 		TestName: "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram",
@@ -4846,37 +4823,36 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 40
 		}`,
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__count", "aggr__2__3__key_0", "aggr__2__3__count",
-			  "aggr__2__3__1-bucket__key_0", "aggr__2__3__1-bucket__count",
-			  "metric__2__3__1-bucket__1-metric_col_0"
-			FROM (
-			  SELECT "aggr__2__count", "aggr__2__3__key_0", "aggr__2__3__count",
-				"aggr__2__3__1-bucket__key_0", "aggr__2__3__1-bucket__count",
-				"metric__2__3__1-bucket__1-metric_col_0",
-				dense_rank() OVER (ORDER BY "aggr__2__3__key_0" ASC) AS
-				"aggr__2__3__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__3__key_0" ORDER BY
-				"aggr__2__3__1-bucket__key_0" ASC) AS "aggr__2__3__1-bucket__order_1_rank"
-			  FROM (
-				SELECT sum(countIf(("bytes">=0 AND "bytes"<1000))) OVER () AS
-				  "aggr__2__count", floor("bytes"/200)*200 AS "aggr__2__3__key_0",
-				  sum(countIf(("bytes">=0 AND "bytes"<1000))) OVER (PARTITION BY
-				  "aggr__2__3__key_0") AS "aggr__2__3__count",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-                  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__3__1-bucket__key_0",
-				  countIf(("bytes">=0 AND "bytes"<1000)) AS "aggr__2__3__1-bucket__count",
-				  avgOrNullIf("memory", ("bytes">=0 AND "bytes"<1000)) AS
-				  "metric__2__3__1-bucket__1-metric_col_0"
-				FROM __quesma_table_name
-				WHERE ("bytes">=0 AND "bytes"<1000)
-				GROUP BY floor("bytes"/200)*200 AS "aggr__2__3__key_0",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-                  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__3__1-bucket__key_0"))
-			ORDER BY "aggr__2__3__order_1_rank" ASC,
-			  "aggr__2__3__1-bucket__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__count`, `aggr__2__3__key_0`, `aggr__2__3__count`,\n" +
+			"  `aggr__2__3__1-bucket__key_0`, `aggr__2__3__1-bucket__count`,\n" +
+			"  `metric__2__3__1-bucket__1-metric_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__count`, `aggr__2__3__key_0`, `aggr__2__3__count`,\n" +
+			"    `aggr__2__3__1-bucket__key_0`, `aggr__2__3__1-bucket__count`,\n" +
+			"    `metric__2__3__1-bucket__1-metric_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__2__3__key_0` ASC) AS\n" +
+			"    `aggr__2__3__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__3__key_0` ORDER BY\n" +
+			"    `aggr__2__3__1-bucket__key_0` ASC) AS `aggr__2__3__1-bucket__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(countIf((`bytes`>=0 AND `bytes`<1000))) OVER () AS\n" +
+			"      `aggr__2__count`, floor(`bytes`/200)*200 AS `aggr__2__3__key_0`,\n" +
+			"      sum(countIf((`bytes`>=0 AND `bytes`<1000))) OVER (PARTITION BY\n" +
+			"      `aggr__2__3__key_0`) AS `aggr__2__3__count`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+			"      `aggr__2__3__1-bucket__key_0`,\n" +
+			"      countIf((`bytes`>=0 AND `bytes`<1000)) AS `aggr__2__3__1-bucket__count`,\n" +
+			"      avgOrNullIf(`memory`, (`bytes`>=0 AND `bytes`<1000)) AS\n" +
+			"      `metric__2__3__1-bucket__1-metric_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    WHERE (`bytes`>=0 AND `bytes`<1000)\n" +
+			"    GROUP BY floor(`bytes`/200)*200 AS `aggr__2__3__key_0`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+			"      `aggr__2__3__1-bucket__key_0`))\n" +
+			"ORDER BY `aggr__2__3__order_1_rank` ASC,\n" +
+			"  `aggr__2__3__1-bucket__order_1_rank` ASC",
 		ExpectedPancakeResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__count", uint64(168)),
@@ -4927,37 +4903,37 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__3__1-bucket__1-metric_col_0", 27400),
 			}},
 		},
-		ExpectedAdditionalPancakeSQLs: []string{`
-		 SELECT "aggr__2__count", "aggr__2__3__key_0", "aggr__2__3__count",
-		  "aggr__2__3__1-bucket__key_0", "aggr__2__3__1-bucket__count",
-		  "metric__2__3__1-bucket__1-metric_col_0"
-		FROM (
-		  SELECT "aggr__2__count", "aggr__2__3__key_0", "aggr__2__3__count",
-			"aggr__2__3__1-bucket__key_0", "aggr__2__3__1-bucket__count",
-			"metric__2__3__1-bucket__1-metric_col_0",
-			dense_rank() OVER (ORDER BY "aggr__2__3__key_0" ASC) AS
-			"aggr__2__3__order_1_rank",
-			dense_rank() OVER (PARTITION BY "aggr__2__3__key_0" ORDER BY
-			"aggr__2__3__1-bucket__key_0" ASC) AS "aggr__2__3__1-bucket__order_1_rank"
-		  FROM (
-			SELECT sum(countIf(("bytes">=1000 AND "bytes"<2000))) OVER () AS
-			  "aggr__2__count", floor("bytes"/200)*200 AS "aggr__2__3__key_0",
-			  sum(countIf(("bytes">=1000 AND "bytes"<2000))) OVER (PARTITION BY
-			  "aggr__2__3__key_0") AS "aggr__2__3__count",
-			  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-                "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-			  "aggr__2__3__1-bucket__key_0",
-			  countIf(("bytes">=1000 AND "bytes"<2000)) AS "aggr__2__3__1-bucket__count",
-			  avgOrNullIf("memory", ("bytes">=1000 AND "bytes"<2000)) AS
-			  "metric__2__3__1-bucket__1-metric_col_0"
-			FROM __quesma_table_name
-			WHERE ("bytes">=1000 AND "bytes"<2000)
-			GROUP BY floor("bytes"/200)*200 AS "aggr__2__3__key_0",
-			  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-                "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-			  "aggr__2__3__1-bucket__key_0"))
-		ORDER BY "aggr__2__3__order_1_rank" ASC,
-		  "aggr__2__3__1-bucket__order_1_rank" ASC`,
+		ExpectedAdditionalPancakeSQLs: []string{
+			"SELECT `aggr__2__count`, `aggr__2__3__key_0`, `aggr__2__3__count`,\n" +
+				"  `aggr__2__3__1-bucket__key_0`, `aggr__2__3__1-bucket__count`,\n" +
+				"  `metric__2__3__1-bucket__1-metric_col_0`\n" +
+				"FROM (\n" +
+				"  SELECT `aggr__2__count`, `aggr__2__3__key_0`, `aggr__2__3__count`,\n" +
+				"    `aggr__2__3__1-bucket__key_0`, `aggr__2__3__1-bucket__count`,\n" +
+				"    `metric__2__3__1-bucket__1-metric_col_0`,\n" +
+				"    dense_rank() OVER (ORDER BY `aggr__2__3__key_0` ASC) AS\n" +
+				"    `aggr__2__3__order_1_rank`,\n" +
+				"    dense_rank() OVER (PARTITION BY `aggr__2__3__key_0` ORDER BY\n" +
+				"    `aggr__2__3__1-bucket__key_0` ASC) AS `aggr__2__3__1-bucket__order_1_rank`\n" +
+				"  FROM (\n" +
+				"    SELECT sum(countIf((`bytes`>=1000 AND `bytes`<2000))) OVER () AS\n" +
+				"      `aggr__2__count`, floor(`bytes`/200)*200 AS `aggr__2__3__key_0`,\n" +
+				"      sum(countIf((`bytes`>=1000 AND `bytes`<2000))) OVER (PARTITION BY\n" +
+				"      `aggr__2__3__key_0`) AS `aggr__2__3__count`,\n" +
+				"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"      `timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+				"      `aggr__2__3__1-bucket__key_0`,\n" +
+				"      countIf((`bytes`>=1000 AND `bytes`<2000)) AS `aggr__2__3__1-bucket__count`,\n" +
+				"      avgOrNullIf(`memory`, (`bytes`>=1000 AND `bytes`<2000)) AS\n" +
+				"      `metric__2__3__1-bucket__1-metric_col_0`\n" +
+				"    FROM `__quesma_table_name`\n" +
+				"    WHERE (`bytes`>=1000 AND `bytes`<2000)\n" +
+				"    GROUP BY floor(`bytes`/200)*200 AS `aggr__2__3__key_0`,\n" +
+				"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"      `timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+				"      `aggr__2__3__1-bucket__key_0`))\n" +
+				"ORDER BY `aggr__2__3__order_1_rank` ASC,\n" +
+				"  `aggr__2__3__1-bucket__order_1_rank` ASC",
 		},
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
 			{

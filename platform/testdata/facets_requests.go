@@ -132,25 +132,24 @@ var TestsNumericFacets = []struct {
 			},
 			"start_time_in_millis": 0
 		}`,
-		ExpectedSql: `
-SELECT sum(count(*)) OVER () AS "metric____quesma_total_count_col_0",
-  sum(count(*)) OVER () AS "aggr__sample__count",
-  maxOrNull(maxOrNull("int64-field")) OVER () AS
-  "metric__sample__max_value_col_0",
-  minOrNull(minOrNull("int64-field")) OVER () AS
-  "metric__sample__min_value_col_0",
-  sum(count("int64-field")) OVER () AS "metric__sample__sample_count_col_0",
-  sum(count(*)) OVER () AS "aggr__sample__top_values__parent_count",
-  "int64-field" AS "aggr__sample__top_values__key_0",
-  count(*) AS "aggr__sample__top_values__count"
-FROM (
-  SELECT "int64-field"
-  FROM __quesma_table_name
-  LIMIT 20000)
-GROUP BY "int64-field" AS "aggr__sample__top_values__key_0"
-ORDER BY "aggr__sample__top_values__count" DESC,
-  "aggr__sample__top_values__key_0" ASC
-LIMIT 11`,
+		ExpectedSql: "SELECT sum(count(*)) OVER () AS `metric____quesma_total_count_col_0`,\n" +
+			"  sum(count(*)) OVER () AS `aggr__sample__count`,\n" +
+			"  maxOrNull(maxOrNull(`int64-field`)) OVER () AS\n" +
+			"  `metric__sample__max_value_col_0`,\n" +
+			"  minOrNull(minOrNull(`int64-field`)) OVER () AS\n" +
+			"  `metric__sample__min_value_col_0`,\n" +
+			"  sum(count(`int64-field`)) OVER () AS `metric__sample__sample_count_col_0`,\n" +
+			"  sum(count(*)) OVER () AS `aggr__sample__top_values__parent_count`,\n" +
+			"  `int64-field` AS `aggr__sample__top_values__key_0`,\n" +
+			"  count(*) AS `aggr__sample__top_values__count`\n" +
+			"FROM (\n" +
+			"  SELECT `int64-field`\n" +
+			"  FROM `__quesma_table_name`\n" +
+			"  LIMIT 20000)\n" +
+			"GROUP BY `int64-field` AS `aggr__sample__top_values__key_0`\n" +
+			"ORDER BY `aggr__sample__top_values__count` DESC,\n" +
+			"  `aggr__sample__top_values__key_0` ASC\n" +
+			"LIMIT 11",
 		NewResultRows: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("metric____quesma_total_count_col_0", 2693),

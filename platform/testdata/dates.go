@@ -105,18 +105,17 @@ var AggregationTestsWithDates = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sampler__eventRate__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__sampler__count",
-			  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC'))))*1000
-			  AS "aggr__sampler__eventRate__key_0",
-			  count(*) AS "aggr__sampler__eventRate__count"
-			FROM (
-			  SELECT "order_date"
-			  FROM __quesma_table_name
-			  LIMIT 20000)
-			GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone("order_date", 'UTC')))
-			  )*1000 AS "aggr__sampler__eventRate__key_0"
-			ORDER BY "aggr__sampler__eventRate__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__sampler__count`,\n" +
+			"  toInt64(toUnixTimestamp(toStartOfWeek(toTimezone(`order_date`, 'UTC'))))*1000\n" +
+			"  AS `aggr__sampler__eventRate__key_0`,\n" +
+			"  count(*) AS `aggr__sampler__eventRate__count`\n" +
+			"FROM (\n" +
+			"  SELECT `order_date`\n" +
+			"  FROM `__quesma_table_name`\n" +
+			"  LIMIT 20000)\n" +
+			"GROUP BY toInt64(toUnixTimestamp(toStartOfWeek(toTimezone(`order_date`, 'UTC')))\n" +
+			"  )*1000 AS `aggr__sampler__eventRate__key_0`\n" +
+			"ORDER BY `aggr__sampler__eventRate__key_0` ASC",
 	},
 	{ // [1]
 		TestName: "extended_bounds pre keys (timezone calculations most tricky to get right)",
@@ -312,16 +311,15 @@ var AggregationTestsWithDates = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-			  "@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0",
-			  count(*) AS "aggr__timeseries__count"
-			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1730370296174) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1730370596174))
-			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
-			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
-			ORDER BY "aggr__timeseries__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `@timestamp`, 'Europe/Warsaw'))*1000) / 10000) AS `aggr__timeseries__key_0`,\n" +
+			"  count(*) AS `aggr__timeseries__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`@timestamp`>=fromUnixTimestamp64Milli(1730370296174) AND `@timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1730370596174))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone\n" +
+			"  (`@timestamp`, 'Europe/Warsaw'))*1000) / 10000) AS `aggr__timeseries__key_0`\n" +
+			"ORDER BY `aggr__timeseries__key_0` ASC",
 	},
 	{ // [2]
 		TestName: "extended_bounds post keys (timezone calculations most tricky to get right)",
@@ -493,16 +491,15 @@ var AggregationTestsWithDates = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__timeseries__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-			  "@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0",
-			  count(*) AS "aggr__timeseries__count"
-			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1730370296174) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1730370596174))
-			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
-			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
-			ORDER BY "aggr__timeseries__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `@timestamp`, 'Europe/Warsaw'))*1000) / 10000) AS `aggr__timeseries__key_0`,\n" +
+			"  count(*) AS `aggr__timeseries__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`@timestamp`>=fromUnixTimestamp64Milli(1730370296174) AND `@timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1730370596174))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone\n" +
+			"  (`@timestamp`, 'Europe/Warsaw'))*1000) / 10000) AS `aggr__timeseries__key_0`\n" +
+			"ORDER BY `aggr__timeseries__key_0` ASC",
 	},
 	{ // [3]
 		TestName: "empty results, we still should add empty buckets, because of the extended_bounds and min_doc_count defaulting to 0",
@@ -622,17 +619,16 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			"start_time_in_millis": 1707486436397
 		}`,
 		ExpectedPancakeResults: []model.QueryResultRow{},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone(
-			  "@timestamp", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count",
-			  sumOrNull("body_bytes_sent") AS "metric__0__1_col_0"
-			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1259327903466) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1732713503466))
-			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
-			  ("@timestamp", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `@timestamp`, 'Europe/Warsaw'))*1000) / 86400000) AS `aggr__0__key_0`,\n" +
+			"  count(*) AS `aggr__0__count`,\n" +
+			"  sumOrNull(`body_bytes_sent`) AS `metric__0__1_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`@timestamp`>=fromUnixTimestamp64Milli(1259327903466) AND `@timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1732713503466))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(toTimezone\n" +
+			"  (`@timestamp`, 'Europe/Warsaw'))*1000) / 86400000) AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 	{ // [4]
 		TestName: "date_histogram add in-between rows, calendar_interval: >= month (regression test)",
@@ -706,13 +702,12 @@ var AggregationTestsWithDates = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sales_per_month__count", int64(2)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("date", 'UTC'))))*1000
-			  AS "aggr__sales_per_month__key_0", count(*) AS "aggr__sales_per_month__count"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("date", 'UTC'))))*
-			  1000 AS "aggr__sales_per_month__key_0"
-			ORDER BY "aggr__sales_per_month__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp(toStartOfMonth(toTimezone(`date`, 'UTC'))))*1000\n" +
+			"  AS `aggr__sales_per_month__key_0`, count(*) AS `aggr__sales_per_month__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone(`date`, 'UTC'))))*\n" +
+			"  1000 AS `aggr__sales_per_month__key_0`\n" +
+			"ORDER BY `aggr__sales_per_month__key_0` ASC",
 	},
 	{ // [5]
 		TestName: "date_histogram add in-between rows, calendar_interval: >= month (regression test)",
@@ -762,14 +757,13 @@ var AggregationTestsWithDates = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sales_per_quarter__count", int64(2)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("date", 'UTC'))))*
-			  1000 AS "aggr__sales_per_quarter__key_0",
-			  count(*) AS "aggr__sales_per_quarter__count"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone("date", 'UTC'))))*
-			  1000 AS "aggr__sales_per_quarter__key_0"
-			ORDER BY "aggr__sales_per_quarter__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone(`date`, 'UTC'))))*\n" +
+			"  1000 AS `aggr__sales_per_quarter__key_0`,\n" +
+			"  count(*) AS `aggr__sales_per_quarter__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter(toTimezone(`date`, 'UTC'))))*\n" +
+			"  1000 AS `aggr__sales_per_quarter__key_0`\n" +
+			"ORDER BY `aggr__sales_per_quarter__key_0` ASC",
 	},
 	{ // [6]
 		TestName: "date_histogram add in-between rows, calendar_interval: >= month (regression test)",
@@ -819,14 +813,13 @@ var AggregationTestsWithDates = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__sales_per_year__count", int64(2)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone("date", 'UTC'))))*1000
-			  AS "aggr__sales_per_year__key_0",
-			  count(*) AS "aggr__sales_per_year__count"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone("date", 'UTC'))))*1000
-			  AS "aggr__sales_per_year__key_0"
-			ORDER BY "aggr__sales_per_year__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp(toStartOfYear(toTimezone(`date`, 'UTC'))))*1000\n" +
+			"  AS `aggr__sales_per_year__key_0`,\n" +
+			"  count(*) AS `aggr__sales_per_year__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp(toStartOfYear(toTimezone(`date`, 'UTC'))))*1000\n" +
+			"  AS `aggr__sales_per_year__key_0`\n" +
+			"ORDER BY `aggr__sales_per_year__key_0` ASC",
 	},
 	{ // [7]
 		TestName: "turing 1 - painless script in terms",
@@ -941,30 +934,29 @@ var AggregationTestsWithDates = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__1__2__count", int64(6844)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__1__key_0", "aggr__1__count", "aggr__1__2__parent_count",
-              "aggr__1__2__key_0", "aggr__1__2__count"
-            FROM (
-              SELECT "aggr__1__key_0", "aggr__1__count", "aggr__1__2__parent_count",
-                "aggr__1__2__key_0", "aggr__1__2__count",
-                dense_rank() OVER (ORDER BY "aggr__1__key_0" ASC) AS "aggr__1__order_1_rank",
-                dense_rank() OVER (PARTITION BY "aggr__1__key_0" ORDER BY
-                "aggr__1__2__count" DESC, "aggr__1__2__key_0" ASC) AS
-                "aggr__1__2__order_1_rank"
-              FROM (
-                SELECT toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
-                  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
-                  "aggr__1__key_0",
-                  sum(count(*)) OVER (PARTITION BY "aggr__1__key_0") AS "aggr__1__count",
-                  sum(count(*)) OVER (PARTITION BY "aggr__1__key_0") AS
-                  "aggr__1__2__parent_count",
-                  "request_id"="origin_request_id" AS "aggr__1__2__key_0",
-                  count(*) AS "aggr__1__2__count"
-                FROM __quesma_table_name
-                GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
-                  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 2592000000) AS
-                  "aggr__1__key_0", "request_id"="origin_request_id" AS "aggr__1__2__key_0"))
-            WHERE "aggr__1__2__order_1_rank"<=6
-            ORDER BY "aggr__1__order_1_rank" ASC, "aggr__1__2__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__1__key_0`, `aggr__1__count`, `aggr__1__2__parent_count`,\n" +
+			"  `aggr__1__2__key_0`, `aggr__1__2__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__1__key_0`, `aggr__1__count`, `aggr__1__2__parent_count`,\n" +
+			"    `aggr__1__2__key_0`, `aggr__1__2__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__1__key_0` ASC) AS `aggr__1__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__1__key_0` ORDER BY\n" +
+			"    `aggr__1__2__count` DESC, `aggr__1__2__key_0` ASC) AS\n" +
+			"    `aggr__1__2__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(\n" +
+			"      toTimezone(`@timestamp`, 'Europe/Warsaw'))*1000) / 2592000000) AS\n" +
+			"      `aggr__1__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__1__key_0`) AS `aggr__1__count`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__1__key_0`) AS\n" +
+			"      `aggr__1__2__parent_count`,\n" +
+			"      `request_id`=`origin_request_id` AS `aggr__1__2__key_0`,\n" +
+			"      count(*) AS `aggr__1__2__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY toInt64((toUnixTimestamp64Milli(`@timestamp`)+timeZoneOffset(\n" +
+			"      toTimezone(`@timestamp`, 'Europe/Warsaw'))*1000) / 2592000000) AS\n" +
+			"      `aggr__1__key_0`, `request_id`=`origin_request_id` AS `aggr__1__2__key_0`))\n" +
+			"WHERE `aggr__1__2__order_1_rank`<=6\n" +
+			"ORDER BY `aggr__1__order_1_rank` ASC, `aggr__1__2__order_1_rank` ASC",
 	},
 }

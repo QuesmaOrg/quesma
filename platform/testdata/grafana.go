@@ -75,13 +75,12 @@ var GrafanaAggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 2000) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 2000) AS
-			  "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`) / 2000) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64(toUnixTimestamp64Milli(`@timestamp`) / 2000) AS\n" +
+			"  `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [1]
 		TestName: "1x terms with min_doc_count, need to erase some rows with count < min_doc_count",
@@ -141,14 +140,13 @@ var GrafanaAggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__order_1", int64(0)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-		  	SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-			  "extension" AS "aggr__2__key_0", count(*) AS "aggr__2__count",
-			  count(*)>=40 AS "aggr__2__order_1"
-			FROM __quesma_table_name
-			GROUP BY "extension" AS "aggr__2__key_0"
-			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" DESC
-			LIMIT 5`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"  `extension` AS `aggr__2__key_0`, count(*) AS `aggr__2__count`,\n" +
+			"  count(*)>=40 AS `aggr__2__order_1`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY `extension` AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__order_1` DESC, `aggr__2__key_0` DESC\n" +
+			"LIMIT 5",
 	},
 	{ // [2]
 		TestName: "2x terms with min_doc_count",
@@ -271,32 +269,31 @@ var GrafanaAggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__3__count", int64(2)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-		  	SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-			  "aggr__2__order_1", "aggr__2__3__parent_count", "aggr__2__3__key_0",
-			  "aggr__2__3__count"
-			FROM (
-			  SELECT "aggr__2__parent_count", "aggr__2__key_0", "aggr__2__count",
-				"aggr__2__order_1", "aggr__2__3__parent_count", "aggr__2__3__key_0",
-				"aggr__2__3__count",
-				dense_rank() OVER (ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" DESC)
-				AS "aggr__2__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY
-				"aggr__2__3__count" DESC, "aggr__2__3__key_0" ASC) AS
-				"aggr__2__3__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__2__parent_count",
-				  "extension" AS "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  sum(count(*)>=30) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__order_1",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS
-				  "aggr__2__3__parent_count", "message" AS "aggr__2__3__key_0",
-				  count(*) AS "aggr__2__3__count"
-				FROM __quesma_table_name
-				GROUP BY "extension" AS "aggr__2__key_0", "message" AS "aggr__2__3__key_0"))
-			WHERE ("aggr__2__order_1_rank"<=5 AND "aggr__2__3__order_1_rank"<=11)
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"  `aggr__2__order_1`, `aggr__2__3__parent_count`, `aggr__2__3__key_0`,\n" +
+			"  `aggr__2__3__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__parent_count`, `aggr__2__key_0`, `aggr__2__count`,\n" +
+			"    `aggr__2__order_1`, `aggr__2__3__parent_count`, `aggr__2__3__key_0`,\n" +
+			"    `aggr__2__3__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__2__order_1` DESC, `aggr__2__key_0` DESC)\n" +
+			"    AS `aggr__2__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY\n" +
+			"    `aggr__2__3__count` DESC, `aggr__2__3__key_0` ASC) AS\n" +
+			"    `aggr__2__3__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__2__parent_count`,\n" +
+			"      `extension` AS `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      sum(count(*)>=30) OVER (PARTITION BY `aggr__2__key_0`) AS\n" +
+			"      `aggr__2__order_1`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS\n" +
+			"      `aggr__2__3__parent_count`, `message` AS `aggr__2__3__key_0`,\n" +
+			"      count(*) AS `aggr__2__3__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY `extension` AS `aggr__2__key_0`, `message` AS `aggr__2__3__key_0`))\n" +
+			"WHERE (`aggr__2__order_1_rank`<=5 AND `aggr__2__3__order_1_rank`<=11)\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__3__order_1_rank` ASC",
 	},
 	{ // [3]
 		TestName: "simplest geotile_grid",
@@ -358,13 +355,12 @@ var GrafanaAggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", int64(21)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT geohashEncode(__quesma_geo_lon("geo.coordinates"), __quesma_geo_lat(
-			  "geo.coordinates"), 2) AS "aggr__2__key_0", count(*) AS "aggr__2__count"
-			FROM __quesma_table_name
-			GROUP BY geohashEncode(__quesma_geo_lon("geo.coordinates"), __quesma_geo_lat(
-			  "geo.coordinates"), 2) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__count" DESC, "aggr__2__key_0" ASC
-			LIMIT 10000`,
+		ExpectedPancakeSQL: "SELECT geohashEncode(__quesma_geo_lon(`geo.coordinates`), __quesma_geo_lat(\n" +
+			"  `geo.coordinates`), 2) AS `aggr__2__key_0`, count(*) AS `aggr__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY geohashEncode(__quesma_geo_lon(`geo.coordinates`), __quesma_geo_lat(\n" +
+			"  `geo.coordinates`), 2) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__count` DESC, `aggr__2__key_0` ASC\n" +
+			"LIMIT 10000",
 	},
 }

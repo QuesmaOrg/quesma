@@ -178,35 +178,33 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1-bucket__1-metric_col_0", time.UnixMilli(1727128681000)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__1-bucket__key_0",
-			  "aggr__2__1-bucket__count", "metric__2__1-bucket__1-metric_col_0"
-			FROM (
-			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__1-bucket__key_0",
-				"aggr__2__1-bucket__count", "metric__2__1-bucket__1-metric_col_0",
-				dense_rank() OVER (ORDER BY "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank"
-				,
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY "aggr__2__key_0"
-				ASC, "aggr__2__1-bucket__key_0" ASC) AS "aggr__2__1-bucket__order_1_rank"
-			  FROM (
-				SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__1-bucket__key_0", count(*) AS "aggr__2__1-bucket__count",
-				  maxOrNull("timestamp") AS "metric__2__1-bucket__1-metric_col_0"
-				FROM __quesma_table_name
-				WHERE ("timestamp">=fromUnixTimestamp64Milli(1726848963807) AND "timestamp"
-				  <=fromUnixTimestamp64Milli(1728144963807))
-				GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__key_0",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__1-bucket__key_0"))
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__1-bucket__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__key_0`, `aggr__2__count`, `aggr__2__1-bucket__key_0`,\n" +
+			"  `aggr__2__1-bucket__count`, `metric__2__1-bucket__1-metric_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__key_0`, `aggr__2__count`, `aggr__2__1-bucket__key_0`,\n" +
+			"    `aggr__2__1-bucket__count`, `metric__2__1-bucket__1-metric_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__2__key_0` ASC) AS `aggr__2__order_1_rank`\n" +
+			"    ,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY `aggr__2__key_0`\n" +
+			"    ASC, `aggr__2__1-bucket__key_0` ASC) AS `aggr__2__1-bucket__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+			"      toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+			"      `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+			"      `aggr__2__1-bucket__key_0`, count(*) AS `aggr__2__1-bucket__count`,\n" +
+			"      maxOrNull(`timestamp`) AS `metric__2__1-bucket__1-metric_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    WHERE (`timestamp`>=fromUnixTimestamp64Milli(1726848963807) AND `timestamp`<=fromUnixTimestamp64Milli(1728144963807))\n" +
+			"    GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+			"      toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+			"      `aggr__2__key_0`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+			"      `aggr__2__1-bucket__key_0`))\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__1-bucket__order_1_rank` ASC",
 	},
 	{ // [1]
 		TestName: "Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Avg), Buckets: Date Histogram",
@@ -356,15 +354,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__1-metric_col_0", 7.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 60000) AS "aggr__2__key_0",
-			  count(*) AS "aggr__2__count",
-			  avgOrNull("dayOfWeek") AS "metric__2__1-metric_col_0"
-			FROM __quesma_table_name
-			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 60000) AS "aggr__2__key_0"
-			ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 60000) AS `aggr__2__key_0`,\n" +
+			"  count(*) AS `aggr__2__count`,\n" +
+			"  avgOrNull(`dayOfWeek`) AS `metric__2__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 60000) AS `aggr__2__key_0`\n" +
+			"ORDER BY `aggr__2__key_0` ASC",
 	},
 	{ // [2]
 		TestName: "Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Date Histogram",
@@ -527,33 +524,32 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("metric__2__3-bucket__3-metric_col_0", 165),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3-bucket__key_0",
-			  "aggr__2__3-bucket__count", "metric__2__3-bucket__3-metric_col_0"
-			FROM (
-			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__3-bucket__key_0",
-				"aggr__2__3-bucket__count", "metric__2__3-bucket__3-metric_col_0",
-				dense_rank() OVER (ORDER BY "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank"
-				,
-				dense_rank() OVER (PARTITION BY "aggr__2__key_0" ORDER BY "aggr__2__key_0"
-				ASC, "aggr__2__3-bucket__key_0" ASC) AS "aggr__2__3-bucket__order_1_rank"
-			  FROM (
-				SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__3-bucket__key_0", count(*) AS "aggr__2__3-bucket__count",
-				  uniq("timestamp") AS "metric__2__3-bucket__3-metric_col_0"
-				FROM __quesma_table_name
-				GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__key_0",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
-				  "aggr__2__3-bucket__key_0"))
-			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3-bucket__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__2__key_0`, `aggr__2__count`, `aggr__2__3-bucket__key_0`,\n" +
+			"  `aggr__2__3-bucket__count`, `metric__2__3-bucket__3-metric_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__2__key_0`, `aggr__2__count`, `aggr__2__3-bucket__key_0`,\n" +
+			"    `aggr__2__3-bucket__count`, `metric__2__3-bucket__3-metric_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__2__key_0` ASC) AS `aggr__2__order_1_rank`\n" +
+			"    ,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__2__key_0` ORDER BY `aggr__2__key_0`\n" +
+			"    ASC, `aggr__2__3-bucket__key_0` ASC) AS `aggr__2__3-bucket__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+			"      toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+			"      `aggr__2__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__2__key_0`) AS `aggr__2__count`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+			"      `aggr__2__3-bucket__key_0`, count(*) AS `aggr__2__3-bucket__count`,\n" +
+			"      uniq(`timestamp`) AS `metric__2__3-bucket__3-metric_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+			"      toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+			"      `aggr__2__key_0`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+			"      `aggr__2__3-bucket__key_0`))\n" +
+			"ORDER BY `aggr__2__order_1_rank` ASC, `aggr__2__3-bucket__order_1_rank` ASC",
 	},
 	{ // [3]
 		TestName: "Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Count), Buckets: Histogram" +
@@ -668,11 +664,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", int64(3)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT floor("DistanceMiles"/10)*10 AS "aggr__2__key_0",
-              count(*) AS "aggr__2__count"
-            FROM __quesma_table_name
-            GROUP BY floor("DistanceMiles"/10)*10 AS "aggr__2__key_0"
-            ORDER BY "aggr__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT floor(`DistanceMiles`/10)*10 AS `aggr__2__key_0`,\n" +
+			"              count(*) AS `aggr__2__count`\n" +
+			"            FROM `__quesma_table_name`\n" +
+			"            GROUP BY floor(`DistanceMiles`/10)*10 AS `aggr__2__key_0`\n" +
+			"            ORDER BY `aggr__2__key_0` ASC",
 	},
 }

@@ -36,7 +36,7 @@ var parseRangeTests = []parseRangeTest{
 			},
 			Config: database_common.NewNoTimestampOnlyStringAttrCHConfig(),
 		},
-		`("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029))`,
+		"(`timestamp`>=fromUnixTimestamp64Milli(1706881636029) AND `timestamp`<=fromUnixTimestamp64Milli(1707486436029))",
 	},
 	{
 		"parseDateTimeBestEffort",
@@ -55,7 +55,7 @@ var parseRangeTests = []parseRangeTest{
 			},
 			Config: database_common.NewNoTimestampOnlyStringAttrCHConfig(),
 		},
-		`("timestamp">=fromUnixTimestamp(1706881636) AND "timestamp"<=fromUnixTimestamp(1707486436))`,
+		"(`timestamp`>=fromUnixTimestamp(1706881636) AND `timestamp`<=fromUnixTimestamp(1707486436))",
 	},
 	{
 		"numeric range",
@@ -72,7 +72,7 @@ var parseRangeTests = []parseRangeTest{
 			},
 			Config: database_common.NewNoTimestampOnlyStringAttrCHConfig(),
 		},
-		`"time_taken">100`,
+		"`time_taken`>100",
 	},
 	{
 		"DateTime64",
@@ -91,7 +91,7 @@ var parseRangeTests = []parseRangeTest{
 			},
 			Config: database_common.NewNoTimestampOnlyStringAttrCHConfig(),
 		},
-		`("timestamp">=fromUnixTimestamp64Milli(1706881636000) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436000))`,
+		"(`timestamp`>=fromUnixTimestamp64Milli(1706881636000) AND `timestamp`<=fromUnixTimestamp64Milli(1707486436000))",
 	},
 }
 

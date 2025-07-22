@@ -111,12 +111,11 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__minAgg_col_0", 0.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT maxOrNull("bytes") AS "metric__maxAgg_col_0",
-			  minOrNull("bytes") AS "metric__minAgg_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))`,
+		ExpectedPancakeSQL: "SELECT maxOrNull(`bytes`) AS `metric__maxAgg_col_0`,\n" +
+			"  minOrNull(`bytes`) AS `metric__minAgg_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740831278103))",
 	},
 	{ // [1]
 		TestName: "Response Codes Over Time + Annotations (1/2 request, Annotations part)",
@@ -341,87 +340,84 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__1__2__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__1__count",
-			  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
-			  count(*) AS "aggr__1__2__count"
-			FROM __quesma_table_name
-			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
-			  "tags" __quesma_match 'security'))
-			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0"
-			ORDER BY "aggr__1__2__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+			"  toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__1__2__key_0`,\n" +
+			"  count(*) AS `aggr__1__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740831278103)) AND (`tags` __quesma_match 'error' AND\n" +
+			"  `tags` __quesma_match 'security'))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__1__2__key_0`\n" +
+			"ORDER BY `aggr__1__2__key_0` ASC",
 		ExpectedAdditionalPancakeSQLs: []string{
-			`
-			WITH quesma_top_hits_group_table AS (
-			  SELECT sum(count(*)) OVER () AS "aggr__1__count",
-				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
-				count(*) AS "aggr__1__2__count"
-			  FROM __quesma_table_name
-			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
-				"tags" __quesma_match 'security'))
-			  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-				toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
-				"aggr__1__2__key_0"
-			  ORDER BY "aggr__1__2__key_0" ASC) ,
-			quesma_top_hits_join AS (
-			  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
-				"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
-				"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
-				"hit_table"."timestamp" AS "top_metrics__1__2__4_col_0",
-				"hit_table"."timestamp" AS "top_metrics__1__2__4_col_1",
-				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
-				"timestamp" ASC) AS "top_hits_rank"
-			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
-				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
-				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
-			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
-				"tags" __quesma_match 'security')))
-			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
-			  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
-			FROM "quesma_top_hits_join"
-			WHERE "top_hits_rank"<=10
-			ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
-			`
-			WITH quesma_top_hits_group_table AS (
-			  SELECT sum(count(*)) OVER () AS "aggr__1__count",
-				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
-				count(*) AS "aggr__1__2__count"
-			  FROM __quesma_table_name
-			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
-				"tags" __quesma_match 'security'))
-			  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-				toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
-				"aggr__1__2__key_0"
-			  ORDER BY "aggr__1__2__key_0" ASC) ,
-			quesma_top_hits_join AS (
-			  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
-				"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
-				"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
-				"hit_table"."geo.src" AS "top_metrics__1__2__5_col_0",
-				"hit_table"."timestamp" AS "top_metrics__1__2__5_col_1",
-				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
-				"timestamp" ASC) AS "top_hits_rank"
-			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
-				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
-				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
-			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
-				"tags" __quesma_match 'security')))
-			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
-			  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
-			FROM "quesma_top_hits_join"
-			WHERE "top_hits_rank"<=10
-			ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+			" WITH quesma_top_hits_group_table AS (\n" +
+				"  SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__1__2__key_0`,\n" +
+				"    count(*) AS `aggr__1__2__count`\n" +
+				"  FROM `__quesma_table_name`\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740831278103)) AND (`tags` __quesma_match 'error'\n" +
+				"    AND `tags` __quesma_match 'security'))\n" +
+				"  GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+				"    toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS\n" +
+				"    `aggr__1__2__key_0`\n" +
+				"  ORDER BY `aggr__1__2__key_0` ASC) ,\n" +
+				"quesma_top_hits_join AS (\n" +
+				"  SELECT `group_table`.`aggr__1__count` AS `aggr__1__count`,\n" +
+				"    `group_table`.`aggr__1__2__key_0` AS `aggr__1__2__key_0`,\n" +
+				"    `group_table`.`aggr__1__2__count` AS `aggr__1__2__count`,\n" +
+				"    `hit_table`.`timestamp` AS `top_metrics__1__2__4_col_0`,\n" +
+				"    `hit_table`.`timestamp` AS `top_metrics__1__2__4_col_1`,\n" +
+				"    ROW_NUMBER() OVER (PARTITION BY `group_table`.`aggr__1__2__key_0` ORDER BY\n" +
+				"    `timestamp` ASC) AS `top_hits_rank`\n" +
+				"  FROM quesma_top_hits_group_table AS `group_table` LEFT OUTER JOIN\n" +
+				"    `__quesma_table_name` AS `hit_table` ON (`group_table`.`aggr__1__2__key_0`=\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000))\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740831278103)) AND (`tags` __quesma_match 'error'\n" +
+				"    AND `tags` __quesma_match 'security')))\n" +
+				"SELECT `aggr__1__count`, `aggr__1__2__key_0`, `aggr__1__2__count`,\n" +
+				"  `top_metrics__1__2__4_col_0`, `top_metrics__1__2__4_col_1`, `top_hits_rank`\n" +
+				"FROM `quesma_top_hits_join`\n" +
+				"WHERE `top_hits_rank`<=10\n" +
+				"ORDER BY `aggr__1__2__key_0` ASC, `top_hits_rank` ASC",
+			" WITH quesma_top_hits_group_table AS (\n" +
+				"  SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__1__2__key_0`,\n" +
+				"    count(*) AS `aggr__1__2__count`\n" +
+				"  FROM `__quesma_table_name`\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740831278103)) AND (`tags` __quesma_match 'error'\n" +
+				"    AND `tags` __quesma_match 'security'))\n" +
+				"  GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+				"    toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS\n" +
+				"    `aggr__1__2__key_0`\n" +
+				"  ORDER BY `aggr__1__2__key_0` ASC) ,\n" +
+				"quesma_top_hits_join AS (\n" +
+				"  SELECT `group_table`.`aggr__1__count` AS `aggr__1__count`,\n" +
+				"    `group_table`.`aggr__1__2__key_0` AS `aggr__1__2__key_0`,\n" +
+				"    `group_table`.`aggr__1__2__count` AS `aggr__1__2__count`,\n" +
+				"    `hit_table`.`geo.src` AS `top_metrics__1__2__5_col_0`,\n" +
+				"    `hit_table`.`timestamp` AS `top_metrics__1__2__5_col_1`,\n" +
+				"    ROW_NUMBER() OVER (PARTITION BY `group_table`.`aggr__1__2__key_0` ORDER BY\n" +
+				"    `timestamp` ASC) AS `top_hits_rank`\n" +
+				"  FROM quesma_top_hits_group_table AS `group_table` LEFT OUTER JOIN\n" +
+				"    `__quesma_table_name` AS `hit_table` ON (`group_table`.`aggr__1__2__key_0`=\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000))\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740831278103)) AND (`tags` __quesma_match 'error'\n" +
+				"    AND `tags` __quesma_match 'security')))\n" +
+				"SELECT `aggr__1__count`, `aggr__1__2__key_0`, `aggr__1__2__count`,\n" +
+				"  `top_metrics__1__2__5_col_0`, `top_metrics__1__2__5_col_1`, `top_hits_rank`\n" +
+				"FROM `quesma_top_hits_join`\n" +
+				"WHERE `top_hits_rank`<=10\n" +
+				"ORDER BY `aggr__1__2__key_0` ASC, `top_hits_rank` ASC",
 		},
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
 			{
@@ -560,11 +556,10 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0_col_0", int64(833)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT uniq("clientip") AS "metric__0_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))`,
+		ExpectedPancakeSQL: "SELECT uniq(`clientip`) AS `metric__0_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740831278103))",
 	},
 	{ // [3]
 		TestName: "Response Codes Over Time + Annotations (2/2 request)",
@@ -853,20 +848,18 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("filter_2__aggr__0__1__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count",
-			  countIf(("response">=200 AND "response"<400)) AS "filter_0__aggr__0__1__count"
-			  ,
-			  countIf(("response">=400 AND "response"<500)) AS "filter_1__aggr__0__1__count"
-			  , countIf("response">=500) AS "filter_2__aggr__0__1__count"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))
-			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__0__key_0`,\n" +
+			"  count(*) AS `aggr__0__count`,\n" +
+			"  countIf((`response`>=200 AND `response`<400)) AS `filter_0__aggr__0__1__count`\n" +
+			"  ,\n" +
+			"  countIf((`response`>=400 AND `response`<500)) AS `filter_1__aggr__0__1__count`\n" +
+			"  , countIf(`response`>=500) AS `filter_2__aggr__0__1__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<=fromUnixTimestamp64Milli(1740831278103))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 	{ // [4]
 		TestName: "HTTP 5xx",
@@ -986,11 +979,10 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0-bucket_col_0", int64(63)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf("response">=500) AS "metric__0-bucket_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))`,
+		ExpectedPancakeSQL: "SELECT countIf(`response`>=500) AS `metric__0-bucket_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740831278103))",
 	},
 	{ // [5]
 		TestName: "HTTP 4xx",
@@ -1130,11 +1122,10 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0-bucket_col_0", int64(72)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf(("response">=400 AND "response"<500)) AS "metric__0-bucket_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))`,
+		ExpectedPancakeSQL: "SELECT countIf((`response`>=400 AND `response`<500)) AS `metric__0-bucket_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740831278103))",
 	},
 	{ // [6]
 		TestName: "Table gz, css, zip, etc.",
@@ -1363,38 +1354,33 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__4-bucket__4-metric_col_0", 0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-			  "extension" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  sumOrNull("bytes") AS "metric__0__1_col_0",
-			  uniq("clientip") AS "metric__0__3_col_0",
-			  countIf(("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND "timestamp"
-			  <=fromUnixTimestamp64Milli(1740753572445))) AS "aggr__0__2-bucket__count",
-			  sumOrNullIf("bytes", ("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND
-			  "timestamp"<=fromUnixTimestamp64Milli(1740753572445))) AS
-			  "metric__0__2-bucket__2-metric_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740092400000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740753572445))
-			GROUP BY "extension" AS "aggr__0__key_0"
-			ORDER BY "metric__0__1_col_0" DESC, "aggr__0__key_0" ASC
-			LIMIT 11`,
-		ExpectedAdditionalPancakeSQLs: []string{`
-			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-			  "extension" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  sumOrNull("bytes") AS "metric__0__1_col_0",
-			  uniq("clientip") AS "metric__0__3_col_0",
-			  countIf(("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND "timestamp"
-			  <=fromUnixTimestamp64Milli(1740753572445))) AS "aggr__0__4-bucket__count",
-			  uniqIf("clientip", ("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND
-			  "timestamp"<=fromUnixTimestamp64Milli(1740753572445))) AS
-			  "metric__0__4-bucket__4-metric_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740092400000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740753572445))
-			GROUP BY "extension" AS "aggr__0__key_0"
-			ORDER BY "metric__0__1_col_0" DESC, "aggr__0__key_0" ASC
-			LIMIT 11`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"  `extension` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`,\n" +
+			"  sumOrNull(`bytes`) AS `metric__0__1_col_0`,\n" +
+			"  uniq(`clientip`) AS `metric__0__3_col_0`,\n" +
+			"  countIf((`timestamp`>=fromUnixTimestamp64Milli(1740749972445) AND `timestamp`<=fromUnixTimestamp64Milli(1740753572445))) AS `aggr__0__2-bucket__count`,\n" +
+			"  sumOrNullIf(`bytes`, (`timestamp`>=fromUnixTimestamp64Milli(1740749972445) AND\n" +
+			"  `timestamp`<=fromUnixTimestamp64Milli(1740753572445))) AS\n" +
+			"  `metric__0__2-bucket__2-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740092400000) AND `timestamp`<=fromUnixTimestamp64Milli(1740753572445))\n" +
+			"GROUP BY `extension` AS `aggr__0__key_0`\n" +
+			"ORDER BY `metric__0__1_col_0` DESC, `aggr__0__key_0` ASC\n" +
+			"LIMIT 11",
+		ExpectedAdditionalPancakeSQLs: []string{
+			"SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+				"  `extension` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`,\n" +
+				"  sumOrNull(`bytes`) AS `metric__0__1_col_0`,\n" +
+				"  uniq(`clientip`) AS `metric__0__3_col_0`,\n" +
+				"  countIf((`timestamp`>=fromUnixTimestamp64Milli(1740749972445) AND `timestamp`<=fromUnixTimestamp64Milli(1740753572445))) AS `aggr__0__4-bucket__count`,\n" +
+				"  uniqIf(`clientip`, (`timestamp`>=fromUnixTimestamp64Milli(1740749972445) AND\n" +
+				"  `timestamp`<=fromUnixTimestamp64Milli(1740753572445))) AS\n" +
+				"  `metric__0__4-bucket__4-metric_col_0`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740092400000) AND `timestamp`<=fromUnixTimestamp64Milli(1740753572445))\n" +
+				"GROUP BY `extension` AS `aggr__0__key_0`\n" +
+				"ORDER BY `metric__0__1_col_0` DESC, `aggr__0__key_0` ASC\n" +
+				"LIMIT 11",
 		},
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
 			{
@@ -1680,20 +1666,19 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__8_col_0", []float64{5929.5}),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-			  "url" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  uniq("clientip") AS "metric__0__2_col_0",
-			  countIf("response">=500) AS "metric__0__3-bucket_col_0",
-			  countIf(("response">=400 AND "response"<500)) AS "metric__0__5-bucket_col_0",
-			  quantiles(0.950000)("bytes") AS "metric__0__7_col_0",
-			  quantiles(0.500000)("bytes") AS "metric__0__8_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))
-			GROUP BY "url" AS "aggr__0__key_0"
-			ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC
-			LIMIT 1001`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"  `url` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`,\n" +
+			"  uniq(`clientip`) AS `metric__0__2_col_0`,\n" +
+			"  countIf(`response`>=500) AS `metric__0__3-bucket_col_0`,\n" +
+			"  countIf((`response`>=400 AND `response`<500)) AS `metric__0__5-bucket_col_0`,\n" +
+			"  quantiles(0.950000)(`bytes`) AS `metric__0__7_col_0`,\n" +
+			"  quantiles(0.500000)(`bytes`) AS `metric__0__8_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740831278103))\n" +
+			"GROUP BY `url` AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__count` DESC, `aggr__0__key_0` ASC\n" +
+			"LIMIT 1001",
 	},
 	{ // [8]
 		TestName: "Total Requests and Bytes (1/2 request)",
@@ -1883,28 +1868,26 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__gridSplit__sum_of_bytes_col_0", float64(450382.0)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT FLOOR(((__quesma_geo_lon("geo.coordinates")+180)/360)*POWER(2, 6))
-			  AS "aggr__gridSplit__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geo.coordinates")))+(1/COS(RADIANS(
-			  __quesma_geo_lat("geo.coordinates")))))/PI())/2*POWER(2, 6))
-			  AS "aggr__gridSplit__key_1", count(*) AS "aggr__gridSplit__count",
-			  avgOrNull(__quesma_geo_lat("geo_coordinates")) AS
-			  "metric__gridSplit__gridCentroid_col_0",
-			  avgOrNull(__quesma_geo_lon("geo_coordinates")) AS
-			  "metric__gridSplit__gridCentroid_col_1",
-			  count(*) AS "metric__gridSplit__gridCentroid_col_2",
-			  sumOrNull("bytes") AS "metric__gridSplit__sum_of_bytes_col_0"
-			FROM __quesma_table_name
-			WHERE ("geo.coordinates" IS NOT NULL AND ("timestamp">=fromUnixTimestamp64Milli(
-			  1740178800000) AND "timestamp"<=fromUnixTimestamp64Milli(1740831278103)))
-			GROUP BY FLOOR(((__quesma_geo_lon("geo.coordinates")+180)/360)*POWER(2, 6))
-			  AS "aggr__gridSplit__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geo.coordinates")))+(1/COS(
-			  RADIANS(__quesma_geo_lat("geo.coordinates")))))/PI())/2*POWER(2, 6)) AS "aggr__gridSplit__key_1"
-			ORDER BY "aggr__gridSplit__count" DESC, "aggr__gridSplit__key_0" ASC,
-  			  "aggr__gridSplit__key_1" ASC
-			LIMIT 65535`,
+		ExpectedPancakeSQL: "SELECT FLOOR(((__quesma_geo_lon(`geo.coordinates`)+180)/360)*POWER(2, 6))\n" +
+			"  AS `aggr__gridSplit__key_0`,\n" +
+			"  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`geo.coordinates`)))+(1/COS(RADIANS(\n" +
+			"  __quesma_geo_lat(`geo.coordinates`)))))/PI())/2*POWER(2, 6)) AS `aggr__gridSplit__key_1`, count(*) AS `aggr__gridSplit__count`,\n" +
+			"  avgOrNull(__quesma_geo_lat(`geo_coordinates`)) AS\n" +
+			"  `metric__gridSplit__gridCentroid_col_0`,\n" +
+			"  avgOrNull(__quesma_geo_lon(`geo_coordinates`)) AS\n" +
+			"  `metric__gridSplit__gridCentroid_col_1`,\n" +
+			"  count(*) AS `metric__gridSplit__gridCentroid_col_2`,\n" +
+			"  sumOrNull(`bytes`) AS `metric__gridSplit__sum_of_bytes_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`geo.coordinates` IS NOT NULL AND (`timestamp`>=fromUnixTimestamp64Milli(\n" +
+			"  1740178800000) AND `timestamp`<=fromUnixTimestamp64Milli(1740831278103)))\n" +
+			"GROUP BY FLOOR(((__quesma_geo_lon(`geo.coordinates`)+180)/360)*POWER(2, 6))\n" +
+			"  AS `aggr__gridSplit__key_0`,\n" +
+			"  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`geo.coordinates`)))+(1/COS(\n" +
+			"  RADIANS(__quesma_geo_lat(`geo.coordinates`)))))/PI())/2*POWER(2, 6)) AS `aggr__gridSplit__key_1`\n" +
+			"ORDER BY `aggr__gridSplit__count` DESC, `aggr__gridSplit__key_0` ASC,\n" +
+			"  `aggr__gridSplit__key_1` ASC\n" +
+			"LIMIT 65535",
 	},
 	{ // [9]
 		TestName: "Total Requests and Bytes (2/2 request)",
@@ -2020,15 +2003,14 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__join__count", int64(260)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__join__parent_count",
-			  "geo.dest" AS "aggr__join__key_0", count(*) AS "aggr__join__count"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))
-			GROUP BY "geo.dest" AS "aggr__join__key_0"
-			ORDER BY "aggr__join__count" DESC, "aggr__join__key_0" ASC
-			LIMIT 65536`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__join__parent_count`,\n" +
+			"  `geo.dest` AS `aggr__join__key_0`, count(*) AS `aggr__join__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740831278103))\n" +
+			"GROUP BY `geo.dest` AS `aggr__join__key_0`\n" +
+			"ORDER BY `aggr__join__count` DESC, `aggr__join__key_0` ASC\n" +
+			"LIMIT 65536",
 	},
 	{ // [10]
 		TestName: "Unique Destination Heatmap",
@@ -2191,35 +2173,34 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("metric__countries__hours__unique_col_0", int64(2)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__countries__parent_count", "aggr__countries__key_0",
-			  "aggr__countries__count", "aggr__countries__hours__key_0",
-			  "aggr__countries__hours__count", "metric__countries__hours__unique_col_0"
-			FROM (
-			  SELECT "aggr__countries__parent_count", "aggr__countries__key_0",
-				"aggr__countries__count", "aggr__countries__hours__key_0",
-				"aggr__countries__hours__count", "metric__countries__hours__unique_col_0",
-				dense_rank() OVER (ORDER BY "aggr__countries__count" DESC,
-				"aggr__countries__key_0" ASC) AS "aggr__countries__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__countries__key_0" ORDER BY
-				"aggr__countries__hours__key_0" ASC) AS
-				"aggr__countries__hours__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__countries__parent_count",
-				  "geo.dest" AS "aggr__countries__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__countries__key_0") AS
-				  "aggr__countries__count",
-				  "hour_of_day" AS "aggr__countries__hours__key_0",
-				  count(*) AS "aggr__countries__hours__count",
-				  uniq("clientip") AS "metric__countries__hours__unique_col_0"
-				FROM __quesma_table_name
-				WHERE ("@timestamp">=fromUnixTimestamp64Milli(1740178800000) AND
-				  "@timestamp"<=fromUnixTimestamp64Milli(1740831278103))
-				GROUP BY "geo.dest" AS "aggr__countries__key_0",
-				  "hour_of_day" AS "aggr__countries__hours__key_0"))
-			WHERE "aggr__countries__order_1_rank"<=26
-			ORDER BY "aggr__countries__order_1_rank" ASC,
-			  "aggr__countries__hours__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__countries__parent_count`, `aggr__countries__key_0`,\n" +
+			"  `aggr__countries__count`, `aggr__countries__hours__key_0`,\n" +
+			"  `aggr__countries__hours__count`, `metric__countries__hours__unique_col_0`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__countries__parent_count`, `aggr__countries__key_0`,\n" +
+			"    `aggr__countries__count`, `aggr__countries__hours__key_0`,\n" +
+			"    `aggr__countries__hours__count`, `metric__countries__hours__unique_col_0`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__countries__count` DESC,\n" +
+			"    `aggr__countries__key_0` ASC) AS `aggr__countries__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__countries__key_0` ORDER BY\n" +
+			"    `aggr__countries__hours__key_0` ASC) AS\n" +
+			"    `aggr__countries__hours__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__countries__parent_count`,\n" +
+			"      `geo.dest` AS `aggr__countries__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__countries__key_0`) AS\n" +
+			"      `aggr__countries__count`,\n" +
+			"      `hour_of_day` AS `aggr__countries__hours__key_0`,\n" +
+			"      count(*) AS `aggr__countries__hours__count`,\n" +
+			"      uniq(`clientip`) AS `metric__countries__hours__unique_col_0`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    WHERE (`@timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND\n" +
+			"      `@timestamp`<=fromUnixTimestamp64Milli(1740831278103))\n" +
+			"    GROUP BY `geo.dest` AS `aggr__countries__key_0`,\n" +
+			"      `hour_of_day` AS `aggr__countries__hours__key_0`))\n" +
+			"WHERE `aggr__countries__order_1_rank`<=26\n" +
+			"ORDER BY `aggr__countries__order_1_rank` ASC,\n" +
+			"  `aggr__countries__hours__order_1_rank` ASC",
 	},
 	{ // [11]
 		TestName: "TODO Machine OS and Destination Sankey Chart",
@@ -2345,17 +2326,16 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__table__count", int64(11)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "machine.os" AS "aggr__table__key_0", "geo.dest" AS "aggr__table__key_1",
-			  count(*) AS "aggr__table__count"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))
-			GROUP BY "machine.os" AS "aggr__table__key_0",
-			  "geo.dest" AS "aggr__table__key_1"
-			ORDER BY "aggr__table__count" DESC, "aggr__table__key_0" ASC,
-			  "aggr__table__key_1" ASC
-			LIMIT 3`,
+		ExpectedPancakeSQL: "SELECT `machine.os` AS `aggr__table__key_0`, `geo.dest` AS `aggr__table__key_1`,\n" +
+			"  count(*) AS `aggr__table__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740831278103))\n" +
+			"GROUP BY `machine.os` AS `aggr__table__key_0`,\n" +
+			"  `geo.dest` AS `aggr__table__key_1`\n" +
+			"ORDER BY `aggr__table__count` DESC, `aggr__table__key_0` ASC,\n" +
+			"  `aggr__table__key_1` ASC\n" +
+			"LIMIT 3",
 	},
 	{ // [12]
 		TestName: "Bytes distribution",
@@ -2479,12 +2459,11 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__count", int64(2)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT floor("bytes"/50)*50 AS "aggr__0__key_0", count(*) AS "aggr__0__count"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))
-			GROUP BY floor("bytes"/50)*50 AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT floor(`bytes`/50)*50 AS `aggr__0__key_0`, count(*) AS `aggr__0__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740178800000) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740831278103))\n" +
+			"GROUP BY floor(`bytes`/50)*50 AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 }

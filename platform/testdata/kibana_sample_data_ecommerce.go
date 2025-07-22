@@ -104,12 +104,11 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__minAgg_col_0", 2.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT maxOrNull("total_quantity") AS "metric__maxAgg_col_0",
-			  minOrNull("total_quantity") AS "metric__minAgg_col_0"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740584933594))`,
+		ExpectedPancakeSQL: "SELECT maxOrNull(`total_quantity`) AS `metric__maxAgg_col_0`,\n" +
+			"  minOrNull(`total_quantity`) AS `metric__minAgg_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`order_date`>=fromUnixTimestamp64Milli(1739980133594) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740584933594))",
 	},
 	{ // [1]
 		TestName: "Promotions tracking (request 1/3)",
@@ -376,81 +375,74 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__1__2__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__1__count",
-			  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
-			  count(*) AS "aggr__1__2__count"
-			FROM __quesma_table_name
-			WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250')
-			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
-			  ("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0"
-			ORDER BY "aggr__1__2__key_0" ASC`,
-		ExpectedAdditionalPancakeSQLs: []string{`
-				WITH quesma_top_hits_group_table AS (
-				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
-					toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-					"order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
-					count(*) AS "aggr__1__2__count"
-				  FROM __quesma_table_name
-				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
-					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250')
-				  GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(
-					toTimezone("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS
-					"aggr__1__2__key_0"
-				  ORDER BY "aggr__1__2__key_0" ASC) ,
-				quesma_top_hits_join AS (
-				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
-					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
-					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
-					"hit_table"."order_date" AS "top_metrics__1__2__4_col_0",
-					"hit_table"."order_date" AS "top_metrics__1__2__4_col_1",
-					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
-					"order_date" ASC) AS "top_hits_rank"
-				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
-					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
-					toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-					"order_date", 'Europe/Warsaw'))*1000) / 43200000))
-				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
-					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250'))
-				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
-				  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
-				FROM "quesma_top_hits_join"
-				WHERE "top_hits_rank"<=10
-				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
-			`
-				WITH quesma_top_hits_group_table AS (
-				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
-					toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-					"order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__1__2__key_0",
-					count(*) AS "aggr__1__2__count"
-				  FROM __quesma_table_name
-				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
-					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250')
-				  GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(
-					toTimezone("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS
-					"aggr__1__2__key_0"
-				  ORDER BY "aggr__1__2__key_0" ASC) ,
-				quesma_top_hits_join AS (
-				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
-					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
-					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
-					"hit_table"."taxful_total_price" AS "top_metrics__1__2__5_col_0",
-					"hit_table"."order_date" AS "top_metrics__1__2__5_col_1",
-					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
-					"order_date" ASC) AS "top_hits_rank"
-				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
-					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
-					toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-					"order_date", 'Europe/Warsaw'))*1000) / 43200000))
-				  WHERE (("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"
-					<=fromUnixTimestamp64Milli(1740584933594)) AND "taxful_total_price" > '250'))
-				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
-				  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
-				FROM "quesma_top_hits_join"
-				WHERE "top_hits_rank"<=10
-				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+			"  toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+			"  `order_date`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__1__2__key_0`,\n" +
+			"  count(*) AS `aggr__1__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE ((`order_date`>=fromUnixTimestamp64Milli(1739980133594) AND `order_date`<=fromUnixTimestamp64Milli(1740584933594)) AND `taxful_total_price` > '250')\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone\n" +
+			"  (`order_date`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__1__2__key_0`\n" +
+			"ORDER BY `aggr__1__2__key_0` ASC",
+		ExpectedAdditionalPancakeSQLs: []string{
+			" WITH quesma_top_hits_group_table AS (\n" +
+				"  SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+				"    toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+				"    `order_date`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__1__2__key_0`,\n" +
+				"    count(*) AS `aggr__1__2__count`\n" +
+				"  FROM `__quesma_table_name`\n" +
+				"  WHERE ((`order_date`>=fromUnixTimestamp64Milli(1739980133594) AND `order_date`<=fromUnixTimestamp64Milli(1740584933594)) AND `taxful_total_price` > '250')\n" +
+				"  GROUP BY toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(\n" +
+				"    toTimezone(`order_date`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+				"    `aggr__1__2__key_0`\n" +
+				"  ORDER BY `aggr__1__2__key_0` ASC) ,\n" +
+				"quesma_top_hits_join AS (\n" +
+				"  SELECT `group_table`.`aggr__1__count` AS `aggr__1__count`,\n" +
+				"    `group_table`.`aggr__1__2__key_0` AS `aggr__1__2__key_0`,\n" +
+				"    `group_table`.`aggr__1__2__count` AS `aggr__1__2__count`,\n" +
+				"    `hit_table`.`order_date` AS `top_metrics__1__2__4_col_0`,\n" +
+				"    `hit_table`.`order_date` AS `top_metrics__1__2__4_col_1`,\n" +
+				"    ROW_NUMBER() OVER (PARTITION BY `group_table`.`aggr__1__2__key_0` ORDER BY\n" +
+				"    `order_date` ASC) AS `top_hits_rank`\n" +
+				"  FROM quesma_top_hits_group_table AS `group_table` LEFT OUTER JOIN\n" +
+				"    `__quesma_table_name` AS `hit_table` ON (`group_table`.`aggr__1__2__key_0`=\n" +
+				"    toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+				"    `order_date`, 'Europe/Warsaw'))*1000) / 43200000))\n" +
+				"  WHERE ((`order_date`>=fromUnixTimestamp64Milli(1739980133594) AND `order_date`<=fromUnixTimestamp64Milli(1740584933594)) AND `taxful_total_price` > '250'))\n" +
+				"SELECT `aggr__1__count`, `aggr__1__2__key_0`, `aggr__1__2__count`,\n" +
+				"  `top_metrics__1__2__4_col_0`, `top_metrics__1__2__4_col_1`, `top_hits_rank`\n" +
+				"FROM `quesma_top_hits_join`\n" +
+				"WHERE `top_hits_rank`<=10\n" +
+				"ORDER BY `aggr__1__2__key_0` ASC, `top_hits_rank` ASC",
+			" WITH quesma_top_hits_group_table AS (\n" +
+				"  SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+				"    toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+				"    `order_date`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__1__2__key_0`,\n" +
+				"    count(*) AS `aggr__1__2__count`\n" +
+				"  FROM `__quesma_table_name`\n" +
+				"  WHERE ((`order_date`>=fromUnixTimestamp64Milli(1739980133594) AND `order_date`<=fromUnixTimestamp64Milli(1740584933594)) AND `taxful_total_price` > '250')\n" +
+				"  GROUP BY toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(\n" +
+				"    toTimezone(`order_date`, 'Europe/Warsaw'))*1000) / 43200000) AS\n" +
+				"    `aggr__1__2__key_0`\n" +
+				"  ORDER BY `aggr__1__2__key_0` ASC) ,\n" +
+				"quesma_top_hits_join AS (\n" +
+				"  SELECT `group_table`.`aggr__1__count` AS `aggr__1__count`,\n" +
+				"    `group_table`.`aggr__1__2__key_0` AS `aggr__1__2__key_0`,\n" +
+				"    `group_table`.`aggr__1__2__count` AS `aggr__1__2__count`,\n" +
+				"    `hit_table`.`taxful_total_price` AS `top_metrics__1__2__5_col_0`,\n" +
+				"    `hit_table`.`order_date` AS `top_metrics__1__2__5_col_1`,\n" +
+				"    ROW_NUMBER() OVER (PARTITION BY `group_table`.`aggr__1__2__key_0` ORDER BY\n" +
+				"    `order_date` ASC) AS `top_hits_rank`\n" +
+				"  FROM quesma_top_hits_group_table AS `group_table` LEFT OUTER JOIN\n" +
+				"    `__quesma_table_name` AS `hit_table` ON (`group_table`.`aggr__1__2__key_0`=\n" +
+				"    toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+				"    `order_date`, 'Europe/Warsaw'))*1000) / 43200000))\n" +
+				"  WHERE ((`order_date`>=fromUnixTimestamp64Milli(1739980133594) AND `order_date`<=fromUnixTimestamp64Milli(1740584933594)) AND `taxful_total_price` > '250'))\n" +
+				"SELECT `aggr__1__count`, `aggr__1__2__key_0`, `aggr__1__2__count`,\n" +
+				"  `top_metrics__1__2__5_col_0`, `top_metrics__1__2__5_col_1`, `top_hits_rank`\n" +
+				"FROM `quesma_top_hits_join`\n" +
+				"WHERE `top_hits_rank`<=10\n" +
+				"ORDER BY `aggr__1__2__key_0` ASC, `top_hits_rank` ASC",
 		},
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
 			{
@@ -683,20 +675,19 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 0.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count",
-			  countIf("products.product_name" __quesma_match '%trouser%') AS
-			  "aggr__0__1-bucket__count",
-			  sumOrNullIf("taxful_total_price", "products.product_name" __quesma_match '%trouser%')
-			  AS "metric__0__1-bucket__1-metric_col_0"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1739979776601) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740584576601))
-			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
-			  ("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+			"  `order_date`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__0__key_0`,\n" +
+			"  count(*) AS `aggr__0__count`,\n" +
+			"  countIf(`products.product_name` __quesma_match '%trouser%') AS\n" +
+			"  `aggr__0__1-bucket__count`,\n" +
+			"  sumOrNullIf(`taxful_total_price`, `products.product_name` __quesma_match '%trouser%')\n" +
+			"  AS `metric__0__1-bucket__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`order_date`>=fromUnixTimestamp64Milli(1739979776601) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740584576601))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone\n" +
+			"  (`order_date`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 	{ // [3]
 		TestName: "Promotions tracking (request 3/3)",
@@ -854,22 +845,21 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1-bucket__1-metric_col_0", 0.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-			  "order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count",
-			  countIf(("products.product_name" __quesma_match '%cocktail' OR
-			  "__quesma_fulltext_field_name" __quesma_match 'dress%')) AS
-			  "aggr__0__1-bucket__count",
-			  sumOrNullIf("taxful_total_price", ("products.product_name" __quesma_match '%cocktail'
-			  OR "__quesma_fulltext_field_name" __quesma_match 'dress%')) AS
-			  "metric__0__1-bucket__1-metric_col_0"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740838898238))
-			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
-			  ("order_date", 'Europe/Warsaw'))*1000) / 43200000) AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+			"  `order_date`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__0__key_0`,\n" +
+			"  count(*) AS `aggr__0__count`,\n" +
+			"  countIf((`products.product_name` __quesma_match '%cocktail' OR\n" +
+			"  `__quesma_fulltext_field_name` __quesma_match 'dress%')) AS\n" +
+			"  `aggr__0__1-bucket__count`,\n" +
+			"  sumOrNullIf(`taxful_total_price`, (`products.product_name` __quesma_match '%cocktail'\n" +
+			"  OR `__quesma_fulltext_field_name` __quesma_match 'dress%')) AS\n" +
+			"  `metric__0__1-bucket__1-metric_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`order_date`>=fromUnixTimestamp64Milli(1740234098238) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740838898238))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone\n" +
+			"  (`order_date`, 'Europe/Warsaw'))*1000) / 43200000) AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 	{ // [4]
 		TestName: "Sum of revenue",
@@ -962,11 +952,10 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0_col_0", 77112.984375),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sumOrNull("taxful_total_price") AS "metric__0_col_0"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740584933594))`,
+		ExpectedPancakeSQL: "SELECT sumOrNull(`taxful_total_price`) AS `metric__0_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`order_date`>=fromUnixTimestamp64Milli(1739980133594) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740584933594))",
 	},
 	{ // [5]
 		TestName: "Median spending",
@@ -1064,11 +1053,10 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0_col_0", []float64{67.0}),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT quantiles(0.500000)("taxful_total_price") AS "metric__0_col_0"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740584933594))`,
+		ExpectedPancakeSQL: "SELECT quantiles(0.500000)(`taxful_total_price`) AS `metric__0_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`order_date`>=fromUnixTimestamp64Milli(1739980133594) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740584933594))",
 	},
 	{ // [6]
 		TestName: "Avg. items sold",
@@ -1161,11 +1149,10 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0_col_0", 2.164569215876089),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT avgOrNull("total_quantity") AS "metric__0_col_0"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740584933594))`,
+		ExpectedPancakeSQL: "SELECT avgOrNull(`total_quantity`) AS `metric__0_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`order_date`>=fromUnixTimestamp64Milli(1739980133594) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740584933594))",
 	},
 	{ // [7]
 		TestName: "TODO Transactions per day",
@@ -1386,25 +1373,23 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__time_offset_split__0__2_col_0", 218.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__time_offset_split__count",
-			  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-			  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
-			  "aggr__time_offset_split__0__key_0",
-			  count(*) AS "aggr__time_offset_split__0__count",
-			  sumOrNull("products.quantity") AS "metric__time_offset_split__0__1_col_0",
-			  sumOrNull("products.quantity") AS "metric__time_offset_split__0__2_col_0"
-			FROM __quesma_table_name
-			WHERE ((("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"
-			  <=fromUnixTimestamp64Milli(1740838898238)) OR ("order_date">=
-			  fromUnixTimestamp64Milli(1739629298238) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740234098238))) AND ("order_date">=
-			  fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740838898238)))
-			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
-			  ("order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
-			  "aggr__time_offset_split__0__key_0"
-			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__time_offset_split__count`,\n" +
+			"  toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+			"  `order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS\n" +
+			"  `aggr__time_offset_split__0__key_0`,\n" +
+			"  count(*) AS `aggr__time_offset_split__0__count`,\n" +
+			"  sumOrNull(`products.quantity`) AS `metric__time_offset_split__0__1_col_0`,\n" +
+			"  sumOrNull(`products.quantity`) AS `metric__time_offset_split__0__2_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (((`order_date`>=fromUnixTimestamp64Milli(1740234098238) AND `order_date`<=fromUnixTimestamp64Milli(1740838898238)) OR (`order_date`>= \n" +
+			"  fromUnixTimestamp64Milli(1739629298238) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740234098238))) AND (`order_date`>= \n" +
+			"  fromUnixTimestamp64Milli(1740234098238) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740838898238)))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone\n" +
+			"  (`order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS\n" +
+			"  `aggr__time_offset_split__0__key_0`\n" +
+			"ORDER BY `aggr__time_offset_split__0__key_0` ASC",
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
 			{
 				{Cols: []model.QueryResultCol{
@@ -1416,25 +1401,24 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedAdditionalPancakeSQLs: []string{`
-				SELECT sum(count(*)) OVER () AS "aggr__time_offset_split__count",
-				  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-				  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
-				  "aggr__time_offset_split__0__key_0",
-				  count(*) AS "aggr__time_offset_split__0__count",
-				  sumOrNull("products.quantity") AS "metric__time_offset_split__0__1_col_0",
-				  sumOrNull("products.quantity") AS "metric__time_offset_split__0__2_col_0"
-				FROM __quesma_table_name
-				WHERE ((("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"
-				  <=fromUnixTimestamp64Milli(1740838898238)) OR ("order_date">=
-				  fromUnixTimestamp64Milli(1739629298238) AND "order_date"<=
-				  fromUnixTimestamp64Milli(1740234098238))) AND ("order_date">=
-				  fromUnixTimestamp64Milli(1739629298238) AND "order_date"<=
-				  fromUnixTimestamp64Milli(1740234098238)))
-				GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
-				  ("order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
-				  "aggr__time_offset_split__0__key_0"
-				ORDER BY "aggr__time_offset_split__0__key_0" ASC`},
+		ExpectedAdditionalPancakeSQLs: []string{
+			"SELECT sum(count(*)) OVER () AS `aggr__time_offset_split__count`,\n" +
+				"  toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+				"  `order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS\n" +
+				"  `aggr__time_offset_split__0__key_0`,\n" +
+				"  count(*) AS `aggr__time_offset_split__0__count`,\n" +
+				"  sumOrNull(`products.quantity`) AS `metric__time_offset_split__0__1_col_0`,\n" +
+				"  sumOrNull(`products.quantity`) AS `metric__time_offset_split__0__2_col_0`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (((`order_date`>=fromUnixTimestamp64Milli(1740234098238) AND `order_date`<=fromUnixTimestamp64Milli(1740838898238)) OR (`order_date`>= \n" +
+				"  fromUnixTimestamp64Milli(1739629298238) AND `order_date`<= \n" +
+				"  fromUnixTimestamp64Milli(1740234098238))) AND (`order_date`>= \n" +
+				"  fromUnixTimestamp64Milli(1739629298238) AND `order_date`<= \n" +
+				"  fromUnixTimestamp64Milli(1740234098238)))\n" +
+				"GROUP BY toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone\n" +
+				"  (`order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS\n" +
+				"  `aggr__time_offset_split__0__key_0`\n" +
+				"ORDER BY `aggr__time_offset_split__0__key_0` ASC"},
 	},
 	{ // [8]
 		TestName: "TODO Daily comparison",
@@ -1648,25 +1632,23 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__time_offset_split__0__2_col_0", 4033.34375),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__time_offset_split__count",
-			  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-			  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
-			  "aggr__time_offset_split__0__key_0",
-			  count(*) AS "aggr__time_offset_split__0__count",
-			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__1_col_0",
-			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__2_col_0"
-			FROM __quesma_table_name
-			WHERE ((("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"
-			  <=fromUnixTimestamp64Milli(1740838898238)) OR ("order_date">=
-			  fromUnixTimestamp64Milli(1739629298238) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740234098238))) AND ("order_date">=
-			  fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740838898238)))
-			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
-			  ("order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
-			  "aggr__time_offset_split__0__key_0"
-			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__time_offset_split__count`,\n" +
+			"  toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+			"  `order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS\n" +
+			"  `aggr__time_offset_split__0__key_0`,\n" +
+			"  count(*) AS `aggr__time_offset_split__0__count`,\n" +
+			"  sumOrNull(`taxful_total_price`) AS `metric__time_offset_split__0__1_col_0`,\n" +
+			"  sumOrNull(`taxful_total_price`) AS `metric__time_offset_split__0__2_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (((`order_date`>=fromUnixTimestamp64Milli(1740234098238) AND `order_date`<=fromUnixTimestamp64Milli(1740838898238)) OR (`order_date`>= \n" +
+			"  fromUnixTimestamp64Milli(1739629298238) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740234098238))) AND (`order_date`>= \n" +
+			"  fromUnixTimestamp64Milli(1740234098238) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740838898238)))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone\n" +
+			"  (`order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS\n" +
+			"  `aggr__time_offset_split__0__key_0`\n" +
+			"ORDER BY `aggr__time_offset_split__0__key_0` ASC",
 		ExpectedAdditionalPancakeResults: [][]model.QueryResultRow{
 			{
 				{Cols: []model.QueryResultCol{
@@ -1685,26 +1667,24 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedAdditionalPancakeSQLs: []string{`
-			SELECT sum(count(*)) OVER () AS "aggr__time_offset_split__count",
-			  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-			  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
-			  "aggr__time_offset_split__0__key_0",
-			  count(*) AS "aggr__time_offset_split__0__count",
-			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__1_col_0",
-			  sumOrNull("taxful_total_price") AS "metric__time_offset_split__0__2_col_0"
-			FROM __quesma_table_name
-			WHERE ((("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"
-			  <=fromUnixTimestamp64Milli(1740838898238)) OR ("order_date">=
-			  fromUnixTimestamp64Milli(1739629298238) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740234098238))) AND ("order_date">=
-			  fromUnixTimestamp64Milli(1739629298238) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740234098238)))
-			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
-			  ("order_date", 'Europe/Warsaw'))*1000) / 86400000) AS
-			  "aggr__time_offset_split__0__key_0"
-			ORDER BY "aggr__time_offset_split__0__key_0" ASC`,
-		},
+		ExpectedAdditionalPancakeSQLs: []string{
+			"SELECT sum(count(*)) OVER () AS `aggr__time_offset_split__count`,\n" +
+				"  toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+				"  `order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS\n" +
+				"  `aggr__time_offset_split__0__key_0`,\n" +
+				"  count(*) AS `aggr__time_offset_split__0__count`,\n" +
+				"  sumOrNull(`taxful_total_price`) AS `metric__time_offset_split__0__1_col_0`,\n" +
+				"  sumOrNull(`taxful_total_price`) AS `metric__time_offset_split__0__2_col_0`\n" +
+				"FROM `__quesma_table_name`\n" +
+				"WHERE (((`order_date`>=fromUnixTimestamp64Milli(1740234098238) AND `order_date`<=fromUnixTimestamp64Milli(1740838898238)) OR (`order_date`>= \n" +
+				"  fromUnixTimestamp64Milli(1739629298238) AND `order_date`<= \n" +
+				"  fromUnixTimestamp64Milli(1740234098238))) AND (`order_date`>= \n" +
+				"  fromUnixTimestamp64Milli(1739629298238) AND `order_date`<= \n" +
+				"  fromUnixTimestamp64Milli(1740234098238)))\n" +
+				"GROUP BY toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone\n" +
+				"  (`order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS\n" +
+				"  `aggr__time_offset_split__0__key_0`\n" +
+				"ORDER BY `aggr__time_offset_split__0__key_0` ASC"},
 	},
 	{ // [9]
 		TestName: "TODO Top products this/last week",
@@ -2039,31 +2019,30 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__count", int64(52)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__1__key_0", "aggr__0__1__count"
-			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__1__key_0", "aggr__0__1__count",
-				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "category" AS "aggr__0__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-				  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count"
-				FROM __quesma_table_name
-				WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND
-				  "order_date"<=fromUnixTimestamp64Milli(1740838898238))
-				GROUP BY "category" AS "aggr__0__key_0",
-				  toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-				  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=11
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__count`,\n" +
+			"  `aggr__0__1__key_0`, `aggr__0__1__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__count`,\n" +
+			"    `aggr__0__1__key_0`, `aggr__0__1__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__0__count` DESC, `aggr__0__key_0` ASC) AS\n" +
+			"    `aggr__0__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__0__key_0` ORDER BY\n" +
+			"    `aggr__0__1__key_0` ASC) AS `aggr__0__1__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"      `category` AS `aggr__0__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`) AS `aggr__0__count`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+			"      `order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS `aggr__0__1__key_0`,\n" +
+			"      count(*) AS `aggr__0__1__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    WHERE (`order_date`>=fromUnixTimestamp64Milli(1740234098238) AND\n" +
+			"      `order_date`<=fromUnixTimestamp64Milli(1740838898238))\n" +
+			"    GROUP BY `category` AS `aggr__0__key_0`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+			"      `order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS `aggr__0__1__key_0`))\n" +
+			"WHERE `aggr__0__order_1_rank`<=11\n" +
+			"ORDER BY `aggr__0__order_1_rank` ASC, `aggr__0__1__order_1_rank` ASC",
 	},
 	{ // [11]
 		TestName: "% of target revenue ($10k)",
@@ -2271,17 +2250,16 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1_col_0", 7541.5),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone(
-			  "order_date", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count",
-			  sumOrNull("taxful_total_price") AS "metric__0__1_col_0"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1739980133594) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740584933594))
-			GROUP BY toInt64((toUnixTimestamp64Milli("order_date")+timeZoneOffset(toTimezone
-			  ("order_date", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone(\n" +
+			"  `order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS `aggr__0__key_0`,\n" +
+			"  count(*) AS `aggr__0__count`,\n" +
+			"  sumOrNull(`taxful_total_price`) AS `metric__0__1_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`order_date`>=fromUnixTimestamp64Milli(1739980133594) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740584933594))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`order_date`)+timeZoneOffset(toTimezone\n" +
+			"  (`order_date`, 'Europe/Warsaw'))*1000) / 86400000) AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 	{ // [12]
 		TestName: "Orders by Country (request 1/3)",
@@ -2464,24 +2442,23 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__gridSplit__sum_of_taxful_total_price_col_0", 14978.84375),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT FLOOR(((__quesma_geo_lon("geoip.location")+180)/360)*POWER(2, 5)) AS "aggr__gridSplit__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geoip.location")))+(1/COS(RADIANS(
-			    __quesma_geo_lat("geoip.location")))))/PI())/2*POWER(2, 5)) AS "aggr__gridSplit__key_1",
-			  count(*) AS "aggr__gridSplit__count",
-			  avgOrNull(__quesma_geo_lat("geoip_location")) AS "metric__gridSplit__gridCentroid_col_0",
-			  avgOrNull(__quesma_geo_lon("geoip_location")) AS "metric__gridSplit__gridCentroid_col_1",
-			  count(*) AS "metric__gridSplit__gridCentroid_col_2",
-			  sumOrNull("taxful_total_price") AS "metric__gridSplit__sum_of_taxful_total_price_col_0"
-			FROM __quesma_table_name
-			WHERE ("geoip.location" IS NOT NULL AND ("order_date">=fromUnixTimestamp64Milli(
-			  1740143222223) AND "order_date"<=fromUnixTimestamp64Milli(1740748022223)))
-			GROUP BY FLOOR(((__quesma_geo_lon("geoip.location")+180)/360)*POWER(2, 5)) AS "aggr__gridSplit__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geoip.location")))+(1/COS(RADIANS(
-			    __quesma_geo_lat("geoip.location")))))/PI())/2*POWER(2, 5)) AS "aggr__gridSplit__key_1"
-			ORDER BY "aggr__gridSplit__count" DESC, "aggr__gridSplit__key_0" ASC,
-              "aggr__gridSplit__key_1" ASC
-            LIMIT 65535`,
+		ExpectedPancakeSQL: "SELECT FLOOR(((__quesma_geo_lon(`geoip.location`)+180)/360)*POWER(2, 5)) AS `aggr__gridSplit__key_0`,\n" +
+			"  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`geoip.location`)))+(1/COS(RADIANS(\n" +
+			"    __quesma_geo_lat(`geoip.location`)))))/PI())/2*POWER(2, 5)) AS `aggr__gridSplit__key_1`,\n" +
+			"  count(*) AS `aggr__gridSplit__count`,\n" +
+			"  avgOrNull(__quesma_geo_lat(`geoip_location`)) AS `metric__gridSplit__gridCentroid_col_0`,\n" +
+			"  avgOrNull(__quesma_geo_lon(`geoip_location`)) AS `metric__gridSplit__gridCentroid_col_1`,\n" +
+			"  count(*) AS `metric__gridSplit__gridCentroid_col_2`,\n" +
+			"  sumOrNull(`taxful_total_price`) AS `metric__gridSplit__sum_of_taxful_total_price_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`geoip.location` IS NOT NULL AND (`order_date`>=fromUnixTimestamp64Milli(\n" +
+			"  1740143222223) AND `order_date`<=fromUnixTimestamp64Milli(1740748022223)))\n" +
+			"GROUP BY FLOOR(((__quesma_geo_lon(`geoip.location`)+180)/360)*POWER(2, 5)) AS `aggr__gridSplit__key_0`,\n" +
+			"  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`geoip.location`)))+(1/COS(RADIANS(\n" +
+			"    __quesma_geo_lat(`geoip.location`)))))/PI())/2*POWER(2, 5)) AS `aggr__gridSplit__key_1`\n" +
+			"ORDER BY `aggr__gridSplit__count` DESC, `aggr__gridSplit__key_0` ASC,\n" +
+			"  `aggr__gridSplit__key_1` ASC\n" +
+			"LIMIT 65535",
 	},
 	{ // [13]
 		TestName: "Orders by Country (request 2/3)",
@@ -2613,15 +2590,14 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__join__count", int64(5)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__join__parent_count",
-			  "geoip.region_name" AS "aggr__join__key_0", count(*) AS "aggr__join__count"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740838898238))
-			GROUP BY "geoip.region_name" AS "aggr__join__key_0"
-			ORDER BY "aggr__join__count" DESC, "aggr__join__key_0" ASC
-			LIMIT 5`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__join__parent_count`,\n" +
+			"  `geoip.region_name` AS `aggr__join__key_0`, count(*) AS `aggr__join__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`order_date`>=fromUnixTimestamp64Milli(1740234098238) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740838898238))\n" +
+			"GROUP BY `geoip.region_name` AS `aggr__join__key_0`\n" +
+			"ORDER BY `aggr__join__count` DESC, `aggr__join__key_0` ASC\n" +
+			"LIMIT 5",
 	},
 	{ // [14]
 		TestName: "Orders by Country (request 3/3)",
@@ -2802,16 +2778,15 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__join__count", int64(41)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__join__parent_count",
-			  "geoip.country_iso_code" AS "aggr__join__key_0",
-			  count(*) AS "aggr__join__count"
-			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1740234098238) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1740838898238))
-			GROUP BY "geoip.country_iso_code" AS "aggr__join__key_0"
-			ORDER BY "aggr__join__count" DESC, "aggr__join__key_0" ASC
-			LIMIT 65536`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__join__parent_count`,\n" +
+			"  `geoip.country_iso_code` AS `aggr__join__key_0`,\n" +
+			"  count(*) AS `aggr__join__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`order_date`>=fromUnixTimestamp64Milli(1740234098238) AND `order_date`<= \n" +
+			"  fromUnixTimestamp64Milli(1740838898238))\n" +
+			"GROUP BY `geoip.country_iso_code` AS `aggr__join__key_0`\n" +
+			"ORDER BY `aggr__join__count` DESC, `aggr__join__key_0` ASC\n" +
+			"LIMIT 65536",
 	},
 	{ // [15]
 		TestName: "weird",
@@ -2915,16 +2890,15 @@ var KibanaSampleDataEcommerce = []AggregationTestCase{
 				model.NewQueryResultCol("metric__fitToBounds_col_3", 153.11700434423983),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT minOrNull(__quesma_geo_lon("originlocation")) AS
-			  "metric__fitToBounds_col_0",
-			  argMinOrNull(__quesma_geo_lat("originlocation"), __quesma_geo_lon(
-			  "originlocation")) AS "metric__fitToBounds_col_1",
-			  minOrNull(__quesma_geo_lat("originlocation")) AS "metric__fitToBounds_col_2",
-			  argMinOrNull(__quesma_geo_lon("originlocation"), __quesma_geo_lat(
-			  "originlocation")) AS "metric__fitToBounds_col_3"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740924992069) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1741529792069))`,
+		ExpectedPancakeSQL: "SELECT minOrNull(__quesma_geo_lon(`originlocation`)) AS\n" +
+			"  `metric__fitToBounds_col_0`,\n" +
+			"  argMinOrNull(__quesma_geo_lat(`originlocation`), __quesma_geo_lon(\n" +
+			"  `originlocation`)) AS `metric__fitToBounds_col_1`,\n" +
+			"  minOrNull(__quesma_geo_lat(`originlocation`)) AS `metric__fitToBounds_col_2`,\n" +
+			"  argMinOrNull(__quesma_geo_lon(`originlocation`), __quesma_geo_lat(\n" +
+			"  `originlocation`)) AS `metric__fitToBounds_col_3`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740924992069) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1741529792069))",
 	},
 }

@@ -103,12 +103,11 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("metric__minAgg_col_0", 100.14596557617188),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT maxOrNull("AvgTicketPrice") AS "metric__maxAgg_col_0",
-			  minOrNull("AvgTicketPrice") AS "metric__minAgg_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853))`,
+		ExpectedPancakeSQL: "SELECT maxOrNull(`AvgTicketPrice`) AS `metric__maxAgg_col_0`,\n" +
+			"  minOrNull(`AvgTicketPrice`) AS `metric__minAgg_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740835408853))",
 	},
 	{ // [1]
 		TestName: "fill out when panel starts missing - don't know which panel it is",
@@ -217,12 +216,11 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("metric__minAgg_col_0", 15.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT maxOrNull("FlightDelayMin") AS "metric__maxAgg_col_0",
-			  minOrNull("FlightDelayMin") AS "metric__minAgg_col_0"
-			FROM __quesma_table_name
-			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND NOT ("FlightDelayMin" __quesma_match 0))`,
+		ExpectedPancakeSQL: "SELECT maxOrNull(`FlightDelayMin`) AS `metric__maxAgg_col_0`,\n" +
+			"  minOrNull(`FlightDelayMin`) AS `metric__minAgg_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740835408853)) AND NOT (`FlightDelayMin` __quesma_match 0))",
 	},
 	{ // [2]
 		TestName: "Delays & Cancellations (request 1/2)",
@@ -793,154 +791,150 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__1__count",
-			  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
-			  count(*) AS "aggr__1__2__count"
-			FROM __quesma_table_name
-			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true' AND
-			  "Cancelled" __quesma_match 'true'))
-			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0"
-			ORDER BY "aggr__1__2__key_0" ASC`,
-		ExpectedAdditionalPancakeSQLs: []string{`
-				WITH quesma_top_hits_group_table AS (
-				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
-					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-					"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
-					count(*) AS "aggr__1__2__count"
-				  FROM __quesma_table_name
-				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
-					AND "Cancelled" __quesma_match 'true'))
-				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
-					"aggr__1__2__key_0"
-				  ORDER BY "aggr__1__2__key_0" ASC) ,
-				quesma_top_hits_join AS (
-				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
-					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
-					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
-					"hit_table"."timestamp" AS "top_metrics__1__2__4_col_0",
-					"hit_table"."timestamp" AS "top_metrics__1__2__4_col_1",
-					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
-					"timestamp" ASC) AS "top_hits_rank"
-				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
-					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
-					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
-				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
-					AND "Cancelled" __quesma_match 'true')))
-				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
-				  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
-				FROM "quesma_top_hits_join"
-				WHERE "top_hits_rank"<=10
-				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
-			`
-				WITH quesma_top_hits_group_table AS (
-				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
-					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-					"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
-					count(*) AS "aggr__1__2__count"
-				  FROM __quesma_table_name
-				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
-					AND "Cancelled" __quesma_match 'true'))
-				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
-					"aggr__1__2__key_0"
-				  ORDER BY "aggr__1__2__key_0" ASC) ,
-				quesma_top_hits_join AS (
-				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
-					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
-					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
-					"hit_table"."FlightDelay" AS "top_metrics__1__2__5_col_0",
-					"hit_table"."timestamp" AS "top_metrics__1__2__5_col_1",
-					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
-					"timestamp" ASC) AS "top_hits_rank"
-				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
-					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
-					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
-				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
-					AND "Cancelled" __quesma_match 'true')))
-				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
-				  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
-				FROM "quesma_top_hits_join"
-				WHERE "top_hits_rank"<=10
-				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
-			`
-				WITH quesma_top_hits_group_table AS (
-				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
-					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-					"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
-					count(*) AS "aggr__1__2__count"
-				  FROM __quesma_table_name
-				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
-					AND "Cancelled" __quesma_match 'true'))
-				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
-					"aggr__1__2__key_0"
-				  ORDER BY "aggr__1__2__key_0" ASC) ,
-				quesma_top_hits_join AS (
-				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
-					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
-					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
-					"hit_table"."Cancelled" AS "top_metrics__1__2__6_col_0",
-					"hit_table"."timestamp" AS "top_metrics__1__2__6_col_1",
-					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
-					"timestamp" ASC) AS "top_hits_rank"
-				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
-					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
-					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
-				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
-					AND "Cancelled" __quesma_match 'true')))
-				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
-				  "top_metrics__1__2__6_col_0", "top_metrics__1__2__6_col_1", "top_hits_rank"
-				FROM "quesma_top_hits_join"
-				WHERE "top_hits_rank"<=10
-				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
-			`
-				WITH quesma_top_hits_group_table AS (
-				  SELECT sum(count(*)) OVER () AS "aggr__1__count",
-					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-					"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
-					count(*) AS "aggr__1__2__count"
-				  FROM __quesma_table_name
-				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
-					AND "Cancelled" __quesma_match 'true'))
-				  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
-					toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
-					"aggr__1__2__key_0"
-				  ORDER BY "aggr__1__2__key_0" ASC) ,
-				quesma_top_hits_join AS (
-				  SELECT "group_table"."aggr__1__count" AS "aggr__1__count",
-					"group_table"."aggr__1__2__key_0" AS "aggr__1__2__key_0",
-					"group_table"."aggr__1__2__count" AS "aggr__1__2__count",
-					"hit_table"."Carrier" AS "top_metrics__1__2__7_col_0",
-					"hit_table"."timestamp" AS "top_metrics__1__2__7_col_1",
-					ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__1__2__key_0" ORDER BY
-					"timestamp" ASC) AS "top_hits_rank"
-				  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
-					__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
-					toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-					"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
-				  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-					fromUnixTimestamp64Milli(1740835408853)) AND ("FlightDelay" __quesma_match 'true'
-					AND "Cancelled" __quesma_match 'true')))
-				SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
-				  "top_metrics__1__2__7_col_0", "top_metrics__1__2__7_col_1", "top_hits_rank"
-				FROM "quesma_top_hits_join"
-				WHERE "top_hits_rank"<=10
-				ORDER BY "aggr__1__2__key_0" ASC, "top_hits_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+			"  toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__1__2__key_0`,\n" +
+			"  count(*) AS `aggr__1__2__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740835408853)) AND (`FlightDelay` __quesma_match 'true' AND\n" +
+			"  `Cancelled` __quesma_match 'true'))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__1__2__key_0`\n" +
+			"ORDER BY `aggr__1__2__key_0` ASC",
+		ExpectedAdditionalPancakeSQLs: []string{
+			" WITH quesma_top_hits_group_table AS (\n" +
+				"  SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__1__2__key_0`,\n" +
+				"    count(*) AS `aggr__1__2__count`\n" +
+				"  FROM `__quesma_table_name`\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740835408853)) AND (`FlightDelay` __quesma_match 'true'\n" +
+				"    AND `Cancelled` __quesma_match 'true'))\n" +
+				"  GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+				"    toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS\n" +
+				"    `aggr__1__2__key_0`\n" +
+				"  ORDER BY `aggr__1__2__key_0` ASC) ,\n" +
+				"quesma_top_hits_join AS (\n" +
+				"  SELECT `group_table`.`aggr__1__count` AS `aggr__1__count`,\n" +
+				"    `group_table`.`aggr__1__2__key_0` AS `aggr__1__2__key_0`,\n" +
+				"    `group_table`.`aggr__1__2__count` AS `aggr__1__2__count`,\n" +
+				"    `hit_table`.`timestamp` AS `top_metrics__1__2__4_col_0`,\n" +
+				"    `hit_table`.`timestamp` AS `top_metrics__1__2__4_col_1`,\n" +
+				"    ROW_NUMBER() OVER (PARTITION BY `group_table`.`aggr__1__2__key_0` ORDER BY\n" +
+				"    `timestamp` ASC) AS `top_hits_rank`\n" +
+				"  FROM quesma_top_hits_group_table AS `group_table` LEFT OUTER JOIN\n" +
+				"    `__quesma_table_name` AS `hit_table` ON (`group_table`.`aggr__1__2__key_0`=\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000))\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740835408853)) AND (`FlightDelay` __quesma_match 'true'\n" +
+				"    AND `Cancelled` __quesma_match 'true')))\n" +
+				"SELECT `aggr__1__count`, `aggr__1__2__key_0`, `aggr__1__2__count`,\n" +
+				"  `top_metrics__1__2__4_col_0`, `top_metrics__1__2__4_col_1`, `top_hits_rank`\n" +
+				"FROM `quesma_top_hits_join`\n" +
+				"WHERE `top_hits_rank`<=10\n" +
+				"ORDER BY `aggr__1__2__key_0` ASC, `top_hits_rank` ASC",
+			" WITH quesma_top_hits_group_table AS (\n" +
+				"  SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__1__2__key_0`,\n" +
+				"    count(*) AS `aggr__1__2__count`\n" +
+				"  FROM `__quesma_table_name`\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740835408853)) AND (`FlightDelay` __quesma_match 'true'\n" +
+				"    AND `Cancelled` __quesma_match 'true'))\n" +
+				"  GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+				"    toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS\n" +
+				"    `aggr__1__2__key_0`\n" +
+				"  ORDER BY `aggr__1__2__key_0` ASC) ,\n" +
+				"quesma_top_hits_join AS (\n" +
+				"  SELECT `group_table`.`aggr__1__count` AS `aggr__1__count`,\n" +
+				"    `group_table`.`aggr__1__2__key_0` AS `aggr__1__2__key_0`,\n" +
+				"    `group_table`.`aggr__1__2__count` AS `aggr__1__2__count`,\n" +
+				"    `hit_table`.`FlightDelay` AS `top_metrics__1__2__5_col_0`,\n" +
+				"    `hit_table`.`timestamp` AS `top_metrics__1__2__5_col_1`,\n" +
+				"    ROW_NUMBER() OVER (PARTITION BY `group_table`.`aggr__1__2__key_0` ORDER BY\n" +
+				"    `timestamp` ASC) AS `top_hits_rank`\n" +
+				"  FROM quesma_top_hits_group_table AS `group_table` LEFT OUTER JOIN\n" +
+				"    `__quesma_table_name` AS `hit_table` ON (`group_table`.`aggr__1__2__key_0`=\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000))\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740835408853)) AND (`FlightDelay` __quesma_match 'true'\n" +
+				"    AND `Cancelled` __quesma_match 'true')))\n" +
+				"SELECT `aggr__1__count`, `aggr__1__2__key_0`, `aggr__1__2__count`,\n" +
+				"  `top_metrics__1__2__5_col_0`, `top_metrics__1__2__5_col_1`, `top_hits_rank`\n" +
+				"FROM `quesma_top_hits_join`\n" +
+				"WHERE `top_hits_rank`<=10\n" +
+				"ORDER BY `aggr__1__2__key_0` ASC, `top_hits_rank` ASC",
+			" WITH quesma_top_hits_group_table AS (\n" +
+				"  SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__1__2__key_0`,\n" +
+				"    count(*) AS `aggr__1__2__count`\n" +
+				"  FROM `__quesma_table_name`\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740835408853)) AND (`FlightDelay` __quesma_match 'true'\n" +
+				"    AND `Cancelled` __quesma_match 'true'))\n" +
+				"  GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+				"    toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS\n" +
+				"    `aggr__1__2__key_0`\n" +
+				"  ORDER BY `aggr__1__2__key_0` ASC) ,\n" +
+				"quesma_top_hits_join AS (\n" +
+				"  SELECT `group_table`.`aggr__1__count` AS `aggr__1__count`,\n" +
+				"    `group_table`.`aggr__1__2__key_0` AS `aggr__1__2__key_0`,\n" +
+				"    `group_table`.`aggr__1__2__count` AS `aggr__1__2__count`,\n" +
+				"    `hit_table`.`Cancelled` AS `top_metrics__1__2__6_col_0`,\n" +
+				"    `hit_table`.`timestamp` AS `top_metrics__1__2__6_col_1`,\n" +
+				"    ROW_NUMBER() OVER (PARTITION BY `group_table`.`aggr__1__2__key_0` ORDER BY\n" +
+				"    `timestamp` ASC) AS `top_hits_rank`\n" +
+				"  FROM quesma_top_hits_group_table AS `group_table` LEFT OUTER JOIN\n" +
+				"    `__quesma_table_name` AS `hit_table` ON (`group_table`.`aggr__1__2__key_0`=\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000))\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740835408853)) AND (`FlightDelay` __quesma_match 'true'\n" +
+				"    AND `Cancelled` __quesma_match 'true')))\n" +
+				"SELECT `aggr__1__count`, `aggr__1__2__key_0`, `aggr__1__2__count`,\n" +
+				"  `top_metrics__1__2__6_col_0`, `top_metrics__1__2__6_col_1`, `top_hits_rank`\n" +
+				"FROM `quesma_top_hits_join`\n" +
+				"WHERE `top_hits_rank`<=10\n" +
+				"ORDER BY `aggr__1__2__key_0` ASC, `top_hits_rank` ASC",
+			" WITH quesma_top_hits_group_table AS (\n" +
+				"  SELECT sum(count(*)) OVER () AS `aggr__1__count`,\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__1__2__key_0`,\n" +
+				"    count(*) AS `aggr__1__2__count`\n" +
+				"  FROM `__quesma_table_name`\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740835408853)) AND (`FlightDelay` __quesma_match 'true'\n" +
+				"    AND `Cancelled` __quesma_match 'true'))\n" +
+				"  GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(\n" +
+				"    toTimezone(`timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS\n" +
+				"    `aggr__1__2__key_0`\n" +
+				"  ORDER BY `aggr__1__2__key_0` ASC) ,\n" +
+				"quesma_top_hits_join AS (\n" +
+				"  SELECT `group_table`.`aggr__1__count` AS `aggr__1__count`,\n" +
+				"    `group_table`.`aggr__1__2__key_0` AS `aggr__1__2__key_0`,\n" +
+				"    `group_table`.`aggr__1__2__count` AS `aggr__1__2__count`,\n" +
+				"    `hit_table`.`Carrier` AS `top_metrics__1__2__7_col_0`,\n" +
+				"    `hit_table`.`timestamp` AS `top_metrics__1__2__7_col_1`,\n" +
+				"    ROW_NUMBER() OVER (PARTITION BY `group_table`.`aggr__1__2__key_0` ORDER BY\n" +
+				"    `timestamp` ASC) AS `top_hits_rank`\n" +
+				"  FROM quesma_top_hits_group_table AS `group_table` LEFT OUTER JOIN\n" +
+				"    `__quesma_table_name` AS `hit_table` ON (`group_table`.`aggr__1__2__key_0`=\n" +
+				"    toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+				"    `timestamp`, 'Europe/Warsaw'))*1000) / 10800000))\n" +
+				"  WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+				"    fromUnixTimestamp64Milli(1740835408853)) AND (`FlightDelay` __quesma_match 'true'\n" +
+				"    AND `Cancelled` __quesma_match 'true')))\n" +
+				"SELECT `aggr__1__count`, `aggr__1__2__key_0`, `aggr__1__2__count`,\n" +
+				"  `top_metrics__1__2__7_col_0`, `top_metrics__1__2__7_col_1`, `top_hits_rank`\n" +
+				"FROM `quesma_top_hits_join`\n" +
+				"WHERE `top_hits_rank`<=10\n" +
+				"ORDER BY `aggr__1__2__key_0` ASC, `top_hits_rank` ASC",
 		},
 	},
 	{ // [3]
@@ -1052,11 +1046,10 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 			}},
 		},
 		// TODO Sprawdz boola
-		ExpectedPancakeSQL: `
-			SELECT countIf("FlightDelay" __quesma_match true) AS "metric__0-bucket_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853))`,
+		ExpectedPancakeSQL: "SELECT countIf(`FlightDelay` __quesma_match true) AS `metric__0-bucket_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740835408853))",
 	},
 	{ // [4]
 		TestName: "Cancelled",
@@ -1166,11 +1159,10 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0-bucket_col_0", int64(278)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf("Cancelled" __quesma_match true) AS "metric__0-bucket_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853))`,
+		ExpectedPancakeSQL: "SELECT countIf(`Cancelled` __quesma_match true) AS `metric__0-bucket_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740835408853))",
 	},
 	{ // [5]
 		TestName: "Delayed/Cancelled vs 1 week earlier",
@@ -1323,18 +1315,16 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("filter_1__aggr__time_offset_split__count", int64(222)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT countIf(("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND
-			  "timestamp"<=fromUnixTimestamp64Milli(1740835408853))) AS
-			  "filter_0__aggr__time_offset_split__count",
-			  countIf(("timestamp">=fromUnixTimestamp64Milli(1739625808853) AND "timestamp"
-			  <=fromUnixTimestamp64Milli(1740230608853))) AS
-			  "filter_1__aggr__time_offset_split__count"
-			FROM __quesma_table_name
-			WHERE ("Cancelled" __quesma_match true AND (("timestamp">=fromUnixTimestamp64Milli(
-			  1740230608853) AND "timestamp"<=fromUnixTimestamp64Milli(1740835408853)) OR (
-			  "timestamp">=fromUnixTimestamp64Milli(1739625808853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740230608853))))`,
+		ExpectedPancakeSQL: "SELECT countIf((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND\n" +
+			"  `timestamp`<=fromUnixTimestamp64Milli(1740835408853))) AS\n" +
+			"  `filter_0__aggr__time_offset_split__count`,\n" +
+			"  countIf((`timestamp`>=fromUnixTimestamp64Milli(1739625808853) AND `timestamp`<=fromUnixTimestamp64Milli(1740230608853))) AS\n" +
+			"  `filter_1__aggr__time_offset_split__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`Cancelled` __quesma_match true AND ((`timestamp`>=fromUnixTimestamp64Milli(\n" +
+			"  1740230608853) AND `timestamp`<=fromUnixTimestamp64Milli(1740835408853)) OR (\n" +
+			"  `timestamp`>=fromUnixTimestamp64Milli(1739625808853) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740230608853))))",
 	},
 	{ // [6]
 		TestName: "Flight count",
@@ -1448,16 +1438,14 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__count", int64(31)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853))
-			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__0__key_0`,\n" +
+			"  count(*) AS `aggr__0__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<=fromUnixTimestamp64Milli(1740835408853))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 	{ // [7]
 		TestName: "Delays & Cancellations (request 2/2)",
@@ -1634,18 +1622,16 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1-bucket_col_0", int64(7)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__key_0",
-			  count(*) AS "aggr__0__count",
-			  countIf("FlightDelay" __quesma_match 'true') AS "metric__0__1-bucket_col_0",
-			  countIf("__quesma_fulltext_field_name" __quesma_match '%') AS "metric__0__2-bucket_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853))
-			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__0__key_0`,\n" +
+			"  count(*) AS `aggr__0__count`,\n" +
+			"  countIf(`FlightDelay` __quesma_match 'true') AS `metric__0__1-bucket_col_0`,\n" +
+			"  countIf(`__quesma_fulltext_field_name` __quesma_match '%') AS `metric__0__2-bucket_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<=fromUnixTimestamp64Milli(1740835408853))\n" +
+			"GROUP BY toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"  `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 	{ // [8]
 		TestName: "Most delayed cities",
@@ -1840,17 +1826,15 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("metric__0__1-bucket_col_0", int64(2)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-			  "OriginCityName" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
-			  countIf("FlightDelay" __quesma_match true) AS "metric__0__1-bucket_col_0",
-			  countIf("Cancelled" __quesma_match true) AS "metric__0__3-bucket_col_0"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853))
-			GROUP BY "OriginCityName" AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC
-			LIMIT 1001`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"  `OriginCityName` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`,\n" +
+			"  countIf(`FlightDelay` __quesma_match true) AS `metric__0__1-bucket_col_0`,\n" +
+			"  countIf(`Cancelled` __quesma_match true) AS `metric__0__3-bucket_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<=fromUnixTimestamp64Milli(1740835408853))\n" +
+			"GROUP BY `OriginCityName` AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC\n" +
+			"LIMIT 1001",
 	},
 	{ // [9]
 		TestName: "Delay Type",
@@ -2027,31 +2011,29 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__1__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-			  "aggr__0__1__key_0", "aggr__0__1__count"
-			FROM (
-			  SELECT "aggr__0__parent_count", "aggr__0__key_0", "aggr__0__count",
-				"aggr__0__1__key_0", "aggr__0__1__count",
-				dense_rank() OVER (ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank",
-				dense_rank() OVER (PARTITION BY "aggr__0__key_0" ORDER BY
-				"aggr__0__1__key_0" ASC) AS "aggr__0__1__order_1_rank"
-			  FROM (
-				SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-				  "FlightDelayType" AS "aggr__0__key_0",
-				  sum(count(*)) OVER (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
-				  count(*) AS "aggr__0__1__count"
-				FROM __quesma_table_name
-				WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"
-				  <=fromUnixTimestamp64Milli(1740835408853))
-				GROUP BY "FlightDelayType" AS "aggr__0__key_0",
-				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
-				  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=11
-			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
+		ExpectedPancakeSQL: "SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__count`,\n" +
+			"  `aggr__0__1__key_0`, `aggr__0__1__count`\n" +
+			"FROM (\n" +
+			"  SELECT `aggr__0__parent_count`, `aggr__0__key_0`, `aggr__0__count`,\n" +
+			"    `aggr__0__1__key_0`, `aggr__0__1__count`,\n" +
+			"    dense_rank() OVER (ORDER BY `aggr__0__count` DESC, `aggr__0__key_0` ASC) AS\n" +
+			"    `aggr__0__order_1_rank`,\n" +
+			"    dense_rank() OVER (PARTITION BY `aggr__0__key_0` ORDER BY\n" +
+			"    `aggr__0__1__key_0` ASC) AS `aggr__0__1__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"      `FlightDelayType` AS `aggr__0__key_0`,\n" +
+			"      sum(count(*)) OVER (PARTITION BY `aggr__0__key_0`) AS `aggr__0__count`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__0__1__key_0`,\n" +
+			"      count(*) AS `aggr__0__1__count`\n" +
+			"    FROM `__quesma_table_name`\n" +
+			"    WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<=fromUnixTimestamp64Milli(1740835408853))\n" +
+			"    GROUP BY `FlightDelayType` AS `aggr__0__key_0`,\n" +
+			"      toInt64((toUnixTimestamp64Milli(`timestamp`)+timeZoneOffset(toTimezone(\n" +
+			"      `timestamp`, 'Europe/Warsaw'))*1000) / 10800000) AS `aggr__0__1__key_0`))\n" +
+			"WHERE `aggr__0__order_1_rank`<=11\n" +
+			"ORDER BY `aggr__0__order_1_rank` ASC, `aggr__0__1__order_1_rank` ASC",
 	},
 	{ // [10]
 		TestName: "Count of records by DestWeather (bottom right)",
@@ -2171,15 +2153,14 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__count", int64(373)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-			  "DestWeather" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
-			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853))
-			GROUP BY "DestWeather" AS "aggr__0__key_0"
-			ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC
-			LIMIT 3`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"  `DestWeather` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740835408853))\n" +
+			"GROUP BY `DestWeather` AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__count` DESC, `aggr__0__key_0` ASC\n" +
+			"LIMIT 3",
 	},
 	{ // [11]
 		TestName: "Delay Type",
@@ -2305,16 +2286,15 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__count", int64(1)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT sum(count(*)) OVER () AS "aggr__0__parent_count",
-			  "FlightDelayType" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
-			FROM __quesma_table_name
-			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND NOT ("FlightDelayType"
-			  __quesma_match '%No Delay%'))
-			GROUP BY "FlightDelayType" AS "aggr__0__key_0"
-			ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC
-			LIMIT 3`,
+		ExpectedPancakeSQL: "SELECT sum(count(*)) OVER () AS `aggr__0__parent_count`,\n" +
+			"  `FlightDelayType` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740835408853)) AND NOT (`FlightDelayType`\n" +
+			"  __quesma_match '%No Delay%'))\n" +
+			"GROUP BY `FlightDelayType` AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__count` DESC, `aggr__0__key_0` ASC\n" +
+			"LIMIT 3",
 	},
 	{ // [12]
 		TestName: "Origin Time Delayed",
@@ -2496,25 +2476,24 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("metric__gridSplit__sum_of_FlightDelayMin_col_0", 1185.0),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 7)) AS "aggr__gridSplit__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
-			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 7))
-			  AS "aggr__gridSplit__key_1",
-			  count(*) AS "aggr__gridSplit__count",
-			  avgOrNull(__quesma_geo_lat("originlocation")) AS "metric__gridSplit__gridCentroid_col_0",
-			  avgOrNull(__quesma_geo_lon("originlocation")) AS "metric__gridSplit__gridCentroid_col_1",
-			  count(*) AS "metric__gridSplit__gridCentroid_col_2",
-			  sumOrNull("FlightDelayMin") AS "metric__gridSplit__sum_of_FlightDelayMin_col_0"
-			FROM __quesma_table_name
-			WHERE ("OriginLocation" IS NOT NULL AND ("timestamp">=fromUnixTimestamp64Milli(
-			  1740230608853) AND "timestamp"<=fromUnixTimestamp64Milli(1740835408853)))
-			GROUP BY FLOOR(((__quesma_geo_lon("OriginLocation")+180)/360)*POWER(2, 7)) AS "aggr__gridSplit__key_0",
-			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("OriginLocation")))+(1/COS(RADIANS(
-			  __quesma_geo_lat("OriginLocation")))))/PI())/2*POWER(2, 7)) AS "aggr__gridSplit__key_1"
-			ORDER BY "aggr__gridSplit__count" DESC, "aggr__gridSplit__key_0" ASC,
-              "aggr__gridSplit__key_1" ASC
-            LIMIT 65535`,
+		ExpectedPancakeSQL: "SELECT FLOOR(((__quesma_geo_lon(`OriginLocation`)+180)/360)*POWER(2, 7)) AS `aggr__gridSplit__key_0`,\n" +
+			"  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`OriginLocation`)))+(1/COS(RADIANS(\n" +
+			"  __quesma_geo_lat(`OriginLocation`)))))/PI())/2*POWER(2, 7))\n" +
+			"  AS `aggr__gridSplit__key_1`,\n" +
+			"  count(*) AS `aggr__gridSplit__count`,\n" +
+			"  avgOrNull(__quesma_geo_lat(`originlocation`)) AS `metric__gridSplit__gridCentroid_col_0`,\n" +
+			"  avgOrNull(__quesma_geo_lon(`originlocation`)) AS `metric__gridSplit__gridCentroid_col_1`,\n" +
+			"  count(*) AS `metric__gridSplit__gridCentroid_col_2`,\n" +
+			"  sumOrNull(`FlightDelayMin`) AS `metric__gridSplit__sum_of_FlightDelayMin_col_0`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE (`OriginLocation` IS NOT NULL AND (`timestamp`>=fromUnixTimestamp64Milli(\n" +
+			"  1740230608853) AND `timestamp`<=fromUnixTimestamp64Milli(1740835408853)))\n" +
+			"GROUP BY FLOOR(((__quesma_geo_lon(`OriginLocation`)+180)/360)*POWER(2, 7)) AS `aggr__gridSplit__key_0`,\n" +
+			"  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat(`OriginLocation`)))+(1/COS(RADIANS(\n" +
+			"  __quesma_geo_lat(`OriginLocation`)))))/PI())/2*POWER(2, 7)) AS `aggr__gridSplit__key_1`\n" +
+			"ORDER BY `aggr__gridSplit__count` DESC, `aggr__gridSplit__key_0` ASC,\n" +
+			"  `aggr__gridSplit__key_1` ASC\n" +
+			"LIMIT 65535",
 	},
 	{ // [13]
 		TestName: "Delay Buckets",
@@ -2630,13 +2609,12 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__0__count", int64(32)),
 			}},
 		},
-		ExpectedPancakeSQL: `
-			SELECT "FlightDelayMin" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
-			FROM __quesma_table_name
-			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740230608853) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740835408853)) AND NOT ("FlightDelayMin" __quesma_match 0))
-			GROUP BY "FlightDelayMin" AS "aggr__0__key_0"
-			ORDER BY "aggr__0__key_0" ASC`,
+		ExpectedPancakeSQL: "SELECT `FlightDelayMin` AS `aggr__0__key_0`, count(*) AS `aggr__0__count`\n" +
+			"FROM `__quesma_table_name`\n" +
+			"WHERE ((`timestamp`>=fromUnixTimestamp64Milli(1740230608853) AND `timestamp`<= \n" +
+			"  fromUnixTimestamp64Milli(1740835408853)) AND NOT (`FlightDelayMin` __quesma_match 0))\n" +
+			"GROUP BY `FlightDelayMin` AS `aggr__0__key_0`\n" +
+			"ORDER BY `aggr__0__key_0` ASC",
 	},
 	{ // [14]
 		TestName: "TODO Airport Connections (Hover Over Airport)",
@@ -2972,99 +2950,95 @@ var KibanaSampleDataFlights = []AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeSQL: `
-			WITH quesma_top_hits_group_table AS (
-			  SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
-				"aggr__origins__count", "aggr__origins__distinations__parent_count",
-				"aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
-				"aggr__origins__order_1_rank", "aggr__origins__distinations__order_1_rank"
-			  FROM (
-				SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
-				  "aggr__origins__count", "aggr__origins__distinations__parent_count",
-				  "aggr__origins__distinations__key_0",
-				  "aggr__origins__distinations__count",
-				  dense_rank() OVER (ORDER BY "aggr__origins__count" DESC,
-				  "aggr__origins__key_0" ASC) AS "aggr__origins__order_1_rank",
-				  dense_rank() OVER (PARTITION BY "aggr__origins__key_0" ORDER BY
-				  "aggr__origins__distinations__count" DESC,
-				  "aggr__origins__distinations__key_0" ASC) AS
-				  "aggr__origins__distinations__order_1_rank"
-				FROM (
-				  SELECT sum(count(*)) OVER () AS "aggr__origins__parent_count",
-					"OriginAirportID" AS "aggr__origins__key_0",
-					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
-					"aggr__origins__count",
-					sum(count(*)) OVER (PARTITION BY "aggr__origins__key_0") AS
-					"aggr__origins__distinations__parent_count",
-					"DestAirportID" AS "aggr__origins__distinations__key_0",
-					count(*) AS "aggr__origins__distinations__count"
-				  FROM __quesma_table_name
-				  GROUP BY "OriginAirportID" AS "aggr__origins__key_0",
-					"DestAirportID" AS "aggr__origins__distinations__key_0"))
-			  WHERE ("aggr__origins__order_1_rank"<=10001 AND
-				"aggr__origins__distinations__order_1_rank"<=10001)
-			  ORDER BY "aggr__origins__order_1_rank" ASC,
-				"aggr__origins__distinations__order_1_rank" ASC) ,
-			quesma_top_hits_join AS (
-			  SELECT "group_table"."aggr__origins__parent_count" AS
-				"aggr__origins__parent_count",
-				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
-				"group_table"."aggr__origins__count" AS "aggr__origins__count",
-				"group_table"."aggr__origins__distinations__parent_count" AS
-				"aggr__origins__distinations__parent_count",
-				"group_table"."aggr__origins__distinations__key_0" AS
-				"aggr__origins__distinations__key_0",
-				"group_table"."aggr__origins__distinations__count" AS
-				"aggr__origins__distinations__count",
-				"hit_table"."DestLocation" AS
-				"top_hits__origins__distinations__destLocation_col_0",
-				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0",
-				"group_table"."aggr__origins__distinations__key_0") AS "top_hits_rank",
-				"group_table"."aggr__origins__order_1_rank" AS "aggr__origins__order_1_rank"
-				,
-				"group_table"."aggr__origins__distinations__order_1_rank" AS
-				"aggr__origins__distinations__order_1_rank"
-			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
-				__quesma_table_name AS "hit_table" ON (("group_table"."aggr__origins__key_0"
-				="hit_table"."OriginAirportID" AND
-				"group_table"."aggr__origins__distinations__key_0"=
-				"hit_table"."DestAirportID")))
-			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
-			  "aggr__origins__count", "aggr__origins__distinations__parent_count",
-			  "aggr__origins__distinations__key_0", "aggr__origins__distinations__count",
-			  "top_hits__origins__distinations__destLocation_col_0", "top_hits_rank"
-			FROM "quesma_top_hits_join"
-			WHERE "top_hits_rank"<=1
-			ORDER BY "aggr__origins__order_1_rank" ASC,
-			  "aggr__origins__distinations__order_1_rank" ASC, "top_hits_rank" ASC`,
-		ExpectedAdditionalPancakeSQLs: []string{`
-			WITH quesma_top_hits_group_table AS (
-			  SELECT sum(count(*)) OVER () AS "aggr__origins__parent_count",
-				"OriginAirportID" AS "aggr__origins__key_0",
-				count(*) AS "aggr__origins__count"
-			  FROM __quesma_table_name
-			  GROUP BY "OriginAirportID" AS "aggr__origins__key_0"
-			  ORDER BY "aggr__origins__count" DESC, "aggr__origins__key_0" ASC
-			  LIMIT 10001) ,
-			quesma_top_hits_join AS (
-			  SELECT "group_table"."aggr__origins__parent_count" AS
-				"aggr__origins__parent_count",
-				"group_table"."aggr__origins__key_0" AS "aggr__origins__key_0",
-				"group_table"."aggr__origins__count" AS "aggr__origins__count",
-				"hit_table"."OriginLocation" AS "top_hits__origins__originLocation_col_0",
-				"hit_table"."Origin" AS "top_hits__origins__originLocation_col_1",
-				ROW_NUMBER() OVER (PARTITION BY "group_table"."aggr__origins__key_0") AS
-				"top_hits_rank"
-			  FROM quesma_top_hits_group_table AS "group_table" LEFT OUTER JOIN
-				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__origins__key_0"=
-				"hit_table"."OriginAirportID"))
-			SELECT "aggr__origins__parent_count", "aggr__origins__key_0",
-			  "aggr__origins__count", "top_hits__origins__originLocation_col_0",
-			  "top_hits__origins__originLocation_col_1", "top_hits_rank"
-			FROM "quesma_top_hits_join"
-			WHERE "top_hits_rank"<=1
-			ORDER BY "aggr__origins__count" DESC, "aggr__origins__key_0" ASC,
-			  "top_hits_rank" ASC`,
+		ExpectedPancakeSQL: "WITH quesma_top_hits_group_table AS (\n" +
+			"  SELECT `aggr__origins__parent_count`, `aggr__origins__key_0`,\n" +
+			"    `aggr__origins__count`, `aggr__origins__distinations__parent_count`,\n" +
+			"    `aggr__origins__distinations__key_0`, `aggr__origins__distinations__count`,\n" +
+			"    `aggr__origins__order_1_rank`, `aggr__origins__distinations__order_1_rank`\n" +
+			"  FROM (\n" +
+			"    SELECT `aggr__origins__parent_count`, `aggr__origins__key_0`,\n" +
+			"      `aggr__origins__count`, `aggr__origins__distinations__parent_count`,\n" +
+			"      `aggr__origins__distinations__key_0`,\n" +
+			"      `aggr__origins__distinations__count`,\n" +
+			"      dense_rank() OVER (ORDER BY `aggr__origins__count` DESC,\n" +
+			"      `aggr__origins__key_0` ASC) AS `aggr__origins__order_1_rank`,\n" +
+			"      dense_rank() OVER (PARTITION BY `aggr__origins__key_0` ORDER BY\n" +
+			"      `aggr__origins__distinations__count` DESC,\n" +
+			"      `aggr__origins__distinations__key_0` ASC) AS\n" +
+			"      `aggr__origins__distinations__order_1_rank`\n" +
+			"    FROM (\n" +
+			"      SELECT sum(count(*)) OVER () AS `aggr__origins__parent_count`,\n" +
+			"        `OriginAirportID` AS `aggr__origins__key_0`,\n" +
+			"        sum(count(*)) OVER (PARTITION BY `aggr__origins__key_0`) AS\n" +
+			"        `aggr__origins__count`,\n" +
+			"        sum(count(*)) OVER (PARTITION BY `aggr__origins__key_0`) AS\n" +
+			"        `aggr__origins__distinations__parent_count`,\n" +
+			"        `DestAirportID` AS `aggr__origins__distinations__key_0`,\n" +
+			"        count(*) AS `aggr__origins__distinations__count`\n" +
+			"      FROM `__quesma_table_name`\n" +
+			"      GROUP BY `OriginAirportID` AS `aggr__origins__key_0`,\n" +
+			"        `DestAirportID` AS `aggr__origins__distinations__key_0`))\n" +
+			"  WHERE (`aggr__origins__order_1_rank`<=10001 AND\n" +
+			"    `aggr__origins__distinations__order_1_rank`<=10001)\n" +
+			"  ORDER BY `aggr__origins__order_1_rank` ASC,\n" +
+			"    `aggr__origins__distinations__order_1_rank` ASC) ,\n" +
+			"quesma_top_hits_join AS (\n" +
+			"  SELECT `group_table`.`aggr__origins__parent_count` AS\n" +
+			"    `aggr__origins__parent_count`,\n" +
+			"    `group_table`.`aggr__origins__key_0` AS `aggr__origins__key_0`,\n" +
+			"    `group_table`.`aggr__origins__count` AS `aggr__origins__count`,\n" +
+			"    `group_table`.`aggr__origins__distinations__parent_count` AS\n" +
+			"    `aggr__origins__distinations__parent_count`,\n" +
+			"    `group_table`.`aggr__origins__distinations__key_0` AS\n" +
+			"    `aggr__origins__distinations__key_0`,\n" +
+			"    `group_table`.`aggr__origins__distinations__count` AS\n" +
+			"    `aggr__origins__distinations__count`,\n" +
+			"    `hit_table`.`DestLocation` AS\n" +
+			"    `top_hits__origins__distinations__destLocation_col_0`,\n" +
+			"    ROW_NUMBER() OVER (PARTITION BY `group_table`.`aggr__origins__key_0`,\n" +
+			"    `group_table`.`aggr__origins__distinations__key_0`) AS `top_hits_rank`,\n" +
+			"    `group_table`.`aggr__origins__order_1_rank` AS `aggr__origins__order_1_rank`\n" +
+			"    ,\n" +
+			"    `group_table`.`aggr__origins__distinations__order_1_rank` AS\n" +
+			"    `aggr__origins__distinations__order_1_rank`\n" +
+			"  FROM quesma_top_hits_group_table AS `group_table` LEFT OUTER JOIN\n" +
+			"    `__quesma_table_name` AS `hit_table` ON ((`group_table`.`aggr__origins__key_0`=`hit_table`.`OriginAirportID` AND\n" +
+			"    `group_table`.`aggr__origins__distinations__key_0`=`hit_table`.`DestAirportID`)))\n" +
+			"SELECT `aggr__origins__parent_count`, `aggr__origins__key_0`,\n" +
+			"  `aggr__origins__count`, `aggr__origins__distinations__parent_count`,\n" +
+			"  `aggr__origins__distinations__key_0`, `aggr__origins__distinations__count`,\n" +
+			"  `top_hits__origins__distinations__destLocation_col_0`, `top_hits_rank`\n" +
+			"FROM `quesma_top_hits_join`\n" +
+			"WHERE `top_hits_rank`<=1\n" +
+			"ORDER BY `aggr__origins__order_1_rank` ASC,\n" +
+			"  `aggr__origins__distinations__order_1_rank` ASC, `top_hits_rank` ASC",
+		ExpectedAdditionalPancakeSQLs: []string{
+			" WITH quesma_top_hits_group_table AS (\n" +
+				"  SELECT sum(count(*)) OVER () AS `aggr__origins__parent_count`,\n" +
+				"    `OriginAirportID` AS `aggr__origins__key_0`,\n" +
+				"    count(*) AS `aggr__origins__count`\n" +
+				"  FROM `__quesma_table_name`\n" +
+				"  GROUP BY `OriginAirportID` AS `aggr__origins__key_0`\n" +
+				"  ORDER BY `aggr__origins__count` DESC, `aggr__origins__key_0` ASC\n" +
+				"  LIMIT 10001) ,\n" +
+				"quesma_top_hits_join AS (\n" +
+				"  SELECT `group_table`.`aggr__origins__parent_count` AS\n" +
+				"    `aggr__origins__parent_count`,\n" +
+				"    `group_table`.`aggr__origins__key_0` AS `aggr__origins__key_0`,\n" +
+				"    `group_table`.`aggr__origins__count` AS `aggr__origins__count`,\n" +
+				"    `hit_table`.`OriginLocation` AS `top_hits__origins__originLocation_col_0`,\n" +
+				"    `hit_table`.`Origin` AS `top_hits__origins__originLocation_col_1`,\n" +
+				"    ROW_NUMBER() OVER (PARTITION BY `group_table`.`aggr__origins__key_0`) AS\n" +
+				"    `top_hits_rank`\n" +
+				"  FROM quesma_top_hits_group_table AS `group_table` LEFT OUTER JOIN\n" +
+				"    `__quesma_table_name` AS `hit_table` ON (`group_table`.`aggr__origins__key_0`=`hit_table`.`OriginAirportID`))\n" +
+				"SELECT `aggr__origins__parent_count`, `aggr__origins__key_0`,\n" +
+				"  `aggr__origins__count`, `top_hits__origins__originLocation_col_0`,\n" +
+				"  `top_hits__origins__originLocation_col_1`, `top_hits_rank`\n" +
+				"FROM `quesma_top_hits_join`\n" +
+				"WHERE `top_hits_rank`<=1\n" +
+				"ORDER BY `aggr__origins__count` DESC, `aggr__origins__key_0` ASC,\n" +
+				"  `top_hits_rank` ASC",
 		},
 	},
 }
