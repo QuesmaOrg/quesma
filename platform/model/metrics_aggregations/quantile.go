@@ -117,6 +117,11 @@ func (query Quantile) processResult(colName string, percentileReturnedByClickhou
 			percentileIsNanOrInvalid = math.IsNaN(percentileTyped[0])
 			percentile = percentileTyped[0]
 		}
+	case float64:
+		// The data read out in apache doris is float64
+		percentileAsArrayLen = 1
+		percentileIsNanOrInvalid = math.IsNaN(percentileTyped)
+		percentile = percentileTyped
 	case []time.Time:
 		percentileAsArrayLen = len(percentileTyped)
 		if len(percentileTyped) > 0 {
