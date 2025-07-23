@@ -334,8 +334,9 @@ func TestSearchHandler(t *testing.T) {
 
 					}
 
-					mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
-						WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+					ss := testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))
+					mock.ExpectQuery(ss).
+						WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host_name"}))
 				}
 			} else {
 				for _, query := range tt.WantedQueries {
