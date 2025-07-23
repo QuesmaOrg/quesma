@@ -4,7 +4,9 @@ package ingest
 
 import (
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/comment_metadata"
 	chLib "github.com/QuesmaOrg/quesma/platform/database_common"
+	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/persistence"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/types"
@@ -25,6 +27,98 @@ func NewSqlLowerer(virtualTableStorage persistence.JSONDatabase) *SqlLowerer {
 		virtualTableStorage:   virtualTableStorage,
 		ingestFieldStatistics: make(IngestFieldStatistics),
 	}
+}
+
+// This function generates ALTER TABLE commands for adding new columns
+// to the table based on the attributesMap and the table name
+// AttributesMap contains the attributes that are not part of the schema
+// Function has side effects, it modifies the table.Cols map
+// and removes the attributes that were promoted to columns
+func (ip *SqlLowerer) generateNewColumns(
+	attrsMap map[string][]interface{},
+	table *chLib.Table,
+	alteredAttributesIndexes []int,
+	encodings map[schema.FieldEncodingKey]schema.EncodedFieldName) []AlterStatement {
+	var alterStatements []AlterStatement
+	attrKeys := getAttributesByArrayName(chLib.DeprecatedAttributesKeyColumn, attrsMap)
+	attrTypes := getAttributesByArrayName(chLib.DeprecatedAttributesValueType, attrsMap)
+	var deleteIndexes []int
+
+	reverseMap := reverseFieldEncoding(encodings, table.Name)
+
+	// HACK Alert:
+	// We must avoid altering the table.Cols map and reading at the same time.
+	// This should be protected by a lock or a copy of the table should be used.
+	//
+	newColumns := make(map[string]*chLib.Column)
+	for k, v := range table.Cols {
+		newColumns[k] = v
+	}
+
+	for i := range alteredAttributesIndexes {
+
+		columnType := ""
+		modifiers := ""
+
+		if attrTypes[i] == chLib.UndefinedType {
+			continue
+		}
+
+		// Array and Map are not Nullable
+		if strings.Contains(attrTypes[i], "Array") || strings.Contains(attrTypes[i], "Map") {
+			columnType = attrTypes[i]
+		} else {
+			modifiers = "Nullable"
+			columnType = fmt.Sprintf("Nullable(%s)", attrTypes[i])
+		}
+
+		propertyName := attrKeys[i]
+		field, ok := reverseMap[schema.EncodedFieldName(attrKeys[i])]
+		if ok {
+			propertyName = field.FieldName
+		}
+
+		metadata := comment_metadata.NewCommentMetadata()
+		metadata.Values[comment_metadata.ElasticFieldName] = propertyName
+		comment := metadata.Marshall()
+
+		alterColumn := AlterStatement{
+			Type:       AddColumn,
+			TableName:  table.Name,
+			OnCluster:  table.ClusterName,
+			ColumnName: attrKeys[i],
+			ColumnType: columnType,
+		}
+		newColumns[attrKeys[i]] = &chLib.Column{Name: attrKeys[i], Type: chLib.NewBaseType(attrTypes[i]), Modifiers: modifiers, Comment: comment}
+		alterStatements = append(alterStatements, alterColumn)
+
+		alterColumnComment := AlterStatement{
+			Type:       CommentColumn,
+			TableName:  table.Name,
+			OnCluster:  table.ClusterName,
+			ColumnName: attrKeys[i],
+			Comment:    comment,
+		}
+		alterStatements = append(alterStatements, alterColumnComment)
+
+		deleteIndexes = append(deleteIndexes, i)
+	}
+
+	table.Cols = newColumns
+
+	if table.VirtualTable {
+		err := storeVirtualTable(table, ip.virtualTableStorage)
+		if err != nil {
+			logger.Error().Msgf("error storing virtual table: %v", err)
+		}
+	}
+
+	for i := len(deleteIndexes) - 1; i >= 0; i-- {
+		attrsMap[chLib.DeprecatedAttributesKeyColumn] = append(attrsMap[chLib.DeprecatedAttributesKeyColumn][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesKeyColumn][deleteIndexes[i]+1:]...)
+		attrsMap[chLib.DeprecatedAttributesValueType] = append(attrsMap[chLib.DeprecatedAttributesValueType][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueType][deleteIndexes[i]+1:]...)
+		attrsMap[chLib.DeprecatedAttributesValueColumn] = append(attrsMap[chLib.DeprecatedAttributesValueColumn][:deleteIndexes[i]], attrsMap[chLib.DeprecatedAttributesValueColumn][deleteIndexes[i]+1:]...)
+	}
+	return alterStatements
 }
 
 func (ip *SqlLowerer) GenerateIngestContent(table *chLib.Table,
