@@ -229,7 +229,7 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	case string:
 		val, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			logger.Error().Msgf("string conver to int64 failed %T", v, err)
+			logger.Error().Msgf("string conver to int64 failed %T", v)
 			return 0
 		}
 		return val
@@ -437,7 +437,7 @@ func (qt *DateHistogramRowsTransformer) getKey(row model.QueryResultRow) int64 {
 	case string:
 		val, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			logger.Error().Msgf("string conver to int64 failed %T", v, err)
+			logger.Error().Msgf("string conver to int64 failed %T", v)
 			return 0
 		}
 		return val
