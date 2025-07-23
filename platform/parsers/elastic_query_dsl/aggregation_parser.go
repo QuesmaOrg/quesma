@@ -282,10 +282,17 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 
 func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName string, defaultValue int) int {
 	if valueRaw, exists := queryMap[fieldName]; exists {
-		if asFloat, ok := valueRaw.(float64); ok {
-			return int(asFloat)
+		switch v := valueRaw.(type) {
+		case float64:
+			return int(v)
+		case string:
+			if intValue, err := strconv.Atoi(v); err == nil {
+				return intValue
+			}
+			logger.WarnWithCtx(cw.Ctx).Msgf("%s is a string but cannot be converted to int, value: %v. Using default: %d", fieldName, v, defaultValue)
+		default:
+			logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64 or string, but %T, value: %v. Using default: %d", fieldName, valueRaw, valueRaw, defaultValue)
 		}
-		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default: %d", fieldName, valueRaw, valueRaw, defaultValue)
 	}
 	return defaultValue
 }
