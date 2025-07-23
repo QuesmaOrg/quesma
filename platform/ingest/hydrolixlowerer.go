@@ -459,10 +459,22 @@ func (l *HydrolixLowerer) LowerToDDL(
 					}
 				}
 			case MapType:
-				keyType := typeInfo.Elements[0].Name
-				valType := typeInfo.Elements[1].Name
-				value = map[string]interface{}{
-					fmt.Sprintf("%v", defaultForType(keyType)): defaultForType(valType),
+				if events[colName] != nil {
+					rawMap, ok := events[colName].(map[string]any)
+					if ok {
+						valType := typeInfo.Elements[1].Name
+						typedMap := make(map[string]any)
+						for rawKey, rawVal := range rawMap {
+							castedVal, err := CastToType(rawVal, valType)
+							if err != nil {
+								logger.ErrorWithCtx(context.Background()).
+									Msgf("Error casting map value %v to type %s: %v", rawVal, valType, err)
+								continue
+							}
+							typedMap[rawKey] = castedVal
+						}
+						value = typedMap
+					}
 				}
 			}
 
