@@ -6,6 +6,7 @@ package database_common
 import (
 	"context"
 	"fmt"
+	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/end_user_errors"
 	"github.com/QuesmaOrg/quesma/platform/logger"
@@ -199,13 +200,26 @@ func (lm *LogManager) ResolveIndexPattern(ctx context.Context, schema schema.Reg
 	return util.Distinct(results), nil
 }
 
+// buildStringOfCountQuery builds string of count query which will be sent to DB (for 1 table).
+// If we query multiple tables at once, it needs to be called multiple times.
+// Takes care of whether `table` is "normal" or virtual (common_table)
+func (lm *LogManager) buildStringOfCountQuery(table *Table) string {
+	if table.VirtualTable {
+		// CAUTION: Using only table.Name (and discarding table.DatabaseName) on purpose
+		// Can be changed if needed, but that'd complicate the usual case
+		return fmt.Sprintf("SELECT count(*) FROM %s WHERE %s='%s'", common_table.TableName, common_table.IndexNameColumn, table.Name)
+	} else {
+		return fmt.Sprintf("SELECT count(*) FROM %s", table.FullTableName())
+	}
+}
+
 func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (count int64, err error) {
 	if len(tables) == 0 {
 		return
 	}
 	var subCountStatements []string
 	for _, t := range tables {
-		subCountStatements = append(subCountStatements, fmt.Sprintf("(SELECT count(*) FROM %s)", t.FullTableName()))
+		subCountStatements = append(subCountStatements, fmt.Sprintf("(%s)", lm.buildStringOfCountQuery(t)))
 	}
 	err = lm.chDb.QueryRow(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL "))).Scan(&count)
 	if err != nil {
@@ -216,7 +230,7 @@ func (lm *LogManager) CountMultiple(ctx context.Context, tables ...*Table) (coun
 
 func (lm *LogManager) Count(ctx context.Context, table *Table) (int64, error) {
 	var count int64
-	err := lm.chDb.QueryRow(ctx, fmt.Sprintf("SELECT count(*) FROM %s", table.FullTableName())).Scan(&count)
+	err := lm.chDb.QueryRow(ctx, lm.buildStringOfCountQuery(table)).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("clickhouse: query row failed: %v", err)
 	}
@@ -315,7 +329,7 @@ func (lm *LogManager) GetTableDefinitions() (TableMap, error) {
 	return *lm.tableDiscovery.TableDefinitions(), nil
 }
 
-// Returns if schema wasn't created (so it needs to be, and will be in a moment)
+// AddTableIfDoesntExist returns if schema wasn't created (so it needs to be, and will be in a moment)
 func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 	t := lm.FindTable(table.Name)
 	if t == nil {
@@ -329,6 +343,10 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 
 func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
+}
+
+func (lm *LogManager) IsInTransparentProxyMode() bool {
+	return lm.cfg.TransparentProxy
 }
 
 func NewEmptyLogManager(cfg *config.QuesmaConfiguration, chDb quesma_api.BackendConnector, phoneHomeAgent diag.PhoneHomeClient, loader TableDiscovery) *LogManager {
@@ -422,8 +440,4 @@ func NewChTableConfigTimestampStringAttr() *ChTableConfig {
 
 func (c *ChTableConfig) GetAttributes() []Attribute {
 	return c.Attributes
-}
-
-func (l *LogManager) IsInTransparentProxyMode() bool {
-	return l.cfg.TransparentProxy
 }

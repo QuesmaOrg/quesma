@@ -118,7 +118,7 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 
 	defer rows.Close()
 	if rows.Next() {
-		err := rows.Scan(&explain)
+		err = rows.Scan(&explain)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("failed to scan slow query explain: %v", err)
 			return ""
@@ -151,7 +151,9 @@ func getQueryId(ctx context.Context) string {
 	return fmt.Sprintf("%s-%d", prefix, queryCounter.Add(1))
 }
 
-func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, fields []string, rowToScan []interface{}) (res []model.QueryResultRow, performanceResult PerformanceResult, err error) {
+func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, fields []string, rowToScan []interface{}) (
+	res []model.QueryResultRow, performanceResult PerformanceResult, err error) {
+
 	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
 
 	queryAsString := query.SelectCommand.String()
