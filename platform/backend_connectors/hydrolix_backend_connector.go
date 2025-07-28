@@ -23,12 +23,11 @@ import (
 type HydrolixBackendConnector struct {
 	BasicSqlBackendConnector
 	// TODO for now we still have reference for RelationalDbConfiguration for fallback
-	cfg             *config.RelationalDbConfiguration
-	IngestURL       string
-	AccessToken     string
-	Headers         map[string]string
-	createTableChan chan string
-	client          *http.Client
+	cfg         *config.RelationalDbConfiguration
+	IngestURL   string
+	AccessToken string
+	Headers     map[string]string
+	client      *http.Client
 }
 
 func (p *HydrolixBackendConnector) GetId() quesma_api.BackendConnectorType {
@@ -121,12 +120,12 @@ type HydrolixResponse struct {
 var tableCache = make(map[string]uuid.UUID)
 var tableMutex sync.Mutex
 
-func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingest []map[string]interface{}, tableName string, tableId string) error {
-	logger.InfoWithCtx(ctx).Msgf("Ingests len: %s %d", tableName, len(ingest))
+func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingestSlice []map[string]interface{}, tableName string, tableId string) error {
+	logger.InfoWithCtx(ctx).Msgf("Ingests len: %s %d", tableName, len(ingestSlice))
 
 	var data []json.RawMessage
 
-	for _, row := range ingest {
+	for _, row := range ingestSlice {
 		if len(row) == 0 {
 			continue
 		}
@@ -146,17 +145,19 @@ func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingest []map[s
 
 	url := fmt.Sprintf("http://%s/ingest/event", hdxHost)
 	const sleepDuration = 5 * time.Second
-	for {
+	const maxRetries = 5
+	for retries := 0; retries < maxRetries; retries++ {
 		_, err := p.makeRequest(ctx, "POST", url, finalJson, token, tableName)
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("Error ingesting table %s: %v", tableName, err)
+			logger.WarnWithCtx(ctx).Msgf("Error ingesting table %s: %v retrying...", tableName, err)
 			time.Sleep(sleepDuration)
 			continue
 		}
 
-		logger.InfoWithCtx(ctx).Msgf("Ingests successfull: %s %d", tableName, len(ingest))
+		logger.InfoWithCtx(ctx).Msgf("Ingests successfull: %s %d", tableName, len(ingestSlice))
 		return nil
 	}
+	return fmt.Errorf("failed to ingest after %d retries: %s", maxRetries, tableName)
 }
 
 func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ...interface{}) error {
@@ -175,7 +176,7 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 	// Extract each section into its own map (or struct, if needed)
 	var createTable map[string]interface{}
 	var transform map[string]interface{}
-	var ingest []map[string]interface{}
+	var ingestSlice []map[string]interface{}
 
 	if err := json.Unmarshal(root["create_table"], &createTable); err != nil {
 		panic(err)
@@ -183,7 +184,7 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 	if err := json.Unmarshal(root["transform"], &transform); err != nil {
 		panic(err)
 	}
-	if err := json.Unmarshal(root["ingest"], &ingest); err != nil {
+	if err := json.Unmarshal(root["ingest"], &ingestSlice); err != nil {
 		panic(err)
 	}
 	var tableId uuid.UUID
@@ -229,9 +230,9 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 		tableMutex.Unlock()
 	}
 
-	if len(ingest) > 0 {
-		logger.Info().Msgf("Received %d rows for table %s", len(ingest), tableName)
-		go p.ingestFun(ctx, ingest, tableName, tableId.String())
+	if len(ingestSlice) > 0 {
+		logger.Info().Msgf("Received %d rows for table %s", len(ingestSlice), tableName)
+		go p.ingestFun(ctx, ingestSlice, tableName, tableId.String())
 	}
 
 	return nil

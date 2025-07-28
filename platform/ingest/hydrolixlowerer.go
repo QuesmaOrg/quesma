@@ -564,7 +564,7 @@ func (l *HydrolixLowerer) LowerToDDL(
 	}
 
 	// --- Ingest Section ---
-	ingests := make([]map[string]interface{}, 0)
+	ingestSlice := make([]map[string]interface{}, 0)
 
 	for i, preprocessedJson := range validatedJsons {
 		_, onlySchemaFields, nonSchemaFields, err := l.GenerateIngestContent(table, preprocessedJson,
@@ -632,16 +632,16 @@ func (l *HydrolixLowerer) LowerToDDL(
 			ingest[colName] = value
 		}
 		if len(ingest) > 0 {
-			ingests = append(ingests, ingest)
+			ingestSlice = append(ingestSlice, ingest)
 		}
 	}
 	// --- Final Payload ---
 	payload := map[string]interface{}{
 		"create_table": createTable,
 		"transform":    transform,
-		"ingest":       ingests,
+		"ingest":       ingestSlice,
 	}
-	logger.InfoWithCtx(context.Background()).Msgf("Ingesting %d %d %d events into table %s", len(validatedJsons), len(createTableCmd.Columns), len(ingests), table.Name)
+	logger.InfoWithCtx(context.Background()).Msgf("Ingesting %d %d %d events into table %s", len(validatedJsons), len(createTableCmd.Columns), len(ingestSlice), table.Name)
 	marshaledPayload, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling payload: %v", err)
