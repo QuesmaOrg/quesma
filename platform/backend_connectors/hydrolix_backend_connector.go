@@ -9,12 +9,14 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/google/uuid"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -53,7 +55,8 @@ func NewHydrolixBackendConnector(configuration *config.RelationalDbConfiguration
 		createTableChan: createTableChan,
 		client: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+				DisableKeepAlives: true,
 			},
 		},
 	}
@@ -69,7 +72,8 @@ func NewHydrolixBackendConnectorWithConnection(_ string, conn *sql.DB) *Hydrolix
 		createTableChan: createTableChan,
 		client: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+				DisableKeepAlives: true,
 			},
 		},
 	}
@@ -108,14 +112,12 @@ func (p *HydrolixBackendConnector) makeRequest(ctx context.Context, method strin
 	respBody, err := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("ingest failed: %s — %s", resp.Status, string(respBody))
-	} else {
-		logger.InfoWithCtx(ctx).Msgf("Ingest successful: %s  %s — %s", tableName, resp.Status, string(respBody))
 	}
 	return respBody, err
 }
 
 // TODO hardcoded for now
-const token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIybDZyTk1YV2hYQTA5M2tkRHA5ZFctaEMzM2NkOEtWUFhJdURZLWlLeUFjIn0.eyJleHAiOjE3NTMzNTQ5ODQsImlhdCI6MTc1MzI2ODU4NCwianRpIjoiN2IxZWNjZGItYTAwNi00Mzk3LTg4MmYtNjBiM2MyYzdmM2JmIiwiaXNzIjoiaHR0cHM6Ly9sb2NhbGhvc3Qva2V5Y2xvYWsvcmVhbG1zL2h5ZHJvbGl4LXVzZXJzIiwiYXVkIjpbImNvbmZpZy1hcGkiLCJhY2NvdW50Il0sInN1YiI6ImRiMWM1YTJiLTdhYjMtNGNmZi04NGU4LTQ3Yzc0YjRlZjAyMSIsInR5cCI6IkJlYXJlciIsImF6cCI6ImNvbmZpZy1hcGkiLCJzZXNzaW9uX3N0YXRlIjoiOTZjNTFmMDMtMmE5MS00YmUwLTg0MTktM2U2MDA1YWIxYWJmIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJkZWZhdWx0LXJvbGVzLWh5ZHJvbGl4LXVzZXJzIiwib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIGNvbmZpZy1hcGktc2VydmljZSBlbWFpbCBwcm9maWxlIiwic2lkIjoiOTZjNTFmMDMtMmE5MS00YmUwLTg0MTktM2U2MDA1YWIxYWJmIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInByZWZlcnJlZF91c2VybmFtZSI6Im1lQGh5ZHJvbGl4LmlvIiwiZW1haWwiOiJtZUBoeWRyb2xpeC5pbyJ9.e1lWfxphcCAN3aGCBUKOA8hl4gcuw9oNI60YRqAs2azGrVOCdIIZ8ri-kGn_6QtDKFdBmlFa7kXhiB7PzVgS5N_8QM5GlXWp-8LgvF7mhpmhP84xHWLhbYsxV3xDqLEcjnwxFN3XbVvzg_AWiECNP2qtqN5yqsSUMPR99JLcPnrZA7pXWXMflVvlenvrjlXvdZt6fmfEgXPoA54OBrS6QUDUNMIk9qdsSJCM-n96k7vo3dDCGyO12EoYQB2-yq7VegSNyaKi1BW1Jl33sSF7GQapU4YJ6ixMN_PUTkL0_ZzRWrPR6ry1qtxGz6phZbbj4LmmduvJlLqjcSrcMTbLdg"
+const token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIybDZyTk1YV2hYQTA5M2tkRHA5ZFctaEMzM2NkOEtWUFhJdURZLWlLeUFjIn0.eyJleHAiOjE3NTM3NzY2NTksImlhdCI6MTc1MzY5MDI1OSwianRpIjoiMzNmNzI2M2MtMTA2Zi00MTc1LWJhZTEtOTEzNTJkNTdmOWM0IiwiaXNzIjoiaHR0cHM6Ly9sb2NhbGhvc3Qva2V5Y2xvYWsvcmVhbG1zL2h5ZHJvbGl4LXVzZXJzIiwiYXVkIjpbImNvbmZpZy1hcGkiLCJhY2NvdW50Il0sInN1YiI6ImRiMWM1YTJiLTdhYjMtNGNmZi04NGU4LTQ3Yzc0YjRlZjAyMSIsInR5cCI6IkJlYXJlciIsImF6cCI6ImNvbmZpZy1hcGkiLCJzZXNzaW9uX3N0YXRlIjoiNGRhZWM2YzItMzA4ZC00MzFkLTg0ZWMtNGFiMjJjOTFmZjg3IiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJkZWZhdWx0LXJvbGVzLWh5ZHJvbGl4LXVzZXJzIiwib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIGNvbmZpZy1hcGktc2VydmljZSBlbWFpbCBwcm9maWxlIiwic2lkIjoiNGRhZWM2YzItMzA4ZC00MzFkLTg0ZWMtNGFiMjJjOTFmZjg3IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInByZWZlcnJlZF91c2VybmFtZSI6Im1lQGh5ZHJvbGl4LmlvIiwiZW1haWwiOiJtZUBoeWRyb2xpeC5pbyJ9.Yr0hleV6sJZCmOQKXSN82HVRm4RKC7IGW7CVXHJai8vOKMW5uPIiw_1BwaHzKi8DjwftHvhWW0hmEXh492Mj_6csQgvejeCfwbKvZx9rQbBZ-4P4GboB4OgqtZ5macY6D_QQyeXol2otS80E8OTAUBM8o07v_fYd92-nz-qY7ceicT8oI7kLMgEOD6VA7Glue7hqQblofIZMoDK1Ve2WhrOhfgqVDxCloFrLs1VhXevGBkVgz7LF_XoxLyR0UPhyVj7lM3ep3M8FJbuP5afKuJUr2nb3qm5Bxs_r1uuQe7INuEH-CYCPJmsOArJ0BIULgtB3LW1zCsLl_DAMQJhwtg"
 const hdxHost = "3.20.203.177:8888"
 const orgID = "d9ce0431-f26f-44e3-b0ef-abc1653d04eb"
 const projectID = "27506b30-0c78-41fa-a059-048d687f1164"
@@ -134,32 +136,69 @@ func listenForCreateTable(ch <-chan string) {
 	}
 }
 
+func isConnectionReset(err error) bool {
+	// Look for specific substrings or types indicating connection reset
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		// You may add extra checks here
+	}
+	// Match known error message
+	return strings.Contains(err.Error(), "connection reset by peer")
+}
+
 func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingest []map[string]interface{}, tableName string, tableId string) error {
 	logger.InfoWithCtx(ctx).Msgf("Ingests len: %s %d", tableName, len(ingest))
+
+	var data []json.RawMessage
+
 	for _, row := range ingest {
 		if len(row) == 0 {
 			continue
 		}
 		ingestJson, err := json.Marshal(row)
 		if err != nil {
-			return fmt.Errorf("error marshalling ingest JSON: %v", err)
+			logger.ErrorWithCtx(ctx).Msg("Failed to marshal row")
+			continue
 		}
-		url := fmt.Sprintf("http://%s/ingest/event", hdxHost)
-		//logger.Info().Msgf("ingest event: %s %s", createTable["name"].(string), string(ingestJson))
-	emitRequest:
-		respJson, err := p.makeRequest(ctx, "POST", url, ingestJson, token, tableName)
+		data = append(data, ingestJson)
+	}
+
+	// Final payload: a JSON array of the rows
+	finalJson, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal final JSON array: %w", err)
+	}
+
+	url := fmt.Sprintf("http://%s/ingest/event", hdxHost)
+	for {
+		respJson, err := p.makeRequest(ctx, "POST", url, finalJson, token, tableName)
 		if err != nil {
-			logger.DebugWithCtx(ctx).Msgf("Error ingesting table %s: %v", tableName, err)
+			logger.ErrorWithCtx(ctx).Msgf("Error ingesting table %s: %v", tableName, err)
+
+			// Retry on connection reset
+			if isConnectionReset(err) {
+				logger.WarnWithCtx(ctx).Msgf("Connection reset while ingesting table %s, retrying...", tableName)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			// Try to inspect response (even if err is non-nil)
 			var resp HydrolixResponse
-			if err := json.Unmarshal(respJson, &resp); err != nil {
+			if len(respJson) > 0 && json.Unmarshal(respJson, &resp) == nil {
 				if strings.Contains(resp.Message, "no table") {
+					logger.WarnWithCtx(ctx).Msgf("Table %s not found yet, retrying...", tableName)
 					time.Sleep(5 * time.Second)
-					goto emitRequest
+					continue
 				}
 			}
+
+			// If it's another kind of error — continue to the next iteration
+			continue
 		}
+
+		logger.InfoWithCtx(ctx).Msgf("Ingests successfull: %s %d", tableName, len(ingest))
+		return nil
 	}
-	return nil
 }
 
 func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ...interface{}) error {
