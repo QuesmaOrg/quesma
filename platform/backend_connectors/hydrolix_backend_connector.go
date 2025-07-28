@@ -22,14 +22,10 @@ import (
 
 type HydrolixBackendConnector struct {
 	BasicSqlBackendConnector
-	// TODO for now we still have reference for RelationalDbConfiguration for fallback
-	cfg         *config.RelationalDbConfiguration
-	IngestURL   string
-	AccessToken string
-	Headers     map[string]string
-	client      *http.Client
-	tableCache  map[string]uuid.UUID
-	tableMutex  sync.Mutex
+	cfg        *config.RelationalDbConfiguration
+	client     *http.Client
+	tableCache map[string]uuid.UUID
+	tableMutex sync.Mutex
 }
 
 func (p *HydrolixBackendConnector) GetId() quesma_api.BackendConnectorType {
@@ -58,11 +54,12 @@ func NewHydrolixBackendConnector(configuration *config.RelationalDbConfiguration
 	}
 }
 
-func NewHydrolixBackendConnectorWithConnection(_ string, conn *sql.DB) *HydrolixBackendConnector {
+func NewHydrolixBackendConnectorWithConnection(configuration *config.RelationalDbConfiguration, conn *sql.DB) *HydrolixBackendConnector {
 	return &HydrolixBackendConnector{
 		BasicSqlBackendConnector: BasicSqlBackendConnector{
 			connection: conn,
 		},
+		cfg: configuration,
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
@@ -110,12 +107,6 @@ func (p *HydrolixBackendConnector) makeRequest(ctx context.Context, method strin
 	return respBody, err
 }
 
-// TODO hardcoded for now
-const token = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIybDZyTk1YV2hYQTA5M2tkRHA5ZFctaEMzM2NkOEtWUFhJdURZLWlLeUFjIn0.eyJleHAiOjE3NTM3NzY2NTksImlhdCI6MTc1MzY5MDI1OSwianRpIjoiMzNmNzI2M2MtMTA2Zi00MTc1LWJhZTEtOTEzNTJkNTdmOWM0IiwiaXNzIjoiaHR0cHM6Ly9sb2NhbGhvc3Qva2V5Y2xvYWsvcmVhbG1zL2h5ZHJvbGl4LXVzZXJzIiwiYXVkIjpbImNvbmZpZy1hcGkiLCJhY2NvdW50Il0sInN1YiI6ImRiMWM1YTJiLTdhYjMtNGNmZi04NGU4LTQ3Yzc0YjRlZjAyMSIsInR5cCI6IkJlYXJlciIsImF6cCI6ImNvbmZpZy1hcGkiLCJzZXNzaW9uX3N0YXRlIjoiNGRhZWM2YzItMzA4ZC00MzFkLTg0ZWMtNGFiMjJjOTFmZjg3IiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJkZWZhdWx0LXJvbGVzLWh5ZHJvbGl4LXVzZXJzIiwib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIGNvbmZpZy1hcGktc2VydmljZSBlbWFpbCBwcm9maWxlIiwic2lkIjoiNGRhZWM2YzItMzA4ZC00MzFkLTg0ZWMtNGFiMjJjOTFmZjg3IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInByZWZlcnJlZF91c2VybmFtZSI6Im1lQGh5ZHJvbGl4LmlvIiwiZW1haWwiOiJtZUBoeWRyb2xpeC5pbyJ9.Yr0hleV6sJZCmOQKXSN82HVRm4RKC7IGW7CVXHJai8vOKMW5uPIiw_1BwaHzKi8DjwftHvhWW0hmEXh492Mj_6csQgvejeCfwbKvZx9rQbBZ-4P4GboB4OgqtZ5macY6D_QQyeXol2otS80E8OTAUBM8o07v_fYd92-nz-qY7ceicT8oI7kLMgEOD6VA7Glue7hqQblofIZMoDK1Ve2WhrOhfgqVDxCloFrLs1VhXevGBkVgz7LF_XoxLyR0UPhyVj7lM3ep3M8FJbuP5afKuJUr2nb3qm5Bxs_r1uuQe7INuEH-CYCPJmsOArJ0BIULgtB3LW1zCsLl_DAMQJhwtg"
-const hdxHost = "3.20.203.177:8888"
-const orgID = "d9ce0431-f26f-44e3-b0ef-abc1653d04eb"
-const projectID = "27506b30-0c78-41fa-a059-048d687f1164"
-
 type HydrolixResponse struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -144,11 +135,11 @@ func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingestSlice []
 		return fmt.Errorf("failed to marshal final JSON array: %w", err)
 	}
 
-	url := fmt.Sprintf("http://%s/ingest/event", hdxHost)
+	url := fmt.Sprintf("%s/ingest/event", p.cfg.Url.String())
 	const sleepDuration = 5 * time.Second
 	const maxRetries = 5
 	for retries := 0; retries < maxRetries; retries++ {
-		_, err := p.makeRequest(ctx, "POST", url, finalJson, token, tableName)
+		_, err := p.makeRequest(ctx, "POST", url, finalJson, p.cfg.Token, tableName)
 		if err != nil {
 			logger.WarnWithCtx(ctx).Msgf("Error ingesting table %s: %v retrying...", tableName, err)
 			time.Sleep(sleepDuration)
@@ -177,27 +168,27 @@ func (p *HydrolixBackendConnector) setTableIdInCache(tableName string, tableId u
 func (p *HydrolixBackendConnector) createTableWithSchema(ctx context.Context,
 	createTable map[string]interface{}, transform map[string]interface{},
 	tableName string, tableId uuid.UUID) error {
-	url := fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/", hdxHost, orgID, projectID)
+	url := fmt.Sprintf("%s/config/v1/orgs/%s/projects/%s/tables/", p.cfg.Url.String(), p.cfg.OrgId, p.cfg.ProjectId)
 	createTableJson, err := json.Marshal(createTable)
 	logger.Info().Msgf("createtable event: %s %s", tableName, string(createTableJson))
 
 	if err != nil {
 		return fmt.Errorf("error marshalling create_table JSON: %v", err)
 	}
-	_, err = p.makeRequest(ctx, "POST", url, createTableJson, token, tableName)
+	_, err = p.makeRequest(ctx, "POST", url, createTableJson, p.cfg.Token, tableName)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 		return err
 	}
 
-	url = fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/%s/transforms", hdxHost, orgID, projectID, tableId.String())
+	url = fmt.Sprintf("%s/config/v1/orgs/%s/projects/%s/tables/%s/transforms", p.cfg.Url.String(), p.cfg.OrgId, p.cfg.ProjectId, tableId.String())
 	transformJson, err := json.Marshal(transform)
 	if err != nil {
 		return fmt.Errorf("error marshalling transform JSON: %v", err)
 	}
 	logger.Info().Msgf("transform event: %s %s", tableName, string(transformJson))
 
-	_, err = p.makeRequest(ctx, "POST", url, transformJson, token, tableName)
+	_, err = p.makeRequest(ctx, "POST", url, transformJson, p.cfg.Token, tableName)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 		return err

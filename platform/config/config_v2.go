@@ -108,6 +108,9 @@ type RelationalDbConfiguration struct {
 	ClientCertPath string `koanf:"clientCertPath"`
 	ClientKeyPath  string `koanf:"clientKeyPath"`
 	CACertPath     string `koanf:"caCertPath"`
+	Token          string `koanf:"token"`
+	OrgId          string `koanf:"orgId"`
+	ProjectId      string `koanf:"projectId"`
 }
 
 func (c *RelationalDbConfiguration) IsEmpty() bool {

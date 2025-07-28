@@ -98,7 +98,7 @@ func InitDBConnectionPool(c *config.QuesmaConfiguration) quesma_api.BackendConne
 	db.SetConnMaxLifetime(time.Duration(5) * time.Minute) // default is 1h
 
 	if c.Hydrolix.ConnectorType == quesma_api.GetBackendConnectorNameFromType(quesma_api.HydrolixSQLBackend) {
-		return backend_connectors.NewHydrolixBackendConnectorWithConnection(c.Hydrolix.Url.String(), db)
+		return backend_connectors.NewHydrolixBackendConnectorWithConnection(&c.Hydrolix, db)
 	}
 	return backend_connectors.NewClickHouseBackendConnectorWithConnection(c.ClickHouse.Url.String(), db)
 

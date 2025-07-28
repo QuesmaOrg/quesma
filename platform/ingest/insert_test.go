@@ -486,7 +486,7 @@ func TestHydrolixIngest(t *testing.T) {
 			tables := NewTableMap()
 
 			conn, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-			db := backend_connectors.NewHydrolixBackendConnectorWithConnection("", conn)
+			db := backend_connectors.NewHydrolixBackendConnectorWithConnection(&quesmaConfig.Hydrolix, conn)
 			if err != nil {
 				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 			}
