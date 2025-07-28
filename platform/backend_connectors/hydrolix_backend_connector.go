@@ -28,6 +28,8 @@ type HydrolixBackendConnector struct {
 	AccessToken string
 	Headers     map[string]string
 	client      *http.Client
+	tableCache  map[string]uuid.UUID
+	tableMutex  sync.Mutex
 }
 
 func (p *HydrolixBackendConnector) GetId() quesma_api.BackendConnectorType {
@@ -52,6 +54,7 @@ func NewHydrolixBackendConnector(configuration *config.RelationalDbConfiguration
 				DisableKeepAlives: true,
 			},
 		},
+		tableCache: make(map[string]uuid.UUID),
 	}
 }
 
@@ -66,6 +69,7 @@ func NewHydrolixBackendConnectorWithConnection(_ string, conn *sql.DB) *Hydrolix
 				DisableKeepAlives: true,
 			},
 		},
+		tableCache: make(map[string]uuid.UUID),
 	}
 }
 
@@ -117,9 +121,6 @@ type HydrolixResponse struct {
 	Message string `json:"message"`
 }
 
-var tableCache = make(map[string]uuid.UUID)
-var tableMutex sync.Mutex
-
 func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingestSlice []map[string]interface{}, tableName string, tableId string) error {
 	logger.InfoWithCtx(ctx).Msgf("Ingests len: %s %d", tableName, len(ingestSlice))
 
@@ -160,17 +161,17 @@ func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingestSlice []
 	return fmt.Errorf("failed to ingest after %d retries: %s", maxRetries, tableName)
 }
 
-func getTableIdFromCache(tableName string) (uuid.UUID, bool) {
-	tableMutex.Lock()
-	defer tableMutex.Unlock()
-	id, exists := tableCache[tableName]
+func (p *HydrolixBackendConnector) getTableIdFromCache(tableName string) (uuid.UUID, bool) {
+	p.tableMutex.Lock()
+	defer p.tableMutex.Unlock()
+	id, exists := p.tableCache[tableName]
 	return id, exists
 }
 
-func setTableIdInCache(tableName string, tableId uuid.UUID) {
-	tableMutex.Lock()
-	defer tableMutex.Unlock()
-	tableCache[tableName] = tableId
+func (p *HydrolixBackendConnector) setTableIdInCache(tableName string, tableId uuid.UUID) {
+	p.tableMutex.Lock()
+	defer p.tableMutex.Unlock()
+	p.tableCache[tableName] = tableId
 }
 
 func (p *HydrolixBackendConnector) createTableWithSchema(ctx context.Context,
@@ -233,7 +234,7 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 	}
 	tableName := createTable["name"].(string)
 
-	tableId, _ := getTableIdFromCache(tableName)
+	tableId, _ := p.getTableIdFromCache(tableName)
 	if len(createTable) > 0 && tableId == uuid.Nil {
 		tableId = uuid.New()
 		createTable["uuid"] = tableId.String()
@@ -242,7 +243,7 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 			logger.ErrorWithCtx(ctx).Msgf("error creating table with schema: %v", err)
 			return err
 		}
-		setTableIdInCache(tableName, tableId)
+		p.setTableIdInCache(tableName, tableId)
 	}
 
 	if len(ingestSlice) > 0 {
