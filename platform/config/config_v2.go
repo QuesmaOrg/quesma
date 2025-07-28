@@ -103,14 +103,14 @@ type RelationalDbConfiguration struct {
 	ClusterName   string `koanf:"clusterName"` // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
 	AdminUrl      *Url   `koanf:"adminUrl"`
 	DisableTLS    bool   `koanf:"disableTLS"`
+	Token         string `koanf:"token"`
+	OrgId         string `koanf:"orgId"`
+	ProjectId     string `koanf:"projectId"`
 
 	// This supports es backend only.
 	ClientCertPath string `koanf:"clientCertPath"`
 	ClientKeyPath  string `koanf:"clientKeyPath"`
 	CACertPath     string `koanf:"caCertPath"`
-	Token          string `koanf:"token"`
-	OrgId          string `koanf:"orgId"`
-	ProjectId      string `koanf:"projectId"`
 }
 
 func (c *RelationalDbConfiguration) IsEmpty() bool {
