@@ -160,6 +160,50 @@ func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingestSlice []
 	return fmt.Errorf("failed to ingest after %d retries: %s", maxRetries, tableName)
 }
 
+func getTableIdFromCache(tableName string) (uuid.UUID, bool) {
+	tableMutex.Lock()
+	defer tableMutex.Unlock()
+	id, exists := tableCache[tableName]
+	return id, exists
+}
+
+func setTableIdInCache(tableName string, tableId uuid.UUID) {
+	tableMutex.Lock()
+	defer tableMutex.Unlock()
+	tableCache[tableName] = tableId
+}
+
+func (p *HydrolixBackendConnector) createTableWithSchema(ctx context.Context,
+	createTable map[string]interface{}, transform map[string]interface{},
+	tableName string, tableId uuid.UUID) error {
+	url := fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/", hdxHost, orgID, projectID)
+	createTableJson, err := json.Marshal(createTable)
+	logger.Info().Msgf("createtable event: %s %s", tableName, string(createTableJson))
+
+	if err != nil {
+		return fmt.Errorf("error marshalling create_table JSON: %v", err)
+	}
+	_, err = p.makeRequest(ctx, "POST", url, createTableJson, token, tableName)
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
+		return err
+	}
+
+	url = fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/%s/transforms", hdxHost, orgID, projectID, tableId.String())
+	transformJson, err := json.Marshal(transform)
+	if err != nil {
+		return fmt.Errorf("error marshalling transform JSON: %v", err)
+	}
+	logger.Info().Msgf("transform event: %s %s", tableName, string(transformJson))
+
+	_, err = p.makeRequest(ctx, "POST", url, transformJson, token, tableName)
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
+		return err
+	}
+	return nil
+}
+
 func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ...interface{}) error {
 	// TODO context might be cancelled too early
 	ctx := context.Background()
@@ -187,47 +231,18 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 	if err := json.Unmarshal(root["ingest"], &ingestSlice); err != nil {
 		panic(err)
 	}
-	var tableId uuid.UUID
-	// Check if tableId is already cached
-	tableMutex.Lock()
-	if id, exists := tableCache[createTable["name"].(string)]; exists {
-		tableId = id
-	} else {
-		tableId = uuid.Nil
-	}
-	tableMutex.Unlock()
 	tableName := createTable["name"].(string)
+
+	tableId, _ := getTableIdFromCache(tableName)
 	if len(createTable) > 0 && tableId == uuid.Nil {
-		url := fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/", hdxHost, orgID, projectID)
 		tableId = uuid.New()
 		createTable["uuid"] = tableId.String()
-		createTableJson, err := json.Marshal(createTable)
-		logger.Info().Msgf("createtable event: %s %s", createTable["name"].(string), string(createTableJson))
-
+		err := p.createTableWithSchema(ctx, createTable, transform, tableName, tableId)
 		if err != nil {
-			return fmt.Errorf("error marshalling create_table JSON: %v", err)
-		}
-		_, err = p.makeRequest(ctx, "POST", url, createTableJson, token, tableName)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
+			logger.ErrorWithCtx(ctx).Msgf("error creating table with schema: %v", err)
 			return err
 		}
-
-		url = fmt.Sprintf("http://%s/config/v1/orgs/%s/projects/%s/tables/%s/transforms", hdxHost, orgID, projectID, tableId.String())
-		transformJson, err := json.Marshal(transform)
-		if err != nil {
-			return fmt.Errorf("error marshalling transform JSON: %v", err)
-		}
-		logger.Info().Msgf("transform event: %s %s", tableName, string(transformJson))
-
-		_, err = p.makeRequest(ctx, "POST", url, transformJson, token, tableName)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
-			return err
-		}
-		tableMutex.Lock()
-		tableCache[tableName] = tableId
-		tableMutex.Unlock()
+		setTableIdInCache(tableName, tableId)
 	}
 
 	if len(ingestSlice) > 0 {
