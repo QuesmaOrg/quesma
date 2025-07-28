@@ -9,16 +9,13 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/QuesmaOrg/quesma/platform/config"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"github.com/google/uuid"
 	"io"
-	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -48,11 +45,8 @@ func (p *HydrolixBackendConnector) Open() error {
 }
 
 func NewHydrolixBackendConnector(configuration *config.RelationalDbConfiguration) *HydrolixBackendConnector {
-	createTableChan := make(chan string)
-	go listenForCreateTable(createTableChan)
 	return &HydrolixBackendConnector{
-		cfg:             configuration,
-		createTableChan: createTableChan,
+		cfg: configuration,
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
@@ -63,13 +57,10 @@ func NewHydrolixBackendConnector(configuration *config.RelationalDbConfiguration
 }
 
 func NewHydrolixBackendConnectorWithConnection(_ string, conn *sql.DB) *HydrolixBackendConnector {
-	createTableChan := make(chan string)
-	go listenForCreateTable(createTableChan)
 	return &HydrolixBackendConnector{
 		BasicSqlBackendConnector: BasicSqlBackendConnector{
 			connection: conn,
 		},
-		createTableChan: createTableChan,
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
@@ -130,22 +121,6 @@ type HydrolixResponse struct {
 var tableCache = make(map[string]uuid.UUID)
 var tableMutex sync.Mutex
 
-func listenForCreateTable(ch <-chan string) {
-	for url := range ch {
-		_ = url // TODO: handle the URL if needed
-	}
-}
-
-func isConnectionReset(err error) bool {
-	// Look for specific substrings or types indicating connection reset
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		// You may add extra checks here
-	}
-	// Match known error message
-	return strings.Contains(err.Error(), "connection reset by peer")
-}
-
 func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingest []map[string]interface{}, tableName string, tableId string) error {
 	logger.InfoWithCtx(ctx).Msgf("Ingests len: %s %d", tableName, len(ingest))
 
@@ -170,29 +145,12 @@ func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingest []map[s
 	}
 
 	url := fmt.Sprintf("http://%s/ingest/event", hdxHost)
+	const sleepDuration = 5 * time.Second
 	for {
-		respJson, err := p.makeRequest(ctx, "POST", url, finalJson, token, tableName)
+		_, err := p.makeRequest(ctx, "POST", url, finalJson, token, tableName)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Error ingesting table %s: %v", tableName, err)
-
-			// Retry on connection reset
-			if isConnectionReset(err) {
-				logger.WarnWithCtx(ctx).Msgf("Connection reset while ingesting table %s, retrying...", tableName)
-				time.Sleep(5 * time.Second)
-				continue
-			}
-
-			// Try to inspect response (even if err is non-nil)
-			var resp HydrolixResponse
-			if len(respJson) > 0 && json.Unmarshal(respJson, &resp) == nil {
-				if strings.Contains(resp.Message, "no table") {
-					logger.WarnWithCtx(ctx).Msgf("Table %s not found yet, retrying...", tableName)
-					time.Sleep(5 * time.Second)
-					continue
-				}
-			}
-
-			// If it's another kind of error — continue to the next iteration
+			time.Sleep(sleepDuration)
 			continue
 		}
 
