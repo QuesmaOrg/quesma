@@ -41,7 +41,27 @@ func (p *HydrolixBackendConnector) Open() error {
 	return nil
 }
 
+func checkHydrolixConfig(cfg *config.RelationalDbConfiguration) error {
+	if cfg.Url == nil {
+		return fmt.Errorf("hydrolix URL is not set")
+	}
+	if cfg.HydrolixToken == "" {
+		return fmt.Errorf("hydrolix token is not set")
+	}
+	if cfg.HydrolixOrgId == "" {
+		return fmt.Errorf("hydrolix organization ID is not set")
+	}
+	if cfg.HydrolixProjectId == "" {
+		return fmt.Errorf("hydrolix project ID is not set")
+	}
+	return nil
+}
+
 func NewHydrolixBackendConnector(configuration *config.RelationalDbConfiguration) *HydrolixBackendConnector {
+	if err := checkHydrolixConfig(configuration); err != nil {
+		logger.Error().Msgf("Invalid Hydrolix configuration: %v", err)
+		return nil
+	}
 	return &HydrolixBackendConnector{
 		cfg: configuration,
 		client: &http.Client{
@@ -55,6 +75,10 @@ func NewHydrolixBackendConnector(configuration *config.RelationalDbConfiguration
 }
 
 func NewHydrolixBackendConnectorWithConnection(configuration *config.RelationalDbConfiguration, conn *sql.DB) *HydrolixBackendConnector {
+	if err := checkHydrolixConfig(configuration); err != nil {
+		logger.Error().Msgf("Invalid Hydrolix configuration: %v", err)
+		return nil
+	}
 	return &HydrolixBackendConnector{
 		BasicSqlBackendConnector: BasicSqlBackendConnector{
 			connection: conn,
