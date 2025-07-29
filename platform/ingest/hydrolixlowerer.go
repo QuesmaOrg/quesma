@@ -639,6 +639,9 @@ func (l *HydrolixLowerer) LowerToDDL(
 		}
 	}
 	// --- Final Payload ---
+	// There is implicit interface here between lowerer and backend connector
+	// so we need to generate payload that is compatible with backend connector
+	// backend connector expects a specific structure
 	payload := map[string]interface{}{
 		"create_table": createTable,
 		"transform":    transform,
