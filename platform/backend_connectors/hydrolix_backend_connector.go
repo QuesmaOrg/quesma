@@ -141,7 +141,7 @@ func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingestSlice []
 	const sleepDuration = 5 * time.Second
 	const maxRetries = 5
 	for retries := 0; retries < maxRetries; retries++ {
-		_, err := p.makeRequest(ctx, "POST", url, finalJson, p.cfg.Token, tableName)
+		_, err := p.makeRequest(ctx, "POST", url, finalJson, p.cfg.HydrolixToken, tableName)
 		if err != nil {
 			logger.WarnWithCtx(ctx).Msgf("Error ingesting table %s: %v retrying...", tableName, err)
 			time.Sleep(sleepDuration)
@@ -170,27 +170,27 @@ func (p *HydrolixBackendConnector) setTableIdInCache(tableName string, tableId u
 func (p *HydrolixBackendConnector) createTableWithSchema(ctx context.Context,
 	createTable map[string]interface{}, transform map[string]interface{},
 	tableName string, tableId uuid.UUID) error {
-	url := fmt.Sprintf("%s/config/v1/orgs/%s/projects/%s/tables/", p.cfg.Url.String(), p.cfg.OrgId, p.cfg.ProjectId)
+	url := fmt.Sprintf("%s/config/v1/orgs/%s/projects/%s/tables/", p.cfg.Url.String(), p.cfg.HydrolixOrgId, p.cfg.HydrolixProjectId)
 	createTableJson, err := json.Marshal(createTable)
 	logger.Info().Msgf("createtable event: %s %s", tableName, string(createTableJson))
 
 	if err != nil {
 		return fmt.Errorf("error marshalling create_table JSON: %v", err)
 	}
-	_, err = p.makeRequest(ctx, "POST", url, createTableJson, p.cfg.Token, tableName)
+	_, err = p.makeRequest(ctx, "POST", url, createTableJson, p.cfg.HydrolixToken, tableName)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 		return err
 	}
 
-	url = fmt.Sprintf("%s/config/v1/orgs/%s/projects/%s/tables/%s/transforms", p.cfg.Url.String(), p.cfg.OrgId, p.cfg.ProjectId, tableId.String())
+	url = fmt.Sprintf("%s/config/v1/orgs/%s/projects/%s/tables/%s/transforms", p.cfg.Url.String(), p.cfg.HydrolixOrgId, p.cfg.HydrolixProjectId, tableId.String())
 	transformJson, err := json.Marshal(transform)
 	if err != nil {
 		return fmt.Errorf("error marshalling transform JSON: %v", err)
 	}
 	logger.Info().Msgf("transform event: %s %s", tableName, string(transformJson))
 
-	_, err = p.makeRequest(ctx, "POST", url, transformJson, p.cfg.Token, tableName)
+	_, err = p.makeRequest(ctx, "POST", url, transformJson, p.cfg.HydrolixToken, tableName)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error making request: %v", err)
 		return err

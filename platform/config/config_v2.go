@@ -95,17 +95,17 @@ type BackendConnector struct {
 // RelationalDbConfiguration works fine for non-relational databases too, consider rename
 type RelationalDbConfiguration struct {
 	//ConnectorName string `koanf:"name"`
-	ConnectorType string `koanf:"type"`
-	Url           *Url   `koanf:"url"`
-	User          string `koanf:"user"`
-	Password      string `koanf:"password"`
-	Database      string `koanf:"database"`
-	ClusterName   string `koanf:"clusterName"` // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
-	AdminUrl      *Url   `koanf:"adminUrl"`
-	DisableTLS    bool   `koanf:"disableTLS"`
-	Token         string `koanf:"token"`
-	OrgId         string `koanf:"orgId"`
-	ProjectId     string `koanf:"projectId"`
+	ConnectorType     string `koanf:"type"`
+	Url               *Url   `koanf:"url"`
+	User              string `koanf:"user"`
+	Password          string `koanf:"password"`
+	Database          string `koanf:"database"`
+	ClusterName       string `koanf:"clusterName"` // When creating tables by Quesma - they'll use `ON CLUSTER ClusterName` clause
+	AdminUrl          *Url   `koanf:"adminUrl"`
+	DisableTLS        bool   `koanf:"disableTLS"`
+	HydrolixToken     string `koanf:"token"`
+	HydrolixOrgId     string `koanf:"orgId"`
+	HydrolixProjectId string `koanf:"projectId"`
 
 	// This supports es backend only.
 	ClientCertPath string `koanf:"clientCertPath"`
