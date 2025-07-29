@@ -167,6 +167,8 @@ func GetInstanceType(instanceName string) InstanceType {
 	switch instanceName {
 	case "clickhouse":
 		return ClickHouseInstance
+	case "hydrolix":
+		return ClickHouseInstance
 	case "doris":
 		return DorisInstance
 	default:
