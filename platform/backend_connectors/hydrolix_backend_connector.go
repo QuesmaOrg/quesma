@@ -136,6 +136,8 @@ func (p *HydrolixBackendConnector) ingestFun(ctx context.Context, ingestSlice []
 	}
 
 	url := fmt.Sprintf("%s/ingest/event", p.cfg.Url.String())
+	// Sleep duration is arbitrarily chosen.
+	// It seems that the Hydrolix API needs some time to process the table creation before ingesting data.
 	const sleepDuration = 5 * time.Second
 	const maxRetries = 5
 	for retries := 0; retries < maxRetries; retries++ {

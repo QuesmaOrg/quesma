@@ -26,6 +26,7 @@ type HydrolixLowerer struct {
 	ingestFieldStatistics      IngestFieldStatistics
 	ingestFieldStatisticsLock  sync.Mutex
 	tableCreteStatementMapping map[*chLib.Table]CreateTableStatement // cache for table creation statements
+	tableCreationLock          sync.Mutex
 }
 
 func NewHydrolixLowerer(virtualTableStorage persistence.JSONDatabase) *HydrolixLowerer {
@@ -451,11 +452,13 @@ func (l *HydrolixLowerer) LowerToDDL(
 	createTableCmd CreateTableStatement,
 ) ([]string, error) {
 
+	l.tableCreationLock.Lock()
 	if _, exists := l.tableCreteStatementMapping[table]; !exists {
 		l.tableCreteStatementMapping[table] = createTableCmd
 	} else {
 		createTableCmd = l.tableCreteStatementMapping[table]
 	}
+	l.tableCreationLock.Unlock()
 
 	// --- Create Table Section ---
 	createTable := map[string]interface{}{
