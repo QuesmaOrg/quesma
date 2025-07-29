@@ -83,7 +83,7 @@ func (p *HydrolixBackendConnector) makeRequest(ctx context.Context, method strin
 	// Build the request
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	// Set headers
@@ -206,7 +206,7 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 	// Top-level object
 	var root map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(query), &root); err != nil {
-		panic(err)
+		return err
 	}
 
 	// Extract each section into its own map (or struct, if needed)
@@ -215,13 +215,13 @@ func (p *HydrolixBackendConnector) Exec(_ context.Context, query string, args ..
 	var ingestSlice []map[string]interface{}
 
 	if err := json.Unmarshal(root["create_table"], &createTable); err != nil {
-		panic(err)
+		return err
 	}
 	if err := json.Unmarshal(root["transform"], &transform); err != nil {
-		panic(err)
+		return err
 	}
 	if err := json.Unmarshal(root["ingest"], &ingestSlice); err != nil {
-		panic(err)
+		return err
 	}
 	tableName := createTable["name"].(string)
 
