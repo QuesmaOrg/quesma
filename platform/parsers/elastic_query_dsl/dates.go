@@ -85,7 +85,7 @@ func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType dat
 		case database_common.DateTime64:
 			threeDigitsOfPrecisionSuffice := utcTs.UnixNano()%1_000_000 == 0
 			if threeDigitsOfPrecisionSuffice {
-				return model.NewFunction("fromUnixTimestamp64Milli", addFormat(utcTs.UnixMilli())), true
+				return model.NewFunction(model.FromUnixTimeFunction, addFormat(utcTs.UnixMilli())), true
 			} else {
 				return model.NewFunction(
 					"toDateTime64",
@@ -98,7 +98,7 @@ func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType dat
 				), true
 			}
 		case database_common.DateTime:
-			return model.NewFunction("fromUnixTimestamp", addFormat(utcTs.Unix())), true
+			return model.NewFunction(model.FromUnixTimeFunction, addFormat(utcTs.Unix())), true
 		default:
 			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
 		}
