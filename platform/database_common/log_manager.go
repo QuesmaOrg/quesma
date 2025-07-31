@@ -77,6 +77,7 @@ type LogManagerIFace interface {
 	CountMultiple(ctx context.Context, tables ...*Table) (int64, error)
 	Count(ctx context.Context, table *Table) (int64, error)
 	GetTableDefinitions() (TableMap, error)
+	GetBackendConnector() quesma_api.BackendConnector
 }
 
 func NewTableMap() *TableMap {
@@ -426,4 +427,8 @@ func (c *ChTableConfig) GetAttributes() []Attribute {
 
 func (l *LogManager) IsInTransparentProxyMode() bool {
 	return l.cfg.TransparentProxy
+}
+
+func (l *LogManager) GetBackendConnector() quesma_api.BackendConnector {
+	return l.chDb
 }

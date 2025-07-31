@@ -521,6 +521,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			logger.InfoWithCtx(ctx).Msgf("Input SQL query %d: %s", i, query.SelectCommand.String())
 		}
 	}
+	plan.BackendConnector = q.logManager.GetBackendConnector()
 	err = q.transformQueries(plan)
 
 	if err != nil {
