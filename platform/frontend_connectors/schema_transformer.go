@@ -1146,22 +1146,29 @@ func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.Execution
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
 		{TransformationName: "ApplySearchAfterParameter", Transformation: s.applySearchAfterParameter},
 	}
+
 	// Section 3: backend specific transformations
-	if plan.BackendConnector.GetId() == quesma_api.ClickHouseSQLBackend {
+	// fallback to clickhouse date functions if no backend connector is set
+	if plan.BackendConnector == nil {
 		transformationChain = append(transformationChain, struct {
 			TransformationName string
 			Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
 		}{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse})
+	} else {
+		if plan.BackendConnector.GetId() == quesma_api.ClickHouseSQLBackend {
+			transformationChain = append(transformationChain, struct {
+				TransformationName string
+				Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
+			}{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse})
+		}
+
+		if plan.BackendConnector.GetId() == quesma_api.DorisSQLBackend {
+			transformationChain = append(transformationChain, struct {
+				TransformationName string
+				Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
+			}{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToDoris})
+		}
 	}
-
-	if plan.BackendConnector.GetId() == quesma_api.DorisSQLBackend {
-		transformationChain = append(transformationChain, struct {
-			TransformationName string
-			Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
-		}{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToDoris})
-
-	}
-
 	transformationChain = append(transformationChain,
 		[]struct {
 			TransformationName string
