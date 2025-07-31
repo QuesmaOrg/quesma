@@ -5,6 +5,7 @@ package model
 import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/painful"
 	"github.com/QuesmaOrg/quesma/platform/schema"
+	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"time"
 )
 
@@ -120,6 +121,8 @@ type ExecutionPlan struct {
 	MergeSiblingResults func(plan *ExecutionPlan, results [][]QueryResultRow) (*ExecutionPlan, [][]QueryResultRow)
 
 	SiblingQueries map[int][]int // Map of query IDs to their sibling query IDs
+
+	BackendConnector quesma_api.BackendConnector // Backend connector used for executing the queries
 }
 
 // NewExecutionPlan creates a new instance of model.ExecutionPlan

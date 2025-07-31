@@ -14,6 +14,7 @@ import (
 	"github.com/QuesmaOrg/quesma/platform/parsers/elastic_query_dsl"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/transformations"
+	quesma_api "github.com/QuesmaOrg/quesma/platform/v2/core"
 	"sort"
 	"strconv"
 	"strings"
@@ -901,7 +902,6 @@ func (s *SchemaCheckPass) applyRuntimeMappings(indexSchema schema.Schema, query 
 func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
 
 	visitor := model.NewBaseVisitor()
-
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
 
 		switch e.Name {
@@ -926,7 +926,36 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
 	return query, nil
+}
 
+// it convers out internal date time related fuction to clickhouse functions
+func (s *SchemaCheckPass) convertQueryDateTimeFunctionToDoris(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
+
+	visitor := model.NewBaseVisitor()
+	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, e model.FunctionExpr) interface{} {
+
+		switch e.Name {
+
+		case model.DateHourFunction:
+			if len(e.Args) != 1 {
+				return e
+			}
+			return model.NewFunction("HOUR", e.Args[0].Accept(b).(model.Expr))
+
+			// TODO this is a place for over date/time related functions
+			// add more
+
+		default:
+			return visitFunction(b, e)
+		}
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
 }
 
 func (s *SchemaCheckPass) checkAggOverUnsupportedType(indexSchema schema.Schema, query *model.Query) (*model.Query, error) {
@@ -1116,20 +1145,38 @@ func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.Execution
 		{TransformationName: "FullTextFieldTransformation", Transformation: s.applyFullTextField},
 		{TransformationName: "TimestampFieldTransformation", Transformation: s.applyTimestampField},
 		{TransformationName: "ApplySearchAfterParameter", Transformation: s.applySearchAfterParameter},
-
-		// Section 3: clickhouse specific transformations
-		{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse},
-		{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
-		{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
-		{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
-		{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
-		{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
-		{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
-		{TransformationName: "ApplySelectFromCluster", Transformation: s.ApplySelectFromCluster},
-
-		// Section 4: compensations and checks
-		{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 	}
+	// Section 3: backend specific transformations
+	if plan.BackendConnector.GetId() == quesma_api.ClickHouseSQLBackend {
+		transformationChain = append(transformationChain, struct {
+			TransformationName string
+			Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
+		}{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse})
+	}
+
+	if plan.BackendConnector.GetId() == quesma_api.DorisSQLBackend {
+		transformationChain = append(transformationChain, struct {
+			TransformationName string
+			Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
+		}{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToDoris})
+
+	}
+
+	transformationChain = append(transformationChain,
+		[]struct {
+			TransformationName string
+			Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
+		}{
+			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
+			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
+			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
+			{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
+			{TransformationName: "MatchOperatorTransformation", Transformation: s.applyMatchOperator},
+			{TransformationName: "AggOverUnsupportedType", Transformation: s.checkAggOverUnsupportedType},
+			{TransformationName: "ApplySelectFromCluster", Transformation: s.ApplySelectFromCluster},
+			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
+		}...,
+	)
 
 	for k, query := range plan.Queries {
 		var err error
