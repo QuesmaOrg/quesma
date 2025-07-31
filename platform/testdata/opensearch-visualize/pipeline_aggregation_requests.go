@@ -850,7 +850,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
-			  sumOrNull(toHour("timestamp")) AS "metric__2__1-metric_col_0"
+			  sumOrNull(__quesma_date_hour("timestamp")) AS "metric__2__1-metric_col_0"
 			FROM __quesma_table_name
 			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
@@ -1726,7 +1726,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
-			  sumOrNull(toHour("timestamp")) AS "metric__2__1-metric_col_0"
+			  sumOrNull(__quesma_date_hour("timestamp")) AS "metric__2__1-metric_col_0"
 			FROM __quesma_table_name
 			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,

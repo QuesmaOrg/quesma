@@ -1342,8 +1342,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT maxOrNull(toHour("timestamp")) AS "metric__maxAgg_col_0",
-			  minOrNull(toHour("timestamp")) AS "metric__minAgg_col_0"
+			SELECT maxOrNull(__quesma_date_hour("timestamp")) AS "metric__maxAgg_col_0",
+			  minOrNull(__quesma_date_hour("timestamp")) AS "metric__minAgg_col_0"
 			FROM ` + TableName + ``,
 	},
 	{ // [9]
@@ -1457,9 +1457,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT toHour("timestamp") AS "aggr__2__key_0", count(*) AS "aggr__2__count"
+			SELECT __quesma_date_hour("timestamp") AS "aggr__2__key_0", count(*) AS "aggr__2__count"
 			FROM ` + TableName + `
-			GROUP BY toHour("timestamp") AS "aggr__2__key_0"
+			GROUP BY __quesma_date_hour("timestamp") AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
 }
