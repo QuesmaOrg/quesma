@@ -198,8 +198,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				  "aggr__2__1-bucket__key_0", count(*) AS "aggr__2__1-bucket__count",
 				  maxOrNull("timestamp") AS "metric__2__1-bucket__1-metric_col_0"
 				FROM __quesma_table_name
-				WHERE ("timestamp">=fromUnixTimestamp64Milli(1726848963807) AND "timestamp"
-				  <=fromUnixTimestamp64Milli(1728144963807))
+				WHERE ("timestamp">=__quesma_from_unixtime64mili(1726848963807) AND "timestamp"
+				  <=__quesma_from_unixtime64mili(1728144963807))
 				GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 				  toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 43200000) AS
 				  "aggr__2__key_0",

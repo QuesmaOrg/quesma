@@ -251,8 +251,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  "aggr__0__1__parent_count", "severity" AS "aggr__0__1__key_0",
 				  "source" AS "aggr__0__1__key_1", count(*) AS "aggr__0__1__count"
 				FROM __quesma_table_name
-				WHERE ("@timestamp">=fromUnixTimestamp64Milli(1716811196627) AND
-				  "@timestamp"<=fromUnixTimestamp64Milli(1716812096627))
+				WHERE ("@timestamp">=__quesma_from_unixtime64mili(1716811196627) AND
+				  "@timestamp"<=__quesma_from_unixtime64mili(1716812096627))
 				GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(
 				  toTimezone("@timestamp", 'Europe/Warsaw'))*1000) / 30000) AS
 				  "aggr__0__key_0", "severity" AS "aggr__0__1__key_0",
@@ -1337,8 +1337,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  avgOrNull("FlightDelayMin") AS "metric__0__1_col_3",
 			  sumOrNull("FlightDelayMin") AS "metric__0__1_col_4"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1725723024239) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1727019024239))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1725723024239) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1727019024239))
 			GROUP BY "Carrier" AS "aggr__0__key_0"
 			ORDER BY "metric__0__1_col_1" DESC, "metric__0__1_col_0" DESC,
 			  "metric__0__1_col_3" DESC, "metric__0__1_col_2" ASC,
@@ -1505,8 +1505,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  stddevPop("FlightDelayMin") AS "metric__0__1_col_8",
 			  stddevSamp("FlightDelayMin") AS "metric__0__1_col_9"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1725723024239) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1727019024239))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1725723024239) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1727019024239))
 			GROUP BY "Carrier" AS "aggr__0__key_0"
 			ORDER BY "metric__0__1_col_1" DESC, "metric__0__1_col_0" DESC,
 			  "metric__0__1_col_3" DESC, "metric__0__1_col_2" ASC,
@@ -2098,8 +2098,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND "timestamp"<toInt64(
 				  toUnixTimestamp(now())))) AS "metric__2__3__4__1_col_0"
 				FROM __quesma_table_name
-				WHERE (("timestamp">=fromUnixTimestamp64Milli(1258014686584) AND "timestamp"
-				  <=fromUnixTimestamp64Milli(1731400286584)) AND ("timestamp">=toInt64(
+				WHERE (("timestamp">=__quesma_from_unixtime64mili(1258014686584) AND "timestamp"
+				  <=__quesma_from_unixtime64mili(1731400286584)) AND ("timestamp">=toInt64(
 				  toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))) AND
 				  "timestamp"<toInt64(toUnixTimestamp(now()))))
 				GROUP BY "DistanceKilometers" AS "aggr__2__3__key_0",
@@ -2139,8 +2139,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				  minOrNullIf("FlightDelayMin", "timestamp">=toInt64(toUnixTimestamp(subDate
 				  (now(), INTERVAL 1 day)))) AS "metric__2__3__4__1_col_0"
 				FROM __quesma_table_name
-				WHERE (("timestamp">=fromUnixTimestamp64Milli(1258014686584) AND "timestamp"
-				  <=fromUnixTimestamp64Milli(1731400286584)) AND "timestamp">=toInt64(
+				WHERE (("timestamp">=__quesma_from_unixtime64mili(1258014686584) AND "timestamp"
+				  <=__quesma_from_unixtime64mili(1731400286584)) AND "timestamp">=toInt64(
 				  toUnixTimestamp(subDate(now(), INTERVAL 1 day))))
 				GROUP BY "DistanceKilometers" AS "aggr__2__3__key_0",
 				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
@@ -3916,8 +3916,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  sumOrNull("DistanceKilometers") AS "metric__2__second_col_0",
 			  sumOrNull("DistanceKilometers") AS "metric__2__week_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1731584141864) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1731585041864))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1731584141864) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1731585041864))
 			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 			  "timestamp", 'Europe/Warsaw'))*1000) / 30000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
@@ -4079,8 +4079,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			  sumOrNull("DistanceKilometers") AS "metric__2__week_col_0",
 			  count("DistanceKilometers") AS "metric__2__year_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1668427553316) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1731585953316))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1668427553316) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1731585953316))
 			GROUP BY toInt64(toUnixTimestamp(toStartOfMonth(toTimezone("timestamp",
 			  'Europe/Warsaw'))))*1000 AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
