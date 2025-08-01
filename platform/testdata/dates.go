@@ -317,8 +317,8 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			  "@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0",
 			  count(*) AS "aggr__timeseries__count"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1730370296174) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1730370596174))
+			WHERE ("@timestamp">=__quesma_from_unixtime64mili(1730370296174) AND "@timestamp"<=
+			  __quesma_from_unixtime64mili(1730370596174))
 			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
 			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
 			ORDER BY "aggr__timeseries__key_0" ASC`,
@@ -498,8 +498,8 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			  "@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0",
 			  count(*) AS "aggr__timeseries__count"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1730370296174) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1730370596174))
+			WHERE ("@timestamp">=__quesma_from_unixtime64mili(1730370296174) AND "@timestamp"<=
+			  __quesma_from_unixtime64mili(1730370596174))
 			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
 			  ("@timestamp", 'Europe/Warsaw'))*1000) / 10000) AS "aggr__timeseries__key_0"
 			ORDER BY "aggr__timeseries__key_0" ASC`,
@@ -628,8 +628,8 @@ var AggregationTestsWithDates = []AggregationTestCase{
 			  count(*) AS "aggr__0__count",
 			  sumOrNull("body_bytes_sent") AS "metric__0__1_col_0"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1259327903466) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1732713503466))
+			WHERE ("@timestamp">=__quesma_from_unixtime64mili(1259327903466) AND "@timestamp"<=
+			  __quesma_from_unixtime64mili(1732713503466))
 			GROUP BY toInt64((toUnixTimestamp64Milli("@timestamp")+timeZoneOffset(toTimezone
 			  ("@timestamp", 'Europe/Warsaw'))*1000) / 86400000) AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
