@@ -912,9 +912,13 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 			}
 			return model.NewFunction("toHour", e.Args[0].Accept(b).(model.Expr))
 
-		case model.FromUnixTimeFunction:
+		case model.FromUnixTimeFunction64mili:
 			args := b.VisitChildren(e.Args)
 			return model.NewFunction("fromUnixTimestamp64Milli", args...)
+
+		case model.FromUnixTimeFunction:
+			args := b.VisitChildren(e.Args)
+			return model.NewFunction("fromUnixTimestamp", args...)
 
 		default:
 			return visitFunction(b, e)
@@ -946,6 +950,9 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToDoris(indexSchema schema
 			args := b.VisitChildren(e.Args)
 			return model.NewFunction("FROM_UNIXTIME", args...)
 
+		case model.FromUnixTimeFunction64mili:
+			args := b.VisitChildren(e.Args)
+			return model.NewFunction("FROM_MILLISECOND", args...)
 		default:
 			return visitFunction(b, e)
 		}
