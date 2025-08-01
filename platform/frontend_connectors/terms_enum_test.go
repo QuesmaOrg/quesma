@@ -128,8 +128,8 @@ func testHandleTermsEnumRequest(t *testing.T, requestBody []byte, fieldName stri
 	ctx = context.WithValue(context.Background(), tracing.RequestIdCtxKey, "test")
 	qt := &elastic_query_dsl.ClickhouseQueryTranslator{Table: table, Ctx: ctx, Schema: s.Tables[schema.IndexName(testTableName)]}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
-	expectedQuery1 := fmt.Sprintf(`SELECT DISTINCT %s FROM %s WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`, fieldName, testTableName)
-	expectedQuery2 := fmt.Sprintf(`SELECT DISTINCT %s FROM %s WHERE (("epoch_time">=fromUnixTimestamp(1709036700) AND "epoch_time"<=fromUnixTimestamp(1709037659)) AND ("epoch_time_datetime64">=fromUnixTimestamp64Milli(1709036700000) AND "epoch_time_datetime64"<=fromUnixTimestamp64Milli(1709037659999))) LIMIT 13`, fieldName, testTableName)
+	expectedQuery1 := fmt.Sprintf(`SELECT DISTINCT %s FROM %s WHERE (("epoch_time">=__quesma_from_unixtime(1709036700) AND "epoch_time"<=__quesma_from_unixtime(1709037659)) AND ("epoch_time_datetime64">=__quesma_from_unixtime64mili(1709036700000) AND "epoch_time_datetime64"<=__quesma_from_unixtime64mili(1709037659999))) LIMIT 13`, fieldName, testTableName)
+	expectedQuery2 := fmt.Sprintf(`SELECT DISTINCT %s FROM %s WHERE (("epoch_time">=__quesma_from_unixtime(1709036700) AND "epoch_time"<=__quesma_from_unixtime(1709037659)) AND ("epoch_time_datetime64">=__quesma_from_unixtime64mili(1709036700000) AND "epoch_time_datetime64"<=__quesma_from_unixtime64mili(1709037659999))) LIMIT 13`, fieldName, testTableName)
 
 	// Once in a while `AND` conditions could be swapped, so we match both cases
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).
