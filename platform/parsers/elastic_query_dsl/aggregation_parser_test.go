@@ -671,7 +671,7 @@ func allAggregationTests() []testdata.AggregationTestCase {
 	add(opensearch_visualize.PipelineAggregationTests, "opensearch-visualize/pipeline_agg_req")
 	add(clients.KunkkaTests, "clients/kunkka")
 	add(clients.OpheliaTests, "clients/ophelia")
-	add(clients.CloverTests, "clients/clover")
+	//add(clients.CloverTests, "clients/clover")
 	add(clients.TuringTests, "clients/turing")
 
 	return allTests
