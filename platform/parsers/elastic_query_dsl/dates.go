@@ -98,7 +98,7 @@ func (dm DateManager) ParseDateUsualFormat(exprFromRequest any, datetimeType dat
 				), true
 			}
 		case database_common.DateTime:
-			return model.NewFunction(model.FromUnixTimeFunction, addFormat(utcTs.Unix())), true
+			return model.NewFunction("fromUnixTimestamp", addFormat(utcTs.Unix())), true
 		default:
 			logger.WarnWithCtx(dm.ctx).Msgf("Unknown datetimeType: %v", datetimeType)
 		}
