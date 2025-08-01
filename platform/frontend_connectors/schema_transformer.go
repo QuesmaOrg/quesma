@@ -1091,7 +1091,7 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 				}
 			}
 			if ok {
-				if f, okF := model.ToFunction(expr); okF && f.Name == model.FromUnixTimeFunction && len(f.Args) == 1 {
+				if f, okF := model.ToFunction(expr); okF && f.Name == model.FromUnixTimeFunction64mili && len(f.Args) == 1 {
 					if l, okL := model.ToLiteral(f.Args[0]); okL {
 						if _, exists := l.Format(); exists { // heuristics: it's a date <=> it has a format
 							return model.NewInfixExpr(col, e.Op, f.Args[0])
@@ -1113,7 +1113,7 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 		if f.Name == "toTimezone" && len(f.Args) == 2 {
 			if col, ok := model.ExtractColRef(f.Args[0]); ok && table.IsInt(col.ColumnName) {
 				// adds fromUnixTimestamp64Milli
-				return model.NewFunction("toTimezone", model.NewFunction(model.FromUnixTimeFunction, f.Args[0]), f.Args[1])
+				return model.NewFunction("toTimezone", model.NewFunction(model.FromUnixTimeFunction64mili, f.Args[0]), f.Args[1])
 			}
 		}
 		return visitFunction(b, f)
