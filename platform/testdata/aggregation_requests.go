@@ -121,7 +121,7 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `SELECT maxOrNull("AvgTicketPrice") AS "metric__maxAgg_col_0", ` +
 			`minOrNull("AvgTicketPrice") AS "metric__minAgg_col_0" ` +
 			`FROM ` + TableName + ` ` +
-			`WHERE ("timestamp">=__quesma_from_unixtime(1706881636029) AND "timestamp"<=__quesma_from_unixtime(1707486436029))`,
+			`WHERE ("timestamp">=__quesma_from_unixtime64mili(1706881636029) AND "timestamp"<=__quesma_from_unixtime64mili(1707486436029))`,
 	},
 	{ // [1]
 		TestName: "2 sibling count aggregations",
@@ -312,7 +312,7 @@ var AggregationTests = []AggregationTestCase{
 			  countIf("FlightDelay" __quesma_match true) AS "metric__0__1-bucket_col_0",
 			  countIf("Cancelled" __quesma_match true) AS "metric__0__3-bucket_col_0"
 			FROM ` + TableName + `
-			WHERE ("timestamp">=__quesma_from_unixtime(1706881636029) AND "timestamp"<=__quesma_from_unixtime(1707486436029))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1706881636029) AND "timestamp"<=__quesma_from_unixtime64mili(1707486436029))
 			GROUP BY "OriginCityName" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC
 			LIMIT 1001`,
@@ -515,7 +515,7 @@ var AggregationTests = []AggregationTestCase{
 				  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0",
 				  count(*) AS "aggr__0__1__count"
 				FROM ` + TableName + `
-				WHERE ("timestamp">=__quesma_from_unixtime(1706881636029) AND "timestamp"<=__quesma_from_unixtime(1707486436029))
+				WHERE ("timestamp">=__quesma_from_unixtime64mili(1706881636029) AND "timestamp"<=__quesma_from_unixtime64mili(1707486436029))
 				GROUP BY "FlightDelayType" AS "aggr__0__key_0",
 				  toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 				  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__1__key_0"))
@@ -615,7 +615,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `SELECT sumOrNull("taxful_total_price") AS "metric__0_col_0" ` +
 			`FROM ` + TableName + ` ` +
-			`WHERE ("order_date">=__quesma_from_unixtime(1707213597034) AND "order_date"<=__quesma_from_unixtime(1707818397034))`,
+			`WHERE ("order_date">=__quesma_from_unixtime64mili(1707213597034) AND "order_date"<=__quesma_from_unixtime64mili(1707818397034))`,
 	},
 	{ // [4]
 		TestName: "cardinality",
@@ -747,7 +747,7 @@ var AggregationTests = []AggregationTestCase{
 			  "OriginCityName" AS "aggr__suggestions__key_0",
 			  count(*) AS "aggr__suggestions__count"
 			FROM ` + TableName + `
-			WHERE ("timestamp">=__quesma_from_unixtime(1706881636029) AND "timestamp"<=__quesma_from_unixtime(1707486436029))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1706881636029) AND "timestamp"<=__quesma_from_unixtime64mili(1707486436029))
 			GROUP BY "OriginCityName" AS "aggr__suggestions__key_0"
 			ORDER BY "aggr__suggestions__count" DESC, "aggr__suggestions__key_0" ASC
 			LIMIT 11`,
@@ -863,7 +863,7 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT countIf("FlightDelay" __quesma_match true) AS "metric__0-bucket_col_0"
 			FROM ` + TableName + `
-			 WHERE ("timestamp">=__quesma_from_unixtime(1706881636029) AND "timestamp"<=__quesma_from_unixtime(1707486436029))`,
+			 WHERE ("timestamp">=__quesma_from_unixtime64mili(1706881636029) AND "timestamp"<=__quesma_from_unixtime64mili(1707486436029))`,
 	},
 	{ // [6]
 		TestName: "filters",
@@ -1017,17 +1017,17 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedPancakeSQL: `
-			SELECT countIf(("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND
-			  "timestamp"<=fromUnixTimestamp64Milli(1707486436029))) AS
+			SELECT countIf(("timestamp">=__quesma_from_unixtime64mili(1706881636029) AND
+			  "timestamp"<=__quesma_from_unixtime64mili(1707486436029))) AS
 			  "filter_0__aggr__time_offset_split__count",
-			  countIf(("timestamp">=fromUnixTimestamp64Milli(1706276836029) AND "timestamp"
-			  <=fromUnixTimestamp64Milli(1706881636029))) AS
+			  countIf(("timestamp">=__quesma_from_unixtime64mili(1706276836029) AND
+			  "timestamp"<=__quesma_from_unixtime64mili(1706881636029))) AS
 			  "filter_1__aggr__time_offset_split__count"
 			FROM __quesma_table_name
-			WHERE ("FlightDelay" __quesma_match true AND (("timestamp">=fromUnixTimestamp64Milli(
-			  1706881636029) AND "timestamp"<=fromUnixTimestamp64Milli(1707486436029)) OR (
-			  "timestamp">=fromUnixTimestamp64Milli(1706276836029) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1706881636029))))`,
+			WHERE ("FlightDelay" __quesma_match true AND (("timestamp">=__quesma_from_unixtime64mili(
+			  1706881636029) AND "timestamp"<=__quesma_from_unixtime64mili(1707486436029)) OR (
+			  "timestamp">=__quesma_from_unixtime64mili(1706276836029) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1706881636029))))`,
 	},
 	{ // [7]
 		TestName: "top hits, quite complex",
@@ -1617,8 +1617,8 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT "FlightDelayMin" AS "aggr__0__key_0", count(*) AS "aggr__0__count"
 			FROM ` + TableName + `
-			WHERE (("timestamp">=fromUnixTimestamp64Milli(1706881636029) AND "timestamp"<=
-              fromUnixTimestamp64Milli(1707486436029)) AND NOT ("FlightDelayMin" __quesma_match 0))
+			WHERE (("timestamp">=__quesma_from_unixtime64mili(1706881636029) AND
+			"timestamp"<=__quesma_from_unixtime64mili(1707486436029)) AND NOT ("FlightDelayMin" __quesma_match 0))
 			GROUP BY "FlightDelayMin" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},
