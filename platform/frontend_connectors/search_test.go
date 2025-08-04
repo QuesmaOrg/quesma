@@ -83,7 +83,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 		},
 	}
 
-	for i, tt := range testdata.TestsAsyncSearch {
+	for i, tt := range testdata.TestsAsyncSearchAfterTransformations {
 		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			conn, mock := util.InitSqlMockWithPrettySqlAndPrint(t, false)
 			db := backend_connectors.NewClickHouseBackendConnectorWithConnection("", conn)
@@ -302,7 +302,7 @@ func TestSearchHandler(t *testing.T) {
 		},
 	}
 
-	for i, tt := range testdata.TestsSearch {
+	for i, tt := range testdata.TestsSearchAfterTransformations {
 		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			var conn *sql.DB
 			var mock sqlmock.Sqlmock
@@ -433,7 +433,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 		},
 	}
 
-	for i, tt := range testdata.TestsSearchNoAttrs {
+	for i, tt := range testdata.TestsSearchNoAttrsAfterTransformations {
 		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			conn, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer conn.Close()
@@ -482,7 +482,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 			},
 		},
 	}
-	for i, tt := range testdata.TestSearchFilter {
+	for i, tt := range testdata.TestSearchFilterAfterTransformations {
 		t.Run(util.PrettyTestName(tt.Name, i), func(t *testing.T) {
 			var conn *sql.DB
 			var mock sqlmock.Sqlmock
