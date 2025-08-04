@@ -38,7 +38,6 @@ func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery database
 		tableDiscovery:      tableDiscovery,
 		searchAfterStrategy: searchAfterStrategyFactory(strategyType),
 	}
-	schemaCheckPass.transformations = schemaCheckPass.makeTransformations(quesma_api.ClickHouseSQLBackend)
 	return schemaCheckPass
 }
 
@@ -1202,6 +1201,11 @@ func (s *SchemaCheckPass) makeTransformations(backendConnectorType quesma_api.Ba
 
 func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.ExecutionPlan, error) {
 
+	backendConnectorType := quesma_api.ClickHouseSQLBackend
+	if plan != nil && plan.BackendConnector != nil {
+		backendConnectorType = plan.BackendConnector.GetId()
+	}
+	transformationChain := s.makeTransformations(backendConnectorType)
 	for k, query := range plan.Queries {
 		var err error
 
@@ -1209,7 +1213,7 @@ func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.Execution
 			query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, "n/a")
 		}
 
-		for _, transformation := range s.transformations {
+		for _, transformation := range transformationChain {
 
 			var inputQuery string
 
