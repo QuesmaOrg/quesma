@@ -20,17 +20,34 @@ import (
 	"strings"
 )
 
+type TransformationsChain struct {
+	TransformationName string
+	Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
+}
+
 type SchemaCheckPass struct {
 	cfg                 *config.QuesmaConfiguration
 	tableDiscovery      database_common.TableDiscovery
 	searchAfterStrategy searchAfterStrategy
+	transformations     []TransformationsChain
 }
 
 func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery database_common.TableDiscovery, strategyType searchAfterStrategyType) *SchemaCheckPass {
-	return &SchemaCheckPass{
+	schemaCheckPass := &SchemaCheckPass{
 		cfg:                 cfg,
 		tableDiscovery:      tableDiscovery,
 		searchAfterStrategy: searchAfterStrategyFactory(strategyType),
+	}
+	schemaCheckPass.transformations = schemaCheckPass.makeTransformations(quesma_api.ClickHouseSQLBackend)
+	return schemaCheckPass
+}
+
+func (s *SchemaCheckPass) RemoveTransformation(name string) {
+	for i, transformation := range s.transformations {
+		if transformation.TransformationName == name {
+			s.transformations = append(s.transformations[:i], s.transformations[i+1:]...)
+			return
+		}
 	}
 }
 
@@ -1127,12 +1144,8 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 	return query, nil
 }
 
-func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.ExecutionPlan, error) {
-
-	transformationChain := []struct {
-		TransformationName string
-		Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
-	}{
+func (s *SchemaCheckPass) makeTransformations(backendConnectorType quesma_api.BackendConnectorType) []TransformationsChain {
+	transformationChain := []TransformationsChain{
 		// Section 1: from logical to physical
 		{TransformationName: "PhysicalFromExpressionTransformation", Transformation: s.applyPhysicalFromExpression},
 		{TransformationName: "WildcardExpansion", Transformation: s.applyWildcardExpansion},
@@ -1157,31 +1170,23 @@ func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.Execution
 
 	// Section 3: backend specific transformations
 	// fallback to clickhouse date functions if no backend connector is set
-	if plan.BackendConnector == nil {
+
+	if backendConnectorType == quesma_api.ClickHouseSQLBackend {
 		transformationChain = append(transformationChain, struct {
 			TransformationName string
 			Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
 		}{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse})
-	} else {
-		if plan.BackendConnector.GetId() == quesma_api.ClickHouseSQLBackend {
-			transformationChain = append(transformationChain, struct {
-				TransformationName string
-				Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
-			}{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToClickhouse})
-		}
-
-		if plan.BackendConnector.GetId() == quesma_api.DorisSQLBackend {
-			transformationChain = append(transformationChain, struct {
-				TransformationName string
-				Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
-			}{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToDoris})
-		}
 	}
-	transformationChain = append(transformationChain,
-		[]struct {
+
+	if backendConnectorType == quesma_api.DorisSQLBackend {
+		transformationChain = append(transformationChain, struct {
 			TransformationName string
 			Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
-		}{
+		}{TransformationName: "QuesmaDateFunctions", Transformation: s.convertQueryDateTimeFunctionToDoris})
+	}
+
+	transformationChain = append(transformationChain,
+		[]TransformationsChain{
 			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
@@ -1192,6 +1197,10 @@ func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.Execution
 			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 		}...,
 	)
+	return transformationChain
+}
+
+func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.ExecutionPlan, error) {
 
 	for k, query := range plan.Queries {
 		var err error
@@ -1200,7 +1209,7 @@ func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.Execution
 			query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, "n/a")
 		}
 
-		for _, transformation := range transformationChain {
+		for _, transformation := range s.transformations {
 
 			var inputQuery string
 
