@@ -15,20 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
-	"unicode"
 )
 
 const TableName = model.SingleTableNamePlaceHolder
 
-func removeAllWhitespace(s string) string {
-	result := make([]rune, 0, len(s))
-	for _, r := range s {
-		if !unicode.IsSpace(r) {
-			result = append(result, r)
-		}
-	}
-	return string(result)
-}
 func TestPancakeQueryGeneration(t *testing.T) {
 
 	// logger.InitSimpleLoggerForTestsWarnLevel()
@@ -117,8 +107,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				}
 				prettyExpectedSql := util.SqlPrettyPrint([]byte(strings.TrimSpace(expectedSql)))
 
-				//util.AssertSqlEqual(t, prettyExpectedSql, prettyExpectedSql)
-				assert.Equal(t, removeAllWhitespace(prettyPancakeSql), removeAllWhitespace(prettyExpectedSql))
+				assert.Equal(t, util.RemoveAllWhitespaces(prettyPancakeSql), util.RemoveAllWhitespaces(prettyExpectedSql))
 				_, ok := pancakeSql.Type.(PancakeQueryType)
 				if !ok {
 					assert.Fail(t, "Expected pancake query type")
