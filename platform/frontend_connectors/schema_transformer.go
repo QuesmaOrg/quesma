@@ -1188,12 +1188,16 @@ func (s *SchemaCheckPass) makeTransformations(backendConnectorType quesma_api.Ba
 	return transformationChain
 }
 
+func (s *SchemaCheckPass) determineBackendConnectorType(plan *model.ExecutionPlan) quesma_api.BackendConnectorType {
+	if plan != nil && plan.BackendConnector != nil {
+		return plan.BackendConnector.GetId()
+	}
+	return quesma_api.ClickHouseSQLBackend
+}
+
 func (s *SchemaCheckPass) Transform(plan *model.ExecutionPlan) (*model.ExecutionPlan, error) {
 
-	backendConnectorType := quesma_api.ClickHouseSQLBackend
-	if plan != nil && plan.BackendConnector != nil {
-		backendConnectorType = plan.BackendConnector.GetId()
-	}
+	backendConnectorType := s.determineBackendConnectorType(plan)
 	transformationChain := s.makeTransformations(backendConnectorType)
 	for k, query := range plan.Queries {
 		var err error
