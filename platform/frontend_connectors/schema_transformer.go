@@ -915,15 +915,15 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToClickhouse(indexSchema s
 			if len(e.Args) != 1 {
 				return e
 			}
-			return model.NewFunction("toHour", e.Args[0].Accept(b).(model.Expr))
+			return model.NewFunction(CLickhouseDateHourFunction, e.Args[0].Accept(b).(model.Expr))
 
 		case model.FromUnixTimeFunction64mili:
 			args := b.VisitChildren(e.Args)
-			return model.NewFunction("fromUnixTimestamp64Milli", args...)
+			return model.NewFunction(ClickhouseFromUnixTimeFunction64mili, args...)
 
 		case model.FromUnixTimeFunction:
 			args := b.VisitChildren(e.Args)
-			return model.NewFunction("fromUnixTimestamp", args...)
+			return model.NewFunction(ClickhouseFromUnixTimeFunction, args...)
 
 		default:
 			return visitFunction(b, e)
@@ -950,14 +950,14 @@ func (s *SchemaCheckPass) convertQueryDateTimeFunctionToDoris(indexSchema schema
 			if len(e.Args) != 1 {
 				return e
 			}
-			return model.NewFunction("HOUR", e.Args[0].Accept(b).(model.Expr))
+			return model.NewFunction(DorisDateHourFunction, e.Args[0].Accept(b).(model.Expr))
 		case model.FromUnixTimeFunction:
 			args := b.VisitChildren(e.Args)
-			return model.NewFunction("FROM_UNIXTIME", args...)
+			return model.NewFunction(DorisFromUnixTimeFunction, args...)
 
 		case model.FromUnixTimeFunction64mili:
 			args := b.VisitChildren(e.Args)
-			return model.NewFunction("FROM_MILLISECOND", args...)
+			return model.NewFunction(DorisFromUnixTimeFunction64mili, args...)
 		default:
 			return visitFunction(b, e)
 		}
