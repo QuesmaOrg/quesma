@@ -29,24 +29,13 @@ type SchemaCheckPass struct {
 	cfg                 *config.QuesmaConfiguration
 	tableDiscovery      database_common.TableDiscovery
 	searchAfterStrategy searchAfterStrategy
-	transformations     []TransformationsChain
 }
 
 func NewSchemaCheckPass(cfg *config.QuesmaConfiguration, tableDiscovery database_common.TableDiscovery, strategyType searchAfterStrategyType) *SchemaCheckPass {
-	schemaCheckPass := &SchemaCheckPass{
+	return &SchemaCheckPass{
 		cfg:                 cfg,
 		tableDiscovery:      tableDiscovery,
 		searchAfterStrategy: searchAfterStrategyFactory(strategyType),
-	}
-	return schemaCheckPass
-}
-
-func (s *SchemaCheckPass) RemoveTransformation(name string) {
-	for i, transformation := range s.transformations {
-		if transformation.TransformationName == name {
-			s.transformations = append(s.transformations[:i], s.transformations[i+1:]...)
-			return
-		}
 	}
 }
 
