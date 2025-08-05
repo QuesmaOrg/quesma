@@ -6,6 +6,8 @@ const (
 	CLickhouseDateHourFunction           = "toHour"
 	ClickhouseFromUnixTimeFunction64mili = "fromUnixTimestamp64Milli"
 	ClickhouseFromUnixTimeFunction       = "fromUnixTimestamp"
+	ClickhouseToTimezone                 = "toTimezone"
+	ClickhousetoUnixTimestamp64Milli     = "toUnixTimestamp64Milli"
 	DorisDateHourFunction                = "HOUR"
 	DorisFromUnixTimeFunction            = "FROM_UNIXTIME"
 	DorisFromUnixTimeFunction64mili      = "FROM_MILLISECOND"

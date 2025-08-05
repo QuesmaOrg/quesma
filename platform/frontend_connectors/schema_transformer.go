@@ -1109,16 +1109,16 @@ func (s *SchemaCheckPass) acceptIntsAsTimestamps(indexSchema schema.Schema, quer
 	}
 
 	visitor.OverrideVisitFunction = func(b *model.BaseExprVisitor, f model.FunctionExpr) interface{} {
-		if f.Name == "toUnixTimestamp64Milli" && len(f.Args) == 1 {
+		if f.Name == ClickhousetoUnixTimestamp64Milli && len(f.Args) == 1 {
 			if col, ok := model.ExtractColRef(f.Args[0]); ok && table.IsInt(col.ColumnName) {
 				// erases toUnixTimestamp64Milli
 				return f.Args[0]
 			}
 		}
-		if f.Name == "toTimezone" && len(f.Args) == 2 {
+		if f.Name == ClickhouseToTimezone && len(f.Args) == 2 {
 			if col, ok := model.ExtractColRef(f.Args[0]); ok && table.IsInt(col.ColumnName) {
 				// adds fromUnixTimestamp64Milli
-				return model.NewFunction("toTimezone", model.NewFunction(model.FromUnixTimeFunction64mili, f.Args[0]), f.Args[1])
+				return model.NewFunction(ClickhouseToTimezone, model.NewFunction(model.FromUnixTimeFunction64mili, f.Args[0]), f.Args[1])
 			}
 		}
 		return visitFunction(b, f)
