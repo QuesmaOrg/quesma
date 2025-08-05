@@ -2039,7 +2039,7 @@ func Test_acceptIntsAsTimestamps(t *testing.T) {
 										model.NewInfixExpr(
 											model.NewFunction("timeZoneOffset", model.NewFunction(
 												"toTimezone",
-												model.NewFunction("fromUnixTimestamp64Milli", model.NewColumnRef("timestampInt")),
+												model.NewFunction(model.FromUnixTimeFunction64mili, model.NewColumnRef("timestampInt")),
 												model.NewLiteral("'Europe/Warsaw'")),
 											),
 											"*",

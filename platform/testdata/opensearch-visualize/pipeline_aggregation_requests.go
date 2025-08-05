@@ -128,8 +128,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT "day_of_week_i" AS "aggr__2__key_0", count(*) AS "aggr__2__count"
 			FROM __quesma_table_name
-			WHERE ("order_date">=fromUnixTimestamp64Milli(1706095390802) AND "order_date"<=
-			  fromUnixTimestamp64Milli(1715163790802))
+			WHERE ("order_date">=__quesma_from_unixtime64mili(1706095390802) AND "order_date"<=
+			  __quesma_from_unixtime64mili(1715163790802))
 			GROUP BY "day_of_week_i" AS "aggr__2__key_0"
 			ORDER BY "aggr__2__key_0" ASC`,
 	},
@@ -2853,8 +2853,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "clientip" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1715413213606) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1715467213606))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1715413213606) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1715467213606))
 			GROUP BY "clientip" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,
@@ -3385,8 +3385,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "Cancelled" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1714255011264) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1715551011264))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1714255011264) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1715551011264))
 			GROUP BY "Cancelled" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,
@@ -4324,8 +4324,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__1-bucket__parent_count",
 			  "extension" AS "aggr__1-bucket__key_0", count(*) AS "aggr__1-bucket__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1714256186906) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1715552186906))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1714256186906) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1715552186906))
 			GROUP BY "extension" AS "aggr__1-bucket__key_0"
 			ORDER BY "aggr__1-bucket__key_0" DESC
 			LIMIT 6`,

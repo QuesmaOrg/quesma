@@ -19,14 +19,14 @@ func FindTimestampLowerBound(field ColumnRef, whereClause Expr) (timestampInMill
 	visitor := NewBaseVisitor()
 	visitor.OverrideVisitInfix = func(visitor *BaseExprVisitor, e InfixExpr) interface{} {
 		if columnRef, ok := e.Left.(ColumnRef); ok && columnRef == field && e.Op == ">=" || e.Op == ">" {
-			if fun, ok := e.Right.(FunctionExpr); ok && fun.Name == "fromUnixTimestamp64Milli" && len(fun.Args) == 1 {
+			if fun, ok := e.Right.(FunctionExpr); ok && fun.Name == FromUnixTimeFunction64mili && len(fun.Args) == 1 {
 				if rhs, ok := fun.Args[0].(LiteralExpr); ok {
 					if rhsInt64, ok := util.ExtractInt64Maybe(rhs.Value); ok {
 						timestampInMillis = min(timestampInMillis, rhsInt64)
 						found = true
 					}
 				}
-			} else if fun, ok := e.Right.(FunctionExpr); ok && fun.Name == "fromUnixTimestamp" && len(fun.Args) == 1 {
+			} else if fun, ok := e.Right.(FunctionExpr); ok && fun.Name == FromUnixTimeFunction64mili && len(fun.Args) == 1 {
 				if rhs, ok := fun.Args[0].(LiteralExpr); ok {
 					if rhsInt64, ok := util.ExtractInt64Maybe(rhs.Value); ok {
 						timestampInMillis = min(timestampInMillis, rhsInt64*1000) // seconds -> milliseconds

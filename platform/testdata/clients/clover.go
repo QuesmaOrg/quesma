@@ -350,8 +350,8 @@ var CloverTests = []testdata.AggregationTestCase{
 			  countIf(NOT ("table.flower" __quesma_match 'clover')) AS
 			  "metric__timeseries__a2-numerator_col_0"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1728640683723) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1728641583723))`,
+			WHERE ("@timestamp">=__quesma_from_unixtime64mili(1728640683723) AND "@timestamp"<=
+			  __quesma_from_unixtime64mili(1728641583723))`,
 	},
 	{ // [2]
 		TestName: "simplest auto_date_histogram",
@@ -477,8 +477,8 @@ var CloverTests = []testdata.AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT count(*) AS "aggr__timeseries__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1728581627125) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1728635627125))`,
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1728581627125) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1728635627125))`,
 		AdditionalAcceptableDifference: []string{"key_as_string"}, // timezone differences between local and github runs... There's always 2h difference between those, need to investigate. Maybe come back to .UTC() so there's no "+timezone" (e.g. +02:00)?
 	},
 	{ // [3]
@@ -648,8 +648,8 @@ var CloverTests = []testdata.AggregationTestCase{
 			  countIf(NOT ("a.b_str" IS NOT NULL)) AS
 			  "metric__timeseries__f2-numerator_col_0"
 			FROM __quesma_table_name
-			WHERE ("@timestamp">=fromUnixTimestamp64Milli(1721399904783) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1730475504783))`,
+			WHERE ("@timestamp">=__quesma_from_unixtime64mili(1721399904783) AND "@timestamp"<=
+			  __quesma_from_unixtime64mili(1730475504783))`,
 	},
 	{ // [4]
 		TestName: "todo",
@@ -949,8 +949,8 @@ var CloverTests = []testdata.AggregationTestCase{
 			  toInt64(toUnixTimestamp64Milli("@timestamp") / 604800000) AS
 			  "aggr__q__time_buckets__key_0", count(*) AS "aggr__q__time_buckets__count"
 			FROM __quesma_table_name
-			WHERE (("@timestamp">=fromUnixTimestamp64Milli(1728507729621) AND "@timestamp"<=
-			  fromUnixTimestamp64Milli(1728507732621)) AND "__quesma_fulltext_field_name"
+			WHERE (("@timestamp">=__quesma_from_unixtime64mili(1728507729621) AND "@timestamp"<=
+			  __quesma_from_unixtime64mili(1728507732621)) AND "__quesma_fulltext_field_name"
 			  __quesma_match '%')
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 604800000) AS
 			  "aggr__q__time_buckets__key_0"

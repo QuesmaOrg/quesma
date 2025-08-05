@@ -55,6 +55,7 @@ func TestSearchOpensearch(t *testing.T) {
 			assert.NoError(t, err, "no ParseQuery error")
 			assert.True(t, len(queries) > 0, "len queries > 0")
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
+			// This checks where clause after parsing and before transformations
 			assert.Contains(t, tt.WantedSql, whereClause, "contains wanted sql")
 
 			for _, wantedQuery := range tt.WantedQueries {
