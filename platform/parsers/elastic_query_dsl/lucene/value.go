@@ -4,12 +4,13 @@ package lucene
 
 import (
 	"fmt"
-	"github.com/QuesmaOrg/quesma/platform/logger"
-	"github.com/QuesmaOrg/quesma/platform/model"
-	"github.com/QuesmaOrg/quesma/platform/util"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/QuesmaOrg/quesma/platform/logger"
+	"github.com/QuesmaOrg/quesma/platform/model"
+	"github.com/QuesmaOrg/quesma/platform/util"
 )
 
 // value is a part of an expression, representing what we query for (expression without fields for which we query).
@@ -36,6 +37,15 @@ type termValue struct {
 
 func newTermValue(term string) termValue {
 	return termValue{term: term}
+}
+
+type fuzzyValue struct {
+	term     string
+	distance int
+}
+
+func newFuzzyValue(term string, distance int) fuzzyValue {
+	return fuzzyValue{term: term, distance: distance}
 }
 
 func (v termValue) toExpression(fieldName string) model.Expr {
@@ -84,6 +94,57 @@ func (v termValue) transformSpecialCharacters() (termFinal string) {
 		} else if curRune == escapeCharacter { // / is always escaped twice in Clickhouse
 			returnTerm.WriteRune(curRune)
 			returnTerm.WriteRune(curRune)
+		} else {
+			returnTerm.WriteRune(curRune)
+		}
+	}
+	return returnTerm.String()
+}
+
+func (v fuzzyValue) toExpression(fieldName string) model.Expr {
+	// Clean the term like we do for regular terms
+	termAsStringToClickhouse := v.transformSpecialCharacters()
+
+	if alreadyQuoted(v.term) {
+		termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
+	}
+	if !util.IsSingleQuoted(termAsStringToClickhouse) {
+		termAsStringToClickhouse = util.SingleQuote(termAsStringToClickhouse)
+	}
+
+	// Use ClickHouse's damerauLevenshteinDistance function
+	// Syntax: damerauLevenshteinDistance(field, search_term) <= distance
+	fieldRef := model.NewColumnRef(fieldName)
+	searchTerm := model.NewLiteralWithEscapeType(termAsStringToClickhouse, model.FullyEscaped)
+	distanceLiteral := model.NewLiteral(strconv.Itoa(v.distance))
+
+	fuzzyFunc := model.NewFunction("damerauLevenshteinDistance", fieldRef, searchTerm)
+
+	return model.NewInfixExpr(fuzzyFunc, " <= ", distanceLiteral)
+}
+
+// transformSpecialCharacters for fuzzy values - similar to termValue but for fuzzy terms
+func (v fuzzyValue) transformSpecialCharacters() (termFinal string) {
+	strAsRunes := []rune(v.term)
+	var returnTerm strings.Builder
+	for i := 0; i < len(strAsRunes); i++ {
+		curRune := strAsRunes[i]
+		transformed, isTransformed := charTransformations[curRune]
+		if isTransformed {
+			returnTerm.WriteString(transformed)
+			continue
+		}
+
+		if i == len(strAsRunes)-1 {
+			returnTerm.WriteRune(curRune)
+			continue
+		}
+
+		nextRune := strAsRunes[i+1]
+		if curRune == escapeCharacter && slices.Contains(specialCharacters, nextRune) {
+			// it's escaped, so we write nextRune instead of the original curRune
+			returnTerm.WriteRune(nextRune)
+			i++
 		} else {
 			returnTerm.WriteRune(curRune)
 		}
@@ -282,6 +343,8 @@ func (p *luceneParser) buildValue(stack []value, parenthesisLevel int) value {
 			stack = append(stack, newNotValue(p.buildValue([]value{}, 0)))
 		case termToken:
 			stack = append(stack, newTermValue(currentToken.term))
+		case fuzzyToken:
+			stack = append(stack, newFuzzyValue(currentToken.term, currentToken.distance))
 		case rangeToken:
 			stack = append(stack, currentToken.rangeValue)
 		default:
