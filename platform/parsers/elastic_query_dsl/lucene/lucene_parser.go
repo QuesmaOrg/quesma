@@ -364,10 +364,6 @@ func (p *luceneParser) parseOneBound(query string, closingBound bool) (bound any
 	}
 }
 
-func (p *luceneParser) removeFuzzySearchOperator(query string) string {
-	return p.removeSpecialCharacter(query, fuzzyOperator)
-}
-
 func (p *luceneParser) removeBoostingOperator(query string) string {
 	return p.removeSpecialCharacter(query, boostingOperator)
 }
