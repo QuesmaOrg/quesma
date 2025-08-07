@@ -88,7 +88,7 @@ func validateNumericRange(columnType string, value interface{}) (isValid bool) {
 	}
 }
 
-func validateNumericType(columnType string, incomingValueType string, value interface{}) (isValid bool) {
+func validateNumericType(columnName, columnType string, incomingValueType string, value interface{}) (isValid bool) {
 	if isFloatingPointType(columnType) && isNumericType(incomingValueType) {
 		return true
 	}
@@ -101,19 +101,19 @@ func validateNumericType(columnType string, incomingValueType string, value inte
 		if valueAsStr, ok := value.(string); ok {
 			return util.IsFloat(valueAsStr)
 		} else {
-			logger.Error().Msgf("Invalid value type for column of type %s: %T, value: %v", columnType, value, value)
+			logger.Error().Msgf("Invalid value type for column [%s] of type %s: %T, value: %v", columnName, columnType, value, value)
 		}
 	}
 	if isIntegerType(columnType) && incomingValueType == "String" {
 		if valueAsStr, ok := value.(string); ok && util.IsInt(valueAsStr) {
 			valueAsInt, err := util.ToInt64(valueAsStr)
 			if err != nil {
-				logger.Error().Msgf("Failed to convert value to int: %v", valueAsStr)
+				logger.Error().Msgf("Failed to convert value to int: %v when processing data for column [%s]", valueAsStr, columnName)
 				return false
 			}
 			return validateNumericRange(columnType, valueAsInt)
 		} else {
-			logger.Error().Msgf("Invalid value type for column of type %s: %T, value: %v", columnType, value, value)
+			logger.Error().Msgf("Invalid value type for column [%s] of type %s: %T, value: %v", columnName, columnType, value, value)
 		}
 	}
 
@@ -131,7 +131,7 @@ func validateValueAgainstType(fieldName string, value interface{}, columnType da
 		columnTypeName := removeLowCardinality(columnType.Name)
 
 		if isNumericType(columnTypeName) {
-			if incomingValueType, isBaseType := incomingValueType.(database_common.BaseType); isBaseType && validateNumericType(columnTypeName, incomingValueType.Name, value) {
+			if incomingValueType, isBaseType := incomingValueType.(database_common.BaseType); isBaseType && validateNumericType(fieldName, columnTypeName, incomingValueType.Name, value) {
 				// Numeric types match!
 				return true
 			}
