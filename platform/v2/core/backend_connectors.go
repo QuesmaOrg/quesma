@@ -7,7 +7,7 @@ import "context"
 type BackendConnectorType int
 
 const (
-	NoopBackend = iota
+	NoopBackend BackendConnectorType = iota
 	MySQLBackend
 	PgSQLBackend
 	ClickHouseSQLBackend

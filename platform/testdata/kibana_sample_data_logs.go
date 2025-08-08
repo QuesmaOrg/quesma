@@ -115,8 +115,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			SELECT maxOrNull("bytes") AS "metric__maxAgg_col_0",
 			  minOrNull("bytes") AS "metric__minAgg_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))`,
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740831278103))`,
 	},
 	{ // [1]
 		TestName: "Response Codes Over Time + Annotations (1/2 request, Annotations part)",
@@ -347,8 +347,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
 			  count(*) AS "aggr__1__2__count"
 			FROM __quesma_table_name
-			WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
+			WHERE (("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740831278103)) AND ("tags" __quesma_match 'error' AND
 			  "tags" __quesma_match 'security'))
 			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0"
@@ -361,8 +361,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
 				count(*) AS "aggr__1__2__count"
 			  FROM __quesma_table_name
-			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
+			  WHERE (("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+				__quesma_from_unixtime64mili(1740831278103)) AND ("tags" __quesma_match 'error' AND
 				"tags" __quesma_match 'security'))
 			  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 				toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
@@ -380,8 +380,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
 				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 				"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
-			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
+			  WHERE (("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+				__quesma_from_unixtime64mili(1740831278103)) AND ("tags" __quesma_match 'error' AND
 				"tags" __quesma_match 'security')))
 			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 			  "top_metrics__1__2__4_col_0", "top_metrics__1__2__4_col_1", "top_hits_rank"
@@ -395,8 +395,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				"timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__1__2__key_0",
 				count(*) AS "aggr__1__2__count"
 			  FROM __quesma_table_name
-			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
+			  WHERE (("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+				__quesma_from_unixtime64mili(1740831278103)) AND ("tags" __quesma_match 'error' AND
 				"tags" __quesma_match 'security'))
 			  GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(
 				toTimezone("timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS
@@ -414,8 +414,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				__quesma_table_name AS "hit_table" ON ("group_table"."aggr__1__2__key_0"=
 				toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 				"timestamp", 'Europe/Warsaw'))*1000) / 10800000))
-			  WHERE (("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-				fromUnixTimestamp64Milli(1740831278103)) AND ("tags" __quesma_match 'error' AND
+			  WHERE (("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+				__quesma_from_unixtime64mili(1740831278103)) AND ("tags" __quesma_match 'error' AND
 				"tags" __quesma_match 'security')))
 			SELECT "aggr__1__count", "aggr__1__2__key_0", "aggr__1__2__count",
 			  "top_metrics__1__2__5_col_0", "top_metrics__1__2__5_col_1", "top_hits_rank"
@@ -563,8 +563,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT uniq("clientip") AS "metric__0_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))`,
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740831278103))`,
 	},
 	{ // [3]
 		TestName: "Response Codes Over Time + Annotations (2/2 request)",
@@ -862,8 +862,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			  countIf(("response">=400 AND "response"<500)) AS "filter_1__aggr__0__1__count"
 			  , countIf("response">=500) AS "filter_2__aggr__0__1__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740831278103))
 			GROUP BY toInt64((toUnixTimestamp64Milli("timestamp")+timeZoneOffset(toTimezone(
 			  "timestamp", 'Europe/Warsaw'))*1000) / 10800000) AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
@@ -989,8 +989,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT countIf("response">=500) AS "metric__0-bucket_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))`,
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740831278103))`,
 	},
 	{ // [5]
 		TestName: "HTTP 4xx",
@@ -1133,8 +1133,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT countIf(("response">=400 AND "response"<500)) AS "metric__0-bucket_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))`,
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740831278103))`,
 	},
 	{ // [6]
 		TestName: "Table gz, css, zip, etc.",
@@ -1368,14 +1368,14 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			  "extension" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  sumOrNull("bytes") AS "metric__0__1_col_0",
 			  uniq("clientip") AS "metric__0__3_col_0",
-			  countIf(("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND "timestamp"
-			  <=fromUnixTimestamp64Milli(1740753572445))) AS "aggr__0__2-bucket__count",
-			  sumOrNullIf("bytes", ("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND
-			  "timestamp"<=fromUnixTimestamp64Milli(1740753572445))) AS
+			  countIf(("timestamp">=__quesma_from_unixtime64mili(1740749972445) AND "timestamp"
+			  <=__quesma_from_unixtime64mili(1740753572445))) AS "aggr__0__2-bucket__count",
+			  sumOrNullIf("bytes", ("timestamp">=__quesma_from_unixtime64mili(1740749972445) AND
+			  "timestamp"<=__quesma_from_unixtime64mili(1740753572445))) AS
 			  "metric__0__2-bucket__2-metric_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740092400000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740753572445))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740092400000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740753572445))
 			GROUP BY "extension" AS "aggr__0__key_0"
 			ORDER BY "metric__0__1_col_0" DESC, "aggr__0__key_0" ASC
 			LIMIT 11`,
@@ -1384,14 +1384,14 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			  "extension" AS "aggr__0__key_0", count(*) AS "aggr__0__count",
 			  sumOrNull("bytes") AS "metric__0__1_col_0",
 			  uniq("clientip") AS "metric__0__3_col_0",
-			  countIf(("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND "timestamp"
-			  <=fromUnixTimestamp64Milli(1740753572445))) AS "aggr__0__4-bucket__count",
-			  uniqIf("clientip", ("timestamp">=fromUnixTimestamp64Milli(1740749972445) AND
-			  "timestamp"<=fromUnixTimestamp64Milli(1740753572445))) AS
+			  countIf(("timestamp">=__quesma_from_unixtime64mili(1740749972445) AND "timestamp"
+			  <=__quesma_from_unixtime64mili(1740753572445))) AS "aggr__0__4-bucket__count",
+			  uniqIf("clientip", ("timestamp">=__quesma_from_unixtime64mili(1740749972445) AND
+			  "timestamp"<=__quesma_from_unixtime64mili(1740753572445))) AS
 			  "metric__0__4-bucket__4-metric_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740092400000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740753572445))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740092400000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740753572445))
 			GROUP BY "extension" AS "aggr__0__key_0"
 			ORDER BY "metric__0__1_col_0" DESC, "aggr__0__key_0" ASC
 			LIMIT 11`,
@@ -1689,8 +1689,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			  quantiles(0.950000)("bytes") AS "metric__0__7_col_0",
 			  quantiles(0.500000)("bytes") AS "metric__0__8_col_0"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740831278103))
 			GROUP BY "url" AS "aggr__0__key_0"
 			ORDER BY "aggr__0__count" DESC, "aggr__0__key_0" ASC
 			LIMIT 1001`,
@@ -1896,8 +1896,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			  count(*) AS "metric__gridSplit__gridCentroid_col_2",
 			  sumOrNull("bytes") AS "metric__gridSplit__sum_of_bytes_col_0"
 			FROM __quesma_table_name
-			WHERE ("geo.coordinates" IS NOT NULL AND ("timestamp">=fromUnixTimestamp64Milli(
-			  1740178800000) AND "timestamp"<=fromUnixTimestamp64Milli(1740831278103)))
+			WHERE ("geo.coordinates" IS NOT NULL AND ("timestamp">=__quesma_from_unixtime64mili(
+			  1740178800000) AND "timestamp"<=__quesma_from_unixtime64mili(1740831278103)))
 			GROUP BY FLOOR(((__quesma_geo_lon("geo.coordinates")+180)/360)*POWER(2, 6))
 			  AS "aggr__gridSplit__key_0",
 			  FLOOR((1-LOG(TAN(RADIANS(__quesma_geo_lat("geo.coordinates")))+(1/COS(
@@ -2024,8 +2024,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			SELECT sum(count(*)) OVER () AS "aggr__join__parent_count",
 			  "geo.dest" AS "aggr__join__key_0", count(*) AS "aggr__join__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740831278103))
 			GROUP BY "geo.dest" AS "aggr__join__key_0"
 			ORDER BY "aggr__join__count" DESC, "aggr__join__key_0" ASC
 			LIMIT 65536`,
@@ -2213,8 +2213,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 				  count(*) AS "aggr__countries__hours__count",
 				  uniq("clientip") AS "metric__countries__hours__unique_col_0"
 				FROM __quesma_table_name
-				WHERE ("@timestamp">=fromUnixTimestamp64Milli(1740178800000) AND
-				  "@timestamp"<=fromUnixTimestamp64Milli(1740831278103))
+				WHERE ("@timestamp">=__quesma_from_unixtime64mili(1740178800000) AND
+				  "@timestamp"<=__quesma_from_unixtime64mili(1740831278103))
 				GROUP BY "geo.dest" AS "aggr__countries__key_0",
 				  "hour_of_day" AS "aggr__countries__hours__key_0"))
 			WHERE "aggr__countries__order_1_rank"<=26
@@ -2349,8 +2349,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 			SELECT "machine.os" AS "aggr__table__key_0", "geo.dest" AS "aggr__table__key_1",
 			  count(*) AS "aggr__table__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740831278103))
 			GROUP BY "machine.os" AS "aggr__table__key_0",
 			  "geo.dest" AS "aggr__table__key_1"
 			ORDER BY "aggr__table__count" DESC, "aggr__table__key_0" ASC,
@@ -2482,8 +2482,8 @@ var KibanaSampleDataLogs = []AggregationTestCase{
 		ExpectedPancakeSQL: `
 			SELECT floor("bytes"/50)*50 AS "aggr__0__key_0", count(*) AS "aggr__0__count"
 			FROM __quesma_table_name
-			WHERE ("timestamp">=fromUnixTimestamp64Milli(1740178800000) AND "timestamp"<=
-			  fromUnixTimestamp64Milli(1740831278103))
+			WHERE ("timestamp">=__quesma_from_unixtime64mili(1740178800000) AND "timestamp"<=
+			  __quesma_from_unixtime64mili(1740831278103))
 			GROUP BY floor("bytes"/50)*50 AS "aggr__0__key_0"
 			ORDER BY "aggr__0__key_0" ASC`,
 	},

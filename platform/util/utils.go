@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unicode"
 )
 
 type JsonMap = map[string]interface{}
@@ -1054,4 +1055,14 @@ func PrintfIfErr(err error, msg string, args ...any) {
 		fmt.Printf(msg, args...)
 		fmt.Println(err)
 	}
+}
+
+func RemoveAllWhitespaces(s string) string {
+	result := make([]rune, 0, len(s))
+	for _, r := range s {
+		if !unicode.IsSpace(r) {
+			result = append(result, r)
+		}
+	}
+	return string(result)
 }

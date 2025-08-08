@@ -107,8 +107,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				}
 				prettyExpectedSql := util.SqlPrettyPrint([]byte(strings.TrimSpace(expectedSql)))
 
-				util.AssertSqlEqual(t, prettyExpectedSql, prettyPancakeSql)
-
+				assert.Equal(t, util.RemoveAllWhitespaces(prettyPancakeSql), util.RemoveAllWhitespaces(prettyExpectedSql))
 				_, ok := pancakeSql.Type.(PancakeQueryType)
 				if !ok {
 					assert.Fail(t, "Expected pancake query type")
