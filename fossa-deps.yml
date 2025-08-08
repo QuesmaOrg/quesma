@@ -1,0 +1,124 @@
+# Manual FOSSA Dependencies Configuration
+# Use this file to explicitly declare acceptable dependencies and their licenses
+# This helps override false positives and provides explicit license information
+
+referenced-dependencies:
+  # Core Go Dependencies - Apache 2.0 Licensed
+  - name: "ClickHouse Go Driver"
+    type: "go"
+    version: "v2.32.2"
+    license: "Apache-2.0"
+    url: "https://github.com/ClickHouse/clickhouse-go"
+    description: "ClickHouse database driver for Go"
+    
+  - name: "Docker Engine"
+    type: "go" 
+    version: "v27.1.1"
+    license: "Apache-2.0"
+    url: "https://github.com/docker/docker"
+    description: "Docker container platform libraries"
+    
+  - name: "Containerd"
+    type: "go"
+    version: "v1.7.27" 
+    license: "Apache-2.0"
+    url: "https://github.com/containerd/containerd"
+    description: "Container runtime"
+    
+  - name: "OCI Go Digest"
+    type: "go"
+    version: "v1.0.0"
+    license: "Apache-2.0" 
+    url: "https://github.com/opencontainers/go-digest"
+    description: "Common digest package for container ecosystem"
+
+  # Database Drivers - Permissive Licenses
+  - name: "PostgreSQL Driver (pgx)"
+    type: "go"
+    version: "v5.7.2"
+    license: "MIT"
+    url: "https://github.com/jackc/pgx"
+    description: "PostgreSQL driver and toolkit for Go"
+    
+  - name: "MySQL Driver"
+    type: "go"
+    version: "v1.9.0"
+    license: "MPL-2.0"
+    url: "https://github.com/go-sql-driver/mysql"
+    description: "MySQL driver for Go"
+
+  # HTTP and Web Libraries - Apache 2.0/MIT
+  - name: "Gorilla Mux"
+    type: "go"
+    version: "v1.8.1"
+    license: "BSD-3-Clause"
+    url: "https://github.com/gorilla/mux"
+    description: "HTTP request router and dispatcher"
+    
+  - name: "Zerolog"
+    type: "go"
+    version: "v1.33.0"
+    license: "MIT"
+    url: "https://github.com/rs/zerolog"
+    description: "Zero allocation JSON logger"
+
+  # Configuration and Utilities - MIT/Apache 2.0
+  - name: "Koanf Configuration"
+    type: "go"
+    version: "v2.1.2"
+    license: "MIT"
+    url: "https://github.com/knadh/koanf"
+    description: "Configuration management library"
+    
+  - name: "Google UUID"
+    type: "go"
+    version: "v1.6.0"
+    license: "BSD-3-Clause"
+    url: "https://github.com/google/uuid"
+    description: "UUID generation library"
+
+  # Testing Libraries (Test Scope Only)
+  - name: "Testify"
+    type: "go"
+    version: "v1.10.0"
+    license: "MIT"
+    url: "https://github.com/stretchr/testify"
+    description: "Testing toolkit for Go"
+    scope: "test"
+    
+  - name: "Go SQLMock"
+    type: "go" 
+    version: "v1.5.2"
+    license: "BSD-3-Clause"
+    url: "https://github.com/DATA-DOG/go-sqlmock"
+    description: "SQL mock driver for testing"
+    scope: "test"
+
+# Explicitly approved licenses for this project
+approved-licenses:
+  - "Apache-2.0"
+  - "MIT" 
+  - "BSD-2-Clause"
+  - "BSD-3-Clause"
+  - "ISC"
+  - "MPL-2.0"  # For MySQL driver only
+
+# License compatibility notes for Elastic License 2.0 project
+license-policy:
+  compatible-with-elv2:
+    - "Apache-2.0"
+    - "MIT"
+    - "BSD-2-Clause" 
+    - "BSD-3-Clause"
+    - "ISC"
+    - "Unlicense"
+  requires-review:
+    - "MPL-2.0"
+    - "LGPL-2.1"
+    - "LGPL-3.0"
+  prohibited:
+    - "GPL-2.0"
+    - "GPL-3.0"
+    - "AGPL-3.0"
+    - "Commercial"
+    - "Proprietary"

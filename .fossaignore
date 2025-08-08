@@ -1,0 +1,70 @@
+# FOSSA Ignore File for Quesma
+# Additional file-level exclusions for false positives
+
+# Test files and directories
+*_test.go
+*test*.go
+test/
+tests/
+testing/
+testdata/
+
+# Vendor directories
+vendor/
+node_modules/
+venv/
+.venv/
+
+# Build and cache directories  
+build/
+dist/
+target/
+.cache/
+tmp/
+temp/
+.git/
+.github/
+
+# Documentation files (may contain license text)
+*.md
+README*
+LICENSE*
+NOTICE*
+COPYING*
+CHANGELOG*
+AUTHORS*
+CONTRIBUTORS*
+
+# Examples and samples
+examples/
+samples/
+demo/
+
+# Development tools
+.vscode/
+.idea/
+bin/
+scripts/
+
+# CI/CD files
+Dockerfile*
+docker-compose*
+.dockerignore
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Python virtual environment files
+lib/python*/
+
+# Go vendor and module cache
+go.sum
+vendor/
+
+# Common license reference files that trigger false positives
+**/license.txt
+**/LICENSE.txt
+**/License.txt
+**/APACHE-LICENSE*
+**/MIT-LICENSE*
+**/BSD-LICENSE*

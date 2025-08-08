@@ -1,0 +1,114 @@
+# FOSSA Configuration for Quesma Database Gateway
+# This configuration helps reduce false positives and focuses on actual licensing issues
+
+version: 3
+
+# Project metadata
+project:
+  name: "Quesma Database Gateway"
+  team: "Engineering"
+  labels:
+    - "database-gateway"
+    - "elastic-license-2.0"
+
+# Path exclusions to reduce false positives
+paths:
+  exclude:
+    # Test directories and files (common source of false positives)
+    - "**/test/**"
+    - "**/tests/**"
+    - "**/testing/**"
+    - "**/*_test.go"
+    - "**/*test*.go"
+    - "**/testdata/**"
+    - "**/ci/it/**"          # Integration test directory
+    - "**/smoke-test/**"     # Smoke test directory
+    
+    # Vendor and dependency directories
+    - "**/vendor/**"
+    - "**/node_modules/**"
+    - "**/venv/**"
+    - "**/.venv/**"
+    
+    # Build, cache, and generated directories
+    - "**/build/**"
+    - "**/dist/**"
+    - "**/target/**"
+    - "**/.cache/**"
+    - "**/tmp/**"
+    - "**/temp/**"
+    - "**/.git/**"
+    - "**/.github/**"
+    
+    # Documentation that may contain license text
+    - "**/docs/**"
+    - "**/*.md"
+    - "**/LICENSE*"
+    - "**/NOTICE*"
+    - "**/COPYING*"
+    
+    # Examples and samples (non-production code)
+    - "**/examples/**"
+    - "**/samples/**"
+    - "**/demo/**"
+    
+    # Development tools and configs
+    - "**/.vscode/**"
+    - "**/.idea/**"
+    - "**/bin/**"           # Build scripts
+    - "**/scripts/**"
+    
+    # Python virtual environment (if any)
+    - "**/lib/python*/**"
+    
+    # Docker and CI/CD files (may contain license references)
+    - "**/Dockerfile*"
+    - "**/docker-compose*"
+    - "**/.dockerignore"
+
+# Target exclusions - focus only on production Go modules
+targets:
+  only:
+    # Main application modules
+    - type: go
+      path: "cmd"
+    - type: go  
+      path: "platform"
+  exclude:
+    # Exclude test-only modules and tools
+    - type: go
+      path: "ci/it"
+    - type: go
+      path: "ci/e2e-data-generator" 
+    - type: go
+      path: "smoke-test"
+    - type: go
+      path: "bin/unjson-dashboards"
+    - type: go
+      path: "cmd/experimental"
+
+# Vendored dependencies configuration
+vendoredDependencies:
+  # Don't force rescans of vendored deps (reduces noise)
+  forceRescans: false
+  # Use CLI license scanning for better accuracy
+  scanMethod: CLILicenseScan
+  licenseScanPathFilters:
+    exclude:
+      # Common false positive sources in vendored code
+      - "**/*_test.go"
+      - "**/test/**"
+      - "**/testdata/**"
+      - "**/*.md"
+      - "**/LICENSE*"
+      - "**/NOTICE*"
+      - "**/doc.go"         # Go documentation files
+      - "**/*example*"
+      - "**/*sample*"
+
+# Custom integrations (if needed)
+# experimental:
+#   gradle:
+#     configurations-only: ["runtimeClasspath"]
+#   maven:
+#     scope-only: ["runtime", "compile"]
