@@ -76,6 +76,8 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 		)
 	case termToken:
 		currentStatement = newLeafStatement(p.defaultFieldNames, newTermValue(currentToken.term))
+	case fuzzyToken:
+		currentStatement = newLeafStatement(p.defaultFieldNames, newFuzzyValue(currentToken.term, currentToken.distance))
 	case andToken:
 		return model.NewInfixExpr(p.WhereStatement, "AND", p.buildWhereStatement(false))
 	case orToken:

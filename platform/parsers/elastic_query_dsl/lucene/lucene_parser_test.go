@@ -4,10 +4,11 @@ package lucene
 
 import (
 	"context"
+	"testing"
+
 	"github.com/QuesmaOrg/quesma/platform/model"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
-	"testing"
 )
 
 func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
@@ -19,11 +20,13 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 	}{
 		{`title:"The Right Way" AND text:go!!`, `("title" __quesma_match 'The Right Way' AND "text" __quesma_match 'go!!')`},
 		{`title:Do it right AND right`, `((("title" __quesma_match 'Do' OR ("title" __quesma_match 'it' OR "text" __quesma_match 'it')) OR ("title" __quesma_match 'right' OR "text" __quesma_match 'right')) AND ("title" __quesma_match 'right' OR "text" __quesma_match 'right'))`},
-		{`roam~`, `("title" __quesma_match 'roam' OR "text" __quesma_match 'roam')`},
-		{`roam~0.8`, `("title" __quesma_match 'roam' OR "text" __quesma_match 'roam')`},
+		{`roam~`, `(damerauLevenshteinDistance("title",'roam') <= 2 OR damerauLevenshteinDistance("text",'roam') <= 2)`},
+		{`query: roam~323`, `damerauLevenshteinDistance("query",'roam') <= 323`},
+		{`roam~0.8`, `(damerauLevenshteinDistance("title",'roam') <= 1 OR damerauLevenshteinDistance("text",'roam') <= 1)`},
+		{`query:google.cmo~1`, `damerauLevenshteinDistance("query",'google.cmo') <= 1`},
 		{`jakarta^4 apache`, `(("title" __quesma_match 'jakarta' OR "text" __quesma_match 'jakarta') OR ("title" __quesma_match 'apache' OR "text" __quesma_match 'apache'))`},
 		{`"jakarta apache"^10`, `("title" __quesma_match 'jakarta apache' OR "text" __quesma_match 'jakarta apache')`},
-		{`"jakarta apache"~10`, `("title" __quesma_match 'jakarta apache' OR "text" __quesma_match 'jakarta apache')`},
+		{`"jakarta apache"~10`, `(damerauLevenshteinDistance("title",'jakarta apache') <= 10 OR damerauLevenshteinDistance("text",'jakarta apache') <= 10)`},
 		{`mod_date:[2002-01-01 TO 2003-02-15]`, `("mod_date" >= '2002-01-01' AND "mod_date" <= '2003-02-15')`}, // 7
 		{`mod_date:[2002-01-01 TO 2003-02-15}`, `("mod_date" >= '2002-01-01' AND "mod_date" < '2003-02-15')`},
 		{`age:>10`, `"age" > '10'`},

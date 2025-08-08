@@ -4,14 +4,15 @@ package lucene
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/logger"
-	"github.com/QuesmaOrg/quesma/platform/model"
-	"github.com/QuesmaOrg/quesma/platform/schema"
 	"math"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/QuesmaOrg/quesma/platform/logger"
+	"github.com/QuesmaOrg/quesma/platform/model"
+	"github.com/QuesmaOrg/quesma/platform/schema"
 )
 
 // Mainly based on this doc: https://lucene.apache.org/core/2_9_4/queryparsersyntax.html
@@ -80,7 +81,6 @@ func TranslateToSQL(ctx context.Context, query string, fields []string, currentS
 }
 
 func (p *luceneParser) translateToSQL(query string) model.Expr {
-	query = p.removeFuzzySearchOperator(query)
 	query = p.removeBoostingOperator(query)
 	p.tokenizeQuery(query)
 	if len(p.tokens) == 1 {
@@ -142,7 +142,31 @@ func (p *luceneParser) parseTerm(query string, closingBoundTerm bool) (token tok
 	case '"':
 		for i, r := range query[1:] {
 			if r == '"' {
-				return newTermToken(query[:i+2]), query[i+2:]
+				term := query[:i+2]
+				remainingQuery = query[i+2:]
+				// Check for fuzzy operator after quoted term (e.g., "term"~2)
+				if strings.HasPrefix(remainingQuery, string(fuzzyOperator)) {
+					// Parse fuzzy operator from remaining query
+					distanceEnd := 1 // Start after ~
+
+					// Find where distance ends (space, delimiter, etc.)
+					for distanceEnd < len(remainingQuery) {
+						r := remainingQuery[distanceEnd]
+						if r == ' ' || r == delimiterCharacter || r == rightParenthesis {
+							break
+						}
+						distanceEnd++
+					}
+
+					distanceStr := remainingQuery[1:distanceEnd] // Skip the ~
+					distance := p.parseFuzzyDistance(distanceStr)
+
+					// Remove quotes from term for fuzzy search
+					cleanTerm := term[1 : len(term)-1] // Remove quotes
+					logger.InfoWithCtx(p.ctx).Msgf("Parsed fuzzy term: %s with distance: %d", cleanTerm, distance)
+					return newFuzzyToken(cleanTerm, distance), remainingQuery[distanceEnd:]
+				}
+				return newTermToken(term), remainingQuery
 			}
 		}
 		logger.Error().Msgf("unterminated quoted term, query: %s", query)
@@ -152,11 +176,72 @@ func (p *luceneParser) parseTerm(query string, closingBoundTerm bool) (token tok
 	default:
 		for i, r := range query {
 			if r == ' ' || r == delimiterCharacter || r == rightParenthesis || (closingBoundTerm && (r == exclusiveRangeClosingCharacter || r == inclusiveRangeClosingCharacter)) {
-				return newTermToken(query[:i]), query[i:]
+				term := query[:i]
+				remainingQuery = query[i:]
+				// Check for fuzzy operator
+				if fuzzyTok, remaining := p.parseFuzzyIfPresent(term, remainingQuery); fuzzyTok != nil {
+					return fuzzyTok, remaining
+				}
+				return newTermToken(term), remainingQuery
 			}
 		}
-		return newTermToken(query), ""
+		// End of query reached
+		term := query
+		remainingQuery = ""
+		// Check for fuzzy operator
+		if fuzzyTok, remaining := p.parseFuzzyIfPresent(term, remainingQuery); fuzzyTok != nil {
+			return fuzzyTok, remaining
+		}
+		return newTermToken(term), remainingQuery
 	}
+}
+
+// parseFuzzyIfPresent checks if the term contains fuzzy operator and parses it
+// Returns fuzzy token if fuzzy operator found, nil otherwise
+func (p *luceneParser) parseFuzzyIfPresent(term string, remainingQuery string) (token, string) {
+	// Check if term contains fuzzy operator
+	fuzzyIndex := strings.LastIndex(term, string(fuzzyOperator))
+	if fuzzyIndex == -1 {
+		return nil, remainingQuery
+	}
+
+	// Check if it's escaped
+	if fuzzyIndex > 0 && term[fuzzyIndex-1] == escapeCharacter {
+		return nil, remainingQuery
+	}
+
+	// Extract the base term (before ~)
+	baseTerm := term[:fuzzyIndex]
+	if baseTerm == "" {
+		return nil, remainingQuery
+	}
+
+	// Extract distance (after ~)
+	distanceStr := term[fuzzyIndex+1:]
+	distance := p.parseFuzzyDistance(distanceStr)
+
+	return newFuzzyToken(baseTerm, distance), remainingQuery
+}
+
+// parseFuzzyDistance converts a distance string to an integer for fuzzy search.
+// Returns 2 as default if distanceStr is empty or invalid.
+// For fractional values like 0.8, returns 1 as minimum distance.
+func (p *luceneParser) parseFuzzyDistance(distanceStr string) int {
+	if distanceStr == "" {
+		return 2 // default fuzzy distance
+	}
+
+	if parsedFloat, err := strconv.ParseFloat(distanceStr, 64); err == nil && parsedFloat >= 0 {
+		// Convert float to int - Elasticsearch typically uses this for edit distance
+		// For fractional values like 0.8, we'll use 1 as minimum distance
+		if parsedFloat < 1.0 && parsedFloat > 0 {
+			return 1
+		} else {
+			return int(parsedFloat)
+		}
+	}
+
+	return 2 // default if parsing fails
 }
 
 func (p *luceneParser) parseRange(query string) (token token, remainingQuery string) {
@@ -277,10 +362,6 @@ func (p *luceneParser) parseOneBound(query string, closingBound bool) (bound any
 		logger.Error().Msgf("parseRange: invalid range, query: %s", query)
 		return newInvalidToken(), ""
 	}
-}
-
-func (p *luceneParser) removeFuzzySearchOperator(query string) string {
-	return p.removeSpecialCharacter(query, fuzzyOperator)
 }
 
 func (p *luceneParser) removeBoostingOperator(query string) string {
