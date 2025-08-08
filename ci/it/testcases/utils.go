@@ -198,9 +198,11 @@ func setupQuesma(ctx context.Context, quesmaConfig string) (testcontainers.Conta
 		log.Println("No QUESMA_IT_VERSION environment variable set, watch out for stale images!")
 		quesmaVersion = "nightly"
 	}
+	quesmaDockerImage := fmt.Sprintf("quesma/quesma:%s", quesmaVersion)
+	log.Printf("Using Quesma docker image: %s", quesmaDockerImage)
 
 	quesmaReq := testcontainers.ContainerRequest{
-		Image:        fmt.Sprintf("quesma/quesma:%s", quesmaVersion),
+		Image:        quesmaDockerImage,
 		ExposedPorts: []string{"0.0.0.0::9999/tcp", "0.0.0.0::8080/tcp"},
 		Env: map[string]string{
 			"QUESMA_CONFIG_FILE": "/configuration/conf.yaml",
