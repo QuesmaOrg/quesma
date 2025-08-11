@@ -152,6 +152,7 @@ func main() {
 
 func constructQuesma(cfg *config.QuesmaConfiguration, sl database_common.TableDiscovery, lm *database_common.LogManager, ip *ingest.IngestProcessor, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsrepository ab_testing.Sender, indexRegistry table_resolver.TableResolver) *Quesma {
 	if cfg.TransparentProxy {
+		logger.Info().Msg("JUST TESTING PR")
 		return NewQuesmaTcpProxy(cfg, quesmaManagementConsole, logChan, false)
 	} else {
 		return NewHttpProxy(phoneHomeAgent, lm, ip, sl, schemaRegistry, cfg, quesmaManagementConsole, abResultsrepository, indexRegistry)
