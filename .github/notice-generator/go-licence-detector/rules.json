@@ -1,5 +1,5 @@
 {
-  "_comment": "This is the stock rules.json file (https://github.com/elastic/go-licence-detector/blob/master/assets/rules.json) but with added Unlicense. Additionally, we had to add `QUESMA_CODEBASE_UNDER_ELASTIC_2.0_LICENSE` license type for our internal dependency as go-license-detector failed to detect it correctly.",
+  "_comment": "This is the stock rules.json file (https://github.com/elastic/go-licence-detector/blob/master/assets/rules.json) but with added Unlicense. Additionally, we had to add `QUESMA_CODEBASE_UNDER_ELASTIC_2.0_LICENSE` license type for our internal dependency as go-license-detector failed to detect it correctly, more in https://github.com/QuesmaOrg/quesma/pull/1515",
   "allowlist": [
     "Apache-2.0",
     "BSD-2-Clause",
