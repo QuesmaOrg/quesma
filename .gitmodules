@@ -1,3 +1,0 @@
-[submodule "platform/parsers/sql/testdata"]
-	path = platform/parsers/sql/testdata
-	url = https://github.com/avelanarius/quesma-testdata-wip.git
