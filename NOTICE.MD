@@ -543,7 +543,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #### Module  : github.com/QuesmaOrg/quesma/platform
 Version : v0.0.0-20250519105918-0f6942f1a3dd
 Time    : unknown
-Licence : Elastic-2.0
+Licence : QUESMA_INTERNAL_DEPENDENCY
 
 No licence file provided.
 
@@ -551,7 +551,7 @@ No licence file provided.
 #### Module  : github.com/QuesmaOrg/quesma/platform
 Version : v0.0.0-20250630134911-e11a59a7d078
 Time    : unknown
-Licence : Elastic-2.0
+Licence : QUESMA_INTERNAL_DEPENDENCY
 
 No licence file provided.
 
