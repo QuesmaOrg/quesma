@@ -4,3 +4,4 @@
 {"name": "github.com/xeipuuv/gojsonpointer", "licenceFile": "LICENSE-APACHE-2.0.txt"}
 {"name": "github.com/xeipuuv/gojsonreference", "licenceFile": "LICENSE-APACHE-2.0.txt"}
 {"name": "github.com/xeipuuv/gojsonschema", "licenceFile": "LICENSE-APACHE-2.0.txt"}
+{"name": "github.com/QuesmaOrg/quesma/platform", "licenceType": "QUESMA_CODEBASE_UNDER_ELASTIC_2.0_LICENSE"}
