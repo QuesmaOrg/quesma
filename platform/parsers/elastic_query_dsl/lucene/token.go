@@ -51,3 +51,15 @@ type termToken struct {
 func newTermToken(term string) termToken {
 	return termToken{term}
 }
+
+type fuzzyToken struct {
+	term     string
+	distance int
+}
+
+func newFuzzyToken(term string, distance int) fuzzyToken {
+	if distance <= 0 {
+		distance = 2 // default fuzzy distance
+	}
+	return fuzzyToken{term: term, distance: distance}
+}
