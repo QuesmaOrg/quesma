@@ -1159,7 +1159,7 @@ func (s *SchemaCheckPass) makeTransformations(backendConnectorType quesma_api.Ba
 	// Section 3: backend specific transformations
 	// fallback to clickhouse date functions if no backend connector is set
 
-	if backendConnectorType == quesma_api.ClickHouseSQLBackend {
+	if backendConnectorType == quesma_api.ClickHouseSQLBackend || backendConnectorType == quesma_api.HydrolixSQLBackend {
 		transformationChain = append(transformationChain, struct {
 			TransformationName string
 			Transformation     func(schema.Schema, *model.Query) (*model.Query, error)
