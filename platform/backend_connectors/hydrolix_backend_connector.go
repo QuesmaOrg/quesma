@@ -75,10 +75,10 @@ func NewHydrolixBackendConnector(configuration *config.RelationalDbConfiguration
 }
 
 func NewHydrolixBackendConnectorWithConnection(configuration *config.RelationalDbConfiguration, conn *sql.DB) *HydrolixBackendConnector {
-	if err := checkHydrolixConfig(configuration); err != nil {
-		logger.Error().Msgf("Invalid Hydrolix configuration: %v", err)
-		return nil
-	}
+	//if err := checkHydrolixConfig(configuration); err != nil {
+	//	logger.Error().Msgf("Invalid Hydrolix configuration: %v", err)
+	//	return nil
+	//} TODO: This enforces Hydrolix token, used only for ingesting data
 	return &HydrolixBackendConnector{
 		BasicSqlBackendConnector: BasicSqlBackendConnector{
 			connection: conn,
