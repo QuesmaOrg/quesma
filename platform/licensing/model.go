@@ -10,8 +10,9 @@ import (
 
 // License is an object returned by the license server based on the provided (and positively verified) license key
 type License struct {
-	InstallationID string    `json:"installation_id"`
-	ClientID       string    `json:"client_id"`
+	InstallationID string `json:"installation_id"`
+	// Deprecated
+	ClientID       string    `json:"client_id"` // used to be a human-readable organization name for telemetry purposes, given licensing module disabling its now irrelevant
 	Connectors     []string  `json:"connectors"`
 	Processors     []string  `json:"processors"`
 	ExpirationDate time.Time `json:"expiration_date"`

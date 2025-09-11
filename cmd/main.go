@@ -70,13 +70,13 @@ func main() {
 		log.Fatalf("error validating configuration: %v", err)
 	}
 
-	licenseMod := licensing.Init(&cfg)
+	_ = licensing.Init(&cfg)
 	qmcLogChannel := logger.InitLogger(logger.Configuration{
 		FileLogging:       cfg.Logging.FileLogging,
 		Path:              cfg.Logging.Path,
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
 		Level:             *cfg.Logging.Level,
-		ClientId:          licenseMod.License.ClientID,
+		ClientId:          "",
 	}, sig, doneCh)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
@@ -89,7 +89,7 @@ func main() {
 	var connectionPool = clickhouse.InitDBConnectionPool(&cfg)
 	//var connectionPool = doris.InitDBConnectionPool(&cfg)
 
-	phoneHomeAgent := telemetry.NewPhoneHomeAgent(&cfg, connectionPool, licenseMod.License.ClientID)
+	phoneHomeAgent := telemetry.NewPhoneHomeAgent(&cfg, connectionPool, "")
 	phoneHomeAgent.Start()
 
 	virtualTableStorage := persistence.NewElasticJSONDatabase(cfg.Elasticsearch, common_table.VirtualTableElasticIndexName)

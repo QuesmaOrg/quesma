@@ -16,8 +16,9 @@ import (
 type LicenseModule struct {
 	InstallationID string
 	LicenseKey     []byte
-	License        *License
-	Config         *config.QuesmaConfiguration
+	//Deprecated
+	License *License // License module has been disabled
+	Config  *config.QuesmaConfiguration
 }
 
 const (
@@ -66,16 +67,16 @@ func (l *LicenseModule) Run() {
 	} else {
 		l.logInfo("License key not supplied in the configuration, will attempt to obtain temporary license with limited functionalities")
 		l.setInstallationID()
-		if err := l.obtainLicenseKey(); err != nil {
-			PanicWithLicenseViolation(fmt.Errorf("failed to obtain license key: %v", err))
-		}
+		//if err := l.obtainLicenseKey(); err != nil {
+		//	PanicWithLicenseViolation(fmt.Errorf("failed to obtain license key: %v", err))
+		//}
 	}
-	if err := l.processLicense(); err != nil {
-		PanicWithLicenseViolation(fmt.Errorf("failed to process license: %v", err))
-	}
-	if err := l.validateConfig(); err != nil {
-		PanicWithLicenseViolation(fmt.Errorf("failed to validate configuration: %v", err))
-	}
+	//if err := l.processLicense(); err != nil {
+	//	PanicWithLicenseViolation(fmt.Errorf("failed to process license: %v", err))
+	//}
+	//if err := l.validateConfig(); err != nil {
+	//	PanicWithLicenseViolation(fmt.Errorf("failed to validate configuration: %v", err))
+	//}
 }
 
 func (l *LicenseModule) validateConfig() error {
