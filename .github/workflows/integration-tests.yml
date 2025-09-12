@@ -60,7 +60,7 @@ jobs:
           ref: ${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           cache-dependency-path: smoke-test/go.sum
           go-version: '1.24'
