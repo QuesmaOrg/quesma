@@ -87,3 +87,16 @@ services:
       interval: 1s
       timeout: 1s
       start_period: 1m
+  doris:
+    # user: root, no password
+    # mysql -h 127.0.0.1 -uroot -P9030
+    image: apache/doris:2.1.9-all
+    container_name: doris
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "8030:8030"
+      - "9030:9030"
+      - "8040:8040"
+    environment:
+      - SKIP_CHECK_ULIMIT=true
