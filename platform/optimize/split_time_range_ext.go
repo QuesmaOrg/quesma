@@ -161,7 +161,7 @@ func (s splitTimeRangeExt) getSplitPoints(foundTimeRange timeRange, properties m
 		}
 	}
 
-	result := []timeRangeLimit{foundTimeRange.lowerLimit}
+	result := []timeRangeLimit{foundTimeRange.lowerLimit, foundTimeRange.upperLimit}
 
 	for _, shorterTimeRangeMinute := range shorterTimeRangesMinutes {
 		var splitPoint timeRangeLimit
@@ -170,12 +170,10 @@ func (s splitTimeRangeExt) getSplitPoints(foundTimeRange timeRange, properties m
 		} else {
 			splitPoint = timeRangeLimit{value: foundTimeRange.upperLimit.value - shorterTimeRangeMinute*int64(time.Minute.Seconds()), funcName: foundTimeRange.upperLimit.funcName}
 		}
-		if splitPoint.value >= foundTimeRange.lowerLimit.value && splitPoint.value <= foundTimeRange.upperLimit.value {
+		if splitPoint.value > foundTimeRange.lowerLimit.value && splitPoint.value < foundTimeRange.upperLimit.value {
 			result = append(result, splitPoint)
 		}
 	}
-
-	result = append(result, foundTimeRange.upperLimit)
 
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].value >= result[j].value
@@ -214,9 +212,17 @@ func (s splitTimeRangeExt) transformQuery(query *model.Query, properties map[str
 			),
 			"AND",
 			model.NewInfixExpr(
-				model.NewColumnRef(foundTimeRange.columnName), "<", endExpr,
+				model.NewColumnRef(foundTimeRange.columnName), "<=", endExpr,
 			),
 		)
+
+		if subquery.WhereClause != nil {
+			whereClause = model.NewInfixExpr(
+				subquery.WhereClause,
+				"AND",
+				whereClause,
+			)
+		}
 
 		subquery.WhereClause = whereClause
 		subqueries = append(subqueries, subquery)
