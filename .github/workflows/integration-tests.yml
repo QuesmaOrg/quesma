@@ -55,7 +55,7 @@ jobs:
     if: ${{ always() && (github.event_name != 'issue_comment' || needs.check-comment.result == 'success') }}
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.GIT_REF || needs.check-comment.outputs.ref }}
 
