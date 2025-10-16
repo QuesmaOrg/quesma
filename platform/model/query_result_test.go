@@ -34,6 +34,7 @@ func TestQueryResultCol_String(t *testing.T) {
 		value    any
 		expected string
 	}{
+		{time.Date(2023, 10, 5, 14, 30, 45, 000000000, time.UTC), `"name": "2023-10-05 14:30:45.000000 +0000 UTC"`},
 		{time.Date(2023, 10, 5, 14, 30, 45, 123456000, time.UTC), `"name": "2023-10-05 14:30:45.123456 +0000 UTC"`},
 		{"test", `"name": "test"`},
 		{`test "GET"`, `"name": "test \"GET\""`},
@@ -42,10 +43,10 @@ func TestQueryResultCol_String(t *testing.T) {
 		{int64(1), `"name": 1`},
 		{uint64(1), `"name": 1`},
 		{true, `"name": true`},
-		{time.Time{}, `"name": "0001-01-01 00:00:00 +0000 UTC"`},
+		{time.Time{}, `"name": "0001-01-01 00:00:00.000000 +0000 UTC"`},
 		{strPtr, `"name": ""`},
 		{strPtrNil, ``},
-		{timePtr, `"name": "0001-01-01 00:00:00 +0000 UTC"`},
+		{timePtr, `"name": "0001-01-01 00:00:00.000000 +0000 UTC"`},
 		{timePtrNil, ``},
 		{int64Ptr, `"name": 1`},
 		{int64PtrNil, ``},

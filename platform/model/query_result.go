@@ -5,15 +5,16 @@ package model
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"slices"
+	"strings"
+	"time"
+
 	"github.com/QuesmaOrg/quesma/platform/common_table"
 	"github.com/QuesmaOrg/quesma/platform/logger"
 	"github.com/QuesmaOrg/quesma/platform/schema"
 	"github.com/QuesmaOrg/quesma/platform/util"
 	"github.com/goccy/go-json"
-	"reflect"
-	"slices"
-	"strings"
-	"time"
 )
 
 type (
@@ -46,7 +47,9 @@ func (c *QueryResultCol) String(ctx context.Context) string {
 		}
 		return fmt.Sprintf(`"%s": %s`, c.ColName, string(processed))
 	case time.Time:
-		return fmt.Sprintf(`"%s": "%v"`, c.ColName, valueExtracted)
+		// Format timestamp with consistent microsecond precision
+		formattedTime := valueExtracted.(time.Time).Format("2006-01-02 15:04:05.000000 -0700 MST")
+		return fmt.Sprintf(`"%s": "%s"`, c.ColName, formattedTime)
 	case int, int64, float64, uint64, bool:
 		return fmt.Sprintf(`"%s": %v`, c.ColName, valueExtracted)
 	default:
