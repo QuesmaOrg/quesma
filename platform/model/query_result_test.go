@@ -4,10 +4,11 @@ package model
 
 import (
 	"context"
-	"github.com/QuesmaOrg/quesma/platform/util"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/QuesmaOrg/quesma/platform/util"
 )
 
 func TestQueryResultCol_String(t *testing.T) {
@@ -33,6 +34,7 @@ func TestQueryResultCol_String(t *testing.T) {
 		value    any
 		expected string
 	}{
+		{time.Date(2023, 10, 5, 14, 30, 45, 123456000, time.UTC), `"name": "2023-10-05 14:30:45.123456 +0000 UTC"`},
 		{"test", `"name": "test"`},
 		{`test "GET"`, `"name": "test \"GET\""`},
 		{1, `"name": 1`},
