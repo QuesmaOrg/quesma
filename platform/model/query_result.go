@@ -39,25 +39,25 @@ func (c *QueryResultCol) String(ctx context.Context) string {
 	if valueExtracted == nil {
 		return ""
 	}
-	switch valueExtracted.(type) {
+	switch v := valueExtracted.(type) {
 	case string:
-		processed, err := json.Marshal(valueExtracted)
+		processed, err := json.Marshal(v)
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Err(err).Msgf("failed to marshal value %v", valueExtracted)
+			logger.ErrorWithCtx(ctx).Err(err).Msgf("failed to marshal value %v", v)
 		}
 		return fmt.Sprintf(`"%s": %s`, c.ColName, string(processed))
 	case time.Time:
 		// Format timestamp with consistent microsecond precision
-		formattedTime := valueExtracted.(time.Time).Format("2006-01-02 15:04:05.000000 -0700 MST")
+		formattedTime := v.Format("2006-01-02 15:04:05.000000 -0700 MST")
 		return fmt.Sprintf(`"%s": "%s"`, c.ColName, formattedTime)
 	case int, int64, float64, uint64, bool:
-		return fmt.Sprintf(`"%s": %v`, c.ColName, valueExtracted)
+		return fmt.Sprintf(`"%s": %v`, c.ColName, v)
 	default:
 		// Probably good to only use marshaller when necessary, so for arrays/maps,
 		// and try to handle simple cases without it
-		marshalled, err := json.Marshal(valueExtracted)
+		marshalled, err := json.Marshal(v)
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Err(err).Msgf("failed to marshal value %v", valueExtracted)
+			logger.ErrorWithCtx(ctx).Err(err).Msgf("failed to marshal value %v", v)
 		}
 		return fmt.Sprintf(`"%s": %v`, c.ColName, string(marshalled))
 	}
