@@ -94,7 +94,7 @@ jobs:
           DOCKER_BUILD_SUMMARY: false
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ !inputs.PUSH }}
         with:
           name: "quesma-nightly" # this is just a name for artifact stored in github, not in dockerhub
