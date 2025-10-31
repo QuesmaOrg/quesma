@@ -11,14 +11,24 @@
 </p>
 
 <p align="center">
-<a href="https://www.quesma.com">Website</a> | 
-<a href="https://www.linkedin.com/company/quesma">LinkedIn</a> | 
-<a href="https://twitter.com/QuesmaOrg">Twitter</a> | 
-<a href="https://www.youtube.com/@QuesmaOrg">YouTube</a> | 
+<a href="https://www.quesma.com">Website</a> |
+<a href="https://www.linkedin.com/company/quesma">LinkedIn</a> |
+<a href="https://twitter.com/QuesmaOrg">Twitter</a> |
+<a href="https://www.youtube.com/@QuesmaOrg">YouTube</a> |
 <a href="https://docs.quesma.com/eap-docs">Docs</a>
 </p>
 
-Quesma is an actively developed database gateway. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.
+---
+
+## Important announcement
+
+The Quesma database gateway IP has been acquired by [Hydrolix](https://hydrolix.io/) to ensure continued support. [Read the announcement.](https://www.prnewswire.com/news-releases/hydrolix-adds-quesma-gateway-proxy-ip-to-its-portfolio-assuring-continued-kibana-support-302559127.html)
+
+This repository is no longer actively supported by the original Quesma team. For questions or support, please [contact Hydrolix](https://hydrolix.io/contact/).
+
+---
+
+Quesma is a database gateway. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.
 
 How? Isn't migrating to a new database hard? Quesma does it without touching your application/client stack - keeping backward compatibility and moving safely, step-by-step. We translate your queries so you don’t have to rewrite your database query code during migrations.
 

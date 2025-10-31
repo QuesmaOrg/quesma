@@ -21,3 +21,9 @@ hero:
 
 ---
 
+::: warning IMPORTANT ANNOUNCEMENT
+The Quesma database gateway IP has been acquired by [Hydrolix](https://hydrolix.io/) to ensure continued support. [Read the announcement.](https://www.prnewswire.com/news-releases/hydrolix-adds-quesma-gateway-proxy-ip-to-its-portfolio-assuring-continued-kibana-support-302559127.html)
+
+This repository is no longer actively supported by the original Quesma team. For questions or support, please [contact Hydrolix](https://hydrolix.io/contact/).
+:::
+
