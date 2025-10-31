@@ -3,7 +3,13 @@ description: What is Quesma?
 ---
 # What is Quesma?
 
-Quesma is an actively developed database gateway. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.
+::: warning IMPORTANT ANNOUNCEMENT
+The Quesma database gateway IP has been acquired by [Hydrolix](https://hydrolix.io/) to ensure continued support. [Read the announcement.](https://www.prnewswire.com/news-releases/hydrolix-adds-quesma-gateway-proxy-ip-to-its-portfolio-assuring-continued-kibana-support-302559127.html)
+
+This repository is no longer actively supported by the original Quesma team. For questions or support, please [contact Hydrolix](https://hydrolix.io/contact/).
+:::
+
+Quesma is a database gateway. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.
 
 In its current form, Quesma is a lightweight database proxy that enables database interoperability between Elasticsearch/OpenSearch and ClickHouse/Hydrolix.
 
